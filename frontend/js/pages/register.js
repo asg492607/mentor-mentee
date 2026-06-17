@@ -21,6 +21,7 @@ export async function render(container) {
               <select id="role" class="form-select" required>
                 <option value="STUDENT">Student</option>
                 <option value="MENTOR">Teacher / Faculty</option>
+                <option value="DEAN">Dean</option>
               </select>
             </div>
 
@@ -173,8 +174,14 @@ export async function render(container) {
       data.profile.department = document.getElementById('teacher-department').value;
       data.profile.designation = document.getElementById('designation').value;
       data.profile.employeeId = document.getElementById('employeeId').value;
-      data.profile.status = 'pending';
-      data.profile.isApproved = false;
+      
+      if (role === 'DEAN') {
+        data.profile.status = 'approved';
+        data.profile.isApproved = true;
+      } else {
+        data.profile.status = 'pending';
+        data.profile.isApproved = false;
+      }
     }
 
     try {
