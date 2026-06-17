@@ -28,6 +28,20 @@ const routes = {
 
 const authFreeRoutes = ['/login', '/register'];
 
+// Map a Firestore role string to the correct dashboard URL prefix
+function getRoleDashboardPath(role) {
+  if (!role) return '/login';
+  switch (role.toUpperCase()) {
+    case 'STUDENT':  return '/student/dashboard';
+    case 'FACULTY':
+    case 'MENTOR':   return '/mentor/dashboard';
+    case 'HOD':      return '/hod/dashboard';
+    case 'DEAN':     return '/dean/dashboard';
+    case 'ADMIN':    return '/admin/dashboard';
+    default:         return '/student/dashboard';
+  }
+}
+
 export function navigateTo(path) {
   window.location.hash = path;
 }
@@ -48,7 +62,7 @@ async function handleRoute() {
               profile = await fetchUserProfile();
           }
           if(profile && profile.role) {
-              path = `/${profile.role.toLowerCase()}/dashboard`;
+              path = getRoleDashboardPath(profile.role);
               navigateTo(path);
               return;
           }
@@ -83,6 +97,7 @@ async function handleRoute() {
     const module = await import(modulePath);
     if (module.render) {
       await module.render(appContainer);
+      updateThemeToggleUI();
     } else {
       throw new Error(`Module ${modulePath} does not export a render function`);
     }
@@ -127,5 +142,31 @@ window.addEventListener('DOMContentLoaded', () => {
                 handleRoute();
             }
         }, 1000);
+    }
+});
+
+function updateThemeToggleUI(theme) {
+    const currentTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark';
+    const sunIcons = document.querySelectorAll('.sun-icon');
+    const moonIcons = document.querySelectorAll('.moon-icon');
+    
+    if (currentTheme === 'light') {
+        sunIcons.forEach(icon => icon.style.display = 'block');
+        moonIcons.forEach(icon => icon.style.display = 'none');
+    } else {
+        sunIcons.forEach(icon => icon.style.display = 'none');
+        moonIcons.forEach(icon => icon.style.display = 'block');
+    }
+}
+
+// Theme Toggle Click Handler
+document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('#theme-toggle');
+    if (toggleBtn) {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeToggleUI(newTheme);
     }
 });

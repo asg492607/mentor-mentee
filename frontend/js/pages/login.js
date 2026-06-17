@@ -54,9 +54,17 @@ export async function render(container) {
       
       showToast('Login successful!', 'success');
       
-      // Redirect based on role
+      // Redirect based on role — FACULTY maps to /mentor/dashboard
+      const rolePathMap = {
+        STUDENT: '/student/dashboard',
+        FACULTY: '/mentor/dashboard',
+        MENTOR:  '/mentor/dashboard',
+        HOD:     '/hod/dashboard',
+        DEAN:    '/dean/dashboard',
+        ADMIN:   '/admin/dashboard'
+      };
       if (profile && profile.role) {
-          navigateTo(`/${profile.role.toLowerCase()}/dashboard`);
+          navigateTo(rolePathMap[profile.role.toUpperCase()] || '/student/dashboard');
       } else {
           // Default fallback
           navigateTo('/student/dashboard');

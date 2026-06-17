@@ -1,19 +1,16 @@
 from app.repositories.base_repository import BaseRepository
-from app.firebase.client import db
+
 
 class FacultyRepository(BaseRepository):
     def __init__(self):
         super().__init__('faculty')
 
-    def get_by_department(self, dept: str):
-        query = self.collection.where('department', '==', dept)
-        return [doc.to_dict() | {'id': doc.id} for doc in query.stream()]
+    def get_by_department(self, dept: str) -> list[dict]:
+        return self.query(filters=[('department', '==', dept)])
 
-    def get_available(self, dept: str):
-        query = self.collection.where('department', '==', dept)
-        results = []
-        for doc in query.stream():
-            data = doc.to_dict()
-            if data.get('assignedStudentCount', 0) < data.get('maxStudents', 20):
-                results.append(data | {'id': doc.id})
-        return results
+    def get_available(self, dept: str) -> list[dict]:
+        mentors = self.get_by_department(dept)
+        return [
+            m for m in mentors
+            if m.get('assignedStudentCount', 0) < m.get('maxStudents', 20)
+        ]

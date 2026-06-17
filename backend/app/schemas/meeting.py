@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
 from app.models.enums import MeetingType, MeetingStatus
+
 
 class MeetingCreateRequest(BaseModel):
     mentorId: str
@@ -9,22 +9,21 @@ class MeetingCreateRequest(BaseModel):
     description: str
     preferredDate: Optional[str] = None
 
+
 class MeetingResponse(BaseModel):
     id: str
     studentId: str
-    studentName: str
     mentorId: str
-    mentorName: str
     type: MeetingType
     status: MeetingStatus
     description: str
-    scheduledAt: Optional[datetime] = None
-    startedAt: Optional[datetime] = None
-    endedAt: Optional[datetime] = None
+    scheduledAt: Optional[str] = None
+    startedAt: Optional[str] = None
+    endedAt: Optional[str] = None
     roomId: Optional[str] = None
     notes: Optional[str] = None
-    actionItems: list[str] = []
-    createdAt: datetime
+    createdAt: Optional[str] = None
+
 
 class MeetingNotesRequest(BaseModel):
     problem: str
@@ -32,6 +31,12 @@ class MeetingNotesRequest(BaseModel):
     tasks: list[str] = []
     summary: str
 
+    @property
+    def notes(self) -> str:
+        return f"Problem: {self.problem}\nAdvice: {self.advice}\nSummary: {self.summary}"
+
+
 class MeetingUpdateRequest(BaseModel):
     status: Optional[MeetingStatus] = None
     scheduledAt: Optional[str] = None
+    rejectionReason: Optional[str] = None
