@@ -1,5 +1,6 @@
-from fastapi import WebSocket
+from fastapi import WebSocket, APIRouter
 
+router = APIRouter()
 class ConnectionManager:
     def __init__(self):
         self.rooms = {}
@@ -24,6 +25,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+@router.websocket("/meeting/{meeting_id}")
 async def signaling_endpoint(websocket: WebSocket, meeting_id: str):
     await manager.connect(meeting_id, websocket)
     try:
