@@ -12,7 +12,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         decoded_token = firebase_auth.verify_id_token(token)
         uid = decoded_token['uid']
         
-        user_doc = db.collection('users').document(uid).get()
+        user_doc = db.collection('students').document(uid).get()
+        if not user_doc.exists:
+            user_doc = db.collection('faculty').document(uid).get()
+            
         if not user_doc.exists:
             raise UnauthorizedException("User not found")
         

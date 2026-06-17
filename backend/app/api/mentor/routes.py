@@ -9,8 +9,7 @@ from app.schemas.issue import IssueEscalateRequest
 
 router = APIRouter(prefix="/mentor", tags=["Mentor"])
 
-def get_mentor_user(user = Depends(get_current_user)):
-    require_role(user, UserRole.FACULTY)
+def get_mentor_user(user = Depends(require_role(UserRole.FACULTY))):
     return user
 
 @router.get("/dashboard")

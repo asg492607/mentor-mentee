@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 python-multipart==0.0.6
 websockets==12.0
 httpx==0.25.2
+gunicorn==21.2.0

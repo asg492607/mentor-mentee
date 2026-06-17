@@ -8,8 +8,7 @@ from app.repositories.faculty_repository import FacultyRepository
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-def get_admin_user(user = Depends(get_current_user)):
-    require_role(user, UserRole.ADMIN)
+def get_admin_user(user = Depends(require_role(UserRole.ADMIN))):
     return user
 
 @router.get("/users")

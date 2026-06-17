@@ -8,8 +8,7 @@ from app.repositories.faculty_repository import FacultyRepository
 
 router = APIRouter(prefix="/hod", tags=["HOD"])
 
-def get_hod_user(user = Depends(get_current_user)):
-    require_role(user, UserRole.HOD)
+def get_hod_user(user = Depends(require_role(UserRole.HOD))):
     return user
 
 @router.get("/dashboard")

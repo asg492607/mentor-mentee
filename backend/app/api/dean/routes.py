@@ -6,8 +6,7 @@ from app.repositories.department_repository import DepartmentRepository
 
 router = APIRouter(prefix="/dean", tags=["Dean"])
 
-def get_dean_user(user = Depends(get_current_user)):
-    require_role(user, UserRole.DEAN)
+def get_dean_user(user = Depends(require_role(UserRole.DEAN))):
     return user
 
 @router.get("/dashboard")

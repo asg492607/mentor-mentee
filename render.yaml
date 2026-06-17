@@ -1,0 +1,24 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: mentor-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      # Required Render environment variables that need to be injected via Dashboard:
+      # - FIREBASE_CREDENTIALS_PATH (path to secure file)
+      # - CORS_ORIGINS
+  
+  # Frontend Static Site
+  - type: web
+    name: mentor-frontend
+    env: static
+    buildCommand: "" # No build required for vanilla JS
+    staticPublishPath: "./frontend"
+    envVars:
+      # Note: Frontend config (Firebase keys) must be populated in frontend/js/config.js before deploy
+      - key: NODE_VERSION
+        value: 20.0.0

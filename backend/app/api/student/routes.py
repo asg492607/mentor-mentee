@@ -10,8 +10,7 @@ from app.schemas.issue import IssueCreateRequest
 
 router = APIRouter(prefix="/student", tags=["Student"])
 
-def get_student_user(user = Depends(get_current_user)):
-    require_role(user, UserRole.STUDENT)
+def get_student_user(user = Depends(require_role(UserRole.STUDENT))):
     return user
 
 @router.get("/dashboard")
