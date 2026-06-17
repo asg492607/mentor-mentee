@@ -1,11 +1,15 @@
-import { auth } from './firebase-init.js';
+import { auth, db } from './firebase-init.js';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { API_BASE_URL } from './config.js';
+import { 
+  doc, 
+  getDoc, 
+  setDoc 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
 
 let cachedUserProfile = null;
@@ -13,19 +17,23 @@ let cachedUserProfile = null;
 export async function login(email, password) {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const token = await userCredential.user.getIdToken();
+    const uid = userCredential.user.uid;
     
-    // Call backend to verify and get profile
-    const response = await fetch(`${API_BASE_URL}/api/auth/verify-token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    // Fetch profile directly from Firestore
+    let userDoc = await getDoc(doc(db, 'students', uid));
+    let profile = null;
+    if (userDoc.exists()) {
+        profile = { id: uid, ...userDoc.data() };
+    } else {
+        userDoc = await getDoc(doc(db, 'faculty', uid));
+        if (userDoc.exists()) {
+            profile = { id: uid, ...userDoc.data() };
+        }
+    }
     
-    if (!response.ok) throw new Error('Failed to verify token with backend');
+    if (!profile) throw new Error('User profile not found in database');
     
-    cachedUserProfile = await response.json();
+    cachedUserProfile = profile;
     return cachedUserProfile;
   } catch (error) {
     console.error("Login error:", error);
@@ -35,23 +43,25 @@ export async function login(email, password) {
 
 export async function register(data) {
   try {
-    // Note: In a real app, registration might be handled differently, 
-    // potentially entirely via backend or creating user first then backend.
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    const token = await userCredential.user.getIdToken();
+    const uid = userCredential.user.uid;
     
-    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(data)
-    });
+    const profileData = {
+        id: uid,
+        email: data.email,
+        name: data.profile.name,
+        role: data.role,
+        department: data.profile.department,
+        year: data.profile.year,
+        rollNumber: data.profile.rollNumber,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
     
-    if (!response.ok) throw new Error('Failed to register user details');
+    const collection = data.role === 'STUDENT' ? 'students' : 'faculty';
+    await setDoc(doc(db, collection, uid), profileData);
     
-    return await response.json();
+    return profileData;
   } catch (error) {
     console.error("Register error:", error);
     throw error;
@@ -84,18 +94,22 @@ export function getUserProfile() {
 
 // Helper to fetch profile if logged in but refreshed
 export async function fetchUserProfile() {
-    const token = await getIdToken();
-    if (!token) return null;
+    const user = auth.currentUser;
+    if (!user) return null;
+    const uid = user.uid;
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+        let userDoc = await getDoc(doc(db, 'students', uid));
+        let profile = null;
+        if (userDoc.exists()) {
+            profile = { id: uid, ...userDoc.data() };
+        } else {
+            userDoc = await getDoc(doc(db, 'faculty', uid));
+            if (userDoc.exists()) {
+                profile = { id: uid, ...userDoc.data() };
             }
-        });
-        if (response.ok) {
-            cachedUserProfile = await response.json();
-            return cachedUserProfile;
         }
+        cachedUserProfile = profile;
+        return cachedUserProfile;
     } catch(e) {
         console.error("Failed to fetch profile", e);
     }
