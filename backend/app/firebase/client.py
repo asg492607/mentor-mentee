@@ -10,8 +10,11 @@ def initialize_firebase():
         try:
             firebase_admin.get_app()
         except ValueError:
-            cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-            firebase_admin.initialize_app(cred)
+            try:
+                cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+                firebase_admin.initialize_app(cred)
+            except Exception as e:
+                print(f"Failed to initialize Firebase: {e}")
         _initialized = True
 
 try:
