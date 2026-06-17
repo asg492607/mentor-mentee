@@ -1,0 +1,74 @@
+from enum import Enum
+
+class UserRole(str, Enum):
+    STUDENT = "STUDENT"
+    FACULTY = "FACULTY"
+    HOD = "HOD"
+    DEAN = "DEAN"
+    ADMIN = "ADMIN"
+
+class MeetingStatus(str, Enum):
+    REQUESTED = "REQUESTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    SCHEDULED = "SCHEDULED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+class MeetingType(str, Enum):
+    ACADEMIC = "ACADEMIC"
+    CAREER = "CAREER"
+    PERSONAL = "PERSONAL"
+    INTERNSHIP = "INTERNSHIP"
+    PROJECT = "PROJECT"
+    HIGHER_STUDIES = "HIGHER_STUDIES"
+
+class IssueStatus(str, Enum):
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    ESCALATED = "ESCALATED"
+    CLOSED = "CLOSED"
+
+class IssuePriority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+class EscalationLevel(str, Enum):
+    MENTOR = "MENTOR"
+    HOD = "HOD"
+    DEAN = "DEAN"
+
+class ActionItemStatus(str, Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    OVERDUE = "OVERDUE"
+
+class ActionItemCategory(str, Enum):
+    ACADEMIC = "ACADEMIC"
+    CAREER = "CAREER"
+    PROJECT = "PROJECT"
+    INTERNSHIP = "INTERNSHIP"
+    PERSONAL = "PERSONAL"
+
+class RiskLevel(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+class NotificationType(str, Enum):
+    MEETING_REQUESTED = "MEETING_REQUESTED"
+    MEETING_APPROVED = "MEETING_APPROVED"
+    MEETING_REJECTED = "MEETING_REJECTED"
+    MEETING_REMINDER = "MEETING_REMINDER"
+    ISSUE_CREATED = "ISSUE_CREATED"
+    ISSUE_ESCALATED = "ISSUE_ESCALATED"
+    ISSUE_RESOLVED = "ISSUE_RESOLVED"
+    TASK_ASSIGNED = "TASK_ASSIGNED"
+    TASK_OVERDUE = "TASK_OVERDUE"
+    RISK_ALERT = "RISK_ALERT"
+    GENERAL = "GENERAL"

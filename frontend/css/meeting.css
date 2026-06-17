@@ -1,0 +1,233 @@
+.meeting-room {
+  height: 100vh;
+  width: 100vw;
+  background-color: #000;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  overflow: hidden;
+}
+
+.meeting-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.video-grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: 90px; /* Space for controls */
+}
+
+.video-container {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  flex: 1 1 40%;
+  min-width: 300px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+.video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-label {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  color: white;
+  z-index: 10;
+}
+
+.meeting-controls {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  background: rgba(19, 19, 40, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 12px 24px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  z-index: 20;
+}
+
+.control-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.control-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.control-btn:hover {
+  background: var(--bg-glass-hover);
+  transform: translateY(-2px);
+}
+
+.control-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.control-btn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.control-btn.danger:hover {
+  background: #dc2626;
+}
+
+.meeting-sidebar {
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.meeting-sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meeting-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.meeting-tab {
+  flex: 1;
+  padding: 12px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+
+.meeting-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.meeting-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-message {
+  background: var(--bg-glass);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  max-width: 85%;
+}
+
+.chat-message.self {
+  background: var(--accent-light);
+  align-self: flex-end;
+}
+
+.chat-sender {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.chat-input-area {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+.meeting-notes-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.meeting-notes {
+  flex: 1;
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  color: var(--text-primary);
+  font-family: var(--font);
+  resize: none;
+}
+
+.student-info-panel {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+@media (max-width: 992px) {
+  .meeting-room {
+    grid-template-columns: 1fr;
+  }
+  
+  .meeting-sidebar {
+    display: none; /* Can be toggled via button in a real implementation */
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    width: 320px;
+  }
+}

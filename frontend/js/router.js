@@ -1,0 +1,131 @@
+import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
+
+const routes = {
+  '/login': './pages/login.js',
+  '/register': './pages/register.js',
+  '/student/dashboard': './pages/student/dashboard.js',
+  '/student/meetings': './pages/student/meetings.js',
+  '/student/issues': './pages/student/issues.js',
+  '/student/tasks': './pages/student/tasks.js',
+  '/student/profile': './pages/student/profile.js',
+  '/mentor/dashboard': './pages/mentor/dashboard.js',
+  '/mentor/students': './pages/mentor/students.js',
+  '/mentor/meetings': './pages/mentor/meetings.js',
+  '/mentor/notes': './pages/mentor/notes.js',
+  '/mentor/reports': './pages/mentor/reports.js',
+  '/hod/dashboard': './pages/hod/dashboard.js',
+  '/hod/risk-students': './pages/hod/risk-students.js',
+  '/hod/escalations': './pages/hod/escalations.js',
+  '/dean/dashboard': './pages/dean/dashboard.js',
+  '/dean/analytics': './pages/dean/analytics.js',
+  '/admin/dashboard': './pages/admin/dashboard.js',
+  '/admin/users': './pages/admin/users.js',
+  '/admin/departments': './pages/admin/departments.js',
+  '/admin/allocation': './pages/admin/allocation.js',
+  '/admin/settings': './pages/admin/settings.js',
+  '/meeting-room': './pages/meeting-room.js'
+};
+
+const authFreeRoutes = ['/login', '/register'];
+
+export function navigateTo(path) {
+  window.location.hash = path;
+}
+
+export function getCurrentRoute() {
+  return window.location.hash.slice(1) || '/';
+}
+
+async function handleRoute() {
+  let path = getCurrentRoute();
+  
+  if (path === '/') {
+      // Redirect based on role if logged in, else login
+      const user = getCurrentUser();
+      if (user) {
+          let profile = getUserProfile();
+          if(!profile) {
+              profile = await fetchUserProfile();
+          }
+          if(profile && profile.role) {
+              path = `/${profile.role.toLowerCase()}/dashboard`;
+              navigateTo(path);
+              return;
+          }
+      }
+      path = '/login';
+      navigateTo(path);
+      return;
+  }
+
+  const modulePath = routes[path];
+  const appContainer = document.getElementById('app');
+
+  if (!modulePath) {
+    appContainer.innerHTML = `
+      <div class="empty-state h-screen">
+        <h2>404 - Page Not Found</h2>
+        <p class="text-muted mt-2">The page you are looking for does not exist.</p>
+        <button class="btn btn-primary mt-4" onclick="window.location.hash='/'">Go Home</button>
+      </div>
+    `;
+    return;
+  }
+
+  const user = getCurrentUser();
+  if (!user && !authFreeRoutes.includes(path)) {
+    navigateTo('/login');
+    return;
+  }
+
+  try {
+    appContainer.innerHTML = '<div class="loader-overlay"><div class="spinner"></div></div>';
+    const module = await import(modulePath);
+    if (module.render) {
+      await module.render(appContainer);
+    } else {
+      throw new Error(`Module ${modulePath} does not export a render function`);
+    }
+  } catch (error) {
+    console.error("Error loading route:", error);
+    appContainer.innerHTML = `
+      <div class="empty-state h-screen">
+        <h2 class="text-danger">Error Loading Page</h2>
+        <p class="text-muted mt-2">${error.message || 'Check console for details.'}</p>
+        <p class="text-muted mt-2 text-xs">Note: Placeholder routes might not exist yet.</p>
+      </div>
+    `;
+  }
+}
+
+// Initialization
+window.addEventListener('hashchange', handleRoute);
+
+let isInitialLoad = true;
+
+onAuthChange((user) => {
+    if (isInitialLoad) {
+        isInitialLoad = false;
+        handleRoute();
+    } else {
+        // Handle auth state changes that might require a redirect
+        const path = getCurrentRoute();
+        if (!user && !authFreeRoutes.includes(path)) {
+            navigateTo('/login');
+        } else if (user && authFreeRoutes.includes(path)) {
+            navigateTo('/'); // handleRoute will redirect to appropriate dashboard
+        }
+    }
+});
+
+// Fallback if onAuthChange doesn't fire quickly enough on first load
+window.addEventListener('DOMContentLoaded', () => {
+    if(isInitialLoad) {
+        setTimeout(() => {
+            if(isInitialLoad) {
+                isInitialLoad = false;
+                handleRoute();
+            }
+        }, 1000);
+    }
+});
