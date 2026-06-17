@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8000';
+export const API_BASE_URL = 'https://mentor-mentee-2ok6.onrender.com';
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCTYoDF9_TDOcaBJTGIVDCwH65y1UuqRx8",
