@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = 'serviceAccountKey.json'
-    CORS_ORIGINS: str = 'http://localhost:5500'
+    CORS_ORIGINS: str = '*'
     SMTP_HOST: str = 'smtp.gmail.com'
     SMTP_PORT: int = 587
     SMTP_USER: str = ''
