@@ -11,11 +11,19 @@ export async function render(container) {
       <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
           <h2 class="text-gradient mb-2">Join MentorOS</h2>
-          <p class="text-secondary">Create your student account to get started</p>
+          <p class="text-secondary">Create your student or teacher account to get started</p>
         </div>
 
         <form id="register-form">
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label class="form-label">Register As</label>
+              <select id="role" class="form-select" required>
+                <option value="STUDENT">Student</option>
+                <option value="MENTOR">Teacher / Faculty</option>
+              </select>
+            </div>
+
             <div class="form-group" style="grid-column: 1 / -1;">
               <label class="form-label">Full Name</label>
               <input type="text" id="name" class="form-input" placeholder="John Doe" required>
@@ -36,31 +44,63 @@ export async function render(container) {
               <input type="password" id="confirmPassword" class="form-input" placeholder="••••••••" required>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Department</label>
-              <select id="department" class="form-select" required>
-                <option value="">Select Department</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Information Technology">Information Technology</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Mechanical">Mechanical</option>
-              </select>
+            <!-- Student Fields -->
+            <div id="student-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: grid;">
+              <div class="form-group">
+                <label class="form-label">Department</label>
+                <select id="department" class="form-select" required>
+                  <option value="">Select Department</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Information Technology">Information Technology</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Mechanical">Mechanical</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Year</label>
+                <select id="year" class="form-select" required>
+                  <option value="">Select Year</option>
+                  <option value="1">First Year</option>
+                  <option value="2">Second Year</option>
+                  <option value="3">Third Year</option>
+                  <option value="4">Fourth Year</option>
+                </select>
+              </div>
+              
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Roll Number</label>
+                <input type="text" id="rollNumber" class="form-input" placeholder="e.g. 2021CS01" required>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Year</label>
-              <select id="year" class="form-select" required>
-                <option value="">Select Year</option>
-                <option value="1">First Year</option>
-                <option value="2">Second Year</option>
-                <option value="3">Third Year</option>
-                <option value="4">Fourth Year</option>
-              </select>
-            </div>
-            
-            <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label">Roll Number</label>
-              <input type="text" id="rollNumber" class="form-input" placeholder="e.g. 2021CS01" required>
+            <!-- Teacher Fields -->
+            <div id="teacher-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: none;">
+              <div class="form-group">
+                <label class="form-label">Department</label>
+                <select id="teacher-department" class="form-select">
+                  <option value="">Select Department</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Information Technology">Information Technology</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Mechanical">Mechanical</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Designation</label>
+                <select id="designation" class="form-select">
+                  <option value="">Select Designation</option>
+                  <option value="Assistant Professor">Assistant Professor</option>
+                  <option value="Associate Professor">Associate Professor</option>
+                  <option value="Professor">Professor</option>
+                </select>
+              </div>
+              
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Employee ID</label>
+                <input type="text" id="employeeId" class="form-input" placeholder="e.g. EMP1234">
+              </div>
             </div>
           </div>
 
@@ -78,6 +118,31 @@ export async function render(container) {
 
   const form = document.getElementById('register-form');
   const registerBtn = document.getElementById('register-btn');
+  const roleSelect = document.getElementById('role');
+  const studentFields = document.getElementById('student-fields');
+  const teacherFields = document.getElementById('teacher-fields');
+
+  roleSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'STUDENT') {
+      studentFields.style.display = 'grid';
+      teacherFields.style.display = 'none';
+      document.getElementById('department').required = true;
+      document.getElementById('year').required = true;
+      document.getElementById('rollNumber').required = true;
+      document.getElementById('teacher-department').required = false;
+      document.getElementById('designation').required = false;
+      document.getElementById('employeeId').required = false;
+    } else {
+      studentFields.style.display = 'none';
+      teacherFields.style.display = 'grid';
+      document.getElementById('department').required = false;
+      document.getElementById('year').required = false;
+      document.getElementById('rollNumber').required = false;
+      document.getElementById('teacher-department').required = true;
+      document.getElementById('designation').required = true;
+      document.getElementById('employeeId').required = true;
+    }
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -90,17 +155,27 @@ export async function render(container) {
       return;
     }
 
+    const role = roleSelect.value;
     const data = {
       email: document.getElementById('email').value,
       password: password,
-      role: 'STUDENT', // Default for this form
+      role: role,
       profile: {
-        name: document.getElementById('name').value,
-        department: document.getElementById('department').value,
-        year: parseInt(document.getElementById('year').value),
-        rollNumber: document.getElementById('rollNumber').value
+        name: document.getElementById('name').value
       }
     };
+
+    if (role === 'STUDENT') {
+      data.profile.department = document.getElementById('department').value;
+      data.profile.year = parseInt(document.getElementById('year').value);
+      data.profile.rollNumber = document.getElementById('rollNumber').value;
+    } else {
+      data.profile.department = document.getElementById('teacher-department').value;
+      data.profile.designation = document.getElementById('designation').value;
+      data.profile.employeeId = document.getElementById('employeeId').value;
+      data.profile.status = 'pending';
+      data.profile.isApproved = false;
+    }
 
     try {
       registerBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>';
@@ -108,7 +183,11 @@ export async function render(container) {
 
       await register(data);
       
-      showToast('Registration successful! Please login.', 'success');
+      if (role === 'MENTOR') {
+        showToast('Registration submitted! Awaiting Dean approval.', 'success');
+      } else {
+        showToast('Registration successful! Please login.', 'success');
+      }
       navigateTo('/login');
       
     } catch (error) {

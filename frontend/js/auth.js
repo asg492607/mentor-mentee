@@ -28,6 +28,10 @@ export async function login(email, password) {
         userDoc = await getDoc(doc(db, 'faculty', uid));
         if (userDoc.exists()) {
             profile = { id: uid, ...userDoc.data() };
+            if (profile.role === 'MENTOR' && profile.status !== 'approved' && !profile.isApproved) {
+                await signOut(auth);
+                throw new Error('Your account is pending approval by the Dean.');
+            }
         }
     }
     
