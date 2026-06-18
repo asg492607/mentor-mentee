@@ -295,9 +295,10 @@ export const AllocationService = {
       ? await StudentService.getUnassigned(department)
       : await StudentService.getUnassigned();
 
-    const mentors = department
+    let mentors = department
       ? await FacultyService.getByDepartment(department)
       : await FacultyService.getAll();
+    mentors = mentors.filter(m => m.role === 'FACULTY' || m.role === 'MENTOR');
 
     // Sort mentors by available capacity desc
     const available = mentors

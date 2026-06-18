@@ -18,6 +18,8 @@ const routes = {
   '/hod/escalations': './pages/hod/escalations.js',
   '/dean/dashboard': './pages/dean/dashboard.js',
   '/dean/analytics': './pages/dean/analytics.js',
+  '/dean/escalations': './pages/dean/escalations.js',
+  '/dean/allocation': './pages/admin/allocation.js',
   '/admin/dashboard': './pages/admin/dashboard.js',
   '/admin/users': './pages/admin/users.js',
   '/admin/departments': './pages/admin/departments.js',

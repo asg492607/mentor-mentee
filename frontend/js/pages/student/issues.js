@@ -39,7 +39,7 @@ export async function render(container) {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div class="form-group">
                 <label class="form-label">Category</label>
-                <select id="i-cat" class="form-select"><option>Academic</option><option>Career</option><option>Financial</option><option>Personal</option><option>Other</option></select>
+                <select id="i-cat" class="form-select"><option>Exam Section</option><option>Student Section</option><option>Academic Section</option><option>Teaching (Mentor-mentee)</option><option>Non-Teaching</option><option>Travel Section</option><option>Non-Academic Section</option></select>
               </div>
               <div class="form-group">
                 <label class="form-label">Priority</label>

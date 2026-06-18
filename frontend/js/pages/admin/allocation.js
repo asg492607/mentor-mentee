@@ -9,7 +9,7 @@ export async function render(container) {
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/admin/allocation')}
+      ${createSidebar(user.role, window.location.hash.slice(1).split('?')[0] || '/admin/allocation')}
       <div class="main-content">
         ${createHeader('Mentor Allocation', user)}
         <div class="page-content" id="alloc-content">
@@ -28,7 +28,7 @@ export async function render(container) {
   try {
     [students, mentors] = await Promise.all([
       StudentService.getUnassigned(),
-      FacultyService.getAll()
+      FacultyService.getAll().then(all => all.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR'))
     ]);
     // Build current allocations
     const allStudents = await StudentService.getAll();
