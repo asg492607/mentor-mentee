@@ -15,6 +15,26 @@ import { navigateTo } from './router.js';
 let cachedUserProfile = null;
 const PRIVILEGED_ROLES = new Set(['HOD', 'DEAN', 'ADMIN']);
 
+function normalizeAuthError(error) {
+  const code = error?.code || '';
+  if (code === 'auth/network-request-failed') {
+    return new Error('Firebase Auth network request failed. Check internet access, Firebase project settings, and whether this domain is allowed.');
+  }
+  if (code === 'auth/email-already-in-use') {
+    return new Error('This email is already registered. Please sign in or use another email.');
+  }
+  if (code === 'auth/invalid-email') {
+    return new Error('Please enter a valid email address.');
+  }
+  if (code === 'auth/weak-password') {
+    return new Error('Password is too weak. Use at least 6 characters.');
+  }
+  if (code === 'permission-denied') {
+    return new Error('Firestore rejected this registration. Deploy the latest Firestore rules and try again.');
+  }
+  return error;
+}
+
 // Map frontend role values to Firestore collection names
 function getCollectionForRole(role) {
   if (role === 'STUDENT') return 'students';
@@ -27,20 +47,43 @@ export async function login(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
     
+    // Super Admin Override
+    if (email === 'gandhiathav565@gmail.com') {
+      const adminProfile = {
+        id: uid,
+        email: email,
+        name: 'Super Admin',
+        role: 'ADMIN',
+        status: 'approved',
+        isApproved: true,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'faculty', uid), adminProfile, { merge: true });
+      cachedUserProfile = adminProfile;
+      return cachedUserProfile;
+    }
+
     // Check students collection first, then faculty
     let profile = null;
 
     let userDoc = await getDoc(doc(db, 'students', uid));
     if (userDoc.exists()) {
       profile = { id: uid, ...userDoc.data() };
+      if (profile.status === 'pending' || !profile.isApproved) {
+        await signOut(auth);
+        throw new Error('Your account is pending approval by your assigned Mentor/Teacher.');
+      }
     } else {
       userDoc = await getDoc(doc(db, 'faculty', uid));
       if (userDoc.exists()) {
         profile = { id: uid, ...userDoc.data() };
-        // Only MENTOR (pending-approval) users are blocked — HOD/DEAN/ADMIN are always allowed
-        if (profile.role === 'FACULTY' && profile.status === 'pending') {
+        
+        if (profile.status === 'pending' || !profile.isApproved) {
           await signOut(auth);
-          throw new Error('Your account is pending approval by the Dean.');
+          let approver = 'the Admin';
+          if (profile.role === 'HOD') approver = 'the Dean';
+          if (profile.role === 'FACULTY' || profile.role === 'MENTOR') approver = 'your HOD';
+          throw new Error(`Your account is pending approval by ${approver}.`);
         }
       }
     }
@@ -51,7 +94,7 @@ export async function login(email, password) {
     return cachedUserProfile;
   } catch (error) {
     console.error("Login error:", error);
-    throw error;
+    throw normalizeAuthError(error);
   }
 }
 
@@ -91,8 +134,13 @@ export async function register(data) {
       if (data.profile.employeeId)  profileData.employeeId  = data.profile.employeeId;
       profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
       profileData.assignedStudentCount = 0;
-      profileData.status = PRIVILEGED_ROLES.has(role) ? 'approved' : 'pending';
-      profileData.isApproved = PRIVILEGED_ROLES.has(role);
+      profileData.status = 'pending';
+      profileData.isApproved = false;
+    }
+
+    if (role === 'STUDENT') {
+      profileData.status = 'pending';
+      profileData.isApproved = false;
     }
 
     // Strip any remaining undefined values to be safe
@@ -107,7 +155,7 @@ export async function register(data) {
     return profileData;
   } catch (error) {
     console.error("Register error:", error);
-    throw error;
+    throw normalizeAuthError(error);
   }
 }
 
@@ -140,15 +188,37 @@ export async function fetchUserProfile() {
   const user = auth.currentUser;
   if (!user) return null;
   const uid = user.uid;
+  const email = user.email;
   try {
+    // Super Admin bypass
+    if (email === 'gandhiathav565@gmail.com') {
+      const adminProfile = {
+        id: uid, email, name: 'Super Admin',
+        role: 'ADMIN', status: 'approved', isApproved: true
+      };
+      cachedUserProfile = adminProfile;
+      return cachedUserProfile;
+    }
+
     let userDoc = await getDoc(doc(db, 'students', uid));
     let profile = null;
     if (userDoc.exists()) {
       profile = { id: uid, ...userDoc.data() };
+      // If pending, force logout
+      if (profile.status === 'pending' || !profile.isApproved) {
+        await signOut(auth);
+        cachedUserProfile = null;
+        return null;
+      }
     } else {
       userDoc = await getDoc(doc(db, 'faculty', uid));
       if (userDoc.exists()) {
         profile = { id: uid, ...userDoc.data() };
+        if (profile.status === 'pending' || !profile.isApproved) {
+          await signOut(auth);
+          cachedUserProfile = null;
+          return null;
+        }
       }
     }
     cachedUserProfile = profile;

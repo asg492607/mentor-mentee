@@ -1,7 +1,8 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StatsService, IssueService } from '/js/services.js';
+import { StatsService, IssueService, FacultyService } from '/js/services.js';
+import { showToast } from '/js/components/toast.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -108,6 +109,28 @@ export async function render(container) {
         </div>
       </div>
 
+      </div>
+
+      <!-- Approvals Queue -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h3>Pending Faculty Approvals</h3></div>
+        ${mentors.filter(m => !m.isApproved).length === 0
+          ? '<p style="padding:20px;color:var(--text-muted);">No pending approvals.</p>'
+          : `<table class="data-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Action</th></tr></thead>
+              <tbody>
+                ${mentors.filter(m => !m.isApproved).map(m => `
+                  <tr>
+                    <td><strong>${m.name}</strong></td>
+                    <td>${m.email}</td>
+                    <td><button class="btn btn-xs btn-primary btn-approve" data-id="${m.id}">Approve</button></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+             </table>`
+        }
+      </div>
+
       <!-- Mentor Performance -->
       <div class="card">
         <div class="card-header"><h3>Mentor Performance — ${dept || 'Department'}</h3></div>
@@ -128,6 +151,22 @@ export async function render(container) {
         }
       </div>
     `;
+
+    document.querySelectorAll('.btn-approve').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await FacultyService.approve(id);
+          showToast('Faculty approved successfully!', 'success');
+          setTimeout(() => render(container), 1000); // refresh page
+        } catch (err) {
+          showToast(err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Approve';
+        }
+      });
+    });
+
   } catch (err) {
     document.getElementById('hod-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
   }

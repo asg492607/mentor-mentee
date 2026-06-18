@@ -1,7 +1,8 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StatsService } from '/js/services.js';
+import { StatsService, FacultyService } from '/js/services.js';
+import { showToast } from '/js/components/toast.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -96,6 +97,29 @@ export async function render(container) {
         </div>
       </div>
 
+      </div>
+
+      <!-- Approvals Queue -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h3>Pending HOD Approvals</h3></div>
+        ${faculty.filter(f => f.role === 'HOD' && !f.isApproved).length === 0
+          ? '<p style="padding:20px;color:var(--text-muted);">No pending approvals.</p>'
+          : `<table class="data-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Action</th></tr></thead>
+              <tbody>
+                ${faculty.filter(f => f.role === 'HOD' && !f.isApproved).map(f => `
+                  <tr>
+                    <td><strong>${f.name}</strong></td>
+                    <td>${f.email}</td>
+                    <td>${f.department||'—'}</td>
+                    <td><button class="btn btn-xs btn-primary btn-approve" data-id="${f.id}">Approve</button></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+             </table>`
+        }
+      </div>
+
       <!-- Department Table -->
       <div class="card">
         <div class="card-header"><h3>Department Overview</h3></div>
@@ -116,6 +140,21 @@ export async function render(container) {
         </table>
       </div>
     `;
+
+    document.querySelectorAll('.btn-approve').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await FacultyService.approve(id);
+          showToast('HOD approved successfully!', 'success');
+          setTimeout(() => render(container), 1000); // refresh page
+        } catch (err) {
+          showToast(err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Approve';
+        }
+      });
+    });
 
     if (window.Chart && students.length) {
       const high   = students.filter(s => s.riskLevel === 'HIGH').length;

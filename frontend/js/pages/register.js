@@ -2,7 +2,7 @@ import { register } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
 
-const PRIVILEGED_ROLES = new Set(['HOD', 'DEAN', 'ADMIN']);
+// No longer need PRIVILEGED_ROLES here — auth.js handles all approval logic
 
 function getDefaultDesignation(role, selectedDesignation) {
   if (role === 'HOD') return 'Head of Department';
@@ -188,14 +188,6 @@ export async function render(container) {
       data.profile.department = document.getElementById('teacher-department').value;
       data.profile.designation = getDefaultDesignation(role, document.getElementById('designation').value);
       data.profile.employeeId = document.getElementById('employeeId').value;
-      
-      if (PRIVILEGED_ROLES.has(role)) {
-        data.profile.status = 'approved';
-        data.profile.isApproved = true;
-      } else {
-        data.profile.status = 'pending';
-        data.profile.isApproved = false;
-      }
     }
 
     try {
@@ -204,13 +196,14 @@ export async function render(container) {
 
       await register(data);
       
-      if (role === 'FACULTY') {
-        showToast('Registration submitted! Awaiting Dean approval.', 'success');
-      } else if (PRIVILEGED_ROLES.has(role)) {
-        showToast(`${role} registration successful! Please login.`, 'success');
-      } else {
-        showToast('Registration successful! Please login.', 'success');
-      }
+      const pendingMessages = {
+        STUDENT: 'Registration submitted! Your account needs approval from your assigned Mentor.',
+        FACULTY: 'Registration submitted! Awaiting HOD approval.',
+        HOD: 'Registration submitted! Awaiting Dean approval.',
+        DEAN: 'Registration submitted! Awaiting Admin approval.',
+        ADMIN: 'Registration successful! Please login.'
+      };
+      showToast(pendingMessages[role] || 'Registration submitted! Please wait for approval.', 'success');
       navigateTo('/login');
       
     } catch (error) {

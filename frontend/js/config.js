@@ -1,14 +1,13 @@
 export const API_BASE_URL = 'https://mentor-mentee-2ok6.onrender.com';
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyCTYoDF9_TDOcaBJTGIVDCwH65y1UuqRx8",
-  authDomain: "mentee-93ae9.firebaseapp.com",
-  databaseURL: "https://mentee-93ae9-default-rtdb.firebaseio.com",
-  projectId: "mentee-93ae9",
-  storageBucket: "mentee-93ae9.firebasestorage.app",
-  messagingSenderId: "508422865990",
-  appId: "1:508422865990:web:e98c48c4c6ff403b2b3647",
-  measurementId: "G-3HPFFHVDN9"
+  apiKey: "AIzaSyD3UkvB-sNMNEKzC9Cuat4mw0SOe19vIDU",
+  authDomain: "mentorv1-848ef.firebaseapp.com",
+  projectId: "mentorv1-848ef",
+  storageBucket: "mentorv1-848ef.firebasestorage.app",
+  messagingSenderId: "160893972739",
+  appId: "1:160893972739:web:d57decb515edd656727936",
+  measurementId: "G-BPBVQ72FQT"
 };
 
 export const STUN_SERVERS = {

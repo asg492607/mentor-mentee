@@ -42,7 +42,7 @@ export async function render(container) {
     // Update risk if needed
     const risk = StatsService.computeRisk(fullProfile);
 
-    const upcomingMeetings = meetings.filter(m => m.status === 'APPROVED' && m.scheduledAt && new Date(m.scheduledAt) > new Date());
+    const upcomingMeetings = meetings.filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
     const pendingTasks     = tasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
     const openIssues       = issues.filter(i => i.status === 'OPEN');
 

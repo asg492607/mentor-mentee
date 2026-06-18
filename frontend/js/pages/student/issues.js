@@ -132,9 +132,11 @@ export async function render(container) {
                   ${statusBadge(i.status)}
                   ${priorityBadge(i.priority)}
                   <span class="badge badge-info">${i.category}</span>
+                  ${i.escalationLevel ? `<span class="badge badge-muted" title="Currently handled by">@ ${i.escalationLevel}</span>` : ''}
                 </div>
                 <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:6px;">${i.description}</p>
                 <p style="color:var(--text-muted);font-size:0.75rem;">Raised on ${fmt(i.createdAt)}</p>
+                ${i.status === 'ESCALATED' ? `<p style="color:var(--danger);font-size:0.78rem;margin-top:6px;">⚠ Your issue has been escalated to <strong>${i.escalationLevel}</strong> for further review.</p>` : ''}
                 ${i.resolution ? `<p style="color:var(--success);font-size:0.825rem;margin-top:8px;"><strong>Resolution:</strong> ${i.resolution}</p>` : ''}
               </div>
             </div>

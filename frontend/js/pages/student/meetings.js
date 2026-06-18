@@ -8,7 +8,7 @@ import { MeetingService, NotificationService } from '/js/services.js';
 const TYPES = ['Academic Issue','Career Guidance','Personal Concern','Internship','Project Guidance','Higher Studies'];
 
 function statusBadge(s) {
-  const cls = {REQUESTED:'badge-warning',APPROVED:'badge-success',REJECTED:'badge-danger',COMPLETED:'badge-muted',CANCELLED:'badge-muted'}[s] || 'badge-muted';
+  const cls = {REQUESTED:'badge-warning',APPROVED:'badge-success',ONGOING:'badge-info',REJECTED:'badge-danger',COMPLETED:'badge-muted',CANCELLED:'badge-muted'}[s] || 'badge-muted';
   return `<span class="badge ${cls}">${s}</span>`;
 }
 function fmt(iso) {
@@ -124,25 +124,49 @@ export async function render(container) {
         return;
       }
 
-      wrap.innerHTML = `<div class="card">
-        <table class="data-table">
-          <thead><tr><th>Type</th><th>Description</th><th>Scheduled</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            ${meetings.map(m => `
-              <tr>
-                <td><strong>${m.type}</strong></td>
-                <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);">${m.description || '—'}</td>
-                <td style="font-size:0.825rem;">${fmt(m.scheduledAt || m.preferredDate)}</td>
-                <td>${statusBadge(m.status)}</td>
-                <td>
-                  ${m.status === 'APPROVED' ? `<button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join</button>` : ''}
-                  ${m.status === 'REQUESTED' ? `<button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}">Cancel</button>` : ''}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+      wrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">
+        ${meetings.map(m => `
+          <div class="card" style="padding:20px;" id="m-card-${m.id}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+              <div style="flex:1;">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
+                  <strong style="font-size:0.9rem;">${m.type}</strong>
+                  ${statusBadge(m.status)}
+                  ${m.status === 'ONGOING' ? '<span style="font-size:0.7rem;color:var(--info);font-weight:600;animation:pulse 1.5s ease-in-out infinite;">● LIVE</span>' : ''}
+                </div>
+                <p style="color:var(--text-secondary);font-size:0.825rem;margin-bottom:4px;">${m.description || ''}</p>
+                <p style="color:var(--text-muted);font-size:0.78rem;">${m.scheduledAt ? 'Scheduled: ' + fmt(m.scheduledAt) : m.preferredDate ? 'Preferred: ' + fmt(m.preferredDate) : 'No date set'}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+                ${(m.status === 'APPROVED' || m.status === 'ONGOING') ? `<button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join Meeting</button>` : ''}
+                ${m.status === 'REQUESTED' ? `<button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}">Cancel</button>` : ''}
+                ${m.status === 'COMPLETED' && m.notes ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}">View Notes</button>` : ''}
+              </div>
+            </div>
+            ${m.status === 'COMPLETED' && m.notes ? `
+            <div id="notes-panel-${m.id}" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+              <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:12px;color:var(--text-secondary);">Meeting Notes</h4>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                ${m.notes.problem ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Problem Discussed</p><p style="font-size:0.825rem;">${m.notes.problem}</p></div>` : ''}
+                ${m.notes.advice ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Advice Given</p><p style="font-size:0.825rem;">${m.notes.advice}</p></div>` : ''}
+                ${m.notes.summary ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Summary</p><p style="font-size:0.825rem;">${m.notes.summary}</p></div>` : ''}
+                ${m.notes.tasks?.length ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">Action Items</p>${m.notes.tasks.map(t => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="color:var(--accent);">→</span><p style="font-size:0.825rem;">${t}</p></div>`).join('')}</div>` : ''}
+              </div>
+            </div>` : ''}
+          </div>
+        `).join('')}
       </div>`;
+
+      document.querySelectorAll('.view-notes-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          const panel = document.getElementById(`notes-panel-${b.dataset.id}`);
+          if (panel) {
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            b.textContent = isHidden ? 'Hide Notes' : 'View Notes';
+          }
+        });
+      });
 
       document.querySelectorAll('.join-btn').forEach(b => {
         b.addEventListener('click', () => navigateTo(`/meeting-room?id=${b.dataset.id}`));

@@ -39,16 +39,23 @@ export async function render(container) {
   `;
 
   let students = [];
+  let pendingStudents = [];
   let search = '';
   let riskFilter = 'ALL';
 
   try {
-    students = await StudentService.getByMentor(user.id);
-    // Recompute risk for any students missing it
-    students = students.map(s => {
+    const [assigned, unassigned] = await Promise.all([
+      StudentService.getByMentor(user.id),
+      StudentService.getUnassigned(user.department)
+    ]);
+    
+    students = assigned.map(s => {
       if (!s.riskLevel) return { ...s, ...StatsService.computeRisk(s) };
       return s;
     });
+
+    // Only show unapproved students in the pending queue
+    pendingStudents = unassigned.filter(s => !s.isApproved);
   } catch (err) {
     showToast('Error loading students: ' + err.message, 'error');
   }
@@ -59,7 +66,7 @@ export async function render(container) {
     if (riskFilter !== 'ALL') list = list.filter(s => s.riskLevel === riskFilter);
     if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.rollNumber?.toLowerCase().includes(search));
 
-    if (!list.length) {
+    if (!list.length && !pendingStudents.length) {
       wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
         <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         <h3>${students.length === 0 ? 'No students assigned yet' : 'No students match filter'}</h3>
@@ -67,7 +74,34 @@ export async function render(container) {
       return;
     }
 
-    wrap.innerHTML = `<div class="card">
+    let pendingHtml = '';
+    if (pendingStudents.length > 0) {
+      pendingHtml = `
+      <div class="card" style="margin-bottom:24px;border-color:var(--warning);">
+        <div class="card-header" style="background:var(--warning-light);border-bottom:1px solid var(--warning);">
+          <h3 style="color:var(--warning);">Pending Students (Department: ${user.department || 'All'})</h3>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Year</th><th>Action</th></tr></thead>
+          <tbody>
+            ${pendingStudents.map(s => `
+              <tr>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.email}</td>
+                <td>${s.year ? `Y${s.year}` : '—'}</td>
+                <td><button class="btn btn-xs btn-primary btn-approve-student" data-id="${s.id}">Approve & Assign to me</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      `;
+    }
+
+    let assignedHtml = '';
+    if (list.length > 0) {
+      assignedHtml = `<div class="card">
+        <div class="card-header"><h3>My Assigned Students</h3></div>
       <table class="data-table">
         <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Risk</th><th></th></tr></thead>
         <tbody>
@@ -100,6 +134,9 @@ export async function render(container) {
         </tbody>
       </table>
     </div>`;
+    }
+
+    wrap.innerHTML = pendingHtml + assignedHtml;
 
     document.querySelectorAll('.view-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -129,6 +166,26 @@ export async function render(container) {
           panel.style.display = 'none';
         });
         panel.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.btn-approve-student').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          // Approve and assign in parallel
+          await Promise.all([
+            StudentService.approve(id),
+            StudentService.assignMentor(id, user.id)
+          ]);
+          // Increment assigned count for mentor locally/remote could be handled via cloud functions, but we just want UI to work
+          showToast('Student approved and assigned!', 'success');
+          setTimeout(() => render(container), 1000); // refresh page
+        } catch (err) {
+          showToast(err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Approve';
+        }
       });
     });
   }

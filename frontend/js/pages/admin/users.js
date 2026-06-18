@@ -2,6 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, FacultyService } from '/js/services.js';
+import { showToast } from '/js/components/toast.js';
 
 function roleBadge(r) {
   const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
@@ -65,7 +66,7 @@ export async function render(container) {
 
     wrap.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th></tr></thead>
+        <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
           ${list.map(u => `
             <tr>
@@ -82,15 +83,40 @@ export async function render(container) {
               <td>${roleBadge((u.role||'STUDENT').toUpperCase())}</td>
               <td style="font-size:0.825rem;">${u.department||'—'}</td>
               <td>
-                <span class="badge ${u.isApproved||u.role==='STUDENT'?'badge-success':'badge-warning'}">
-                  ${u.role==='STUDENT'?'Active':u.isApproved?'Approved':'Pending'}
+                <span class="badge ${u.isApproved?'badge-success':'badge-warning'}">
+                  ${u.isApproved?'Approved':'Pending'}
                 </span>
+              </td>
+              <td>
+                ${!u.isApproved ? `<button class="btn btn-xs btn-primary btn-approve" data-id="${u.id}" data-role="${u.role}">Approve</button>` : `<span class="text-muted" style="font-size:0.75rem;">—</span>`}
               </td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     `;
+
+    document.querySelectorAll('.btn-approve').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        const role = e.target.dataset.role;
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          if (role === 'STUDENT') await StudentService.approve(id);
+          else await FacultyService.approve(id);
+          showToast('User approved successfully!', 'success');
+          // Update local state and re-render
+          const user = allUsers.find(u => u.id === id);
+          if (user) { user.isApproved = true; user.status = 'approved'; }
+          renderTable();
+        } catch (err) {
+          showToast('Failed to approve user: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Approve';
+        }
+      });
+    });
   }
 
   document.getElementById('user-search').addEventListener('input', e => { search = e.target.value.toLowerCase(); renderTable(); });

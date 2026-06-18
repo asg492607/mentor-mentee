@@ -6,7 +6,7 @@ import { showToast } from '/js/components/toast.js';
 import { MeetingService, NotificationService, TaskService } from '/js/services.js';
 
 function statusBadge(s) {
-  const cls = {REQUESTED:'badge-warning',APPROVED:'badge-success',REJECTED:'badge-danger',COMPLETED:'badge-muted',CANCELLED:'badge-muted'}[s]||'badge-muted';
+  const cls = {REQUESTED:'badge-warning',APPROVED:'badge-success',ONGOING:'badge-info',REJECTED:'badge-danger',COMPLETED:'badge-muted',CANCELLED:'badge-muted'}[s]||'badge-muted';
   return `<span class="badge ${cls}">${s}</span>`;
 }
 function fmt(iso) {
@@ -86,8 +86,8 @@ export async function render(container) {
                   <button class="btn btn-sm btn-success appr-btn" data-id="${m.id}" data-sid="${m.studentId}">✓ Approve</button>
                   <button class="btn btn-sm btn-danger  rej-btn"  data-id="${m.id}" data-sid="${m.studentId}">✗ Reject</button>
                 </div>
-              ` : m.status === 'APPROVED' ? `
-                <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join Meeting</button>
+              ` : (m.status === 'APPROVED' || m.status === 'ONGOING') ? `
+                <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">${m.status === 'ONGOING' ? '● Join Live' : 'Join Meeting'}</button>
                 <button class="btn btn-sm btn-secondary note-btn" data-id="${m.id}">Add Notes</button>
               ` : m.status === 'COMPLETED' ? `
                 <button class="btn btn-sm btn-secondary note-btn" data-id="${m.id}">View Notes</button>
@@ -134,9 +134,18 @@ export async function render(container) {
     // Reject
     document.querySelectorAll('.rej-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const reason = 'Unavailable at the requested time';
+        const reason = prompt('Enter rejection reason (optional):', 'Unavailable at the requested time') ?? '';
+        if (reason === null) return; // user cancelled prompt
         try {
-          await MeetingService.update(btn.dataset.id, { status:'REJECTED', rejectionReason:reason });
+          await MeetingService.update(btn.dataset.id, { status:'REJECTED', rejectionReason: reason || 'Unavailable at the requested time' });
+          if (btn.dataset.sid) {
+            await NotificationService.create({
+              userId: btn.dataset.sid, type:'MEETING_REJECTED',
+              title:'Meeting Request Declined',
+              message: reason ? `Reason: ${reason}` : 'The mentor is unavailable at the requested time.',
+              relatedId: btn.dataset.id
+            });
+          }
           meetings.find(m => m.id === btn.dataset.id).status = 'REJECTED';
           showToast('Meeting rejected', 'info'); renderTab();
         } catch (err) { showToast(err.message, 'error'); }

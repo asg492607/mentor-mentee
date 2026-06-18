@@ -56,6 +56,10 @@ export const StudentService = {
 
   async assignMentor(studentId, mentorId) {
     await updateDoc(doc(db, 'students', studentId), { mentorId, updatedAt: now() });
+  },
+
+  async approve(uid) {
+    await updateDoc(doc(db, 'students', uid), { status: 'approved', isApproved: true, updatedAt: now() });
   }
 };
 
