@@ -31,8 +31,6 @@ export async function render(container) {
                 <option value="STUDENT">Student</option>
                 <option value="FACULTY">Teacher / Faculty</option>
                 <option value="HOD">HOD</option>
-                <option value="DEAN">Dean</option>
-                <option value="ADMIN">Admin</option>
               </select>
             </div>
 
@@ -107,8 +105,6 @@ export async function render(container) {
                   <option value="Associate Professor">Associate Professor</option>
                   <option value="Professor">Professor</option>
                   <option value="Head of Department">Head of Department</option>
-                  <option value="Dean">Dean</option>
-                  <option value="Administrator">Administrator</option>
                 </select>
               </div>
               
@@ -199,9 +195,7 @@ export async function render(container) {
       const pendingMessages = {
         STUDENT: 'Registration submitted! Your account needs approval from your assigned Mentor.',
         FACULTY: 'Registration submitted! Awaiting HOD approval.',
-        HOD: 'Registration submitted! Awaiting Dean approval.',
-        DEAN: 'Registration submitted! Awaiting Admin approval.',
-        ADMIN: 'Registration successful! Please login.'
+        HOD: 'Registration submitted! Awaiting Dean approval.'
       };
       showToast(pendingMessages[role] || 'Registration submitted! Please wait for approval.', 'success');
       navigateTo('/login');
