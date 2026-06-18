@@ -1,6 +1,7 @@
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
 
 const routes = {
+  '/landing': './pages/landing.js',
   '/login': './pages/login.js',
   '/register': './pages/register.js',
   '/student/dashboard': './pages/student/dashboard.js',
@@ -31,7 +32,7 @@ const routes = {
   '/meeting-room': './pages/meeting-room.js'
 };
 
-const authFreeRoutes = ['/login', '/register'];
+const authFreeRoutes = ['/landing', '/login', '/register'];
 
 // Map a Firestore role string to the correct dashboard URL prefix
 function getRoleDashboardPath(role) {
@@ -73,7 +74,7 @@ async function handleRoute() {
               return;
           }
       }
-      path = '/login';
+      path = '/landing';
       navigateTo(path);
       return;
   }
