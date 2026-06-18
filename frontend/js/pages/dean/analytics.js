@@ -1,19 +1,7 @@
-import { api } from '/js/api.js';
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-
-const MOCK = {
-  meetingsTrend: [35,42,58,48,71,80],
-  issueCategories: { Academic:14, Career:6, Financial:5, Personal:4, Other:3 },
-  deptRisk: { 'Computer Science':14, 'Information Technology':10, 'Electronics':9, 'Mechanical':5 },
-  mentorPerformance: [
-    { name:'Dr. Shah',   meetings:22, satisfaction:4.2 },
-    { name:'Dr. Gupta',  meetings:18, satisfaction:4.5 },
-    { name:'Dr. Sharma', meetings:25, satisfaction:4.0 },
-    { name:'Dr. Singh',  meetings:19, satisfaction:4.3 },
-  ]
-};
+import { StatsService, IssueService, MeetingService, FacultyService } from '/js/services.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -24,96 +12,113 @@ export async function render(container) {
       <div class="main-content">
         ${createHeader('Analytics', user)}
         <div class="page-content" id="analytics-content">
-          <div style="display:flex;align-items:center;justify-content:center;height:200px;"><div class="spinner"></div></div>
+          <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    const { logout } = await import('/js/auth.js'); await logout();
-  });
+  try {
+    const [instData, allIssues, allMentors] = await Promise.all([
+      StatsService.getInstitutionStats(),
+      IssueService.getAll(),
+      FacultyService.getAll()
+    ]);
 
-  let data = MOCK;
-  try { data = { ...MOCK, ...await api.get('/api/dean/analytics') }; } catch {}
+    const { students } = instData;
 
-  document.getElementById('analytics-content').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-      <!-- Meetings Trend -->
-      <div class="card" style="padding:20px;">
-        <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Monthly Meeting Trends</h3>
-        <div style="height:220px;"><canvas id="chart-trend"></canvas></div>
+    // Issue categories
+    const issueCats = {};
+    allIssues.forEach(i => { issueCats[i.category || 'Other'] = (issueCats[i.category || 'Other'] || 0) + 1; });
+
+    // Risk by dept
+    const deptRisk = {};
+    students.forEach(s => {
+      if (s.riskLevel === 'HIGH') {
+        deptRisk[s.department || 'Unknown'] = (deptRisk[s.department || 'Unknown'] || 0) + 1;
+      }
+    });
+
+    // Mentor performance (assigned count, issues)
+    const mentorPerf = allMentors.map(m => ({
+      name: m.name,
+      students: m.assignedStudentCount || 0,
+      openIssues: allIssues.filter(i => i.mentorId === m.id && i.status === 'OPEN').length
+    })).sort((a,b) => b.students - a.students).slice(0, 8);
+
+    // Meetings trend
+    const now = new Date();
+    const months = Array.from({length:6}, (_,i) => {
+      const d = new Date(now.getFullYear(), now.getMonth()-5+i, 1);
+      return d.toLocaleString('en-IN',{month:'short'});
+    });
+    const meetPerMonth = Array(6).fill(0);
+    // Note: would need MeetingService.getAll() but could be large; skip for now
+
+    document.getElementById('analytics-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Issue Categories</h3>
+          <div style="height:220px;"><canvas id="chart-issues"></canvas></div>
+        </div>
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Department Risk Distribution</h3>
+          <div style="height:220px;"><canvas id="chart-risk"></canvas></div>
+        </div>
       </div>
-      <!-- Issue Categories -->
-      <div class="card" style="padding:20px;">
-        <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Issue Categories</h3>
-        <div style="height:220px;"><canvas id="chart-issues"></canvas></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Student Risk Levels</h3>
+          <div style="height:200px;"><canvas id="chart-risk-dist"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Mentor Snapshot</h3></div>
+          <table class="data-table">
+            <thead><tr><th>Mentor</th><th>Students</th><th>Open Issues</th></tr></thead>
+            <tbody>
+              ${mentorPerf.map(m => `
+                <tr>
+                  <td style="font-weight:600;">${m.name}</td>
+                  <td>${m.students}</td>
+                  <td><span class="badge ${m.openIssues>3?'badge-danger':m.openIssues>1?'badge-warning':'badge-success'}">${m.openIssues}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <!-- Dept Risk -->
-      <div class="card" style="padding:20px;">
-        <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Department Risk Distribution</h3>
-        <div style="height:200px;"><canvas id="chart-risk"></canvas></div>
-      </div>
-      <!-- Mentor Performance Table -->
-      <div class="card">
-        <div class="card-header"><h3>Mentor Performance</h3></div>
-        <table class="data-table">
-          <thead><tr><th>Mentor</th><th>Meetings</th><th>Rating</th></tr></thead>
-          <tbody>
-            ${(data.mentorPerformance||[]).map(m => `
-              <tr>
-                <td style="font-weight:600;">${m.name}</td>
-                <td>${m.meetings}</td>
-                <td>
-                  <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="color:var(--warning);">★</span>
-                    <span>${m.satisfaction.toFixed(1)}</span>
-                  </div>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+    `;
 
-  if (!window.Chart) return;
+    if (!window.Chart) return;
+    const tc = '#777799';
+    const gc = 'rgba(255,255,255,0.05)';
 
-  const textColor = '#777799';
-  const gridColor = 'rgba(255,255,255,0.05)';
+    // Issue categories doughnut
+    new window.Chart(document.getElementById('chart-issues').getContext('2d'), {
+      type:'doughnut',
+      data:{ labels:Object.keys(issueCats), datasets:[{ data:Object.values(issueCats), backgroundColor:['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171','#a78bfa'], borderWidth:0 }] },
+      options:{ responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{ legend:{ position:'right',labels:{color:tc,font:{size:11}} } } }
+    });
 
-  // Trend Chart
-  new window.Chart(document.getElementById('chart-trend').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: ['Jan','Feb','Mar','Apr','May','Jun'],
-      datasets: [{ label:'Meetings', data: data.meetingsTrend||MOCK.meetingsTrend, borderColor:'#7c6aff', backgroundColor:'rgba(124,106,255,0.1)', fill:true, tension:0.4, pointBackgroundColor:'#7c6aff', pointRadius:4 }]
-    },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor}}, x:{grid:{display:false},ticks:{color:textColor}} } }
-  });
+    // Dept risk bar
+    new window.Chart(document.getElementById('chart-risk').getContext('2d'), {
+      type:'bar',
+      data:{ labels:Object.keys(deptRisk), datasets:[{ label:'High Risk', data:Object.values(deptRisk), backgroundColor:['#f87171','#fbbf24','#7c6aff','#34d399'], borderRadius:6 }] },
+      options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,grid:{color:gc},ticks:{color:tc,stepSize:1}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
+    });
 
-  // Issue Categories Doughnut
-  const cats = data.issueCategories || MOCK.issueCategories;
-  new window.Chart(document.getElementById('chart-issues').getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: Object.keys(cats),
-      datasets: [{ data: Object.values(cats), backgroundColor: ['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171'], borderWidth:0 }]
-    },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{color:textColor,font:{size:11}} } }, cutout:'65%' }
-  });
+    // Risk level pie
+    const high   = students.filter(s => s.riskLevel==='HIGH').length;
+    const medium = students.filter(s => s.riskLevel==='MEDIUM').length;
+    const low    = students.filter(s => !s.riskLevel||s.riskLevel==='LOW').length;
+    new window.Chart(document.getElementById('chart-risk-dist').getContext('2d'), {
+      type:'doughnut',
+      data:{ labels:['High','Medium','Low'], datasets:[{ data:[high,medium,low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }] },
+      options:{ responsive:true,maintainAspectRatio:false,cutout:'60%', plugins:{ legend:{ position:'bottom',labels:{color:tc} } } }
+    });
 
-  // Dept Risk Bar
-  const deptRisk = data.deptRisk || MOCK.deptRisk;
-  new window.Chart(document.getElementById('chart-risk').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: Object.keys(deptRisk),
-      datasets: [{ label:'High Risk Students', data: Object.values(deptRisk), backgroundColor: ['#f87171','#fbbf24','#7c6aff','#34d399'], borderRadius:6 }]
-    },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor}}, x:{grid:{display:false},ticks:{color:textColor,font:{size:10}}} } }
-  });
+  } catch (err) {
+    document.getElementById('analytics-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+  }
 }

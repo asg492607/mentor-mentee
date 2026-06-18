@@ -1,28 +1,12 @@
-import { api } from '/js/api.js';
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
+import { TaskService } from '/js/services.js';
 
-const MOCK = [
-  { id:'1', description:'Submit mini-project report', dueDate: new Date(Date.now()+86400000*2).toISOString(), status:'PENDING', category:'Academic', progress:30 },
-  { id:'2', description:'Complete resume draft', dueDate: new Date(Date.now()+86400000*5).toISOString(), status:'IN_PROGRESS', category:'Career', progress:60 },
-  { id:'3', description:'Prepare for mid-semester viva', dueDate: new Date(Date.now()-86400000).toISOString(), status:'OVERDUE', category:'Academic', progress:10 },
-  { id:'4', description:'Submit internship application', dueDate: new Date(Date.now()-86400000*4).toISOString(), status:'COMPLETED', category:'Internship', progress:100 },
-];
-
-function statusColor(s) {
-  return { PENDING:'badge-warning', IN_PROGRESS:'badge-info', COMPLETED:'badge-success', OVERDUE:'badge-danger' }[s] || 'badge-muted';
-}
-
-function fmtDate(iso) {
-  return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—';
-}
-
-function progressBar(pct, status) {
-  const color = status === 'COMPLETED' ? 'fill-success' : status === 'OVERDUE' ? 'fill-danger' : '';
-  return `<div class="progress-bar-wrap"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div>`;
-}
+function statusCls(s) { return {PENDING:'badge-warning',IN_PROGRESS:'badge-info',COMPLETED:'badge-success',OVERDUE:'badge-danger'}[s]||'badge-muted'; }
+function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
+function barClass(s) { return s==='COMPLETED'?'fill-success':s==='OVERDUE'?'fill-danger':''; }
 
 export async function render(container) {
   const user = getUserProfile();
@@ -35,91 +19,110 @@ export async function render(container) {
         <div class="page-content">
           <div class="section-header">
             <h2 class="section-title">Action Items</h2>
-            <div style="display:flex;gap:8px;" id="filter-btns">
-              ${['ALL','PENDING','IN_PROGRESS','COMPLETED','OVERDUE'].map((f,i) =>
-                `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} filter-btn" data-filter="${f}">${f.replace('_',' ')}</button>`
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="filter-wrap">
+              ${['ALL','PENDING','IN_PROGRESS','COMPLETED','OVERDUE'].map((f,i)=>
+                `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} filt" data-f="${f}">${f.replace('_',' ')}</button>`
               ).join('')}
             </div>
           </div>
-          <div id="tasks-list"></div>
+          <div id="tasks-wrap">
+            <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
+          </div>
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    const { logout } = await import('/js/auth.js'); await logout();
-  });
+  let tasks = [];
+  let filter = 'ALL';
 
-  let currentFilter = 'ALL';
-  let allTasks = MOCK;
+  function renderTasks() {
+    const wrap = document.getElementById('tasks-wrap');
+    let list = filter === 'ALL' ? tasks : tasks.filter(t => t.status === filter);
 
-  try { allTasks = await api.get('/api/student/tasks'); } catch {}
+    // Auto-mark overdue
+    list = list.map(t => {
+      if (t.dueDate && t.status !== 'COMPLETED' && new Date(t.dueDate) < new Date()) {
+        return { ...t, status: 'OVERDUE' };
+      }
+      return t;
+    });
 
-  function render_tasks() {
-    const list = document.getElementById('tasks-list');
-    const filtered = currentFilter === 'ALL' ? allTasks : allTasks.filter(t => t.status === currentFilter);
-
-    if (!filtered.length) {
-      list.innerHTML = `<div class="empty-state card"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg><h3>No tasks here</h3><p>Your mentor will assign tasks after meetings.</p></div>`;
+    if (!list.length) {
+      wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
+        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <h3>No tasks found</h3>
+        <p>Your mentor will assign tasks after meetings.</p>
+      </div>`;
       return;
     }
 
-    list.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        ${filtered.map(t => `
-          <div class="card" style="padding:20px;">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-              <div style="flex:1;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                  <h3 style="font-size:0.9rem;font-weight:600;margin:0;${t.status==='COMPLETED'?'text-decoration:line-through;color:var(--text-muted);':''}">${t.description}</h3>
-                  <span class="badge ${statusColor(t.status)}">${t.status.replace('_',' ')}</span>
-                  <span class="badge badge-info">${t.category||''}</span>
-                </div>
-                <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:10px;">Due: ${fmtDate(t.dueDate)}</p>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="flex:1;">${progressBar(t.progress||0, t.status)}</div>
-                  <span style="font-size:0.75rem;color:var(--text-muted);width:36px;text-align:right;">${t.progress||0}%</span>
-                </div>
+    wrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">
+      ${list.map(t => `
+        <div class="card" style="padding:20px;">
+          <div style="display:flex;align-items:flex-start;gap:16px;">
+            <div style="flex:1;">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
+                <h3 style="font-size:0.9rem;font-weight:600;margin:0;${t.status==='COMPLETED'?'text-decoration:line-through;color:var(--text-muted);':''}">${t.description}</h3>
+                <span class="badge ${statusCls(t.status)}">${t.status.replace('_',' ')}</span>
+                ${t.category ? `<span class="badge badge-info">${t.category}</span>` : ''}
               </div>
-              <div style="display:flex;flex-direction:column;gap:6px;">
-                ${t.status !== 'COMPLETED' ? `<button class="btn btn-xs btn-success complete-btn" data-id="${t.id}">✓ Done</button>` : ''}
-                ${t.status === 'PENDING' ? `<button class="btn btn-xs btn-secondary start-btn" data-id="${t.id}">Start</button>` : ''}
+              <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:10px;">Due: ${fmt(t.dueDate)}</p>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="flex:1;" class="progress-bar-wrap">
+                  <div class="progress-bar-fill ${barClass(t.status)}" style="width:${t.progress||0}%"></div>
+                </div>
+                <span style="font-size:0.75rem;color:var(--text-muted);min-width:36px;">${t.progress||0}%</span>
               </div>
             </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+              ${t.status !== 'COMPLETED' ? `<button class="btn btn-xs btn-success done-btn" data-id="${t.id}">✓ Done</button>` : ''}
+              ${t.status === 'PENDING'   ? `<button class="btn btn-xs btn-secondary start-btn" data-id="${t.id}">Start</button>` : ''}
+            </div>
           </div>
-        `).join('')}
-      </div>
-    `;
+        </div>
+      `).join('')}
+    </div>`;
 
-    document.querySelectorAll('.complete-btn').forEach(b => {
-      b.addEventListener('click', async () => {
-        try { await api.put(`/api/student/tasks/${b.dataset.id}`, { status:'COMPLETED', progress:100 }); } catch {}
-        const t = allTasks.find(x => x.id === b.dataset.id);
-        if (t) { t.status = 'COMPLETED'; t.progress = 100; }
-        showToast('Task marked complete!', 'success');
-        render_tasks();
+    document.querySelectorAll('.done-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await TaskService.markComplete(btn.dataset.id);
+          const t = tasks.find(x => x.id === btn.dataset.id);
+          if (t) { t.status = 'COMPLETED'; t.progress = 100; }
+          showToast('Task marked complete!', 'success');
+          renderTasks();
+        } catch (err) { showToast(err.message, 'error'); }
       });
     });
 
-    document.querySelectorAll('.start-btn').forEach(b => {
-      b.addEventListener('click', async () => {
-        try { await api.put(`/api/student/tasks/${b.dataset.id}`, { status:'IN_PROGRESS' }); } catch {}
-        const t = allTasks.find(x => x.id === b.dataset.id);
-        if (t) { t.status = 'IN_PROGRESS'; }
-        render_tasks();
+    document.querySelectorAll('.start-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await TaskService.update(btn.dataset.id, { status: 'IN_PROGRESS', progress: 10 });
+          const t = tasks.find(x => x.id === btn.dataset.id);
+          if (t) { t.status = 'IN_PROGRESS'; t.progress = 10; }
+          renderTasks();
+        } catch (err) { showToast(err.message, 'error'); }
       });
     });
   }
 
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  // Load from Firestore
+  try {
+    tasks = await TaskService.getByStudent(user.id);
+  } catch (err) {
+    showToast('Error loading tasks: ' + err.message, 'error');
+  }
+
+  document.querySelectorAll('.filt').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => { b.className = 'btn btn-sm btn-secondary filter-btn'; });
-      btn.className = 'btn btn-sm btn-primary filter-btn';
-      currentFilter = btn.dataset.filter;
-      render_tasks();
+      document.querySelectorAll('.filt').forEach(b => b.className = 'btn btn-sm btn-secondary filt');
+      btn.className = 'btn btn-sm btn-primary filt';
+      filter = btn.dataset.f;
+      renderTasks();
     });
   });
 
-  render_tasks();
+  renderTasks();
 }

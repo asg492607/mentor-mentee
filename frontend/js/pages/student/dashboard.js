@@ -1,168 +1,180 @@
-import { api } from '/js/api.js';
-import { navigateTo } from '/js/router.js';
 import { getUserProfile } from '/js/auth.js';
+import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { showLoader, hideLoader } from '/js/components/loader.js';
 import { showToast } from '/js/components/toast.js';
-import { formatDate, formatDateTime, getInitials } from '/js/utils/helpers.js';
-import { formatStatus, formatCGPA, formatPercentage } from '/js/utils/formatters.js';
+import { StudentService, MeetingService, IssueService, TaskService, StatsService } from '/js/services.js';
+
+function fmt(iso) {
+  return iso ? new Date(iso).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' }) : '—';
+}
+
+function riskBadge(r) {
+  const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r] || 'badge-muted';
+  return `<span class="badge ${cls}">${r || 'N/A'}</span>`;
+}
 
 export async function render(container) {
-    const user = getUserProfile();
-    
-    container.innerHTML = `
-        <div class="dashboard-layout fade-in">
-            ${createSidebar(user.role, '/student/dashboard')}
-            <div class="main-content">
-                ${createHeader('Student Dashboard', user)}
-                <div class="page-content" id="dashboard-content">
-                    <!-- Content will be injected here -->
-                </div>
-            </div>
+  const user = getUserProfile();
+
+  container.innerHTML = `
+    <div class="dashboard-layout fade-in">
+      ${createSidebar(user.role, '/student/dashboard')}
+      <div class="main-content">
+        ${createHeader('Dashboard', user)}
+        <div class="page-content" id="dash-content">
+          <div style="display:flex;align-items:center;justify-content:center;height:300px;"><div class="spinner"></div></div>
         </div>
-    `;
-    
-    const content = document.getElementById('dashboard-content');
-    
-    try {
-        showLoader();
-        // Fetch dashboard data
-        const res = await api.get('/api/student/dashboard').catch(() => ({
-            // Mock data fallback if API is not ready
-            stats: { upcomingMeetings: 2, pendingTasks: 4, openIssues: 1, cgpa: 8.5 },
-            mentor: { name: 'Dr. Jane Smith', department: 'Computer Science', email: 'jane@example.com' },
-            upcomingMeetings: [
-                { id: 1, type: 'Academic', date: new Date(Date.now() + 86400000).toISOString(), status: 'Approved' }
-            ],
-            recentTasks: [
-                { id: 1, description: 'Submit project proposal', deadline: new Date(Date.now() + 172800000).toISOString(), progress: 50 }
-            ],
-            academicStatus: { attendance: 85, totalCredits: 60 }
-        }));
-        
-        hideLoader();
-        
-        content.innerHTML = `
-            <div class="stats-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="stat-card card card-glass p-4">
-                    <h3 class="text-muted text-sm">Upcoming Meetings</h3>
-                    <p class="text-2xl font-bold">${res.stats?.upcomingMeetings || 0}</p>
-                </div>
-                <div class="stat-card card card-glass p-4">
-                    <h3 class="text-muted text-sm">Pending Tasks</h3>
-                    <p class="text-2xl font-bold">${res.stats?.pendingTasks || 0}</p>
-                </div>
-                <div class="stat-card card card-glass p-4">
-                    <h3 class="text-muted text-sm">Open Issues</h3>
-                    <p class="text-2xl font-bold">${res.stats?.openIssues || 0}</p>
-                </div>
-                <div class="stat-card card card-glass p-4">
-                    <h3 class="text-muted text-sm">CGPA</h3>
-                    <p class="text-2xl font-bold">${formatCGPA(res.stats?.cgpa || 0)}</p>
-                </div>
-            </div>
-            
-            <div class="dashboard-grid grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- My Mentor -->
-                <div class="card card-glass col-span-1">
-                    <div class="card-header p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="font-bold">My Mentor</h2>
-                    </div>
-                    <div class="p-4 text-center">
-                        <div class="w-20 h-20 rounded-full bg-primary text-white flex items-center justify-center text-2xl mx-auto mb-4">
-                            ${getInitials(res.mentor?.name)}
-                        </div>
-                        <h3 class="font-bold text-lg">${res.mentor?.name || 'Unassigned'}</h3>
-                        <p class="text-muted mb-1">${res.mentor?.department || ''}</p>
-                        <p class="text-sm text-muted mb-4">${res.mentor?.email || ''}</p>
-                        <button class="btn btn-primary w-full" id="btn-request-meeting">Request Meeting</button>
-                    </div>
-                </div>
-                
-                <!-- Upcoming Meetings -->
-                <div class="card card-glass col-span-1 md:col-span-2">
-                    <div class="card-header p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <h2 class="font-bold">Upcoming Meetings</h2>
-                        <a href="#/student/meetings" class="text-sm text-primary">View All</a>
-                    </div>
-                    <div class="p-0">
-                        ${(res.upcomingMeetings || []).length === 0 ? '<p class="p-4 text-muted">No upcoming meetings.</p>' : `
-                            <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                                ${res.upcomingMeetings.map(m => `
-                                    <li class="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                                        <div>
-                                            <p class="font-semibold">${m.type} Discussion</p>
-                                            <p class="text-sm text-muted">${formatDateTime(m.date)}</p>
-                                        </div>
-                                        <div>
-                                            ${formatStatus(m.status)}
-                                            ${m.status === 'Approved' ? `<button class="btn btn-sm btn-primary ml-2 join-meeting-btn" data-id="${m.id}">Join</button>` : ''}
-                                        </div>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        `}
-                    </div>
-                </div>
-                
-                <!-- Recent Action Items -->
-                <div class="card card-glass col-span-1 md:col-span-2">
-                    <div class="card-header p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <h2 class="font-bold">Recent Tasks</h2>
-                        <a href="#/student/tasks" class="text-sm text-primary">View All</a>
-                    </div>
-                    <div class="p-4">
-                        ${(res.recentTasks || []).length === 0 ? '<p class="text-muted">No tasks assigned.</p>' : `
-                            <div class="space-y-4">
-                                ${res.recentTasks.map(t => `
-                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <p class="font-medium">${t.description}</p>
-                                            <span class="text-xs text-muted">Due: ${formatDate(t.deadline)}</span>
-                                        </div>
-                                        ${formatPercentage(t.progress)}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `}
-                    </div>
-                </div>
-                
-                <!-- Academic Status -->
-                <div class="card card-glass col-span-1">
-                    <div class="card-header p-4 border-b border-gray-200 dark:border-gray-700">
-                        <h2 class="font-bold">Academic Status</h2>
-                    </div>
-                    <div class="p-4 space-y-4">
-                        <div>
-                            <p class="text-sm text-muted mb-1">Attendance</p>
-                            ${formatPercentage(res.academicStatus?.attendance || 0)}
-                        </div>
-                        <div>
-                            <p class="text-sm text-muted mb-1">Total Credits Completed</p>
-                            <p class="text-xl font-bold">${res.academicStatus?.totalCredits || 0}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Events
-        document.getElementById('btn-request-meeting')?.addEventListener('click', () => {
-            navigateTo('/student/meetings');
-        });
-        
-        document.querySelectorAll('.join-meeting-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.target.getAttribute('data-id');
-                navigateTo(`/meeting-room?id=${id}`);
-            });
-        });
-        
-    } catch (err) {
-        hideLoader();
-        showToast('Failed to load dashboard data', 'error');
-        content.innerHTML = '<p class="text-danger p-4">Error loading dashboard.</p>';
+      </div>
+    </div>
+  `;
+
+  try {
+    // Load all data from Firestore directly
+    const [profile, meetings, issues, tasks] = await Promise.all([
+      StudentService.get(user.id),
+      MeetingService.getByStudent(user.id),
+      IssueService.getByStudent(user.id),
+      TaskService.getByStudent(user.id)
+    ]);
+
+    const fullProfile = profile || user;
+    // Update risk if needed
+    const risk = StatsService.computeRisk(fullProfile);
+
+    const upcomingMeetings = meetings.filter(m => m.status === 'APPROVED' && m.scheduledAt && new Date(m.scheduledAt) > new Date());
+    const pendingTasks     = tasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
+    const openIssues       = issues.filter(i => i.status === 'OPEN');
+
+    // Load mentor info if assigned
+    let mentor = null;
+    if (fullProfile.mentorId) {
+      const { FacultyService } = await import('/js/services.js');
+      mentor = await FacultyService.get(fullProfile.mentorId);
     }
+
+    const initials = (mentor?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const content = document.getElementById('dash-content');
+
+    content.innerHTML = `
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+        ${[
+          { label:'Upcoming Meetings', value: upcomingMeetings.length, color:'var(--info)',    icon:'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z' },
+          { label:'Pending Tasks',     value: pendingTasks.length,     color:'var(--warning)', icon:'M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z' },
+          { label:'Open Issues',       value: openIssues.length,       color:'var(--danger)',  icon:'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z' },
+          { label:'CGPA',              value: fullProfile.cgpa || '—', color:'var(--success)', icon:'M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z' },
+        ].map(c => `
+          <div class="stat-card">
+            <div class="stat-icon" style="background:${c.color}22;">
+              <svg viewBox="0 0 24 24" style="fill:${c.color};width:20px;height:20px;"><path d="${c.icon}"/></svg>
+            </div>
+            <div class="stat-label">${c.label}</div>
+            <div class="stat-value">${c.value}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
+        <!-- My Mentor -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="card" style="padding:24px;text-align:center;">
+            <p style="font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">My Mentor</p>
+            ${mentor ? `
+              <div class="avatar avatar-xl" style="margin:0 auto 12px;">${initials}</div>
+              <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">${mentor.name}</h3>
+              <p style="color:var(--text-muted);font-size:0.825rem;margin-bottom:4px;">${mentor.designation || 'Faculty'}</p>
+              <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">${mentor.department || ''}</p>
+              <button class="btn btn-primary w-full" id="btn-req-meeting">Request Meeting</button>
+            ` : `
+              <div style="color:var(--text-muted);padding:20px;">
+                <svg viewBox="0 0 24 24" style="width:48px;height:48px;fill:currentColor;margin-bottom:8px;opacity:0.4;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <p style="font-size:0.875rem;">No mentor assigned yet</p>
+              </div>
+            `}
+          </div>
+
+          <div class="card" style="padding:20px;">
+            <p style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">Academic Status</p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.875rem;">CGPA</span>
+                <strong style="color:${(fullProfile.cgpa||0)<6?'var(--danger)':(fullProfile.cgpa||0)<7?'var(--warning)':'var(--success)'};">${fullProfile.cgpa || '—'}</strong>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="color:var(--text-secondary);font-size:0.875rem;">Attendance</span>
+                  <strong style="color:${(fullProfile.attendance||100)<75?'var(--danger)':(fullProfile.attendance||100)<85?'var(--warning)':'var(--success)'};">${fullProfile.attendance || 0}%</strong>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill ${(fullProfile.attendance||0)<75?'fill-danger':(fullProfile.attendance||0)<85?'fill-warning':'fill-success'}" style="width:${fullProfile.attendance||0}%"></div>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-secondary);font-size:0.875rem;">Risk</span>${riskBadge(fullProfile.riskLevel || risk.riskLevel)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <!-- Upcoming Meetings -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Upcoming Meetings</h3>
+              <a href="#/student/meetings" style="font-size:0.8rem;color:var(--accent);">View All</a>
+            </div>
+            ${upcomingMeetings.length === 0
+              ? '<p style="padding:20px;color:var(--text-muted);font-size:0.875rem;">No upcoming meetings.</p>'
+              : upcomingMeetings.slice(0,3).map(m => `
+                <div class="list-item">
+                  <div>
+                    <p style="font-weight:600;font-size:0.875rem;">${m.type}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">${fmt(m.scheduledAt)}</p>
+                  </div>
+                  <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join</button>
+                </div>
+              `).join('')
+            }
+          </div>
+
+          <!-- Pending Tasks -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Pending Tasks</h3>
+              <a href="#/student/tasks" style="font-size:0.8rem;color:var(--accent);">View All</a>
+            </div>
+            ${pendingTasks.length === 0
+              ? '<p style="padding:20px;color:var(--text-muted);font-size:0.875rem;">No pending tasks. Great work!</p>'
+              : pendingTasks.slice(0,3).map(t => `
+                <div class="list-item">
+                  <div style="flex:1;">
+                    <p style="font-weight:600;font-size:0.875rem;">${t.description}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'}</p>
+                    <div class="progress-bar-wrap" style="margin-top:6px;"><div class="progress-bar-fill" style="width:${t.progress||0}%"></div></div>
+                  </div>
+                  <span class="badge badge-warning" style="margin-left:12px;">${t.status.replace('_',' ')}</span>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.querySelectorAll('.join-btn').forEach(b => {
+      b.addEventListener('click', () => navigateTo(`/meeting-room?id=${b.dataset.id}`));
+    });
+
+    document.getElementById('btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
+
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    document.getElementById('dash-content').innerHTML = `
+      <div class="empty-state">
+        <h3 style="color:var(--danger);">Failed to load dashboard</h3>
+        <p>${err.message}</p>
+      </div>
+    `;
+    showToast('Failed to load dashboard: ' + err.message, 'error');
+  }
 }

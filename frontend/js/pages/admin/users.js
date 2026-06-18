@@ -1,27 +1,15 @@
-import { api } from '/js/api.js';
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-
-const MOCK_USERS = [
-  { id:'u1', name:'Ravi Kumar',   email:'ravi@uni.edu',   role:'STUDENT', department:'Computer Science', status:'active' },
-  { id:'u2', name:'Priya Singh',  email:'priya@uni.edu',  role:'STUDENT', department:'Computer Science', status:'active' },
-  { id:'u3', name:'Dr. Shah',     email:'shah@uni.edu',   role:'FACULTY', department:'Computer Science', status:'active' },
-  { id:'u4', name:'Dr. Gupta',    email:'gupta@uni.edu',  role:'FACULTY', department:'Computer Science', status:'active' },
-  { id:'u5', name:'Dr. HOD',      email:'hod@uni.edu',    role:'HOD',     department:'Computer Science', status:'active' },
-  { id:'u6', name:'Dean Singh',   email:'dean@uni.edu',   role:'DEAN',    department:'All', status:'active' },
-];
+import { StudentService, FacultyService } from '/js/services.js';
 
 function roleBadge(r) {
-  const map = {STUDENT:'badge-info',FACULTY:'badge-accent',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'};
-  return `<span class="badge ${map[r]||'badge-muted'}">${r}</span>`;
+  const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
+  return `<span class="badge ${cls}">${r}</span>`;
 }
 
 export async function render(container) {
   const user = getUserProfile();
-  let users = MOCK_USERS;
-  let search = '';
-  let filterRole = 'ALL';
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -35,36 +23,43 @@ export async function render(container) {
               <input type="text" id="user-search" placeholder="Search by name or email...">
             </div>
             ${['ALL','STUDENT','FACULTY','HOD','DEAN'].map((r,i) =>
-              `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} role-filter" data-role="${r}">${r}</button>`
+              `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} role-f" data-r="${r}">${r}</button>`
             ).join('')}
           </div>
-          <div class="card" id="users-table"></div>
+          <div class="card" id="users-wrap">
+            <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
+          </div>
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    const { logout } = await import('/js/auth.js'); await logout();
-  });
+  let allUsers = [];
+  let search   = '';
+  let roleFilter = 'ALL';
 
   try {
-    const [s, f] = await Promise.allSettled([api.get('/api/admin/students'), api.get('/api/admin/faculty')]);
-    users = [
-      ...(s.status === 'fulfilled' ? s.value : []),
-      ...(f.status === 'fulfilled' ? f.value : []),
+    const [students, faculty] = await Promise.all([
+      StudentService.getAll(),
+      FacultyService.getAll()
+    ]);
+    allUsers = [
+      ...students.map(s => ({ ...s, role: s.role || 'STUDENT' })),
+      ...faculty.map(f  => ({ ...f, role: f.role || 'FACULTY' }))
     ];
-    if (!users.length) users = MOCK_USERS;
-  } catch {}
+  } catch (err) {
+    document.getElementById('users-wrap').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    return;
+  }
 
   function renderTable() {
-    const wrap = document.getElementById('users-table');
-    let list = users;
-    if (filterRole !== 'ALL') list = list.filter(u => u.role === filterRole);
-    if (search) list = list.filter(u => u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search));
+    const wrap = document.getElementById('users-wrap');
+    let list = allUsers;
+    if (roleFilter !== 'ALL') list = list.filter(u => (u.role||'').toUpperCase() === roleFilter);
+    if (search) list = list.filter(u => u.name?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search));
 
     if (!list.length) {
-      wrap.innerHTML = `<div class="empty-state"><h3>No users found</h3></div>`;
+      wrap.innerHTML = `<div class="empty-state" style="padding:48px;"><h3>No users found</h3></div>`;
       return;
     }
 
@@ -77,13 +72,20 @@ export async function render(container) {
               <td>
                 <div style="display:flex;align-items:center;gap:10px;">
                   <div class="avatar avatar-sm">${(u.name||'?')[0]}</div>
-                  <span style="font-weight:600;font-size:0.875rem;">${u.name}</span>
+                  <div>
+                    <p style="font-weight:600;font-size:0.875rem;">${u.name||'—'}</p>
+                    ${u.rollNumber ? `<p style="color:var(--text-muted);font-size:0.75rem;">${u.rollNumber}</p>` : ''}
+                  </div>
                 </div>
               </td>
-              <td style="color:var(--text-secondary);font-size:0.825rem;">${u.email}</td>
-              <td>${roleBadge(u.role)}</td>
+              <td style="color:var(--text-secondary);font-size:0.825rem;">${u.email||'—'}</td>
+              <td>${roleBadge((u.role||'STUDENT').toUpperCase())}</td>
               <td style="font-size:0.825rem;">${u.department||'—'}</td>
-              <td><span class="badge ${u.status==='active'?'badge-success':'badge-muted'}">${u.status||'active'}</span></td>
+              <td>
+                <span class="badge ${u.isApproved||u.role==='STUDENT'?'badge-success':'badge-warning'}">
+                  ${u.role==='STUDENT'?'Active':u.isApproved?'Approved':'Pending'}
+                </span>
+              </td>
             </tr>
           `).join('')}
         </tbody>
@@ -92,12 +94,11 @@ export async function render(container) {
   }
 
   document.getElementById('user-search').addEventListener('input', e => { search = e.target.value.toLowerCase(); renderTable(); });
-  document.querySelectorAll('.role-filter').forEach(btn => {
+  document.querySelectorAll('.role-f').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.role-filter').forEach(b => b.className = 'btn btn-sm btn-secondary role-filter');
-      btn.className = 'btn btn-sm btn-primary role-filter';
-      filterRole = btn.dataset.role;
-      renderTable();
+      document.querySelectorAll('.role-f').forEach(b => b.className = 'btn btn-sm btn-secondary role-f');
+      btn.className = 'btn btn-sm btn-primary role-f';
+      roleFilter = btn.dataset.r; renderTable();
     });
   });
 

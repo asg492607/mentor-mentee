@@ -1,176 +1,188 @@
-import { api } from '/js/api.js';
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-
-const MOCK_STUDENTS = [
-  { id:'s1', name:'Arun Mehta',  department:'Computer Science', year:2, mentorId: null },
-  { id:'s2', name:'Dev Nair',    department:'Computer Science', year:3, mentorId: null },
-  { id:'s3', name:'Priya Roy',   department:'Electronics',      year:2, mentorId: null },
-];
-
-const MOCK_MENTORS = [
-  { id:'m1', name:'Dr. Shah',   department:'Computer Science', assignedStudentCount:18, maxStudents:20 },
-  { id:'m2', name:'Dr. Gupta',  department:'Computer Science', assignedStudentCount:15, maxStudents:20 },
-  { id:'m3', name:'Dr. Sharma', department:'Electronics',      assignedStudentCount:17, maxStudents:20 },
-];
-
-const MOCK_ALLOC = [
-  { studentName:'Ravi Kumar',  mentorName:'Dr. Shah',  department:'Computer Science' },
-  { studentName:'Priya Singh', mentorName:'Dr. Gupta', department:'Computer Science' },
-];
+import { StudentService, FacultyService, AllocationService } from '/js/services.js';
 
 export async function render(container) {
   const user = getUserProfile();
-  let students = MOCK_STUDENTS;
-  let mentors  = MOCK_MENTORS;
-  let allocs   = MOCK_ALLOC;
-  let selectedStudent = null;
-  let selectedMentor  = null;
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/admin/allocation')}
       <div class="main-content">
         ${createHeader('Mentor Allocation', user)}
-        <div class="page-content">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-            <!-- Unassigned Students -->
-            <div class="card">
-              <div class="card-header"><h3>Unassigned Students</h3></div>
-              <div id="student-pick-list" style="max-height:300px;overflow-y:auto;"></div>
-            </div>
-            <!-- Available Mentors -->
-            <div class="card">
-              <div class="card-header"><h3>Available Mentors</h3></div>
-              <div id="mentor-pick-list" style="max-height:300px;overflow-y:auto;"></div>
-            </div>
-          </div>
-
-          <!-- Assign Button -->
-          <div class="card" style="padding:20px;margin-bottom:20px;">
-            <div style="display:flex;align-items:center;gap:16px;">
-              <div style="flex:1;">
-                <p style="font-size:0.875rem;">
-                  <span style="color:var(--text-muted);">Selected Student:</span>
-                  <strong id="sel-student-label" style="color:var(--accent);">None</strong>
-                </p>
-                <p style="font-size:0.875rem;">
-                  <span style="color:var(--text-muted);">Selected Mentor:</span>
-                  <strong id="sel-mentor-label" style="color:var(--accent);">None</strong>
-                </p>
-              </div>
-              <button class="btn btn-primary" id="btn-assign">Assign →</button>
-              <div style="border-left:1px solid var(--border);padding-left:16px;">
-                <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Auto-allocate</p>
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <select id="auto-dept" class="form-select" style="padding:6px 10px;font-size:0.8rem;">
-                    <option value="">All Depts</option>
-                    <option>Computer Science</option><option>Information Technology</option><option>Electronics</option><option>Mechanical</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" id="btn-auto">Auto</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Current Allocations -->
-          <div class="card">
-            <div class="card-header"><h3>Current Allocations</h3></div>
-            <table class="data-table">
-              <thead><tr><th>Student</th><th>Mentor</th><th>Department</th></tr></thead>
-              <tbody id="alloc-table-body">
-                ${allocs.map(a => `
-                  <tr>
-                    <td style="font-weight:600;">${a.studentName}</td>
-                    <td>${a.mentorName}</td>
-                    <td style="color:var(--text-muted);font-size:0.825rem;">${a.department}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+        <div class="page-content" id="alloc-content">
+          <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    const { logout } = await import('/js/auth.js'); await logout();
-  });
+  let students = [];
+  let mentors  = [];
+  let selectedStudent = null;
+  let selectedMentor  = null;
+  let assignedPairs   = [];
 
   try {
-    const [s, m] = await Promise.allSettled([
-      api.get('/api/admin/unassigned-students'),
-      api.get('/api/admin/mentors')
+    [students, mentors] = await Promise.all([
+      StudentService.getUnassigned(),
+      FacultyService.getAll()
     ]);
-    if (s.status === 'fulfilled' && s.value.length) students = s.value;
-    if (m.status === 'fulfilled' && m.value.length) mentors  = m.value;
-  } catch {}
+    // Build current allocations
+    const allStudents = await StudentService.getAll();
+    assignedPairs = allStudents
+      .filter(s => s.mentorId)
+      .map(s => {
+        const mentor = mentors.find(m => m.id === s.mentorId);
+        return { studentName: s.name, mentorName: mentor?.name || 'Unknown', department: s.department };
+      });
+  } catch (err) {
+    document.getElementById('alloc-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    return;
+  }
 
-  function renderPickers() {
-    document.getElementById('student-pick-list').innerHTML = students.length
-      ? students.map(s => `
-          <div class="list-item student-pick ${selectedStudent?.id===s.id?'selected-item':''}" data-id="${s.id}" style="cursor:pointer;${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
-            <div>
-              <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-              <p style="color:var(--text-muted);font-size:0.78rem;">${s.department} — Year ${s.year||'?'}</p>
+  function buildUI() {
+    document.getElementById('alloc-content').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <!-- Unassigned Students -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Unassigned Students (${students.length})</h3>
+          </div>
+          <div style="max-height:320px;overflow-y:auto;" id="student-pick">
+            ${students.length === 0
+              ? '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>'
+              : students.map(s => `
+                <div class="list-item student-pick ${selectedStudent?.id===s.id?'active-pick':''}" data-id="${s.id}"
+                  style="cursor:pointer;${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
+                  <div>
+                    <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">${s.department||'—'} • Year ${s.year||'?'}</p>
+                  </div>
+                  ${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+
+        <!-- Available Mentors -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Available Mentors</h3>
+          </div>
+          <div style="max-height:320px;overflow-y:auto;" id="mentor-pick">
+            ${mentors.map(m => {
+              const capacity = m.maxStudents || 20;
+              const used     = m.assignedStudentCount || 0;
+              const full     = used >= capacity;
+              return `
+                <div class="list-item mentor-pick ${selectedMentor?.id===m.id?'active-pick':''}" data-id="${m.id}"
+                  style="cursor:${full?'not-allowed':'pointer'};opacity:${full?0.5:1};${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
+                  <div>
+                    <p style="font-weight:600;font-size:0.875rem;">${m.name}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">${m.department||'—'}</p>
+                  </div>
+                  <span class="badge ${full?'badge-danger':'badge-success'}">${used}/${capacity}</span>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Assign Controls -->
+      <div class="card" style="padding:20px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;">
+            <p style="font-size:0.875rem;margin-bottom:4px;">Student: <strong id="sel-s" style="color:var(--accent);">${selectedStudent?.name||'None'}</strong></p>
+            <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
+          </div>
+          <button class="btn btn-primary" id="btn-assign" ${(!selectedStudent||!selectedMentor)?'disabled':''}>Assign →</button>
+          <div style="border-left:1px solid var(--border);padding-left:16px;">
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Bulk Auto-Allocate</p>
+            <div style="display:flex;gap:8px;">
+              <select id="auto-dept" class="form-select" style="padding:6px 10px;font-size:0.8rem;">
+                <option value="">All Departments</option>
+                ${[...new Set(students.map(s => s.department).filter(Boolean))].map(d => `<option value="${d}">${d}</option>`).join('')}
+              </select>
+              <button class="btn btn-secondary btn-sm" id="btn-auto">Auto</button>
             </div>
           </div>
-        `).join('')
-      : '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>';
-
-    document.getElementById('mentor-pick-list').innerHTML = mentors.map(m => `
-      <div class="list-item mentor-pick ${selectedMentor?.id===m.id?'selected-item':''}" data-id="${m.id}" style="cursor:pointer;${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
-        <div>
-          <p style="font-weight:600;font-size:0.875rem;">${m.name}</p>
-          <p style="color:var(--text-muted);font-size:0.78rem;">${m.department}</p>
         </div>
-        <span class="badge ${m.assignedStudentCount>=m.maxStudents?'badge-danger':'badge-success'}">${m.assignedStudentCount}/${m.maxStudents}</span>
       </div>
-    `).join('');
 
+      <!-- Current Allocations -->
+      <div class="card">
+        <div class="card-header"><h3>Current Allocations</h3></div>
+        <div style="max-height:300px;overflow-y:auto;">
+          ${assignedPairs.length === 0
+            ? '<p style="padding:20px;color:var(--text-muted);">No allocations yet.</p>'
+            : `<table class="data-table">
+                <thead><tr><th>Student</th><th>Mentor</th><th>Department</th></tr></thead>
+                <tbody id="alloc-tbody">
+                  ${assignedPairs.map(a => `
+                    <tr>
+                      <td style="font-weight:600;">${a.studentName}</td>
+                      <td>${a.mentorName}</td>
+                      <td style="color:var(--text-muted);font-size:0.825rem;">${a.department||'—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>`
+          }
+        </div>
+      </div>
+    `;
+
+    // Student picks
     document.querySelectorAll('.student-pick').forEach(el => {
       el.addEventListener('click', () => {
         selectedStudent = students.find(s => s.id === el.dataset.id);
-        document.getElementById('sel-student-label').textContent = selectedStudent?.name || 'None';
-        renderPickers();
+        buildUI();
       });
     });
 
+    // Mentor picks
     document.querySelectorAll('.mentor-pick').forEach(el => {
       el.addEventListener('click', () => {
-        selectedMentor = mentors.find(m => m.id === el.dataset.id);
-        document.getElementById('sel-mentor-label').textContent = selectedMentor?.name || 'None';
-        renderPickers();
+        const m = mentors.find(m => m.id === el.dataset.id);
+        if ((m.assignedStudentCount||0) >= (m.maxStudents||20)) return;
+        selectedMentor = m;
+        buildUI();
       });
+    });
+
+    document.getElementById('btn-assign')?.addEventListener('click', async () => {
+      if (!selectedStudent || !selectedMentor) return;
+      const btn = document.getElementById('btn-assign');
+      btn.disabled = true; btn.textContent = 'Assigning...';
+      try {
+        await AllocationService.assign(selectedStudent.id, selectedMentor.id, selectedMentor.name);
+        assignedPairs.push({ studentName:selectedStudent.name, mentorName:selectedMentor.name, department:selectedStudent.department });
+        const m = mentors.find(m => m.id === selectedMentor.id);
+        if (m) m.assignedStudentCount = (m.assignedStudentCount||0)+1;
+        students = students.filter(s => s.id !== selectedStudent.id);
+        selectedStudent = null; selectedMentor = null;
+        showToast('Allocated successfully!', 'success');
+        buildUI();
+      } catch (err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent='Assign →'; }
+    });
+
+    document.getElementById('btn-auto')?.addEventListener('click', async () => {
+      const dept = document.getElementById('auto-dept').value || null;
+      const btn = document.getElementById('btn-auto');
+      btn.disabled = true; btn.textContent = '...';
+      try {
+        const results = await AllocationService.autoAllocate(dept);
+        showToast(`Auto-allocated ${results.length} student(s)!`, 'success');
+        // Reload
+        students = await StudentService.getUnassigned(dept);
+      } catch (err) { showToast(err.message, 'error'); }
+      finally { btn.disabled=false; btn.textContent='Auto'; buildUI(); }
     });
   }
 
-  document.getElementById('btn-assign').addEventListener('click', async () => {
-    if (!selectedStudent || !selectedMentor) { showToast('Select both student and mentor', 'warning'); return; }
-    try {
-      await api.post('/api/admin/allocate', { studentId: selectedStudent.id, mentorId: selectedMentor.id });
-    } catch {}
-    allocs.push({ studentName: selectedStudent.name, mentorName: selectedMentor.name, department: selectedStudent.department });
-    const tbody = document.getElementById('alloc-table-body');
-    tbody.innerHTML += `<tr><td style="font-weight:600;">${selectedStudent.name}</td><td>${selectedMentor.name}</td><td style="color:var(--text-muted);">${selectedStudent.department}</td></tr>`;
-    students = students.filter(s => s.id !== selectedStudent.id);
-    const m = mentors.find(m => m.id === selectedMentor.id);
-    if (m) m.assignedStudentCount++;
-    selectedStudent = null; selectedMentor = null;
-    document.getElementById('sel-student-label').textContent = 'None';
-    document.getElementById('sel-mentor-label').textContent  = 'None';
-    showToast('Allocated successfully!', 'success');
-    renderPickers();
-  });
-
-  document.getElementById('btn-auto').addEventListener('click', async () => {
-    const dept = document.getElementById('auto-dept').value;
-    try { await api.post('/api/admin/auto-allocate', { department: dept || null }); } catch {}
-    showToast('Auto-allocation complete!', 'success');
-  });
-
-  renderPickers();
+  buildUI();
 }
