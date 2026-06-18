@@ -155,8 +155,10 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-light);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-card);
 }
+
+.form-select option { background: var(--bg-card); color: var(--text-primary); }
 
 .form-error {
   color: var(--danger);

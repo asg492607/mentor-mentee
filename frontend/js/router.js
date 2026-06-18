@@ -47,7 +47,7 @@ export function navigateTo(path) {
 }
 
 export function getCurrentRoute() {
-  return window.location.hash.slice(1) || '/';
+  return (window.location.hash.slice(1).split('?')[0] || '/');
 }
 
 async function handleRoute() {
@@ -80,7 +80,7 @@ async function handleRoute() {
       <div class="empty-state h-screen">
         <h2>404 - Page Not Found</h2>
         <p class="text-muted mt-2">The page you are looking for does not exist.</p>
-        <button class="btn btn-primary mt-4" onclick="window.location.hash='/'">Go Home</button>
+        <a class="btn btn-primary mt-4" href="#/">Go Home</a>
       </div>
     `;
     return;
@@ -168,5 +168,19 @@ document.addEventListener('click', (e) => {
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeToggleUI(newTheme);
+    }
+
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const menuButton = document.getElementById('sidebar-toggle');
+    if (e.target.closest('#sidebar-toggle')) {
+        const isOpen = sidebar?.classList.toggle('open') || false;
+        backdrop?.classList.toggle('visible', isOpen);
+        menuButton?.setAttribute('aria-expanded', String(isOpen));
+    }
+    if (e.target.closest('#sidebar-backdrop') || e.target.closest('.sidebar-item')) {
+        sidebar?.classList.remove('open');
+        backdrop?.classList.remove('visible');
+        menuButton?.setAttribute('aria-expanded', 'false');
     }
 });
