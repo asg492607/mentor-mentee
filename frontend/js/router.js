@@ -72,6 +72,24 @@ async function handleRoute() {
       return;
   }
 
+  const user = getCurrentUser();
+  if (!user && !authFreeRoutes.includes(path)) {
+    navigateTo('/login');
+    return;
+  }
+
+  // Ensure profile is loaded before rendering authenticated routes
+  if (user && !authFreeRoutes.includes(path)) {
+    let profile = getUserProfile();
+    if (!profile) {
+      profile = await fetchUserProfile();
+      if (!profile) {
+        navigateTo('/login');
+        return;
+      }
+    }
+  }
+
   const modulePath = routes[path];
   const appContainer = document.getElementById('app');
 
@@ -83,12 +101,6 @@ async function handleRoute() {
         <a class="btn btn-primary mt-4" href="#/">Go Home</a>
       </div>
     `;
-    return;
-  }
-
-  const user = getCurrentUser();
-  if (!user && !authFreeRoutes.includes(path)) {
-    navigateTo('/login');
     return;
   }
 

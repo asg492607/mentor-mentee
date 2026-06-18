@@ -100,6 +100,10 @@ service cloud.firestore {
         resource.data.mentorId == uid()
       );
       allow delete: if isAdmin();
+      
+      match /signaling/{docId} {
+        allow read, write: if isAuth();
+      }
     }
 
     // ── Issues Collection ──────────────────────────────────────────────────────
