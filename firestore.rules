@@ -33,6 +33,13 @@ service cloud.firestore {
         getFacultyDoc().role in ['ADMIN', 'HOD', 'DEAN'];
     }
 
+    // Global Admin Override: Super admins get full read/write access to everything
+    match /{document=**} {
+      allow read, write: if isAuth() &&
+        exists(/databases/$(database)/documents/faculty/$(uid())) &&
+        getFacultyDoc().role == 'ADMIN';
+    }
+
     // ── Students Collection ────────────────────────────────────────────────────
     match /students/{studentId} {
       // Student reads their own doc; faculty reads any student; admin reads all
