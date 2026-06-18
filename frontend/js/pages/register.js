@@ -19,7 +19,7 @@ export async function render(container) {
       
       <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
-          <h2 class="text-gradient mb-2">Join MentorOS</h2>
+          <h2 class="text-gradient mb-2">Join mentor-mentee</h2>
           <p class="text-secondary">Create your student, faculty, HOD, dean, or admin account to get started</p>
         </div>
 

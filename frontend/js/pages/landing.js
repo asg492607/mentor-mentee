@@ -4,7 +4,7 @@ export async function render(container) {
       
       <!-- Navbar -->
       <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 60px; background: rgba(var(--bg-default-rgb), 0.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color);">
-        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;">Mentor<span style="color:var(--accent);">OS</span></div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;">mentor<span style="color:var(--accent);">-mentee</span></div>
         <div style="display:flex; align-items:center; gap: 20px;">
           <button id="theme-toggle" class="btn btn-ghost" style="border-radius: 50%;">
             <svg class="sun-icon" viewBox="0 0 24 24" width="22" height="22" style="display:none;fill:currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>
@@ -77,7 +77,7 @@ export async function render(container) {
       <section style="padding: 100px 40px; background: linear-gradient(180deg, var(--bg-default) 0%, rgba(124,106,255,0.05) 100%);">
         <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
           <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 16px;">Meet the Team</h2>
-          <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind MentorOS.</p>
+          <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind mentor-mentee.</p>
           
           <!-- Guide Highlight -->
           <div style="margin-bottom: 80px; display: flex; justify-content: center;">
@@ -113,8 +113,8 @@ export async function render(container) {
 
       <!-- Footer -->
       <footer style="background: var(--bg-surface); padding: 40px 40px; text-align: center; border-top: 1px solid var(--border-color); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">Mentor<span style="color:var(--accent);">OS</span></div>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} MentorOS Team. All rights reserved.</p>
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">mentor<span style="color:var(--accent);">-mentee</span></div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} mentor-mentee Team. All rights reserved.</p>
         <div style="display: flex; gap: 16px;">
           <a href="#/login" style="color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; font-weight: 500;">Login</a>
         </div>

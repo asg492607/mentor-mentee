@@ -9,7 +9,7 @@ export function createHeader(title, user, notificationCount = 0) {
           <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
         </button>
         <div>
-          <p class="header-kicker">MentorOS workspace</p>
+          <p class="header-kicker">mentor-mentee workspace</p>
           <h2 class="header-title">${title}</h2>
         </div>
       </div>

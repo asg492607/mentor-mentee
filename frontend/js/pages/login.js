@@ -11,7 +11,7 @@ export async function render(container) {
       
       <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
-          <h1 class="text-gradient mb-2" style="font-size: 2.5rem; letter-spacing: -1px;">MentorOS</h1>
+          <h1 class="text-gradient mb-2" style="font-size: 2.5rem; letter-spacing: -1px;">mentor-mentee</h1>
           <p class="text-secondary">Empowering Student Success</p>
         </div>
 

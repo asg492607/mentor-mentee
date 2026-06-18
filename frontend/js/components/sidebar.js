@@ -74,8 +74,8 @@ export function createSidebar(role, activePath) {
     <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation"></button>
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <span class="sidebar-logo-mark">M</span>
-        <span>MentorOS<small>${roleUpper.toLowerCase()} portal</small></span>
+        <span class="sidebar-logo-mark">m</span>
+        <span>mentor-mentee<small>${roleUpper.toLowerCase()} portal</small></span>
       </div>
       <nav class="sidebar-nav">
         ${navHtml}
