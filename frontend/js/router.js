@@ -11,6 +11,7 @@ const routes = {
   '/mentor/dashboard': './pages/mentor/dashboard.js',
   '/mentor/students': './pages/mentor/students.js',
   '/mentor/meetings': './pages/mentor/meetings.js',
+  '/mentor/issues': './pages/mentor/issues.js',
   '/mentor/notes': './pages/mentor/notes.js',
   '/mentor/reports': './pages/mentor/reports.js',
   '/hod/dashboard': './pages/hod/dashboard.js',
@@ -20,6 +21,8 @@ const routes = {
   '/dean/analytics': './pages/dean/analytics.js',
   '/dean/escalations': './pages/dean/escalations.js',
   '/dean/allocation': './pages/admin/allocation.js',
+  '/section/dashboard': './pages/section/dashboard.js',
+  '/section/escalations': './pages/section/escalations.js',
   '/admin/dashboard': './pages/admin/dashboard.js',
   '/admin/users': './pages/admin/users.js',
   '/admin/departments': './pages/admin/departments.js',
@@ -39,6 +42,7 @@ function getRoleDashboardPath(role) {
     case 'MENTOR':   return '/mentor/dashboard';
     case 'HOD':      return '/hod/dashboard';
     case 'DEAN':     return '/dean/dashboard';
+    case 'SECTION_HEAD': return '/section/dashboard';
     case 'ADMIN':    return '/admin/dashboard';
     default:         return '/student/dashboard';
   }

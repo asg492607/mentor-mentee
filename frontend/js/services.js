@@ -422,6 +422,11 @@ export const AdminService = {
       profileData.mentorId = null;
       profileData.status = 'pending';
       profileData.isApproved = false;
+    } else if (role === 'SECTION_HEAD') {
+      profileData.maxStudents = 0;
+      profileData.assignedStudentCount = 0;
+      profileData.status = 'approved';
+      profileData.isApproved = true;
     } else {
       profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
       profileData.assignedStudentCount = 0;
