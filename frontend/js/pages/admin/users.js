@@ -1,7 +1,7 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StudentService, FacultyService } from '/js/services.js';
+import { StudentService, FacultyService, AdminService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 
 function roleBadge(r) {
@@ -18,14 +18,17 @@ export async function render(container) {
       <div class="main-content">
         ${createHeader('User Management', user)}
         <div class="page-content">
-          <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-            <div class="search-box" style="flex:1;min-width:200px;">
-              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-              <input type="text" id="user-search" placeholder="Search by name or email...">
+          <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
+            <div style="display:flex;gap:12px;flex:1;min-width:300px;flex-wrap:wrap;">
+              <div class="search-box" style="flex:1;min-width:200px;">
+                <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="user-search" placeholder="Search by name or email...">
+              </div>
+              ${['ALL','STUDENT','FACULTY','HOD','DEAN','ADMIN'].map((r,i) =>
+                `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} role-f" data-r="${r}">${r}</button>`
+              ).join('')}
             </div>
-            ${['ALL','STUDENT','FACULTY','HOD','DEAN'].map((r,i) =>
-              `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} role-f" data-r="${r}">${r}</button>`
-            ).join('')}
+            <button class="btn btn-primary btn-sm" id="btn-add-user">+ Add User</button>
           </div>
           <div class="card" id="users-wrap">
             <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
@@ -129,4 +132,84 @@ export async function render(container) {
   });
 
   renderTable();
+
+  // Modal logic
+  const modalHtml = `
+    <div id="add-user-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Register New User</h3>
+          <button class="btn btn-ghost btn-sm" id="close-user-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="admin-add-user-form">
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Role</label>
+                <select id="new-user-role" class="form-select" required>
+                  <option value="STUDENT">Student</option>
+                  <option value="FACULTY">Faculty</option>
+                  <option value="HOD">HOD</option>
+                  <option value="DEAN">Dean</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Full Name</label>
+                <input type="text" id="new-user-name" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" id="new-user-email" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="new-user-password" class="form-input" required minlength="6">
+              </div>
+            </div>
+            <div class="form-group mt-4" style="margin-top:16px;">
+              <label class="form-label">Department (Optional)</label>
+              <input type="text" id="new-user-dept" class="form-input" placeholder="e.g. Computer Science">
+            </div>
+            <div class="modal-footer mt-4" style="border:none;padding:0;margin-top:24px;justify-content:flex-end;">
+              <button type="button" class="btn btn-secondary" id="cancel-user-modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="submit-new-user">Create User</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', modalHtml);
+
+  const modal = document.getElementById('add-user-modal');
+  document.getElementById('btn-add-user').addEventListener('click', () => modal.style.display = 'flex');
+  document.getElementById('close-user-modal').addEventListener('click', () => modal.style.display = 'none');
+  document.getElementById('cancel-user-modal').addEventListener('click', () => modal.style.display = 'none');
+
+  document.getElementById('admin-add-user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-new-user');
+    btn.disabled = true; btn.textContent = 'Creating...';
+    try {
+      const data = {
+        role: document.getElementById('new-user-role').value,
+        name: document.getElementById('new-user-name').value,
+        email: document.getElementById('new-user-email').value,
+        password: document.getElementById('new-user-password').value,
+        department: document.getElementById('new-user-dept').value || null
+      };
+      const newUser = await AdminService.createUser(data);
+      showToast('User created successfully!', 'success');
+      modal.style.display = 'none';
+      e.target.reset();
+      
+      allUsers.unshift({ ...newUser, isApproved: true, status: 'approved' });
+      renderTable();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create User';
+    }
+  });
 }

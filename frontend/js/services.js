@@ -381,3 +381,29 @@ export const StatsService = {
     };
   }
 };
+
+// ─── ADMIN TOOLS ─────────────────────────────────────────────────────────────
+
+import { API_BASE_URL } from '/js/config.js';
+import { getIdToken } from '/js/auth.js';
+
+export const AdminService = {
+  async createUser(data) {
+    const token = await getIdToken();
+    const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to create user');
+    }
+    
+    return await response.json();
+  }
+};
