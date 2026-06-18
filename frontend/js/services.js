@@ -384,26 +384,64 @@ export const StatsService = {
 
 // ─── ADMIN TOOLS ─────────────────────────────────────────────────────────────
 
-import { API_BASE_URL } from '/js/config.js';
-import { getIdToken } from '/js/auth.js';
+import { firebaseConfig } from '/js/config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { db } from '/js/firebase-init.js';
+import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+let secondaryApp = null;
+let secondaryAuth = null;
 
 export const AdminService = {
   async createUser(data) {
-    const token = await getIdToken();
-    const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Failed to create user');
+    if (!secondaryApp) {
+      secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+      secondaryAuth = getAuth(secondaryApp);
     }
+
+    // Create user in secondary auth (doesn't affect primary admin session)
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
+    const uid = userCredential.user.uid;
+
+    const role = data.role.toUpperCase();
+    const profileData = {
+      id: uid,
+      email: data.email,
+      name: data.name,
+      role: role,
+      department: data.department || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (role === 'STUDENT') {
+      profileData.cgpa = 0;
+      profileData.attendance = 0;
+      profileData.riskLevel = 'LOW';
+      profileData.mentorId = null;
+      profileData.status = 'pending';
+      profileData.isApproved = false;
+    } else {
+      profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
+      profileData.assignedStudentCount = 0;
+      profileData.status = 'approved';
+      profileData.isApproved = true;
+    }
+
+    if (role === 'ADMIN') {
+      profileData.status = 'approved';
+      profileData.isApproved = true;
+    }
+
+    const collectionName = role === 'STUDENT' ? 'students' : 'faculty';
     
-    return await response.json();
+    // Admin has global write access, so this will succeed on the primary db
+    await setDoc(doc(db, collectionName, uid), profileData);
+    
+    // Sign out the secondary app immediately
+    await signOut(secondaryAuth);
+    
+    return profileData;
   }
 };
