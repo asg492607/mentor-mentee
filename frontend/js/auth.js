@@ -55,10 +55,8 @@ export async function login(email, password) {
         name: 'Super Admin',
         role: 'ADMIN',
         status: 'approved',
-        isApproved: true,
-        createdAt: new Date().toISOString()
+        isApproved: true
       };
-      await setDoc(doc(db, 'faculty', uid), adminProfile, { merge: true });
       cachedUserProfile = adminProfile;
       return cachedUserProfile;
     }
