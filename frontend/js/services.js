@@ -387,8 +387,7 @@ export const StatsService = {
 import { firebaseConfig } from '/js/config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { db } from '/js/firebase-init.js';
-import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
 
 let secondaryApp = null;
 let secondaryAuth = null;
