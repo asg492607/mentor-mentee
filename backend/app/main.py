@@ -27,19 +27,19 @@ app = FastAPI(title="MentorOS API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
+    allow_credentials="*" not in settings.cors_origins_list,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth_router, prefix="/api/auth")
-app.include_router(student_router, prefix="/api/student")
-app.include_router(mentor_router, prefix="/api/mentor")
-app.include_router(hod_router, prefix="/api/hod")
-app.include_router(dean_router, prefix="/api/dean")
-app.include_router(admin_router, prefix="/api/admin")
-app.include_router(meetings_router, prefix="/api/meetings")
-app.include_router(notifications_router, prefix="/api/notifications")
+app.include_router(auth_router, prefix="/api")
+app.include_router(student_router, prefix="/api")
+app.include_router(mentor_router, prefix="/api")
+app.include_router(hod_router, prefix="/api")
+app.include_router(dean_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
+app.include_router(meetings_router, prefix="/api")
+app.include_router(notifications_router, prefix="/api")
 app.include_router(websocket_router, prefix="/ws")
 
 @app.get("/health")

@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/students/$(uid())).data;
+    }
+
+    function getFacultyDoc() {
+      return get(/databases/$(database)/documents/faculty/$(uid())).data;
+    }
+
+    function isStudent() {
+      return isAuth() && exists(/databases/$(database)/documents/students/$(uid()));
+    }
+
+    function isFaculty() {
+      return isAuth() && exists(/databases/$(database)/documents/faculty/$(uid()));
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/faculty/$(uid())) &&
+        getFacultyDoc().role in ['ADMIN', 'HOD', 'DEAN'];
+    }
+
+    // ── Students Collection ────────────────────────────────────────────────────
+    match /students/{studentId} {
+      // Student reads their own doc; faculty reads any student; admin reads all
+      allow read: if isAuth() && (uid() == studentId || isFaculty());
+      // Student updates own doc; admin creates
+      allow create: if isAuth() && uid() == studentId &&
+        request.resource.data.role == 'STUDENT';
+      allow update: if isAuth() && (
+        (uid() == studentId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'phone', 'interests', 'skills', 'careerGoal', 'updatedAt'])) ||
+        isFaculty()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Faculty Collection ─────────────────────────────────────────────────────
+    match /faculty/{facultyId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && uid() == facultyId &&
+        request.resource.data.role == 'FACULTY' &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.isApproved == false;
+      allow update: if isAuth() && (
+        (uid() == facultyId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'phone', 'designation', 'updatedAt'])) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Meetings Collection ────────────────────────────────────────────────────
+    match /meetings/{meetingId} {
+      allow read: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId  == uid() ||
+        isAdmin()
+      );
+      allow create: if isStudent() &&
+        request.resource.data.studentId == uid() &&
+        request.resource.data.status == 'REQUESTED';
+      allow update: if isAuth() && (
+        (resource.data.studentId == uid() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt']) &&
+          request.resource.data.status == 'CANCELLED') ||
+        resource.data.mentorId == uid()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Issues Collection ──────────────────────────────────────────────────────
+    match /issues/{issueId} {
+      allow read: if isAuth() && (
+        resource.data.studentId  == uid() ||
+        resource.data.mentorId   == uid() ||
+        isAdmin()
+      );
+      allow create: if isStudent() &&
+        request.resource.data.studentId == uid() &&
+        request.resource.data.status == 'OPEN';
+      allow update: if isAuth() && (
+        resource.data.mentorId  == uid() ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ── Action Items (Tasks) Collection ───────────────────────────────────────
+    match /action_items/{itemId} {
+      allow read: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId  == uid()
+      );
+      allow create: if isFaculty();
+      allow update: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId  == uid()
+      );
+      allow delete: if isFaculty();
+    }
+
+    // ── Notifications Collection ───────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() &&
+        request.resource.data.keys().hasAll(['userId', 'type', 'title', 'message', 'isRead', 'createdAt']) &&
+        request.resource.data.isRead == false;
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ── Departments Collection ─────────────────────────────────────────────────
+    match /departments/{deptId} {
+      allow read:   if isAuth();
+      allow write:  if isAdmin();
+    }
+
+    // ── Settings Collection ────────────────────────────────────────────────────
+    match /settings/{docId} {
+      allow read:   if isAuth();
+      allow write:  if isAdmin();
+    }
+  }
+}

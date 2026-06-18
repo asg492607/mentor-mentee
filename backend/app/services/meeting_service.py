@@ -69,8 +69,15 @@ class MeetingService:
         )
         return self.meeting_repo.get_by_id(meeting_id)
 
-    def start_meeting(self, meeting_id: str):
-        room_id = str(uuid.uuid4())
+    def start_meeting(self, meeting_id: str, user_id: str):
+        meeting = self.meeting_repo.get_by_id(meeting_id)
+        if not meeting:
+            raise NotFoundException("Meeting not found")
+        if user_id not in {meeting.get("studentId"), meeting.get("mentorId")}:
+            raise NotFoundException("Meeting not found")
+        if meeting.get("status") not in {MeetingStatus.APPROVED.value, MeetingStatus.ONGOING.value}:
+            raise BadRequestException("Only approved meetings can be started")
+        room_id = meeting.get("roomId") or str(uuid.uuid4())
         self.meeting_repo.update(meeting_id, {
             'status': MeetingStatus.ONGOING.value,
             'roomId': room_id,
@@ -78,7 +85,10 @@ class MeetingService:
         })
         return {"roomId": room_id}
 
-    def end_meeting(self, meeting_id: str):
+    def end_meeting(self, meeting_id: str, user_id: str):
+        meeting = self.meeting_repo.get_by_id(meeting_id)
+        if not meeting or user_id not in {meeting.get("studentId"), meeting.get("mentorId")}:
+            raise NotFoundException("Meeting not found")
         self.meeting_repo.update(meeting_id, {
             'status': MeetingStatus.COMPLETED.value,
             'endedAt': get_timestamp()

@@ -2,18 +2,24 @@ from fastapi import APIRouter, Depends
 from app.core.dependencies import get_current_user
 from app.services.meeting_service import MeetingService
 from app.repositories.meeting_repository import MeetingRepository
+from app.core.exceptions import NotFoundException, ForbiddenException
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
 
 @router.get("/{meeting_id}")
 def get_meeting(meeting_id: str, user = Depends(get_current_user)):
     repo = MeetingRepository()
-    return repo.get_by_id(meeting_id)
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in {"ADMIN", "HOD", "DEAN"}:
+        raise ForbiddenException("You are not a participant in this meeting")
+    return meeting
 
 @router.put("/{meeting_id}/start")
 def start_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
-    return meeting_service.start_meeting(meeting_id)
+    return meeting_service.start_meeting(meeting_id, user["uid"])
 
 @router.put("/{meeting_id}/end")
 def end_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
-    return meeting_service.end_meeting(meeting_id)
+    return meeting_service.end_meeting(meeting_id, user["uid"])

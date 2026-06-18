@@ -1,119 +1,54 @@
 import { STUN_SERVERS } from '/js/config.js';
 
-export function createPeerConnection(signalingClient, localStream) {
-    let pc = null;
+export function createPeerConnection(signaling, localStream, remoteId) {
+    const pc = new RTCPeerConnection(STUN_SERVERS);
+    const pendingCandidates = [];
     let onTrackCallback = null;
-    let onConnectionStateChangeCallback = null;
-    
-    function init() {
-        const configuration = {
-            iceServers: STUN_SERVERS.length ? STUN_SERVERS : [{ urls: 'stun:stun.l.google.com:19302' }]
-        };
-        
-        pc = new RTCPeerConnection(configuration);
-        
-        // Add local stream tracks to PC
-        if (localStream) {
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
-            });
-        }
-        
-        // Handle incoming ICE candidates
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                signalingClient.send('candidate', event.candidate);
-            }
-        };
-        
-        // Handle incoming media streams
-        pc.ontrack = (event) => {
-            if (onTrackCallback && event.streams && event.streams[0]) {
-                onTrackCallback(event.streams[0]);
-            }
-        };
-        
-        pc.onconnectionstatechange = () => {
-            if (onConnectionStateChangeCallback) {
-                onConnectionStateChangeCallback(pc.connectionState);
-            }
-            console.log('[Peer] Connection state:', pc.connectionState);
-        };
-        
-        // Set up signaling handlers
-        signalingClient.onMessage('offer', handleOffer);
-        signalingClient.onMessage('answer', handleAnswer);
-        signalingClient.onMessage('candidate', addIceCandidate);
-    }
-    
+
+    localStream?.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    pc.onicecandidate = event => {
+        if (event.candidate) signaling.sendSignal(remoteId, { candidate: event.candidate });
+    };
+    pc.ontrack = event => {
+        if (event.streams?.[0]) onTrackCallback?.(event.streams[0]);
+    };
+
     async function createOffer() {
-        try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            signalingClient.send('offer', offer);
-            return offer;
-        } catch (err) {
-            console.error('[Peer] Error creating offer:', err);
-            throw err;
-        }
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signaling.sendSignal(remoteId, { description: pc.localDescription });
     }
-    
-    async function handleOffer(offer) {
-        try {
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            signalingClient.send('answer', answer);
-        } catch (err) {
-            console.error('[Peer] Error handling offer:', err);
-        }
-    }
-    
-    async function handleAnswer(answer) {
-        try {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        } catch (err) {
-            console.error('[Peer] Error handling answer:', err);
-        }
-    }
-    
-    async function addIceCandidate(candidate) {
-        try {
-            if (pc.remoteDescription) {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } else {
-                console.warn('[Peer] Ignored ICE candidate because remote description is not set');
+
+    async function handleSignal(signal) {
+        if (signal.description) {
+            await pc.setRemoteDescription(signal.description);
+            while (pendingCandidates.length) {
+                await pc.addIceCandidate(pendingCandidates.shift());
             }
-        } catch (err) {
-            console.error('[Peer] Error adding ICE candidate:', err);
+            if (signal.description.type === 'offer') {
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                signaling.sendSignal(remoteId, { description: pc.localDescription });
+            }
+        }
+        if (signal.candidate) {
+            if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
+            else pendingCandidates.push(signal.candidate);
         }
     }
-    
-    function close() {
-        if (pc) {
-            pc.close();
-            pc = null;
-        }
+
+    function replaceVideoTrack(track) {
+        const sender = pc.getSenders().find(item => item.track?.kind === 'video');
+        return sender ? sender.replaceTrack(track) : Promise.resolve();
     }
-    
-    function onTrack(cb) {
-        onTrackCallback = cb;
-    }
-    
-    function onConnectionStateChange(cb) {
-        onConnectionStateChangeCallback = cb;
-    }
-    
-    // Initialize right away
-    init();
-    
+
     return {
         pc,
         createOffer,
-        handleOffer,
-        addIceCandidate,
-        close,
-        onTrack,
-        onConnectionStateChange
+        handleSignal,
+        replaceVideoTrack,
+        onTrack(callback) { onTrackCallback = callback; },
+        close() { pc.close(); }
     };
 }

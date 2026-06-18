@@ -14,6 +14,8 @@ export const firebaseConfig = {
 export const STUN_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    // Configure a TURN server for reliable calls across restrictive networks.
+    // Example: { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'secret' }
   ]
 };

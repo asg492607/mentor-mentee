@@ -20,8 +20,7 @@ export async function render(container) {
               <label class="form-label">Register As</label>
               <select id="role" class="form-select" required>
                 <option value="STUDENT">Student</option>
-                <option value="MENTOR">Teacher / Faculty</option>
-                <option value="DEAN">Dean</option>
+                <option value="FACULTY">Teacher / Faculty</option>
               </select>
             </div>
 
@@ -175,13 +174,8 @@ export async function render(container) {
       data.profile.designation = document.getElementById('designation').value;
       data.profile.employeeId = document.getElementById('employeeId').value;
       
-      if (role === 'DEAN') {
-        data.profile.status = 'approved';
-        data.profile.isApproved = true;
-      } else {
-        data.profile.status = 'pending';
-        data.profile.isApproved = false;
-      }
+      data.profile.status = 'pending';
+      data.profile.isApproved = false;
     }
 
     try {
@@ -190,7 +184,7 @@ export async function render(container) {
 
       await register(data);
       
-      if (role === 'MENTOR') {
+      if (role === 'FACULTY') {
         showToast('Registration submitted! Awaiting Dean approval.', 'success');
       } else {
         showToast('Registration successful! Please login.', 'success');

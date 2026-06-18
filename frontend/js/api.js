@@ -29,7 +29,7 @@ async function fetchWithAuth(path, options = {}) {
     let errorMessage = 'API Error';
     try {
       const errorData = await response.json();
-      errorMessage = errorData.message || errorMessage;
+      errorMessage = errorData.detail || errorData.message || errorMessage;
     } catch (e) {
       // ignore parsing error
     }

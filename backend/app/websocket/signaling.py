@@ -1,5 +1,7 @@
 from uuid import uuid4
 from fastapi import WebSocket, APIRouter, WebSocketDisconnect
+from app.config import settings
+from app.firebase.client import firebase_auth, db
 
 router = APIRouter()
 
@@ -56,9 +58,31 @@ manager = ConnectionManager()
 async def signaling_endpoint(websocket: WebSocket, meeting_id: str):
     participant_id = None
     try:
+        token = websocket.query_params.get("token")
+        authenticated_user = None
+        if token and firebase_auth:
+            authenticated_user = firebase_auth.verify_id_token(token, check_revoked=True)
+        elif not settings.ALLOW_ANONYMOUS_MEETINGS:
+            await websocket.close(code=4401, reason="Authentication required")
+            return
+
+        if authenticated_user and db:
+            meeting_doc = db.collection("meetings").document(meeting_id).get()
+            if not meeting_doc.exists:
+                await websocket.close(code=4404, reason="Meeting not found")
+                return
+            meeting = meeting_doc.to_dict()
+            uid = authenticated_user.get("uid")
+            if uid not in {meeting.get("studentId"), meeting.get("mentorId")}:
+                await websocket.close(code=4403, reason="Not a meeting participant")
+                return
+
         await websocket.accept()
         join_message = await websocket.receive_json()
-        name = str(join_message.get("name") or "Guest")[:80]
+        name = str(
+            authenticated_user.get("name") if authenticated_user
+            else join_message.get("name") or "Guest"
+        )[:80]
         participant_id = await manager.connect(meeting_id, websocket, name)
         while True:
             data = await websocket.receive_json()

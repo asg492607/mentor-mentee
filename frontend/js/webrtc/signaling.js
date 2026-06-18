@@ -1,100 +1,77 @@
 import { API_BASE_URL } from '/js/config.js';
+import { getIdToken } from '/js/auth.js';
 
-export function createSignaling(meetingId) {
+export function createSignaling(meetingId, user) {
     let ws = null;
-    let messageHandlers = {};
-    let isConnected = false;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT_ATTEMPTS = 5;
-    
-    function connect() {
-        // Replace http/https with ws/wss
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Extract host from API_BASE_URL or use current host
-        const wsHost = API_BASE_URL.replace(/^https?:\/\//, '');
-        
-        // Use default api url if absolute, otherwise derive from current window
-        let wsUrl = '';
-        if (API_BASE_URL.startsWith('http')) {
-            wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/ws/meeting/${meetingId}`;
-        } else {
-            wsUrl = `ws://localhost:8000/ws/meeting/${meetingId}`;
-        }
+    let handlers = {};
+    let connected = false;
+    let intentionalClose = false;
 
-        try {
-            ws = new WebSocket(wsUrl);
-            
-            ws.onopen = () => {
-                console.log('[Signaling] Connected to signaling server');
-                isConnected = true;
-                reconnectAttempts = 0;
-                if (messageHandlers['connect']) {
-                    messageHandlers['connect']();
-                }
-            };
-            
-            ws.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-                    if (messageHandlers[msg.type]) {
-                        messageHandlers[msg.type](msg.payload);
-                    }
-                    if (messageHandlers['*']) {
-                        messageHandlers['*'](msg);
-                    }
-                } catch (e) {
-                    console.error('[Signaling] Error parsing message', e);
-                }
-            };
-            
-            ws.onclose = () => {
-                console.log('[Signaling] Disconnected');
-                isConnected = false;
-                if (messageHandlers['disconnect']) {
-                    messageHandlers['disconnect']();
-                }
-                
-                // Auto reconnect
-                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                    reconnectAttempts++;
-                    console.log(`[Signaling] Reconnecting... Attempt ${reconnectAttempts}`);
-                    setTimeout(connect, 2000 * reconnectAttempts);
-                }
-            };
-            
-            ws.onerror = (err) => {
-                console.error('[Signaling] WebSocket error:', err);
-            };
-        } catch (error) {
-            console.error('[Signaling] Failed to connect', error);
-        }
+    async function connect() {
+        const token = await getIdToken();
+        if (!token) throw new Error('You must be signed in to join a meeting');
+        const wsBase = API_BASE_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+        const url = `${wsBase}/ws/meeting/${encodeURIComponent(meetingId)}?token=${encodeURIComponent(token)}`;
+
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+            connected = true;
+            ws.send(JSON.stringify({ type: 'join', name: user?.name || 'Participant' }));
+            emit('connect');
+        };
+        ws.onmessage = event => {
+            const message = JSON.parse(event.data);
+            emit(message.type, message);
+            emit('*', message);
+        };
+        ws.onerror = () => emit('error', new Error('Could not connect to the meeting server'));
+        ws.onclose = event => {
+            connected = false;
+            emit('disconnect', event);
+            if (!intentionalClose && event.code >= 4400) {
+                emit('error', new Error(event.reason || 'Meeting access was rejected'));
+            }
+        };
     }
-    
-    function send(type, payload) {
-        if (!isConnected || !ws) {
-            console.warn('[Signaling] Cannot send message, not connected');
-            return false;
-        }
-        ws.send(JSON.stringify({ type, payload }));
+
+    function emit(type, payload) {
+        (handlers[type] || []).forEach(callback => callback(payload));
+    }
+
+    function onMessage(type, callback) {
+        handlers[type] = handlers[type] || [];
+        handlers[type].push(callback);
+        return () => {
+            handlers[type] = (handlers[type] || []).filter(item => item !== callback);
+        };
+    }
+
+    function sendSignal(to, signal) {
+        return sendRaw({ type: 'signal', to, signal });
+    }
+
+    function sendChat(text) {
+        return sendRaw({ type: 'chat', text });
+    }
+
+    function sendRaw(message) {
+        if (!connected || ws?.readyState !== WebSocket.OPEN) return false;
+        ws.send(JSON.stringify(message));
         return true;
     }
-    
-    function onMessage(type, callback) {
-        messageHandlers[type] = callback;
-    }
-    
+
     function disconnect() {
-        if (ws) {
-            ws.close();
-            ws = null;
-        }
+        intentionalClose = true;
+        ws?.close(1000, 'Participant left');
+        ws = null;
     }
-    
+
     return {
         connect,
-        send,
         onMessage,
+        sendSignal,
+        sendChat,
         disconnect,
-        get isConnected() { return isConnected; }
+        get isConnected() { return connected; }
     };
 }

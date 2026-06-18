@@ -90,8 +90,8 @@ export async function register(data) {
       if (data.profile.employeeId)  profileData.employeeId  = data.profile.employeeId;
       profileData.maxStudents = 20;
       profileData.assignedStudentCount = 0;
-      profileData.status = data.profile.status || 'approved';
-      profileData.isApproved = data.profile.isApproved !== undefined ? data.profile.isApproved : true;
+      profileData.status = 'pending';
+      profileData.isApproved = false;
     }
 
     // Strip any remaining undefined values to be safe
