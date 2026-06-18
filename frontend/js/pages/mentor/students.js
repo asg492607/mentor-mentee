@@ -110,7 +110,7 @@ export async function render(container) {
         panel.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
             <h3 style="font-size:1rem;font-weight:600;margin:0;">${s.name}</h3>
-            <button class="btn btn-sm btn-secondary" onclick="document.getElementById('student-detail').style.display='none'">✕ Close</button>
+            <button class="btn btn-sm btn-secondary" id="student-detail-close">Close</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
             ${[['Email',s.email||'—'],['Roll No',s.rollNumber||'—'],['Department',s.department||'—'],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',s.interests||'—'],['Skills',s.skills||'—'],['Career Goal',s.careerGoal||'—']].map(([l,v]) => `
@@ -125,6 +125,9 @@ export async function render(container) {
             <span style="color:var(--text-muted);font-size:0.825rem;">Risk Score: ${s.riskScore||0}/100</span>
           </div>
         `;
+        document.getElementById('student-detail-close').addEventListener('click', () => {
+          panel.style.display = 'none';
+        });
         panel.scrollIntoView({ behavior: 'smooth' });
       });
     });

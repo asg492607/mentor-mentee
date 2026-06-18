@@ -2,6 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
+import { showModal } from '/js/components/modal.js';
 import { IssueService, NotificationService } from '/js/services.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
@@ -86,33 +87,68 @@ export async function render(container) {
     `;
 
     document.querySelectorAll('.res-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const resolution = prompt('Resolution notes:') || 'Resolved by HOD';
-        try {
-          await IssueService.resolve(btn.dataset.id, resolution);
-          if (btn.dataset.sid) {
-            await NotificationService.create({
-              userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
-              title:'Issue Resolved', message:`Your issue has been resolved by HOD: ${resolution}`, relatedId:btn.dataset.id
-            });
+      btn.addEventListener('click', () => {
+        showModal({
+          title: 'Resolve issue',
+          content: `
+            <div class="form-group">
+              <label class="form-label">Resolution notes</label>
+              <textarea id="resolution-notes" class="form-textarea" style="min-height:120px;" placeholder="Write what was resolved and any follow-up required."></textarea>
+            </div>
+          `,
+          confirmText: 'Resolve',
+          onConfirm: async (close) => {
+            const resolution = document.getElementById('resolution-notes').value.trim();
+            if (!resolution) {
+              showToast('Resolution notes are required', 'error');
+              return;
+            }
+            try {
+              await IssueService.resolve(btn.dataset.id, resolution);
+              if (btn.dataset.sid) {
+                await NotificationService.create({
+                  userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
+                  title:'Issue Resolved', message:`Your issue has been resolved by HOD: ${resolution}`, relatedId:btn.dataset.id
+                });
+              }
+              const issue = issues.find(i => i.id === btn.dataset.id);
+              issue.status = 'RESOLVED';
+              issue.resolution = resolution;
+              close();
+              showToast('Issue resolved!', 'success');
+              renderList();
+            } catch (err) { showToast(err.message, 'error'); }
           }
-          issues.find(i => i.id === btn.dataset.id).status = 'RESOLVED';
-          issues.find(i => i.id === btn.dataset.id).resolution = resolution;
-          showToast('Issue resolved!', 'success');
-          renderList();
-        } catch (err) { showToast(err.message, 'error'); }
+        });
       });
     });
 
     document.querySelectorAll('.dean-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const reason = prompt('Reason for escalating to Dean:') || 'Requires Dean intervention';
-        try {
-          await IssueService.escalate(btn.dataset.id, 'DEAN', reason, user.name);
-          showToast('Escalated to Dean', 'info');
-          issues.find(i => i.id === btn.dataset.id).escalationLevel = 'DEAN';
-          renderList();
-        } catch (err) { showToast(err.message, 'error'); }
+      btn.addEventListener('click', () => {
+        showModal({
+          title: 'Escalate to Dean',
+          content: `
+            <div class="form-group">
+              <label class="form-label">Escalation reason</label>
+              <textarea id="dean-reason" class="form-textarea" style="min-height:120px;" placeholder="Explain why this issue requires Dean intervention."></textarea>
+            </div>
+          `,
+          confirmText: 'Escalate',
+          onConfirm: async (close) => {
+            const reason = document.getElementById('dean-reason').value.trim();
+            if (!reason) {
+              showToast('Escalation reason is required', 'error');
+              return;
+            }
+            try {
+              await IssueService.escalate(btn.dataset.id, 'DEAN', reason, user.name);
+              showToast('Escalated to Dean', 'info');
+              issues.find(i => i.id === btn.dataset.id).escalationLevel = 'DEAN';
+              close();
+              renderList();
+            } catch (err) { showToast(err.message, 'error'); }
+          }
+        });
       });
     });
   }

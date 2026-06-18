@@ -38,7 +38,7 @@ export async function render(container) {
         <header class="meeting-topbar">
           <div>
             <div class="meeting-title">${escapeHtml(meeting.type || 'Mentor meeting')}</div>
-            <div class="meeting-timer" id="meeting-status">Connecting securely…</div>
+            <div class="meeting-timer" id="meeting-status">Connecting securely...</div>
           </div>
           <button class="btn btn-secondary btn-sm" id="copy-room-link">Copy invite link</button>
         </header>
@@ -62,7 +62,7 @@ export async function render(container) {
               </div>
               <div id="panel-participants" hidden></div>
               ${isMentor ? `<div id="panel-notes" hidden>
-                <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Private meeting summary…">${escapeHtml(meeting.notes?.summary || '')}</textarea>
+                <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Private meeting summary...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                 <button class="btn btn-primary w-full mt-3" id="save-meeting-notes">Save notes</button>
               </div>` : ''}
             </div>
@@ -73,11 +73,11 @@ export async function render(container) {
           </aside>
         </main>
         <footer class="meeting-controls">
-          <button class="control-btn" id="btn-mic"><span class="control-btn-icon">🎙</span><span class="control-btn-label">Microphone</span></button>
-          <button class="control-btn" id="btn-cam"><span class="control-btn-icon">📹</span><span class="control-btn-label">Camera</span></button>
-          <button class="control-btn" id="btn-screen"><span class="control-btn-icon">▣</span><span class="control-btn-label">Share screen</span></button>
-          <button class="control-btn" id="btn-panel"><span class="control-btn-icon">💬</span><span class="control-btn-label">Chat</span></button>
-          <button class="control-btn end-call" id="btn-end"><span class="control-btn-icon">☎</span><span class="control-btn-label">Leave</span></button>
+          <button class="control-btn" id="btn-mic"><span class="control-btn-icon">Mic</span><span class="control-btn-label">Microphone</span></button>
+          <button class="control-btn" id="btn-cam"><span class="control-btn-icon">Cam</span><span class="control-btn-label">Camera</span></button>
+          <button class="control-btn" id="btn-screen"><span class="control-btn-icon">Share</span><span class="control-btn-label">Share screen</span></button>
+          <button class="control-btn" id="btn-panel"><span class="control-btn-icon">Chat</span><span class="control-btn-label">Chat</span></button>
+          <button class="control-btn end-call" id="btn-end"><span class="control-btn-icon">End</span><span class="control-btn-label">Leave</span></button>
         </footer>
       </div>`;
 

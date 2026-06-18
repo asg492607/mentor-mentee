@@ -6,6 +6,10 @@ from app.services.meeting_service import MeetingService
 from app.services.issue_service import IssueService
 from app.schemas.meeting import MeetingUpdateRequest, MeetingNotesRequest
 from app.schemas.issue import IssueEscalateRequest
+from app.schemas.action_item import ActionItemCreateRequest
+from app.repositories.action_item_repository import ActionItemRepository
+from app.core.exceptions import NotFoundException, ForbiddenException
+from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/mentor", tags=["Mentor"])
 
@@ -41,8 +45,29 @@ def add_meeting_notes(meeting_id: str, data: MeetingNotesRequest, user = Depends
     return meeting_service.add_notes(meeting_id, data)
 
 @router.post("/meetings/{meeting_id}/action-items")
-def add_action_item(meeting_id: str, user = Depends(get_mentor_user)):
-    return {"message": f"Action item added to meeting {meeting_id}"}
+def add_action_item(meeting_id: str, data: ActionItemCreateRequest, user = Depends(get_mentor_user)):
+    meeting_service = MeetingService()
+    meeting = meeting_service.meeting_repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if meeting.get("mentorId") != user["uid"]:
+        raise ForbiddenException("You cannot add action items to this meeting")
+    item = {
+        "meetingId": meeting_id,
+        "studentId": data.studentId,
+        "mentorId": user["uid"],
+        "mentorName": user.get("name"),
+        "description": data.description,
+        "category": data.category.value if hasattr(data.category, "value") else data.category,
+        "deadline": data.deadline.isoformat(),
+        "status": "PENDING",
+        "progress": 0,
+        "createdAt": get_timestamp(),
+        "updatedAt": get_timestamp(),
+    }
+    repo = ActionItemRepository()
+    item_id = repo.create(item)
+    return repo.get_by_id(item_id)
 
 @router.get("/issues")
 def get_issues(user = Depends(get_mentor_user), issue_service: IssueService = Depends()):

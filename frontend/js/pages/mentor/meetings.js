@@ -105,7 +105,7 @@ export async function render(container) {
             </div>
             <div style="display:flex;gap:8px;margin-top:8px;">
               <button class="btn btn-sm btn-primary save-note-btn" data-id="${m.id}" data-sid="${m.studentId}">Save Notes</button>
-              <button class="btn btn-sm btn-secondary" onclick="document.getElementById('notes-${m.id}').style.display='none'">Cancel</button>
+              <button class="btn btn-sm btn-secondary cancel-note-btn" data-id="${m.id}">Cancel</button>
             </div>
           </div>
         </div>
@@ -134,7 +134,7 @@ export async function render(container) {
     // Reject
     document.querySelectorAll('.rej-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const reason = prompt('Rejection reason:') || 'Unavailable at that time';
+        const reason = 'Unavailable at the requested time';
         try {
           await MeetingService.update(btn.dataset.id, { status:'REJECTED', rejectionReason:reason });
           meetings.find(m => m.id === btn.dataset.id).status = 'REJECTED';
@@ -185,6 +185,12 @@ export async function render(container) {
           meetings.find(m => m.id === btn.dataset.id).status = 'COMPLETED';
           renderTab();
         } catch (err) { showToast(err.message, 'error'); }
+      });
+    });
+
+    document.querySelectorAll('.cancel-note-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById(`notes-${btn.dataset.id}`).style.display = 'none';
       });
     });
   }

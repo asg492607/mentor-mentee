@@ -1,13 +1,14 @@
 export async function getLocalStream(video = true, audio = true) {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video,
-            audio
-        });
-        return stream;
+        return await navigator.mediaDevices.getUserMedia({ video, audio });
     } catch (err) {
-        console.error('[Media] Error getting local stream:', err);
-        throw err;
+        console.warn('[Media] Camera and microphone unavailable, retrying audio only:', err);
+        try {
+            return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+        } catch (audioErr) {
+            console.warn('[Media] Joining without local media:', audioErr);
+            return new MediaStream();
+        }
     }
 }
 

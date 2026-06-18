@@ -6,6 +6,8 @@ from app.repositories.department_repository import DepartmentRepository
 from app.repositories.student_repository import StudentRepository
 from app.repositories.faculty_repository import FacultyRepository
 from app.repositories.issue_repository import IssueRepository
+from app.repositories.meeting_repository import MeetingRepository
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/dean", tags=["Dean"])
 
@@ -35,6 +37,7 @@ def get_analytics(user=Depends(get_dean_user)):
     student_repo = StudentRepository()
     faculty_repo = FacultyRepository()
     issue_repo   = IssueRepository()
+    meeting_repo = MeetingRepository()
 
     all_students = student_repo.get_all()
     all_issues   = issue_repo.get_all()
@@ -52,9 +55,25 @@ def get_analytics(user=Depends(get_dean_user)):
         if s.get('riskLevel') == 'HIGH':
             dept_risk[dept] = dept_risk.get(dept, 0) + 1
 
+    meetings_trend = []
+    meetings = meeting_repo.get_all()
+    now = datetime.now(timezone.utc)
+    for offset in range(5, -1, -1):
+        month = now.month - offset
+        year = now.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        prefix = f"{year}-{month:02d}"
+        count = sum(
+            1 for meeting in meetings
+            if str(meeting.get('scheduledAt') or meeting.get('createdAt') or '').startswith(prefix)
+        )
+        meetings_trend.append(count)
+
     return {
         "issueCategories": issue_categories,
         "deptRisk": dept_risk,
-        "meetingsTrend": [35, 42, 58, 48, 71, 80],  # placeholder
+        "meetingsTrend": meetings_trend,
         "mentorPerformance": []
     }

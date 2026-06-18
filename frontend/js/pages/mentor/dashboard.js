@@ -96,7 +96,7 @@ export async function render(container) {
                 <thead><tr><th>Name</th><th>CGPA</th><th>Att.</th><th>Risk</th></tr></thead>
                 <tbody>
                   ${students.slice(0, 6).map(s => `
-                    <tr style="cursor:pointer;" onclick="window.location.hash='/mentor/students'">
+                    <tr style="cursor:pointer;" class="student-row-link">
                       <td>
                         <div style="display:flex;align-items:center;gap:8px;">
                           <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
@@ -141,13 +141,17 @@ export async function render(container) {
     // Reject
     document.querySelectorAll('.reject-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const reason = prompt('Rejection reason (optional):') || 'Unavailable';
+        const reason = 'Unavailable at the requested time';
         try {
           await MeetingService.update(btn.dataset.id, { status: 'REJECTED', rejectionReason: reason });
           showToast('Meeting rejected', 'info');
           btn.closest('.list-item').remove();
         } catch (err) { showToast(err.message, 'error'); }
       });
+    });
+
+    document.querySelectorAll('.student-row-link').forEach(row => {
+      row.addEventListener('click', () => navigateTo('/mentor/students'));
     });
 
   } catch (err) {

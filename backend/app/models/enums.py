@@ -63,6 +63,7 @@ class ActionItemCategory(str, Enum):
     PROJECT = "PROJECT"
     INTERNSHIP = "INTERNSHIP"
     PERSONAL = "PERSONAL"
+    MEETING_ACTION = "MEETING_ACTION"
 
 
 class RiskLevel(str, Enum):

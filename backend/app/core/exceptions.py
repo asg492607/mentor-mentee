@@ -19,3 +19,7 @@ class ForbiddenException(MentorOSException):
 class BadRequestException(MentorOSException):
     def __init__(self, detail: str = "Bad Request"):
         super().__init__(status_code=400, detail=detail)
+
+class ServiceUnavailableException(MentorOSException):
+    def __init__(self, detail: str = "Service unavailable"):
+        super().__init__(status_code=503, detail=detail)

@@ -7,6 +7,9 @@ from app.services.issue_service import IssueService
 from app.schemas.student import StudentProfileUpdate
 from app.schemas.meeting import MeetingCreateRequest
 from app.schemas.issue import IssueCreateRequest
+from app.schemas.action_item import ActionItemUpdateRequest
+from app.repositories.action_item_repository import ActionItemRepository
+from app.core.exceptions import NotFoundException, ForbiddenException
 
 router = APIRouter(prefix="/student", tags=["Student"])
 
@@ -42,8 +45,18 @@ def get_tasks(user = Depends(get_student_user), student_service: StudentService 
     return student_service.get_dashboard(user['uid']).get('tasks', [])
 
 @router.put("/tasks/{task_id}")
-def update_task(task_id: str, user = Depends(get_student_user)):
-    return {"message": f"Task {task_id} updated"}
+def update_task(task_id: str, data: ActionItemUpdateRequest, user = Depends(get_student_user)):
+    task_repo = ActionItemRepository()
+    task = task_repo.get_by_id(task_id)
+    if not task:
+        raise NotFoundException("Task not found")
+    if task.get("studentId") != user["uid"]:
+        raise ForbiddenException("You cannot update this task")
+    update_data = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
+    if "completionPercentage" in update_data:
+        update_data["progress"] = update_data.pop("completionPercentage")
+    task_repo.update(task_id, update_data)
+    return task_repo.get_by_id(task_id)
 
 @router.get("/profile")
 def get_profile(user = Depends(get_student_user), student_service: StudentService = Depends()):
