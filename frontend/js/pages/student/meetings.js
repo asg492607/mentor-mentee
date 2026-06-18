@@ -3,169 +3,157 @@ import { navigateTo } from '/js/router.js';
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { showModal, hideModal } from '/js/components/modal.js';
 import { showToast } from '/js/components/toast.js';
-import { showLoader, hideLoader } from '/js/components/loader.js';
-import { createDataTable } from '/js/components/table.js';
-import { formatDateTime, formatDate } from '/js/utils/helpers.js';
-import { formatStatus, formatMeetingType } from '/js/utils/formatters.js';
+
+const MEETING_TYPES = ['Academic Issue','Career Guidance','Personal Concern','Internship','Project Guidance','Higher Studies'];
+
+const MOCK = [
+  { id: '1', type: 'Academic Issue', status: 'APPROVED', scheduledAt: new Date(Date.now()+86400000).toISOString(), description: 'Need help with backlog subjects', mentorName: 'Dr. Jane Smith' },
+  { id: '2', type: 'Career Guidance', status: 'REQUESTED', scheduledAt: null, description: 'Placement preparation guidance', mentorName: 'Dr. Jane Smith' },
+  { id: '3', type: 'Project Guidance', status: 'COMPLETED', scheduledAt: new Date(Date.now()-172800000).toISOString(), description: 'Final year project discussion', mentorName: 'Dr. Jane Smith' },
+];
+
+function statusBadge(s) {
+  const map = { REQUESTED:'badge-warning', APPROVED:'badge-success', REJECTED:'badge-danger', COMPLETED:'badge-muted', CANCELLED:'badge-muted' };
+  return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+}
 
 export async function render(container) {
-    const user = getUserProfile();
-    
-    container.innerHTML = `
-        <div class="dashboard-layout fade-in">
-            ${createSidebar(user.role, '/student/meetings')}
-            <div class="main-content">
-                ${createHeader('My Meetings', user)}
-                <div class="page-content">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold">Meeting History</h2>
-                        <button class="btn btn-primary" id="btn-new-meeting">
-                            <i class="fas fa-plus mr-2"></i> Request Meeting
-                        </button>
-                    </div>
-                    
-                    <div class="card card-glass p-0 mb-6">
-                        <div class="border-b border-gray-200 dark:border-gray-700 px-4 flex gap-4" id="meeting-tabs">
-                            <button class="py-3 px-2 border-b-2 border-primary font-medium text-primary active-tab" data-filter="all">All</button>
-                            <button class="py-3 px-2 border-b-2 border-transparent font-medium text-muted hover:text-gray-900 dark:hover:text-white" data-filter="upcoming">Upcoming</button>
-                            <button class="py-3 px-2 border-b-2 border-transparent font-medium text-muted hover:text-gray-900 dark:hover:text-white" data-filter="completed">Completed</button>
-                        </div>
-                        <div class="p-4" id="meetings-table-container">
-                            <!-- Table goes here -->
-                        </div>
-                    </div>
-                </div>
+  const user = getUserProfile();
+
+  container.innerHTML = `
+    <div class="dashboard-layout fade-in">
+      ${createSidebar(user.role, '/student/meetings')}
+      <div class="main-content">
+        ${createHeader('Meetings', user)}
+        <div class="page-content">
+          <div class="section-header">
+            <h2 class="section-title">My Meetings</h2>
+            <button class="btn btn-primary" id="btn-new-meeting">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+              Request Meeting
+            </button>
+          </div>
+
+          <!-- Request Form (hidden by default) -->
+          <div id="meeting-form-wrap" style="display:none;" class="inline-form mb-6">
+            <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">New Meeting Request</h3>
+            <div class="form-group">
+              <label class="form-label">Meeting Type</label>
+              <select id="m-type" class="form-select">
+                ${MEETING_TYPES.map(t=>`<option>${t}</option>`).join('')}
+              </select>
             </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="m-desc" class="form-textarea" placeholder="Briefly describe what you'd like to discuss..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preferred Date (optional)</label>
+              <input type="datetime-local" id="m-date" class="form-input">
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-primary" id="btn-submit-meeting">Submit Request</button>
+              <button class="btn btn-secondary" id="btn-cancel-form">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Meetings List -->
+          <div id="meetings-list">
+            <div class="card" style="display:flex;align-items:center;justify-content:center;height:100px;">
+              <div class="spinner"></div>
+            </div>
+          </div>
         </div>
-    `;
-    
-    // Setup modal html
-    const modalHtml = `
-        <form id="request-meeting-form" class="space-y-4">
-            <div class="form-group">
-                <label class="form-label">Meeting Type</label>
-                <select class="form-select w-full" name="type" required>
-                    <option value="">Select Type</option>
-                    <option value="Academic">Academic Support</option>
-                    <option value="Career">Career Guidance</option>
-                    <option value="Personal">Personal Counseling</option>
-                    <option value="Internship">Internship Advice</option>
-                    <option value="Project">Project Discussion</option>
-                    <option value="Higher Studies">Higher Studies</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Preferred Date & Time</label>
-                <input type="datetime-local" class="form-input w-full" name="date" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description / Agenda</label>
-                <textarea class="form-textarea w-full" name="description" rows="3" required placeholder="What would you like to discuss?"></textarea>
-            </div>
-            <div class="flex justify-end gap-2 mt-4">
-                <button type="button" class="btn btn-secondary" onclick="document.dispatchEvent(new CustomEvent('close-modal'))">Cancel</button>
-                <button type="submit" class="btn btn-primary">Submit Request</button>
-            </div>
-        </form>
-    `;
-    
-    const tableContainer = document.getElementById('meetings-table-container');
-    let allMeetings = [];
-    
-    async function loadMeetings() {
-        showLoader();
-        try {
-            // Mock data fallback
-            const res = await api.get('/api/student/meetings').catch(() => ([
-                { id: 1, type: 'Academic', mentor: 'Dr. Jane Smith', date: new Date(Date.now() + 86400000).toISOString(), status: 'Approved' },
-                { id: 2, type: 'Career', mentor: 'Dr. Jane Smith', date: new Date(Date.now() - 86400000).toISOString(), status: 'Completed' },
-                { id: 3, type: 'Project', mentor: 'Dr. Jane Smith', date: new Date(Date.now() + 172800000).toISOString(), status: 'Pending' }
-            ]));
-            
-            allMeetings = res || [];
-            renderTable('all');
-        } catch (err) {
-            showToast('Failed to load meetings', 'error');
-            tableContainer.innerHTML = '<p class="text-danger">Error loading data.</p>';
-        } finally {
-            hideLoader();
-        }
+      </div>
+    </div>
+  `;
+
+  // Wire sidebar logout
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    const { logout } = await import('/js/auth.js');
+    await logout();
+  });
+
+  // Toggle form
+  document.getElementById('btn-new-meeting').addEventListener('click', () => {
+    const wrap = document.getElementById('meeting-form-wrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('btn-cancel-form').addEventListener('click', () => {
+    document.getElementById('meeting-form-wrap').style.display = 'none';
+  });
+
+  // Submit request
+  document.getElementById('btn-submit-meeting').addEventListener('click', async () => {
+    const type = document.getElementById('m-type').value;
+    const description = document.getElementById('m-desc').value.trim();
+    const preferredDate = document.getElementById('m-date').value;
+    if (!description) { showToast('Please enter a description', 'warning'); return; }
+
+    try {
+      await api.post('/api/student/meetings/request', { type, description, preferredDate: preferredDate || null, mentorId: user.mentorId });
+      showToast('Meeting request sent!', 'success');
+      document.getElementById('meeting-form-wrap').style.display = 'none';
+      loadMeetings();
+    } catch {
+      showToast('Request sent (offline mode)', 'info');
+      document.getElementById('meeting-form-wrap').style.display = 'none';
     }
-    
-    function renderTable(filter) {
-        let filtered = allMeetings;
-        if (filter === 'upcoming') {
-            filtered = allMeetings.filter(m => m.status === 'Approved' || m.status === 'Pending');
-        } else if (filter === 'completed') {
-            filtered = allMeetings.filter(m => m.status === 'Completed');
-        }
-        
-        const columns = [
-            { key: 'date', label: 'Date & Time', render: (val) => formatDateTime(val) },
-            { key: 'type', label: 'Type', render: (val) => formatMeetingType(val) },
-            { key: 'mentor', label: 'Mentor' },
-            { key: 'status', label: 'Status', render: (val) => formatStatus(val) },
-            { key: 'actions', label: 'Actions', render: (_, row) => {
-                if (row.status === 'Approved') {
-                    return `<button class="btn btn-sm btn-primary btn-join" data-id="${row.id}">Join Room</button>`;
-                }
-                return '';
-            }}
-        ];
-        
-        tableContainer.innerHTML = createDataTable(columns, filtered);
-        
-        // Attach action listeners
-        tableContainer.querySelectorAll('.btn-join').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.target.getAttribute('data-id');
-                navigateTo(`/meeting-room?id=${id}`);
-            });
-        });
-    }
-    
-    // Event Listeners
-    document.getElementById('btn-new-meeting').addEventListener('click', () => {
-        showModal('Request Meeting', modalHtml);
-        
-        document.getElementById('request-meeting-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            
-            try {
-                showLoader();
-                await api.post('/api/student/meetings/request', data).catch(err => {
-                    // Mock success
-                    console.log('Mock request sent', data);
-                });
-                showToast('Meeting requested successfully', 'success');
-                hideModal();
-                loadMeetings();
-            } catch (err) {
-                showToast('Failed to request meeting', 'error');
-            } finally {
-                hideLoader();
-            }
-        });
+  });
+
+  loadMeetings();
+}
+
+async function loadMeetings() {
+  const wrap = document.getElementById('meetings-list');
+  let meetings = MOCK;
+  try { meetings = await api.get('/api/student/meetings'); } catch {}
+
+  if (!meetings || meetings.length === 0) {
+    wrap.innerHTML = `<div class="empty-state" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);">
+      <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+      <h3>No meetings yet</h3><p>Request your first meeting with your mentor.</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="card">
+      <table class="data-table">
+        <thead><tr>
+          <th>Type</th><th>Description</th><th>Scheduled At</th><th>Status</th><th>Action</th>
+        </tr></thead>
+        <tbody>
+          ${meetings.map(m => `
+            <tr>
+              <td><strong>${m.type}</strong></td>
+              <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.description||'—'}</td>
+              <td>${fmtDate(m.scheduledAt)}</td>
+              <td>${statusBadge(m.status)}</td>
+              <td>
+                ${m.status === 'APPROVED' ? `<button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join</button>` :
+                  m.status === 'REQUESTED' ? `<button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}">Cancel</button>` : '—'}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  document.querySelectorAll('.join-btn').forEach(b => {
+    b.addEventListener('click', () => navigateTo(`/meeting-room?id=${b.dataset.id}`));
+  });
+  document.querySelectorAll('.cancel-btn').forEach(b => {
+    b.addEventListener('click', async () => {
+      try { await api.put(`/api/student/meetings/${b.dataset.id}`, { status: 'CANCELLED' }); } catch {}
+      showToast('Meeting cancelled', 'info');
+      loadMeetings();
     });
-    
-    document.querySelectorAll('#meeting-tabs button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('#meeting-tabs button').forEach(b => {
-                b.classList.remove('border-primary', 'text-primary', 'active-tab');
-                b.classList.add('border-transparent', 'text-muted');
-            });
-            e.target.classList.remove('border-transparent', 'text-muted');
-            e.target.classList.add('border-primary', 'text-primary', 'active-tab');
-            
-            renderTable(e.target.getAttribute('data-filter'));
-        });
-    });
-    
-    document.addEventListener('close-modal', () => hideModal());
-    
-    loadMeetings();
+  });
 }
