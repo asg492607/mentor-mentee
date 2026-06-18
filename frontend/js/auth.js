@@ -84,14 +84,14 @@ export async function register(data) {
       profileData.mentorId = null;
     }
 
-    // Faculty / teacher-only fields
+    // Faculty / Dean staff fields
     if (role !== 'STUDENT') {
       if (data.profile.designation) profileData.designation = data.profile.designation;
       if (data.profile.employeeId)  profileData.employeeId  = data.profile.employeeId;
-      profileData.maxStudents = 20;
+      profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
       profileData.assignedStudentCount = 0;
-      profileData.status = 'pending';
-      profileData.isApproved = false;
+      profileData.status = role === 'DEAN' ? 'approved' : 'pending';
+      profileData.isApproved = role === 'DEAN';
     }
 
     // Strip any remaining undefined values to be safe

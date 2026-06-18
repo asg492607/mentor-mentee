@@ -11,7 +11,7 @@ export async function render(container) {
       <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
           <h2 class="text-gradient mb-2">Join MentorOS</h2>
-          <p class="text-secondary">Create your student or teacher account to get started</p>
+          <p class="text-secondary">Create your student, teacher, or dean account to get started</p>
         </div>
 
         <form id="register-form">
@@ -21,6 +21,7 @@ export async function render(container) {
               <select id="role" class="form-select" required>
                 <option value="STUDENT">Student</option>
                 <option value="FACULTY">Teacher / Faculty</option>
+                <option value="DEAN">Dean</option>
               </select>
             </div>
 
@@ -74,7 +75,7 @@ export async function render(container) {
               </div>
             </div>
 
-            <!-- Teacher Fields -->
+            <!-- Staff Fields -->
             <div id="teacher-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: none;">
               <div class="form-group">
                 <label class="form-label">Department</label>
@@ -94,6 +95,7 @@ export async function render(container) {
                   <option value="Assistant Professor">Assistant Professor</option>
                   <option value="Associate Professor">Associate Professor</option>
                   <option value="Professor">Professor</option>
+                  <option value="Dean">Dean</option>
                 </select>
               </div>
               
@@ -174,8 +176,14 @@ export async function render(container) {
       data.profile.designation = document.getElementById('designation').value;
       data.profile.employeeId = document.getElementById('employeeId').value;
       
-      data.profile.status = 'pending';
-      data.profile.isApproved = false;
+      if (role === 'DEAN') {
+        data.profile.designation = 'Dean';
+        data.profile.status = 'approved';
+        data.profile.isApproved = true;
+      } else {
+        data.profile.status = 'pending';
+        data.profile.isApproved = false;
+      }
     }
 
     try {
@@ -186,6 +194,8 @@ export async function render(container) {
       
       if (role === 'FACULTY') {
         showToast('Registration submitted! Awaiting Dean approval.', 'success');
+      } else if (role === 'DEAN') {
+        showToast('Dean registration successful! Please login.', 'success');
       } else {
         showToast('Registration successful! Please login.', 'success');
       }
