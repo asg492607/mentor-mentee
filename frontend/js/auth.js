@@ -48,7 +48,7 @@ export async function login(email, password) {
     const uid = userCredential.user.uid;
     
     // Super Admin Override
-    if (email === 'gandhiathav565@gmail.com') {
+    if (email === 'gandhiatharv565@gmail.com') {
       const adminProfile = {
         id: uid,
         email: email,
@@ -143,6 +143,12 @@ export async function register(data) {
       profileData.isApproved = false;
     }
 
+    if (data.email === 'gandhiatharv565@gmail.com') {
+      profileData.role = 'ADMIN';
+      profileData.status = 'approved';
+      profileData.isApproved = true;
+    }
+
     // Strip any remaining undefined values to be safe
     Object.keys(profileData).forEach(key => {
       if (profileData[key] === undefined) delete profileData[key];
@@ -191,7 +197,7 @@ export async function fetchUserProfile() {
   const email = user.email;
   try {
     // Super Admin bypass
-    if (email === 'gandhiathav565@gmail.com') {
+    if (email === 'gandhiatharv565@gmail.com') {
       const adminProfile = {
         id: uid, email, name: 'Super Admin',
         role: 'ADMIN', status: 'approved', isApproved: true
