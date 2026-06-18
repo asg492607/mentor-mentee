@@ -8,8 +8,10 @@ class AuthService:
         try:
             if not firebase_auth or not db:
                 raise ServiceUnavailableException("Firebase is not configured")
-            if data.role not in {UserRole.STUDENT, UserRole.FACULTY, UserRole.DEAN}:
-                raise BadRequestException("Public registration is limited to students, faculty, and dean")
+            public_roles = {UserRole.STUDENT, UserRole.FACULTY, UserRole.HOD, UserRole.DEAN, UserRole.ADMIN}
+            privileged_roles = {UserRole.HOD, UserRole.DEAN, UserRole.ADMIN}
+            if data.role not in public_roles:
+                raise BadRequestException("Invalid registration role")
             user = firebase_auth.create_user(
                 email=data.email,
                 password=data.password,
@@ -38,14 +40,22 @@ class AuthService:
                 })
             elif data.role == UserRole.FACULTY:
                 profile_data.update({
+                    'designation': data.designation,
+                    'employeeId': data.employeeId,
                     'status': 'pending',
                     'isApproved': False,
                     'maxStudents': 20,
                     'assignedStudentCount': 0,
                 })
-            else:
+            elif data.role in privileged_roles:
+                default_designations = {
+                    UserRole.HOD: 'Head of Department',
+                    UserRole.DEAN: 'Dean',
+                    UserRole.ADMIN: 'Administrator',
+                }
                 profile_data.update({
-                    'designation': 'Dean',
+                    'designation': data.designation or default_designations[data.role],
+                    'employeeId': data.employeeId,
                     'status': 'approved',
                     'isApproved': True,
                     'maxStudents': 0,

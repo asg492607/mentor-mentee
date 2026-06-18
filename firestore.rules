@@ -59,7 +59,7 @@ service cloud.firestore {
           request.resource.data.isApproved == false
         ) ||
         (
-          request.resource.data.role == 'DEAN' &&
+          request.resource.data.role in ['HOD', 'DEAN', 'ADMIN'] &&
           request.resource.data.status == 'approved' &&
           request.resource.data.isApproved == true
         )

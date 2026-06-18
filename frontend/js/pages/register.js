@@ -2,6 +2,15 @@ import { register } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
 
+const PRIVILEGED_ROLES = new Set(['HOD', 'DEAN', 'ADMIN']);
+
+function getDefaultDesignation(role, selectedDesignation) {
+  if (role === 'HOD') return 'Head of Department';
+  if (role === 'DEAN') return 'Dean';
+  if (role === 'ADMIN') return 'Administrator';
+  return selectedDesignation;
+}
+
 export async function render(container) {
   container.innerHTML = `
     <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style="background: var(--bg-primary); padding: 40px 0;">
@@ -11,7 +20,7 @@ export async function render(container) {
       <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
           <h2 class="text-gradient mb-2">Join MentorOS</h2>
-          <p class="text-secondary">Create your student, teacher, or dean account to get started</p>
+          <p class="text-secondary">Create your student, faculty, HOD, dean, or admin account to get started</p>
         </div>
 
         <form id="register-form">
@@ -21,7 +30,9 @@ export async function render(container) {
               <select id="role" class="form-select" required>
                 <option value="STUDENT">Student</option>
                 <option value="FACULTY">Teacher / Faculty</option>
+                <option value="HOD">HOD</option>
                 <option value="DEAN">Dean</option>
+                <option value="ADMIN">Admin</option>
               </select>
             </div>
 
@@ -95,7 +106,9 @@ export async function render(container) {
                   <option value="Assistant Professor">Assistant Professor</option>
                   <option value="Associate Professor">Associate Professor</option>
                   <option value="Professor">Professor</option>
+                  <option value="Head of Department">Head of Department</option>
                   <option value="Dean">Dean</option>
+                  <option value="Administrator">Administrator</option>
                 </select>
               </div>
               
@@ -173,11 +186,10 @@ export async function render(container) {
       data.profile.rollNumber = document.getElementById('rollNumber').value;
     } else {
       data.profile.department = document.getElementById('teacher-department').value;
-      data.profile.designation = document.getElementById('designation').value;
+      data.profile.designation = getDefaultDesignation(role, document.getElementById('designation').value);
       data.profile.employeeId = document.getElementById('employeeId').value;
       
-      if (role === 'DEAN') {
-        data.profile.designation = 'Dean';
+      if (PRIVILEGED_ROLES.has(role)) {
         data.profile.status = 'approved';
         data.profile.isApproved = true;
       } else {
@@ -194,8 +206,8 @@ export async function render(container) {
       
       if (role === 'FACULTY') {
         showToast('Registration submitted! Awaiting Dean approval.', 'success');
-      } else if (role === 'DEAN') {
-        showToast('Dean registration successful! Please login.', 'success');
+      } else if (PRIVILEGED_ROLES.has(role)) {
+        showToast(`${role} registration successful! Please login.`, 'success');
       } else {
         showToast('Registration successful! Please login.', 'success');
       }

@@ -13,6 +13,7 @@ import {
 import { navigateTo } from './router.js';
 
 let cachedUserProfile = null;
+const PRIVILEGED_ROLES = new Set(['HOD', 'DEAN', 'ADMIN']);
 
 // Map frontend role values to Firestore collection names
 function getCollectionForRole(role) {
@@ -84,14 +85,14 @@ export async function register(data) {
       profileData.mentorId = null;
     }
 
-    // Faculty / Dean staff fields
+    // Faculty / HOD / Dean / Admin staff fields
     if (role !== 'STUDENT') {
       if (data.profile.designation) profileData.designation = data.profile.designation;
       if (data.profile.employeeId)  profileData.employeeId  = data.profile.employeeId;
       profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
       profileData.assignedStudentCount = 0;
-      profileData.status = role === 'DEAN' ? 'approved' : 'pending';
-      profileData.isApproved = role === 'DEAN';
+      profileData.status = PRIVILEGED_ROLES.has(role) ? 'approved' : 'pending';
+      profileData.isApproved = PRIVILEGED_ROLES.has(role);
     }
 
     // Strip any remaining undefined values to be safe

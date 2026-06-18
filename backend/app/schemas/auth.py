@@ -11,6 +11,8 @@ class RegisterRequest(BaseModel):
     department: Optional[str] = None
     year: Optional[int] = None
     rollNumber: Optional[str] = None
+    designation: Optional[str] = None
+    employeeId: Optional[str] = None
 
 class UserProfileResponse(BaseModel):
     uid: str
