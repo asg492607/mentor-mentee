@@ -146,23 +146,32 @@ export async function render(container) {
         showToast(error.message || 'Meeting connection failed', 'error');
     }
 
+    let participants = [];
+
     async function init() {
         try {
             localStream = await getLocalStream();
             addVideo('local', `${user.name} (you)`, localStream, true);
             signaling.onMessage('joined', message => {
                 signaling.selfId = message.id;
+                participants = [{ id: message.id, name: user.name }, ...message.peers];
+                renderRoster(participants);
                 message.peers.forEach(person => createPeer(person.id, person.name, true));
             });
-            signaling.onMessage('peer-joined', message => createPeer(message.id, message.name, false));
+            signaling.onMessage('peer-joined', message => {
+                participants.push({ id: message.id, name: message.name });
+                renderRoster(participants);
+                createPeer(message.id, message.name, false);
+            });
             signaling.onMessage('signal', message => createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError));
             signaling.onMessage('peer-left', message => {
+                participants = participants.filter(p => p.id !== message.id);
+                renderRoster(participants);
                 peers.get(message.id)?.close();
                 peers.delete(message.id);
                 document.querySelector(`[data-peer="${message.id}"]`)?.remove();
                 showToast('A participant left the meeting', 'info');
             });
-            signaling.onMessage('roster', message => renderRoster(message.participants));
             signaling.onMessage('chat', message => appendMessage(message.name, message.text));
             signaling.onMessage('connect', () => {
                 status.textContent = 'Connected';
