@@ -173,14 +173,23 @@ document.addEventListener('click', (e) => {
     const sidebar = document.querySelector('.sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const menuButton = document.getElementById('sidebar-toggle');
+    const isMobile = window.innerWidth <= 768;
+
     if (e.target.closest('#sidebar-toggle')) {
-        const isOpen = sidebar?.classList.toggle('open') || false;
-        backdrop?.classList.toggle('visible', isOpen);
-        menuButton?.setAttribute('aria-expanded', String(isOpen));
+        if (isMobile) {
+            const isOpen = sidebar?.classList.toggle('open') || false;
+            backdrop?.classList.toggle('visible', isOpen);
+            menuButton?.setAttribute('aria-expanded', String(isOpen));
+        } else {
+            const isCollapsed = sidebar?.classList.toggle('collapsed') || false;
+            menuButton?.setAttribute('aria-expanded', String(!isCollapsed));
+        }
     }
     if (e.target.closest('#sidebar-backdrop') || e.target.closest('.sidebar-item')) {
-        sidebar?.classList.remove('open');
-        backdrop?.classList.remove('visible');
-        menuButton?.setAttribute('aria-expanded', 'false');
+        if (isMobile) {
+            sidebar?.classList.remove('open');
+            backdrop?.classList.remove('visible');
+            menuButton?.setAttribute('aria-expanded', 'false');
+        }
     }
 });

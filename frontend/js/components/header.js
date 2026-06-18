@@ -5,7 +5,7 @@ export function createHeader(title, user, notificationCount = 0) {
   return `
     <header class="header">
       <div class="header-leading">
-        <button id="sidebar-toggle" class="header-icon-btn mobile-only" type="button" aria-label="Open navigation" aria-expanded="false">
+        <button id="sidebar-toggle" class="header-icon-btn" type="button" aria-label="Open navigation" aria-expanded="false">
           <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
         </button>
         <div>
