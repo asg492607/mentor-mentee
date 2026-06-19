@@ -19,7 +19,7 @@ export async function render(container) {
         <div style="padding-right: 20px;">
           <h1 style="font-size: 4rem; font-weight: 800; line-height: 1.1; margin-bottom: 24px;">
             The Future of <br>
-            <span style="background: linear-gradient(90deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Student Mentorship</span>
+            <span style="background: linear-gradient(90deg, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">Student Mentorship</span>
           </h1>
           <p style="font-size: 1.25rem; color: var(--text-secondary); margin-bottom: 40px; line-height: 1.6;">
             Connect students, faculty, and administration through seamless communication, real-time analytics, and automated risk management all in one place.

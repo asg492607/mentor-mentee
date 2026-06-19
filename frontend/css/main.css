@@ -10,6 +10,7 @@
   --text-secondary: #9999cc;
   --text-muted: #555577;
   --text-inverse: #06060f;
+  --primary: var(--text-primary);
   --accent: #7c6aff;
   --accent-hover: #9585ff;
   --accent-light: rgba(124, 106, 255, 0.15);
@@ -56,6 +57,7 @@ html[data-theme="light"] {
   --text-secondary: #475569;
   --text-muted: #94a3b8;
   --text-inverse: #ffffff;
+  --primary: var(--text-primary);
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-light: rgba(79, 70, 229, 0.1);
