@@ -149,7 +149,13 @@ service cloud.firestore {
 
     // ── Departments Collection ─────────────────────────────────────────────────
     match /departments/{deptId} {
-      allow read:   if isAuth();
+      allow read:   if true;
+      allow write:  if isAdmin();
+    }
+
+    // ── Classes Collection ─────────────────────────────────────────────────────
+    match /classes/{classId} {
+      allow read:   if true;
       allow write:  if isAdmin();
     }
 

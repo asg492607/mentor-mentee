@@ -119,6 +119,7 @@ export async function register(data) {
       if (data.profile.year !== undefined && data.profile.year !== null && !isNaN(data.profile.year)) {
         profileData.year = data.profile.year;
       }
+      if (data.profile.class) profileData.class = data.profile.class;
       if (data.profile.rollNumber) profileData.rollNumber = data.profile.rollNumber;
       profileData.cgpa = 0;
       profileData.attendance = 0;
