@@ -52,8 +52,9 @@ export async function render(container) {
         </thead>
         <tbody>
           ${departments.map(d => {
-            const possibleHeads = faculty.filter(f => f.department === d.name || !f.department);
-            const curHead = faculty.find(f => f.department === d.name && (f.role === 'HOD' || f.role === 'SECTION_HEAD'));
+            const reqRole = d.type === 'Section' ? 'SECTION_HEAD' : 'HOD';
+            const possibleHeads = faculty.filter(f => f.role === reqRole && (f.department === d.name || !f.department));
+            const curHead = faculty.find(f => f.department === d.name && f.role === reqRole);
             const opts = '<option value="">Select Head</option>' + possibleHeads.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
             
             return `
