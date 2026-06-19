@@ -192,7 +192,9 @@ export async function render(container) {
             });
             signaling.onMessage('error', handleError);
             await signaling.connect();
-            await MeetingService.update(meetingId, { status: 'ONGOING', startedAt: meeting.startedAt || new Date().toISOString() });
+            if (isMentor) {
+                await MeetingService.update(meetingId, { status: 'ONGOING', startedAt: meeting.startedAt || new Date().toISOString() });
+            }
         } catch (error) {
             handleError(error);
         }
