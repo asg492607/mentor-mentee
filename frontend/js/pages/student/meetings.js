@@ -74,12 +74,22 @@ export async function render(container) {
     const preferredDate = container.querySelector('#m-date').value || null;
 
     if (!description) { showToast('Please enter a description', 'warning'); return; }
-    if (!user.mentorId) { showToast('You have no mentor assigned yet', 'error'); return; }
-
     try {
       const btn = container.querySelector('#btn-submit');
       btn.disabled = true;
       btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
+
+      const { StudentService } = await import('/js/services.js');
+      const freshUser = await StudentService.get(user.id);
+      if (freshUser) {
+        Object.assign(user, freshUser);
+        localStorage.setItem('mentorOS_profile', JSON.stringify(user));
+      }
+
+      if (!user.mentorId) {
+        showToast('You have no mentor assigned yet', 'error');
+        return;
+      }
 
       await MeetingService.create({
         studentId: user.id,

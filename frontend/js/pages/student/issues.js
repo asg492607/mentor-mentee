@@ -80,6 +80,13 @@ export async function render(container) {
     btn.disabled = true;
 
     try {
+      const { StudentService } = await import('/js/services.js');
+      const freshUser = await StudentService.get(user.id);
+      if (freshUser) {
+        Object.assign(user, freshUser);
+        localStorage.setItem('mentorOS_profile', JSON.stringify(user));
+      }
+
       const id = await IssueService.create({
         title, category, priority, description,
         studentId: user.id,

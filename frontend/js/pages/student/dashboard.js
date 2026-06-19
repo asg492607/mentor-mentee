@@ -39,6 +39,10 @@ export async function render(container) {
     ]);
 
     const fullProfile = profile || user;
+    if (profile) {
+      Object.assign(user, profile);
+      localStorage.setItem('mentorOS_profile', JSON.stringify(user));
+    }
     // Update risk if needed
     const risk = StatsService.computeRisk(fullProfile);
 
