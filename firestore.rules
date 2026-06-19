@@ -31,7 +31,7 @@ service cloud.firestore {
       return (isAuth() && request.auth.token.email == 'gandhiatharv565@gmail.com') ||
         (isAuth() &&
         exists(/databases/$(database)/documents/faculty/$(uid())) &&
-        getFacultyDoc().role in ['ADMIN', 'HOD', 'DEAN']);
+        getFacultyDoc().role in ['ADMIN', 'HOD', 'DEAN', 'SECTION_HEAD']);
     }
 
     // Global Admin Override: Super admins get full read/write access to everything
@@ -68,7 +68,7 @@ service cloud.firestore {
           request.resource.data.isApproved == false
         ) ||
         (
-          request.resource.data.role in ['HOD', 'DEAN', 'ADMIN'] &&
+          request.resource.data.role in ['HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'] &&
           request.resource.data.status == 'approved' &&
           request.resource.data.isApproved == true
         )

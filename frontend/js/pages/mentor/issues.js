@@ -38,8 +38,8 @@ export async function render(container) {
     if (!issues.length) {
       wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
         <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-        <h3>No escalations</h3>
-        <p>All issues are being resolved at mentor level.</p>
+        <h3>No Open Issues</h3>
+        <p>Your students have not reported any issues.</p>
       </div>`;
       return;
     }

@@ -119,6 +119,14 @@ export async function render(container) {
         const peer = createPeerConnection(signaling, localStream, id);
         peer.onTrack(stream => addVideo(id, name || 'Participant', stream));
         peers.set(id, peer);
+
+        peer.pc.addEventListener('iceconnectionstatechange', () => {
+            if (peer.pc.iceConnectionState === 'failed' || peer.pc.iceConnectionState === 'disconnected') {
+                console.log('ICE Connection failed/disconnected. Attempting restart...');
+                if (peer.pc.restartIce) peer.pc.restartIce();
+            }
+        });
+
         if (offer) peer.createOffer().catch(handleError);
         return peer;
     }

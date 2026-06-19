@@ -7,7 +7,7 @@
 import { db } from '/js/firebase-init.js';
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -183,13 +183,19 @@ export const IssueService = {
 
   async escalate(id, toLevel, reason, escalatedBy) {
     const issueSnap = await getDoc(doc(db, 'issues', id));
-    const issue = issueSnap.data() || {};
-    const history = issue.escalationHistory || [];
-    history.push({ from: issue.escalationLevel, to: toLevel, reason, escalatedBy, at: now() });
+    if (!issueSnap.exists()) throw new Error("Issue not found");
+    const issue = issueSnap.data();
+    
     await updateDoc(doc(db, 'issues', id), {
       escalationLevel: toLevel,
       status: 'ESCALATED',
-      escalationHistory: history,
+      escalationHistory: arrayUnion({
+        from: issue.escalationLevel || 'MENTOR',
+        to: toLevel,
+        reason,
+        escalatedBy,
+        at: now()
+      }),
       updatedAt: now()
     });
   }
