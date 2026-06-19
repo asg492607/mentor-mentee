@@ -140,7 +140,7 @@ export async function render(container) {
             if (!reason) { showToast('Escalation reason is required', 'error'); return; }
             try {
               await IssueService.escalate(btn.dataset.id, escalateTarget, reason, user.name);
-              showToast(\`Escalated to \${escalateTarget}\`, 'info');
+              showToast(`Escalated to ${escalateTarget}`, 'info');
               issues = issues.filter(i => i.id !== btn.dataset.id);
               close();
               renderList();

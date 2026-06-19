@@ -302,7 +302,7 @@ export async function render(container) {
         for (const s of students) {
           await NotificationService.create({
             userId: s.id, type: 'MEETING_APPROVED',
-            title: 'New Group Meeting', message: \`Scheduled for \${fmt(date)}: \${type}\`, relatedId: mId
+            title: 'New Group Meeting', message: `Scheduled for ${fmt(date)}: ${type}`, relatedId: mId
           });
         }
       } else {
@@ -318,7 +318,7 @@ export async function render(container) {
         
         await NotificationService.create({
           userId: student.id, type: 'MEETING_APPROVED',
-          title: 'Meeting Scheduled', message: \`Your mentor scheduled a meeting for \${fmt(date)}\`, relatedId: mId
+          title: 'Meeting Scheduled', message: `Your mentor scheduled a meeting for ${fmt(date)}`, relatedId: mId
         });
       }
 
