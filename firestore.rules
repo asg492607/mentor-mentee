@@ -89,9 +89,10 @@ service cloud.firestore {
         resource.data.mentorId  == uid() ||
         isAdmin()
       );
-      allow create: if isStudent() &&
+      allow create: if (isStudent() &&
         request.resource.data.studentId == uid() &&
-        request.resource.data.status == 'REQUESTED';
+        request.resource.data.status == 'REQUESTED') ||
+        (isFaculty() && request.resource.data.mentorId == uid());
       allow update: if isAuth() && (
         (resource.data.studentId == uid() &&
           request.resource.data.diff(resource.data).affectedKeys()
