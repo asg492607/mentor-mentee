@@ -42,7 +42,8 @@ export async function render(container) {
       return { ...m, studentCount: mStudents.length, highRisk: mRisk };
     });
 
-    const content = document.getElementById('hod-content');
+    const content = container.querySelector('#hod-content');
+    if (!content) return;
     content.innerHTML = `
       <!-- Stats -->
       <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
@@ -189,19 +190,19 @@ export async function render(container) {
       try {
         const { ClassService } = await import('/js/services.js');
         const classes = await ClassService.getByDepartment(dept);
-        const list = document.getElementById('class-list');
+        const list = container.querySelector('#class-list');
         if (!classes.length) {
           list.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;">No classes defined.</span>';
           return;
         }
-        list.innerHTML = classes.map(c => \`
+        list.innerHTML = classes.map(c => `
           <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
-            Class \${c.className}
-            <button class="btn-del-class" data-id="\${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;margin-left:4px;">✕</button>
+            Class ${c.className}
+            <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;margin-left:4px;">✕</button>
           </span>
-        \`).join('');
+        `).join('');
 
-        document.querySelectorAll('.btn-del-class').forEach(btn => {
+        container.querySelectorAll('.btn-del-class').forEach(btn => {
           btn.addEventListener('click', async () => {
             if(!confirm('Delete this class?')) return;
             await ClassService.delete(btn.dataset.id);
@@ -214,12 +215,12 @@ export async function render(container) {
       }
     }
 
-    document.getElementById('btn-add-class').addEventListener('click', async () => {
-      const name = document.getElementById('new-class-name').value.trim();
+    container.querySelector('#btn-add-class').addEventListener('click', async () => {
+      const name = container.querySelector('#new-class-name').value.trim();
       if (!name) return;
       const { ClassService } = await import('/js/services.js');
       await ClassService.create({ department: dept, className: name });
-      document.getElementById('new-class-name').value = '';
+      container.querySelector('#new-class-name').value = '';
       showToast('Class added', 'success');
       loadClasses();
     });
@@ -227,6 +228,7 @@ export async function render(container) {
     loadClasses();
 
   } catch (err) {
-    document.getElementById('hod-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
+    const content = container.querySelector('#hod-content');
+    if (content) content.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
   }
 }

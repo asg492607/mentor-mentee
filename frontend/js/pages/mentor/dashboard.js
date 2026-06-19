@@ -34,7 +34,8 @@ export async function render(container) {
     const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
 
-    const dash = document.getElementById('mentor-dash');
+    const dash = container.querySelector('#mentor-dash');
+    if (!dash) return;
     dash.innerHTML = `
       <!-- Stats -->
       <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
@@ -156,6 +157,7 @@ export async function render(container) {
 
   } catch (err) {
     console.error(err);
-    document.getElementById('mentor-dash').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
+    const dash = container.querySelector('#mentor-dash');
+    if (dash) dash.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
   }
 }

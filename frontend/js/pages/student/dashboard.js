@@ -54,7 +54,8 @@ export async function render(container) {
     }
 
     const initials = (mentor?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const content = document.getElementById('dash-content');
+    const content = container.querySelector('#dash-content');
+    if (!content) return;
 
     content.innerHTML = `
       <!-- Stats -->
@@ -161,15 +162,16 @@ export async function render(container) {
       </div>
     `;
 
-    document.querySelectorAll('.join-btn').forEach(b => {
+    container.querySelectorAll('.join-btn').forEach(b => {
       b.addEventListener('click', () => navigateTo(`/meeting-room?id=${b.dataset.id}`));
     });
 
-    document.getElementById('btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
+    container.querySelector('#btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
 
   } catch (err) {
     console.error('Dashboard load error:', err);
-    document.getElementById('dash-content').innerHTML = `
+    const content = container.querySelector('#dash-content');
+    if (content) content.innerHTML = `
       <div class="empty-state">
         <h3 style="color:var(--danger);">Failed to load dashboard</h3>
         <p>${err.message}</p>

@@ -54,7 +54,8 @@ export async function render(container) {
     });
     const meetPerMonth = Array(6).fill(0); // populated if meeting data available
 
-    const dash = document.getElementById('dean-content');
+    const dash = container.querySelector('#dean-content');
+    if (!dash) return;
     dash.innerHTML = `
       <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px;">
         ${[
@@ -141,7 +142,7 @@ export async function render(container) {
       </div>
     `;
 
-    document.querySelectorAll('.btn-approve').forEach(btn => {
+    container.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         btn.disabled = true; btn.textContent = '...';
@@ -161,7 +162,9 @@ export async function render(container) {
       const medium = students.filter(s => s.riskLevel === 'MEDIUM').length;
       const low    = students.filter(s => !s.riskLevel || s.riskLevel === 'LOW').length;
 
-      new window.Chart(document.getElementById('dean-risk-chart').getContext('2d'), {
+      const canvas = container.querySelector('#dean-risk-chart');
+      if (canvas) {
+        new window.Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
           labels: ['High Risk', 'Medium Risk', 'Low Risk'],
@@ -172,9 +175,11 @@ export async function render(container) {
           plugins:{ legend:{ position:'right', labels:{color:'#777799',font:{size:11}} } }
         }
       });
+      }
     }
 
   } catch (err) {
-    document.getElementById('dean-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    const content = container.querySelector('#dean-content');
+    if (content) content.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
   }
 }
