@@ -125,7 +125,7 @@ export const MeetingService = {
     
     let allMeetings = myMeetings;
     if (mentorProfile && mentorProfile.mentorId) {
-      const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('isGroup', '==', true));
+      const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('studentId', '==', 'ALL'), where('isGroup', '==', true));
       const groupMeetings = await getDocs(q2).then(snaps);
       // Merge and deduplicate by ID just in case
       const seen = new Set(allMeetings.map(m => m.id));

@@ -87,6 +87,7 @@ service cloud.firestore {
       allow read: if isAuth() && (
         resource.data.studentId == uid() ||
         resource.data.mentorId  == uid() ||
+        (isStudent() && resource.data.studentId == 'ALL' && resource.data.mentorId == getUserDoc().mentorId) ||
         isAdmin()
       );
       allow create: if (isStudent() &&
