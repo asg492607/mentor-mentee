@@ -155,7 +155,7 @@ export async function render(container) {
           classSelect.innerHTML = '<option value="">No classes found</option>';
         } else {
           classSelect.disabled = false;
-          classSelect.innerHTML = '<option value="">Select Class</option>' + classes.map(c => \`<option value="\${c.className}">Class \${c.className}</option>\`).join('');
+          classSelect.innerHTML = '<option value="">Select Class</option>' + classes.map(c => `<option value="${c.className}">Class ${c.className}</option>`).join('');
         }
       });
       
@@ -167,7 +167,7 @@ export async function render(container) {
   function populateDepts(typeStr) {
     const isSection = typeStr === 'Section';
     const opts = '<option value="">Select ' + (isSection ? 'Section' : 'Department') + '</option>' +
-      allDepts.filter(d => isSection ? d.type === 'Section' : d.type !== 'Section').map(d => \`<option value="\${d.name}">\${d.name}</option>\`).join('');
+      allDepts.filter(d => isSection ? d.type === 'Section' : d.type !== 'Section').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
     deptSelects.forEach(s => s.innerHTML = opts);
   }
 

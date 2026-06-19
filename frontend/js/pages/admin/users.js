@@ -233,7 +233,7 @@ export async function render(container) {
         if (!classes.length) { classSel.innerHTML = '<option value="">No classes found</option>'; }
         else {
           classSel.disabled = false;
-          classSel.innerHTML = '<option value="">Select Class</option>' + classes.map(c => \`<option value="\${c.className}">Class \${c.className}</option>\`).join('');
+          classSel.innerHTML = '<option value="">Select Class</option>' + classes.map(c => `<option value="${c.className}">Class ${c.className}</option>`).join('');
         }
       });
     } catch(e) { console.error(e); }
@@ -242,7 +242,7 @@ export async function render(container) {
   function populateAdminDepts(typeStr) {
     const isSec = typeStr === 'Section';
     deptSel.innerHTML = '<option value="">Select ' + (isSec ? 'Section' : 'Department') + '</option>' +
-      allDepts.filter(d => isSec ? d.type === 'Section' : d.type !== 'Section').map(d => \`<option value="\${d.name}">\${d.name}</option>\`).join('');
+      allDepts.filter(d => isSec ? d.type === 'Section' : d.type !== 'Section').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
   }
 
   roleSel.addEventListener('change', (e) => {
