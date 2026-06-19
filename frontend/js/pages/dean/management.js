@@ -52,7 +52,7 @@ export async function render(container) {
         </thead>
         <tbody>
           ${departments.map(d => {
-            const possibleHeads = faculty.filter(f => f.department === d.name);
+            const possibleHeads = faculty.filter(f => f.department === d.name || !f.department);
             const curHead = faculty.find(f => f.department === d.name && (f.role === 'HOD' || f.role === 'SECTION_HEAD'));
             const opts = '<option value="">Select Head</option>' + possibleHeads.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
             
@@ -95,7 +95,7 @@ export async function render(container) {
             // Promote new head
             const newHead = faculty.find(f => f.id === newHeadId);
             const newRole = departments.find(d => d.name === deptName).type === 'Section' ? 'SECTION_HEAD' : 'HOD';
-            await FacultyService.update(newHeadId, { role: newRole });
+            await FacultyService.update(newHeadId, { role: newRole, department: deptName });
           }
           showToast('Department Head updated successfully', 'success');
           render(container); // reload

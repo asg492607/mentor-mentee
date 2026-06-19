@@ -250,8 +250,10 @@ export async function render(container) {
     if (val === 'DEAN' || val === 'ADMIN') {
       deptGroup.style.display = 'none';
       stuFields.style.display = 'none';
+      deptSel.required = false;
     } else {
       deptGroup.style.display = 'block';
+      deptSel.required = true;
       if (val === 'STUDENT') {
         stuFields.style.display = 'grid';
         deptLabel.textContent = 'Department';
