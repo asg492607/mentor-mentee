@@ -22,6 +22,9 @@ export async function render(container) {
       <div class="main-content">
         ${createHeader('Meetings', user)}
         <div class="page-content">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+            <button class="btn btn-primary" id="btn-schedule-meeting">+ Schedule Meeting</button>
+          </div>
           <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;" id="tab-bar">
             ${['Pending','Approved','Completed','All'].map((t,i) =>
               `<button class="tab-btn ${i===0?'tab-active':''}" data-tab="${t.toLowerCase()}"
@@ -40,10 +43,16 @@ export async function render(container) {
   `;
 
   let meetings = [];
+  let students = [];
   let activeTab = 'pending';
 
   try {
-    meetings = await MeetingService.getByMentor(user.id);
+    const [mList, sList] = await Promise.all([
+      MeetingService.getByMentor(user.id),
+      import('/js/services.js').then(s => s.StudentService.getByMentor(user.id))
+    ]);
+    meetings = mList;
+    students = sList;
   } catch (err) {
     showToast('Error loading meetings: ' + err.message, 'error');
   }
@@ -213,4 +222,107 @@ export async function render(container) {
   });
 
   renderTab();
+
+  // Schedule Modal
+  const modalHtml = `
+    <div id="schedule-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Schedule Meeting</h3>
+          <button class="btn btn-ghost btn-sm" id="close-sched-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="sched-form">
+            <div class="form-group">
+              <label class="form-label">Student(s)</label>
+              <select id="sched-student" class="form-select" required>
+                <option value="">Select Student</option>
+                <option value="ALL" style="font-weight:bold;color:var(--accent);">Group Meeting (All Assigned Students)</option>
+                \${students.map(s => \`<option value="\${s.id}">\${s.name} (\${s.rollNumber||'N/A'})</option>\`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Type</label>
+              <select id="sched-type" class="form-select" required>
+                <option>Academic Issue</option><option>Career Guidance</option><option>Project Guidance</option><option>General Check-in</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Topic / Description</label>
+              <input type="text" id="sched-desc" class="form-input" required placeholder="What will this meeting cover?">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date & Time</label>
+              <input type="datetime-local" id="sched-date" class="form-input" required>
+            </div>
+            <div class="modal-footer mt-4" style="border:none;padding:0;margin-top:24px;justify-content:flex-end;">
+              <button type="button" class="btn btn-secondary" id="cancel-sched-modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit-sched">Schedule</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', modalHtml);
+
+  const schedModal = document.getElementById('schedule-modal');
+  document.getElementById('btn-schedule-meeting').addEventListener('click', () => schedModal.style.display = 'flex');
+  document.getElementById('close-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
+  document.getElementById('cancel-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
+
+  document.getElementById('sched-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-sched');
+    btn.disabled = true; btn.textContent = 'Scheduling...';
+    try {
+      const studentId = document.getElementById('sched-student').value;
+      const type = document.getElementById('sched-type').value;
+      const desc = document.getElementById('sched-desc').value;
+      const date = document.getElementById('sched-date').value;
+
+      if (studentId === 'ALL') {
+        // Group Meeting
+        const mId = await MeetingService.create({
+          mentorId: user.id, mentorName: user.name,
+          studentId: 'ALL', studentName: 'Group Meeting',
+          isGroup: true, type, description: desc, scheduledAt: date,
+          status: 'APPROVED'
+        });
+        meetings.unshift({ id: mId, studentName: 'Group Meeting (All)', type, description: desc, scheduledAt: date, status: 'APPROVED' });
+        
+        // Notify all students
+        for (const s of students) {
+          await NotificationService.create({
+            userId: s.id, type: 'MEETING_APPROVED',
+            title: 'New Group Meeting', message: \`Scheduled for \${fmt(date)}: \${type}\`, relatedId: mId
+          });
+        }
+      } else {
+        // Individual
+        const student = students.find(s => s.id === studentId);
+        const mId = await MeetingService.create({
+          mentorId: user.id, mentorName: user.name,
+          studentId: student.id, studentName: student.name,
+          type, description: desc, scheduledAt: date,
+          status: 'APPROVED' // Pre-approved since mentor created it
+        });
+        meetings.unshift({ id: mId, studentId, studentName: student.name, type, description: desc, scheduledAt: date, status: 'APPROVED' });
+        
+        await NotificationService.create({
+          userId: student.id, type: 'MEETING_APPROVED',
+          title: 'Meeting Scheduled', message: \`Your mentor scheduled a meeting for \${fmt(date)}\`, relatedId: mId
+        });
+      }
+
+      showToast('Meeting scheduled successfully!', 'success');
+      schedModal.style.display = 'none';
+      e.target.reset();
+      renderTab();
+    } catch(err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Schedule';
+    }
+  });
 }

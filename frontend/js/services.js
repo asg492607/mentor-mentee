@@ -109,8 +109,31 @@ export const MeetingService = {
   },
 
   async getByStudent(studentId) {
-    const q = query(collection(db, 'meetings'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'));
-    return snaps(await getDocs(q));
+    // Also fetch group meetings where studentId === 'GROUP' or similar. 
+    // Wait, simpler: A group meeting is just a meeting where mentor scheduled it for all their students.
+    // Let's query by studentId, but also query group meetings by mentorId where isGroup is true.
+    // Actually, Firestore doesn't support OR queries easily without 'in'. 
+    // Let's fetch where studentId == studentId AND a separate query for isGroup == true where we know the student's mentor.
+    // It's cleaner to just let the mentor create N individual meeting records, one for each student, OR we can fetch group meetings.
+    // Since Firebase V10 supports 'or' queries, we can use it! Wait, we don't have 'or' imported.
+    // Let's just fetch all meetings where studentId == studentId, and separately fetch group meetings for their mentor.
+    const q1 = query(collection(db, 'meetings'), where('studentId', '==', studentId));
+    const [myMeetings, mentorProfile] = await Promise.all([
+      getDocs(q1).then(snaps),
+      getDoc(doc(db, 'students', studentId)).then(snap)
+    ]);
+    
+    let allMeetings = myMeetings;
+    if (mentorProfile && mentorProfile.mentorId) {
+      const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('isGroup', '==', true));
+      const groupMeetings = await getDocs(q2).then(snaps);
+      // Merge and deduplicate by ID just in case
+      const seen = new Set(allMeetings.map(m => m.id));
+      for (const gm of groupMeetings) {
+        if (!seen.has(gm.id)) allMeetings.push(gm);
+      }
+    }
+    return allMeetings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getByMentor(mentorId) {
@@ -282,6 +305,27 @@ export const DepartmentService = {
   }
 };
 
+// ─── CLASSES ──────────────────────────────────────────────────────────────────
+
+export const ClassService = {
+  async getAll() {
+    return snaps(await getDocs(collection(db, 'classes')));
+  },
+
+  async getByDepartment(dept) {
+    return snaps(await getDocs(query(collection(db, 'classes'), where('department', '==', dept))));
+  },
+
+  async create(data) {
+    const ref = await addDoc(collection(db, 'classes'), { ...data, createdAt: now() });
+    return ref.id;
+  },
+
+  async delete(id) {
+    await deleteDoc(doc(db, 'classes', id));
+  }
+};
+
 // ─── ALLOCATION ───────────────────────────────────────────────────────────────
 
 export const AllocationService = {
@@ -428,6 +472,8 @@ export const AdminService = {
       profileData.mentorId = null;
       profileData.status = 'approved';
       profileData.isApproved = true;
+      if (data.class) profileData.class = data.class;
+      if (data.year) profileData.year = data.year;
     } else if (role === 'SECTION_HEAD') {
       profileData.maxStudents = 0;
       profileData.assignedStudentCount = 0;

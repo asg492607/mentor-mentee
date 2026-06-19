@@ -168,9 +168,31 @@ export async function render(container) {
                 <input type="password" id="new-user-password" class="form-input" required minlength="6">
               </div>
             </div>
-            <div class="form-group mt-4" style="margin-top:16px;">
-              <label class="form-label">Department (Optional)</label>
-              <input type="text" id="new-user-dept" class="form-input" placeholder="e.g. Computer Science">
+            <div id="dynamic-fields-container" style="margin-top:16px;">
+              <div class="form-group" id="admin-dept-group">
+                <label class="form-label" id="admin-dept-label">Department</label>
+                <select id="new-user-dept" class="form-select dynamic-dept">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+              <div id="admin-student-fields" style="display:none; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                  <label class="form-label">Class</label>
+                  <select id="new-user-class" class="form-select" disabled>
+                    <option value="">Select Department First</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Year</label>
+                  <select id="new-user-year" class="form-select">
+                    <option value="">Select Year</option>
+                    <option value="1">First Year</option>
+                    <option value="2">Second Year</option>
+                    <option value="3">Third Year</option>
+                    <option value="4">Fourth Year</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="modal-footer mt-4" style="border:none;padding:0;margin-top:24px;justify-content:flex-end;">
               <button type="button" class="btn btn-secondary" id="cancel-user-modal">Cancel</button>
@@ -188,18 +210,85 @@ export async function render(container) {
   document.getElementById('close-user-modal').addEventListener('click', () => modal.style.display = 'none');
   document.getElementById('cancel-user-modal').addEventListener('click', () => modal.style.display = 'none');
 
+  const roleSel = document.getElementById('new-user-role');
+  const deptGroup = document.getElementById('admin-dept-group');
+  const deptLabel = document.getElementById('admin-dept-label');
+  const deptSel = document.getElementById('new-user-dept');
+  const stuFields = document.getElementById('admin-student-fields');
+  const classSel = document.getElementById('new-user-class');
+  let allDepts = [];
+
+  import('/js/services.js').then(async ({ DepartmentService, ClassService }) => {
+    try {
+      allDepts = await DepartmentService.getAll();
+      populateAdminDepts('Academic');
+      
+      deptSel.addEventListener('change', async (e) => {
+        if (roleSel.value !== 'STUDENT') return;
+        const dept = e.target.value;
+        classSel.innerHTML = '<option value="">Select Class</option>';
+        if (!dept) { classSel.disabled = true; return; }
+        classSel.disabled = true; classSel.innerHTML = '<option value="">Loading...</option>';
+        const classes = await ClassService.getByDepartment(dept);
+        if (!classes.length) { classSel.innerHTML = '<option value="">No classes found</option>'; }
+        else {
+          classSel.disabled = false;
+          classSel.innerHTML = '<option value="">Select Class</option>' + classes.map(c => \`<option value="\${c.className}">Class \${c.className}</option>\`).join('');
+        }
+      });
+    } catch(e) { console.error(e); }
+  });
+
+  function populateAdminDepts(typeStr) {
+    const isSec = typeStr === 'Section';
+    deptSel.innerHTML = '<option value="">Select ' + (isSec ? 'Section' : 'Department') + '</option>' +
+      allDepts.filter(d => isSec ? d.type === 'Section' : d.type !== 'Section').map(d => \`<option value="\${d.name}">\${d.name}</option>\`).join('');
+  }
+
+  roleSel.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'DEAN' || val === 'ADMIN') {
+      deptGroup.style.display = 'none';
+      stuFields.style.display = 'none';
+    } else {
+      deptGroup.style.display = 'block';
+      if (val === 'STUDENT') {
+        stuFields.style.display = 'grid';
+        deptLabel.textContent = 'Department';
+        populateAdminDepts('Academic');
+      } else {
+        stuFields.style.display = 'none';
+        if (val === 'SECTION_HEAD') {
+          deptLabel.textContent = 'Section';
+          populateAdminDepts('Section');
+        } else {
+          deptLabel.textContent = 'Department';
+          populateAdminDepts('Academic');
+        }
+      }
+    }
+  });
+
   document.getElementById('admin-add-user-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submit-new-user');
     btn.disabled = true; btn.textContent = 'Creating...';
     try {
+      const role = document.getElementById('new-user-role').value;
       const data = {
-        role: document.getElementById('new-user-role').value,
+        role,
         name: document.getElementById('new-user-name').value,
         email: document.getElementById('new-user-email').value,
         password: document.getElementById('new-user-password').value,
-        department: document.getElementById('new-user-dept').value || null
+        department: (role === 'DEAN' || role === 'ADMIN') ? null : document.getElementById('new-user-dept').value || null
       };
+      if (role === 'STUDENT') {
+        data.class = document.getElementById('new-user-class').value || null;
+        data.year = parseInt(document.getElementById('new-user-year').value) || null;
+      }
+      
+      // Need to modify AdminService.createUser to accept class and year in services.js, wait I'll pass it in data and modify services later
+      const { AdminService } = await import('/js/services.js');
       const newUser = await AdminService.createUser(data);
       showToast('User created successfully!', 'success');
       modal.style.display = 'none';

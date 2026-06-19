@@ -58,17 +58,20 @@ export async function render(container) {
             <div id="student-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: grid;">
               <div class="form-group">
                 <label class="form-label">Department</label>
-                <select id="department" class="form-select" required>
-                  <option value="">Select Department</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Information Technology">Information Technology</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Mechanical">Mechanical</option>
+                <select id="department" class="form-select dynamic-dept" required>
+                  <option value="">Loading...</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label class="form-label">Year</label>
+                <label class="form-label">Class</label>
+                <select id="student-class" class="form-select" required disabled>
+                  <option value="">Select Department First</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Year (Standard)</label>
                 <select id="year" class="form-select" required>
                   <option value="">Select Year</option>
                   <option value="1">First Year</option>
@@ -78,7 +81,7 @@ export async function render(container) {
                 </select>
               </div>
               
-              <div class="form-group" style="grid-column: 1 / -1;">
+              <div class="form-group">
                 <label class="form-label">Roll Number</label>
                 <input type="text" id="rollNumber" class="form-input" placeholder="e.g. 2021CS01" required>
               </div>
@@ -86,14 +89,10 @@ export async function render(container) {
 
             <!-- Staff Fields -->
             <div id="teacher-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: none;">
-              <div class="form-group">
-                <label class="form-label">Department</label>
-                <select id="teacher-department" class="form-select">
-                  <option value="">Select Department</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Information Technology">Information Technology</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Mechanical">Mechanical</option>
+              <div class="form-group" id="staff-dept-group">
+                <label class="form-label" id="staff-dept-label">Department</label>
+                <select id="teacher-department" class="form-select dynamic-dept">
+                  <option value="">Loading...</option>
                 </select>
               </div>
 
@@ -132,24 +131,85 @@ export async function render(container) {
   const roleSelect = document.getElementById('role');
   const studentFields = document.getElementById('student-fields');
   const teacherFields = document.getElementById('teacher-fields');
+  const classSelect = document.getElementById('student-class');
+  const deptSelects = document.querySelectorAll('.dynamic-dept');
+  
+  let allDepts = [];
+  
+  import('/js/services.js').then(async ({ DepartmentService, ClassService }) => {
+    try {
+      allDepts = await DepartmentService.getAll();
+      populateDepts('Academic');
+      
+      deptSelects[0].addEventListener('change', async (e) => {
+        const dept = e.target.value;
+        classSelect.innerHTML = '<option value="">Select Class</option>';
+        if (!dept) {
+          classSelect.disabled = true;
+          return;
+        }
+        classSelect.disabled = true;
+        classSelect.innerHTML = '<option value="">Loading...</option>';
+        const classes = await ClassService.getByDepartment(dept);
+        if (!classes.length) {
+          classSelect.innerHTML = '<option value="">No classes found</option>';
+        } else {
+          classSelect.disabled = false;
+          classSelect.innerHTML = '<option value="">Select Class</option>' + classes.map(c => \`<option value="\${c.className}">Class \${c.className}</option>\`).join('');
+        }
+      });
+      
+    } catch(e) {
+      console.error('Failed to load departments', e);
+    }
+  });
+  
+  function populateDepts(typeStr) {
+    const isSection = typeStr === 'Section';
+    const opts = '<option value="">Select ' + (isSection ? 'Section' : 'Department') + '</option>' +
+      allDepts.filter(d => isSection ? d.type === 'Section' : d.type !== 'Section').map(d => \`<option value="\${d.name}">\${d.name}</option>\`).join('');
+    deptSelects.forEach(s => s.innerHTML = opts);
+  }
 
   roleSelect.addEventListener('change', (e) => {
-    if (e.target.value === 'STUDENT') {
+    const val = e.target.value;
+    const staffLabel = document.getElementById('staff-dept-label');
+    const staffGroup = document.getElementById('staff-dept-group');
+    
+    if (val === 'STUDENT') {
       studentFields.style.display = 'grid';
       teacherFields.style.display = 'none';
       document.getElementById('department').required = true;
+      document.getElementById('student-class').required = true;
       document.getElementById('year').required = true;
       document.getElementById('rollNumber').required = true;
       document.getElementById('teacher-department').required = false;
       document.getElementById('designation').required = false;
       document.getElementById('employeeId').required = false;
+      populateDepts('Academic');
     } else {
       studentFields.style.display = 'none';
       teacherFields.style.display = 'grid';
       document.getElementById('department').required = false;
+      document.getElementById('student-class').required = false;
       document.getElementById('year').required = false;
       document.getElementById('rollNumber').required = false;
-      document.getElementById('teacher-department').required = true;
+      
+      if (val === 'DEAN' || val === 'ADMIN') {
+        staffGroup.style.display = 'none';
+        document.getElementById('teacher-department').required = false;
+      } else {
+        staffGroup.style.display = 'block';
+        document.getElementById('teacher-department').required = true;
+        if (val === 'SECTION_HEAD') {
+          staffLabel.textContent = 'Section';
+          populateDepts('Section');
+        } else {
+          staffLabel.textContent = 'Department';
+          populateDepts('Academic');
+        }
+      }
+      
       document.getElementById('designation').required = true;
       document.getElementById('employeeId').required = true;
     }
@@ -178,10 +238,13 @@ export async function render(container) {
 
     if (role === 'STUDENT') {
       data.profile.department = document.getElementById('department').value;
+      data.profile.class = document.getElementById('student-class').value;
       data.profile.year = parseInt(document.getElementById('year').value);
       data.profile.rollNumber = document.getElementById('rollNumber').value;
     } else {
-      data.profile.department = document.getElementById('teacher-department').value;
+      if (role !== 'DEAN' && role !== 'ADMIN') {
+        data.profile.department = document.getElementById('teacher-department').value;
+      }
       data.profile.designation = getDefaultDesignation(role, document.getElementById('designation').value);
       data.profile.employeeId = document.getElementById('employeeId').value;
     }

@@ -62,6 +62,23 @@ export async function render(container) {
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <!-- Manage Classes -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h3>Manage Classes</h3>
+            <span style="font-size:0.8rem;color:var(--text-secondary);">Students select these when registering</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+            <input type="text" id="new-class-name" class="form-input" placeholder="e.g. 1 or A" style="max-width:200px;">
+            <button class="btn btn-primary" id="btn-add-class">Add Class</button>
+          </div>
+          <div id="class-list" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <!-- Classes will be rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <!-- High Risk -->
         <div class="card">
           <div class="card-header">
@@ -166,6 +183,48 @@ export async function render(container) {
         }
       });
     });
+
+    // Load and render classes
+    async function loadClasses() {
+      try {
+        const { ClassService } = await import('/js/services.js');
+        const classes = await ClassService.getByDepartment(dept);
+        const list = document.getElementById('class-list');
+        if (!classes.length) {
+          list.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;">No classes defined.</span>';
+          return;
+        }
+        list.innerHTML = classes.map(c => \`
+          <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
+            Class \${c.className}
+            <button class="btn-del-class" data-id="\${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;margin-left:4px;">✕</button>
+          </span>
+        \`).join('');
+
+        document.querySelectorAll('.btn-del-class').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if(!confirm('Delete this class?')) return;
+            await ClassService.delete(btn.dataset.id);
+            showToast('Class deleted', 'success');
+            loadClasses();
+          });
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.getElementById('btn-add-class').addEventListener('click', async () => {
+      const name = document.getElementById('new-class-name').value.trim();
+      if (!name) return;
+      const { ClassService } = await import('/js/services.js');
+      await ClassService.create({ department: dept, className: name });
+      document.getElementById('new-class-name').value = '';
+      showToast('Class added', 'success');
+      loadClasses();
+    });
+
+    loadClasses();
 
   } catch (err) {
     document.getElementById('hod-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading dashboard</h3><p>${err.message}</p></div>`;
