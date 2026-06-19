@@ -137,8 +137,9 @@ export const MeetingService = {
   },
 
   async getByMentor(mentorId) {
-    const q = query(collection(db, 'meetings'), where('mentorId', '==', mentorId), orderBy('createdAt', 'desc'));
-    return snaps(await getDocs(q));
+    const q = query(collection(db, 'meetings'), where('mentorId', '==', mentorId));
+    const list = snaps(await getDocs(q));
+    return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async update(id, data) {
@@ -175,13 +176,15 @@ export const IssueService = {
   },
 
   async getByStudent(studentId) {
-    const q = query(collection(db, 'issues'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'));
-    return snaps(await getDocs(q));
+    const q = query(collection(db, 'issues'), where('studentId', '==', studentId));
+    const list = snaps(await getDocs(q));
+    return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getByMentor(mentorId) {
-    const q = query(collection(db, 'issues'), where('mentorId', '==', mentorId), orderBy('createdAt', 'desc'));
-    return snaps(await getDocs(q));
+    const q = query(collection(db, 'issues'), where('mentorId', '==', mentorId));
+    const list = snaps(await getDocs(q));
+    return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getByDepartment(dept) {
@@ -267,9 +270,11 @@ export const NotificationService = {
   },
 
   async getForUser(userId, unreadOnly = false) {
-    let q = query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(50));
+    let q = query(collection(db, 'notifications'), where('userId', '==', userId));
     const all = snaps(await getDocs(q));
-    return unreadOnly ? all.filter(n => !n.isRead) : all;
+    all.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const limited = all.slice(0, 50);
+    return unreadOnly ? limited.filter(n => !n.isRead) : limited;
   },
 
   async markRead(id) {
@@ -322,6 +327,15 @@ export const ClassService = {
   },
 
   async delete(id) {
+    const cls = snap(await getDoc(doc(db, 'classes', id)));
+    if (cls) {
+      // Find all students in this class and department, set class to null
+      const q = query(collection(db, 'students'), where('department', '==', cls.department), where('class', '==', cls.className));
+      const students = snaps(await getDocs(q));
+      for (const s of students) {
+        await updateDoc(doc(db, 'students', s.id), { class: null, updatedAt: now() });
+      }
+    }
     await deleteDoc(doc(db, 'classes', id));
   }
 };
