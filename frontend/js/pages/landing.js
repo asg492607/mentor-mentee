@@ -1,9 +1,9 @@
 export async function render(container) {
   container.innerHTML = `
-    <div class="landing-page" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-default); font-family: 'Inter', sans-serif;">
+    <div class="landing-page" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-primary); font-family: 'Inter', sans-serif;">
       
       <!-- Navbar -->
-      <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 60px; background: rgba(var(--bg-default-rgb), 0.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color);">
+      <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 60px; background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border);">
         <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;">mentor<span style="color:var(--accent);">-mentee</span></div>
         <div style="display:flex; align-items:center; gap: 20px;">
           <button id="theme-toggle" class="btn btn-ghost" style="border-radius: 50%;">
@@ -42,7 +42,7 @@ export async function render(container) {
       </section>
 
       <!-- Features Section -->
-      <section style="background: var(--bg-surface); padding: 100px 40px; border-top: 1px solid var(--border-color);">
+      <section style="background: var(--bg-secondary); padding: 100px 40px; border-top: 1px solid var(--border);">
         <div style="max-width: 1200px; margin: 0 auto;">
           <div style="text-align: center; margin-bottom: 60px;">
             <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 16px;">Core Capabilities</h2>
@@ -74,7 +74,7 @@ export async function render(container) {
       </section>
 
       <!-- Contributors Section -->
-      <section style="padding: 100px 40px; background: linear-gradient(180deg, var(--bg-default) 0%, rgba(124,106,255,0.05) 100%);">
+      <section style="padding: 100px 40px; background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(124,106,255,0.05) 100%);">
         <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
           <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 16px;">Meet the Team</h2>
           <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind mentor-mentee.</p>
@@ -112,7 +112,7 @@ export async function render(container) {
       </section>
 
       <!-- Footer -->
-      <footer style="background: var(--bg-surface); padding: 40px 40px; text-align: center; border-top: 1px solid var(--border-color); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+      <footer style="background: var(--bg-secondary); padding: 40px 40px; text-align: center; border-top: 1px solid var(--border); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
         <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">mentor<span style="color:var(--accent);">-mentee</span></div>
         <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} mentor-mentee Team. All rights reserved.</p>
         <div style="display: flex; gap: 16px;">
