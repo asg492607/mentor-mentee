@@ -161,10 +161,10 @@ export const MeetingService = {
 export const IssueService = {
   async create(data) {
     const ref = await addDoc(collection(db, 'issues'), {
-      ...data,
       status: 'OPEN',
       escalationLevel: 'MENTOR',
       escalationHistory: [],
+      ...data,
       createdAt: now(),
       updatedAt: now()
     });

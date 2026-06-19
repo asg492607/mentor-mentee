@@ -16,6 +16,9 @@ export async function render(container) {
       <div class="main-content">
         ${createHeader('Student Issues', user)}
         <div class="page-content">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+            <button class="btn btn-primary" id="btn-raise-issue">+ Raise Issue</button>
+          </div>
           <div id="esc-content">
             <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
           </div>
@@ -25,9 +28,14 @@ export async function render(container) {
   `;
 
   let issues = [];
+  let students = [];
   try {
-    const all = await IssueService.getByMentor(user.id);
+    const [all, sList] = await Promise.all([
+      IssueService.getByMentor(user.id),
+      import('/js/services.js').then(s => s.StudentService.getByMentor(user.id))
+    ]);
     issues = all.filter(i => i.escalationLevel === 'MENTOR');
+    students = sList;
   } catch (err) {
     document.getElementById('esc-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
@@ -152,4 +160,89 @@ export async function render(container) {
   }
 
   renderList();
+
+  // Raise Issue Modal
+  const modalHtml = `
+    <div id="raise-issue-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Raise Issue</h3>
+          <button class="btn btn-ghost btn-sm" id="close-issue-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="raise-issue-form">
+            <div class="form-group">
+              <label class="form-label">Student</label>
+              <select id="issue-student" class="form-select" required>
+                <option value="">Select Student</option>
+                ${students.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="issue-cat" class="form-select" required>
+                <option>Academic</option><option>Attendance</option><option>Behavioral</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select id="issue-pri" class="form-select" required>
+                <option>LOW</option><option>MEDIUM</option><option style="color:var(--danger);">HIGH</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Title</label>
+              <input type="text" id="issue-title" class="form-input" required placeholder="Short title">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="issue-desc" class="form-textarea" required style="min-height:80px;" placeholder="Details of the issue"></textarea>
+            </div>
+            <div class="modal-footer mt-4" style="border:none;padding:0;margin-top:24px;justify-content:flex-end;">
+              <button type="button" class="btn btn-secondary" id="cancel-issue-modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit-issue">Submit Issue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', modalHtml);
+
+  const issueModal = container.querySelector('#raise-issue-modal');
+  container.querySelector('#btn-raise-issue').addEventListener('click', () => {
+    issueModal.style.display = 'flex';
+  });
+  container.querySelector('#close-issue-modal').addEventListener('click', () => issueModal.style.display = 'none');
+  container.querySelector('#cancel-issue-modal').addEventListener('click', () => issueModal.style.display = 'none');
+
+  container.querySelector('#raise-issue-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = container.querySelector('#btn-submit-issue');
+    btn.disabled = true; btn.textContent = 'Submitting...';
+    try {
+      const sId = container.querySelector('#issue-student').value;
+      const student = students.find(s => s.id === sId);
+      const newIssueId = await IssueService.create({
+        studentId: student.id, studentName: student.name, department: student.department,
+        mentorId: user.id,
+        title: container.querySelector('#issue-title').value.trim(),
+        category: container.querySelector('#issue-cat').value,
+        priority: container.querySelector('#issue-pri').value,
+        description: container.querySelector('#issue-desc').value.trim()
+      });
+      showToast('Issue created successfully!', 'success');
+      issueModal.style.display = 'none';
+      e.target.reset();
+      
+      // reload issues
+      const all = await IssueService.getByMentor(user.id);
+      issues = all.filter(i => i.escalationLevel === 'MENTOR');
+      renderList();
+    } catch(err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Submit Issue';
+    }
+  });
 }
