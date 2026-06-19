@@ -426,8 +426,8 @@ export const AdminService = {
       profileData.attendance = 0;
       profileData.riskLevel = 'LOW';
       profileData.mentorId = null;
-      profileData.status = 'pending';
-      profileData.isApproved = false;
+      profileData.status = 'approved';
+      profileData.isApproved = true;
     } else if (role === 'SECTION_HEAD') {
       profileData.maxStudents = 0;
       profileData.assignedStudentCount = 0;
