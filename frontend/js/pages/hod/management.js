@@ -34,7 +34,7 @@ export async function render(container) {
       FacultyService.getByDepartment(user.department)
     ]);
 
-    const wrap = document.getElementById('mgt-content');
+    const wrap = container.querySelector('#mgt-content');
 
     if (!students.length) {
       wrap.innerHTML = `<div class="empty-state"><h3>No students found</h3></div>`;
@@ -82,7 +82,7 @@ export async function render(container) {
       </table>
     `;
 
-    document.querySelectorAll('.class-select').forEach(sel => {
+    container.querySelectorAll('.class-select').forEach(sel => {
       sel.addEventListener('change', async (e) => {
         const id = e.target.dataset.id;
         const newClass = e.target.value || null;
@@ -95,7 +95,7 @@ export async function render(container) {
       });
     });
 
-    document.querySelectorAll('.mentor-select').forEach(sel => {
+    container.querySelectorAll('.mentor-select').forEach(sel => {
       sel.addEventListener('change', async (e) => {
         const id = e.target.dataset.id;
         const newMentor = e.target.value || null;
@@ -109,6 +109,7 @@ export async function render(container) {
     });
 
   } catch (err) {
-    document.getElementById('mgt-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
+    const wrap = container.querySelector('#mgt-content');
+    if (wrap) wrap.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
   }
 }

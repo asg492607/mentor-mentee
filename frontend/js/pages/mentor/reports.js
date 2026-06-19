@@ -116,6 +116,7 @@ export async function render(container) {
     }
 
   } catch (err) {
-    document.getElementById('reports-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading reports</h3><p>${err.message}</p></div>`;
+    const rc = container.querySelector('#reports-content');
+    if (rc) rc.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading reports</h3><p>${err.message}</p></div>`;
   }
 }

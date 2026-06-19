@@ -170,7 +170,7 @@ export async function render(container) {
       </div>
     `;
 
-    document.querySelectorAll('.btn-approve').forEach(btn => {
+    container.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
         btn.disabled = true; btn.textContent = '...';
