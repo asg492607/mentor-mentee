@@ -8,7 +8,7 @@ export function createPeerConnection(signaling, localStream, remoteId) {
     localStream?.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
-        if (event.candidate) signaling.sendSignal(remoteId, { candidate: event.candidate });
+        if (event.candidate) signaling.sendSignal(remoteId, { candidate: event.candidate.toJSON() });
     };
     pc.ontrack = event => {
         if (event.streams?.[0]) onTrackCallback?.(event.streams[0]);
@@ -17,7 +17,7 @@ export function createPeerConnection(signaling, localStream, remoteId) {
     async function createOffer() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        signaling.sendSignal(remoteId, { description: pc.localDescription });
+        signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
     }
 
     async function handleSignal(signal) {
@@ -29,7 +29,7 @@ export function createPeerConnection(signaling, localStream, remoteId) {
             if (signal.description.type === 'offer') {
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                signaling.sendSignal(remoteId, { description: pc.localDescription });
+                signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
             }
         }
         if (signal.candidate) {
