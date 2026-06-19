@@ -58,7 +58,8 @@ export async function render(container) {
   }
 
   function renderTab() {
-    const panel = document.getElementById('meetings-panel');
+    const panel = container.querySelector('#meetings-panel');
+    if (!panel) return; // Prevent null errors if component is unmounted
     let list = meetings;
     if (activeTab === 'pending')   list = meetings.filter(m => m.status === 'REQUESTED');
     if (activeTab === 'approved')  list = meetings.filter(m => m.status === 'APPROVED');
@@ -238,7 +239,7 @@ export async function render(container) {
               <select id="sched-student" class="form-select" required>
                 <option value="">Select Student</option>
                 <option value="ALL" style="font-weight:bold;color:var(--accent);">Group Meeting (All Assigned Students)</option>
-                \${students.map(s => \`<option value="\${s.id}">\${s.name} (\${s.rollNumber||'N/A'})</option>\`).join('')}
+                ${students.map(s => `<option value="${s.id}">${s.name} (${s.rollNumber||'N/A'})</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
@@ -266,20 +267,26 @@ export async function render(container) {
   `;
   container.insertAdjacentHTML('beforeend', modalHtml);
 
-  const schedModal = document.getElementById('schedule-modal');
-  document.getElementById('btn-schedule-meeting').addEventListener('click', () => schedModal.style.display = 'flex');
-  document.getElementById('close-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
-  document.getElementById('cancel-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
+  const schedModal = container.querySelector('#schedule-modal');
+  container.querySelector('#btn-schedule-meeting').addEventListener('click', () => {
+    // Re-populate students dynamically just in case
+    const studentSelect = container.querySelector('#sched-student');
+    studentSelect.innerHTML = '<option value="">Select Student</option><option value="ALL" style="font-weight:bold;color:var(--accent);">Group Meeting (All Assigned Students)</option>' + 
+      students.map(s => `<option value="${s.id}">${s.name} (${s.rollNumber||'N/A'})</option>`).join('');
+    schedModal.style.display = 'flex';
+  });
+  container.querySelector('#close-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
+  container.querySelector('#cancel-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
 
-  document.getElementById('sched-form').addEventListener('submit', async (e) => {
+  container.querySelector('#sched-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = document.getElementById('btn-submit-sched');
+    const btn = container.querySelector('#btn-submit-sched');
     btn.disabled = true; btn.textContent = 'Scheduling...';
     try {
-      const studentId = document.getElementById('sched-student').value;
-      const type = document.getElementById('sched-type').value;
-      const desc = document.getElementById('sched-desc').value;
-      const date = document.getElementById('sched-date').value;
+      const studentId = container.querySelector('#sched-student').value;
+      const type = container.querySelector('#sched-type').value;
+      const desc = container.querySelector('#sched-desc').value;
+      const date = container.querySelector('#sched-date').value;
 
       if (studentId === 'ALL') {
         // Group Meeting

@@ -61,23 +61,23 @@ export async function render(container) {
   `;
 
   const toggle = () => {
-    const f = document.getElementById('req-form');
+    const f = container.querySelector('#req-form');
     f.style.display = f.style.display === 'none' ? 'block' : 'none';
   };
 
-  document.getElementById('btn-new').addEventListener('click', toggle);
-  document.getElementById('btn-cancel').addEventListener('click', toggle);
+  container.querySelector('#btn-new').addEventListener('click', toggle);
+  container.querySelector('#btn-cancel').addEventListener('click', toggle);
 
-  document.getElementById('btn-submit').addEventListener('click', async () => {
-    const type        = document.getElementById('m-type').value;
-    const description = document.getElementById('m-desc').value.trim();
-    const preferredDate = document.getElementById('m-date').value || null;
+  container.querySelector('#btn-submit').addEventListener('click', async () => {
+    const type        = container.querySelector('#m-type').value;
+    const description = container.querySelector('#m-desc').value.trim();
+    const preferredDate = container.querySelector('#m-date').value || null;
 
     if (!description) { showToast('Please enter a description', 'warning'); return; }
     if (!user.mentorId) { showToast('You have no mentor assigned yet', 'error'); return; }
 
     try {
-      const btn = document.getElementById('btn-submit');
+      const btn = container.querySelector('#btn-submit');
       btn.disabled = true;
       btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
 
@@ -99,19 +99,20 @@ export async function render(container) {
       });
 
       showToast('Meeting request sent!', 'success');
-      document.getElementById('req-form').style.display = 'none';
-      document.getElementById('m-desc').value = '';
+      container.querySelector('#req-form').style.display = 'none';
+      container.querySelector('#m-desc').value = '';
       loadMeetings();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
-      const btn = document.getElementById('btn-submit');
+      const btn = container.querySelector('#btn-submit');
       if (btn) { btn.disabled = false; btn.innerHTML = 'Submit Request'; }
     }
   });
 
   async function loadMeetings() {
-    const wrap = document.getElementById('meetings-wrap');
+    const wrap = container.querySelector('#meetings-wrap');
+    if (!wrap) return;
     try {
       const meetings = await MeetingService.getByStudent(user.id);
 
