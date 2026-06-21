@@ -1,5 +1,5 @@
 import { db } from '/js/firebase-init.js';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 export function createSignaling(meetingId, user) {
     let handlers = {};
@@ -8,6 +8,7 @@ export function createSignaling(meetingId, user) {
     let selfId = Math.random().toString(36).substring(2, 10);
     let unsubscribes = [];
     let myPresenceRef = null;
+    const isHost = ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
 
     async function connect() {
         try {
@@ -35,34 +36,53 @@ export function createSignaling(meetingId, user) {
 
                 if (!initialPresenceDone) {
                     initialPresenceDone = true;
-                    // Now that we have initial peers, announce ourselves
-                    myPresenceRef = doc(sigRef, `presence_${selfId}`);
-                    setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' }).then(() => {
-                        connected = true;
-                        emit('joined', { id: selfId, peers });
-                        emit('connect');
-                    });
+                    if (isHost) {
+                        myPresenceRef = doc(sigRef, `presence_${selfId}`);
+                        setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' }).then(() => {
+                            connected = true;
+                            emit('joined', { id: selfId, peers });
+                            emit('connect');
+                        });
+                    } else {
+                        myPresenceRef = doc(sigRef, `waiting_${selfId}`);
+                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, name: user?.name || 'Participant' }).then(() => {
+                            emit('waiting');
+                        });
+                    }
                 }
             }, err => {
                 emit('error', new Error('Permission denied or network error'));
             });
             unsubscribes.push(unsubPresence);
 
-            // Listen for messages (signals and chats)
+            if (isHost) {
+                const unsubWaiting = onSnapshot(query(sigRef, where('type', '==', 'waiting')), snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if (change.type === 'added') emit('guest-waiting', { id: data.id, name: data.name });
+                        if (change.type === 'removed') emit('guest-left-waiting', { id: data.id });
+                    });
+                });
+                unsubscribes.push(unsubWaiting);
+            }
+
+            // Listen for messages (signals, chats, controls)
             let isInitialMessages = true;
-            const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', ['signal', 'chat'])), snapshot => {
+            const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', ['signal', 'chat', 'control'])), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
                         const data = change.doc.data();
                         if (data.from === selfId) return;
 
-                        if (!isInitialMessages) {
+                        if (!isInitialMessages || data.type === 'control') {
                             if (data.type === 'signal' && data.to === selfId) {
                                 emit('signal', { from: data.from, name: data.name, signal: data.signal });
-                                // Clean up consumed signals to save space
                                 deleteDoc(change.doc.ref).catch(()=>{});
                             } else if (data.type === 'chat') {
                                 emit('chat', { name: data.name, text: data.text });
+                            } else if (data.type === 'control' && data.to === selfId) {
+                                handleControlMessage(data.action);
+                                deleteDoc(change.doc.ref).catch(()=>{});
                             }
                         }
                     }
@@ -74,6 +94,23 @@ export function createSignaling(meetingId, user) {
             window.addEventListener('beforeunload', disconnect);
         } catch (e) {
             emit('error', new Error('Could not connect to meeting server: ' + e.message));
+        }
+    }
+
+    async function handleControlMessage(action) {
+        if (action === 'admit') {
+            if (myPresenceRef) await deleteDoc(myPresenceRef).catch(()=>{});
+            const sigRef = collection(db, 'meetings', meetingId, 'signaling');
+            myPresenceRef = doc(sigRef, `presence_${selfId}`);
+            await setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' });
+            connected = true;
+            const presenceDocs = await getDocs(query(sigRef, where('type', '==', 'presence')));
+            const peers = presenceDocs.docs.map(d => d.data()).filter(d => d.id !== selfId);
+            emit('joined', { id: selfId, peers });
+            emit('connect');
+        } else if (action === 'deny' || action === 'remove') {
+            emit('kicked', { reason: action });
+            disconnect();
         }
     }
 
@@ -109,6 +146,15 @@ export function createSignaling(meetingId, user) {
         } catch(e) { return false; }
     }
 
+    async function sendControl(to, action) {
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'control', from: selfId, to, action
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function disconnect() {
         if (intentionalClose) return;
         intentionalClose = true;
@@ -124,6 +170,7 @@ export function createSignaling(meetingId, user) {
         onMessage,
         sendSignal,
         sendChat,
+        sendControl,
         disconnect,
         get isConnected() { return connected; },
         get selfId() { return selfId; },

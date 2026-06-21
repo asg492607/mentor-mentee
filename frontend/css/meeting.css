@@ -175,6 +175,8 @@
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
+  background: transparent;
+  border: none;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }

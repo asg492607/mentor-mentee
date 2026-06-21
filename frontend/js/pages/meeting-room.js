@@ -146,11 +146,51 @@ export async function render(container) {
         }
     }
 
-    function renderRoster(participants = []) {
-        (container.querySelector('#panel-participants') || {}).innerHTML = participants.map(person =>
-            `<div class="participant-item"><div class="avatar avatar-sm">${escapeHtml((person.name || '?')[0])}</div><span class="participant-name">${escapeHtml(person.name)}${person.id === signaling.selfId ? ' (you)' : ''}</span></div>`
-        ).join('');
+    function renderRoster(participants = [], waitingList = []) {
+        let html = '';
+        
+        if (isMentor && waitingList.length > 0) {
+            html += `<div style="padding:12px;background:var(--warning)22;border-radius:8px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:0.8rem;font-weight:600;color:var(--warning);">WAITING ROOM (${waitingList.length})</span>
+                    <div style="display:flex;gap:4px;">
+                        <button class="btn btn-sm btn-secondary" onclick="window.admitAll()">Admit All</button>
+                        <button class="btn btn-sm btn-secondary" onclick="window.denyAll()">Deny All</button>
+                    </div>
+                </div>
+                ${waitingList.map(person => `
+                    <div class="participant-item">
+                        <div class="avatar avatar-sm">${escapeHtml((person.name || '?')[0])}</div>
+                        <span class="participant-name">${escapeHtml(person.name)}</span>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn btn-sm btn-primary" onclick="window.admitUser('${person.id}')">Admit</button>
+                            <button class="btn btn-sm btn-secondary" onclick="window.denyUser('${person.id}')">Deny</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+
+        html += `<div style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:8px;padding:0 4px;">IN CALL (${participants.length})</div>`;
+        html += participants.map(person => `
+            <div class="participant-item">
+                <div class="avatar avatar-sm">${escapeHtml((person.name || '?')[0])}</div>
+                <span class="participant-name">${escapeHtml(person.name)}${person.id === signaling.selfId ? ' (you)' : ''}</span>
+                ${isMentor && person.id !== signaling.selfId ? `
+                    <button class="btn btn-sm btn-secondary" onclick="window.removeUser('${person.id}')" style="color:var(--danger);border-color:rgba(239,68,68,0.2);padding:2px 6px;font-size:0.7rem;">Remove</button>
+                ` : ''}
+            </div>
+        `).join('');
+
+        (container.querySelector('#panel-participants') || {}).innerHTML = html;
     }
+
+    // Global handlers for UI buttons
+    window.admitUser = (id) => signaling.sendControl(id, 'admit');
+    window.denyUser = (id) => signaling.sendControl(id, 'deny');
+    window.removeUser = (id) => signaling.sendControl(id, 'remove');
+    window.admitAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'admit'));
+    window.denyAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'deny'));
 
     function handleError(error) {
         console.error(error);
@@ -159,6 +199,7 @@ export async function render(container) {
     }
 
     let participants = [];
+    let waitingList = [];
 
     async function init() {
         try {
@@ -167,18 +208,18 @@ export async function render(container) {
             signaling.onMessage('joined', message => {
                 signaling.selfId = message.id;
                 participants = [{ id: message.id, name: user.name }, ...message.peers];
-                renderRoster(participants);
+                renderRoster(participants, waitingList);
                 message.peers.forEach(person => createPeer(person.id, person.name, true));
             });
             signaling.onMessage('peer-joined', message => {
                 participants.push({ id: message.id, name: message.name });
-                renderRoster(participants);
+                renderRoster(participants, waitingList);
                 createPeer(message.id, message.name, false);
             });
             signaling.onMessage('signal', message => createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError));
             signaling.onMessage('peer-left', message => {
                 participants = participants.filter(p => p.id !== message.id);
-                renderRoster(participants);
+                renderRoster(participants, waitingList);
                 peers.get(message.id)?.close();
                 peers.delete(message.id);
                 const tile = container.querySelector(`[data-peer="${message.id}"]`);
@@ -186,6 +227,45 @@ export async function render(container) {
                 showToast('A participant left the meeting', 'info');
             });
             signaling.onMessage('chat', message => appendMessage(message.name, message.text));
+            
+            // Host only: Listen to waiting room events
+            signaling.onMessage('guest-waiting', message => {
+                if (!waitingList.find(p => p.id === message.id)) {
+                    waitingList.push({ id: message.id, name: message.name });
+                    renderRoster(participants, waitingList);
+                    showToast(`${message.name} is waiting to join`, 'info');
+                    // Play a subtle ring tone
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+                        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                        osc.start(audioCtx.currentTime);
+                        osc.stop(audioCtx.currentTime + 0.5);
+                    } catch(e) {}
+                }
+            });
+            signaling.onMessage('guest-left-waiting', message => {
+                waitingList = waitingList.filter(p => p.id !== message.id);
+                renderRoster(participants, waitingList);
+            });
+
+            // Guest only: Waiting room & Kicked events
+            signaling.onMessage('waiting', () => {
+                status.textContent = 'Waiting for host...';
+            });
+            signaling.onMessage('kicked', (payload) => {
+                showToast(payload.reason === 'deny' ? 'The host denied your request to join' : 'You were removed from the meeting', 'error');
+                setTimeout(() => document.getElementById('btn-end').click(), 1500);
+            });
+
             signaling.onMessage('connect', () => {
                 status.textContent = 'Connected';
                 timer = setInterval(() => {
@@ -249,13 +329,27 @@ export async function render(container) {
                     audio: true
                 });
 
+                // Mix Audio Tracks
+                const audioCtx = new AudioContext();
+                const dest = audioCtx.createMediaStreamDestination();
+                if (recordStream.getAudioTracks().length > 0) {
+                    audioCtx.createMediaStreamSource(new MediaStream([recordStream.getAudioTracks()[0]])).connect(dest);
+                }
+                if (localStream && localStream.getAudioTracks().length > 0) {
+                    audioCtx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]])).connect(dest);
+                }
+                const mixedStream = new MediaStream([
+                    ...recordStream.getVideoTracks(),
+                    ...dest.stream.getAudioTracks()
+                ]);
+
                 // Compress video: 500kbps bitrate
                 const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 500000 };
                 try {
-                    mediaRecorder = new MediaRecorder(recordStream, options);
+                    mediaRecorder = new MediaRecorder(mixedStream, options);
                 } catch (e) {
                     console.warn('VP8/Opus fallback:', e);
-                    mediaRecorder = new MediaRecorder(recordStream, { videoBitsPerSecond: 500000 });
+                    mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 500000 });
                 }
 
                 recordedChunks = [];
@@ -337,6 +431,12 @@ export async function render(container) {
         signaling.disconnect();
     }
     document.getElementById('btn-end').onclick = async () => {
+        if (isMentor) {
+            const endForAll = confirm("Do you want to end this meeting for everyone? (Click OK to End For All, Cancel to just Leave)");
+            if (endForAll) {
+                await MeetingService.update(meetingId, { status: 'COMPLETED' });
+            }
+        }
         await cleanup();
         navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
     };
