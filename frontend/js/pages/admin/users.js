@@ -52,7 +52,7 @@ export async function render(container) {
       ...faculty.map(f  => ({ ...f, role: f.role || 'FACULTY' }))
     ];
   } catch (err) {
-    document.getElementById('users-wrap').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#users-wrap') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
   }
 
@@ -305,3 +305,4 @@ export async function render(container) {
     }
   });
 }
+

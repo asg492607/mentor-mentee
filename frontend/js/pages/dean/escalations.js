@@ -28,7 +28,7 @@ export async function render(container) {
   try {
     issues = await IssueService.getEscalated('DEAN');
   } catch (err) {
-    document.getElementById('esc-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#esc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
   }
 
@@ -130,3 +130,4 @@ export async function render(container) {
 
   renderList();
 }
+

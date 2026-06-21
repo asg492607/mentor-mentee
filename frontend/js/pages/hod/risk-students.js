@@ -45,7 +45,7 @@ export async function render(container) {
     // Sort by riskScore desc
     students.sort((a,b) => (b.riskScore||0) - (a.riskScore||0));
   } catch (err) {
-    document.getElementById('rs-table').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#rs-table') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
   }
 
@@ -101,3 +101,4 @@ export async function render(container) {
 
   renderTable();
 }
+

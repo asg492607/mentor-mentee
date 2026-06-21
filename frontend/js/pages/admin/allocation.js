@@ -39,12 +39,12 @@ export async function render(container) {
         return { studentName: s.name, mentorName: mentor?.name || 'Unknown', department: s.department };
       });
   } catch (err) {
-    document.getElementById('alloc-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#alloc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
   }
 
   function buildUI() {
-    document.getElementById('alloc-content').innerHTML = `
+    (container.querySelector('#alloc-content') || {}).innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <!-- Unassigned Students -->
         <div class="card">

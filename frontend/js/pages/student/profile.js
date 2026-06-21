@@ -34,7 +34,7 @@ export async function render(container) {
   const risk = StatsService.computeRisk(profile);
   const initials = (profile.name || 'S').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
 
-  document.getElementById('profile-wrap').innerHTML = `
+  (container.querySelector('#profile-wrap') || {}).innerHTML = `
     <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
       <!-- Left: Identity Card -->
       <div style="display:flex;flex-direction:column;gap:16px;">
@@ -128,3 +128,4 @@ export async function render(container) {
     }
   });
 }
+

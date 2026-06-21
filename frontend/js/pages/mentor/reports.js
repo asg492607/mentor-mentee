@@ -98,7 +98,7 @@ export async function render(container) {
     `;
 
     if (window.Chart) {
-      new window.Chart(document.getElementById('chart-meetings').getContext('2d'), {
+      new window.Chart((container.querySelector('#chart-meetings') || document.createElement('canvas')).getContext('2d'), {
         type: 'bar',
         data: {
           labels: months,
@@ -120,3 +120,4 @@ export async function render(container) {
     if (rc) rc.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading reports</h3><p>${err.message}</p></div>`;
   }
 }
+

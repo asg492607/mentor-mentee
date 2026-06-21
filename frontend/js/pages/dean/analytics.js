@@ -55,7 +55,7 @@ export async function render(container) {
     const meetPerMonth = Array(6).fill(0);
     // Note: would need MeetingService.getAll() but could be large; skip for now
 
-    document.getElementById('analytics-content').innerHTML = `
+    (container.querySelector('#analytics-content') || {}).innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <div class="card" style="padding:20px;">
           <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Issue Categories</h3>
@@ -95,14 +95,14 @@ export async function render(container) {
     const gc = 'rgba(255,255,255,0.05)';
 
     // Issue categories doughnut
-    new window.Chart(document.getElementById('chart-issues').getContext('2d'), {
+    new window.Chart((container.querySelector('#chart-issues') || document.createElement('canvas')).getContext('2d'), {
       type:'doughnut',
       data:{ labels:Object.keys(issueCats), datasets:[{ data:Object.values(issueCats), backgroundColor:['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171','#a78bfa'], borderWidth:0 }] },
       options:{ responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{ legend:{ position:'right',labels:{color:tc,font:{size:11}} } } }
     });
 
     // Dept risk bar
-    new window.Chart(document.getElementById('chart-risk').getContext('2d'), {
+    new window.Chart((container.querySelector('#chart-risk') || document.createElement('canvas')).getContext('2d'), {
       type:'bar',
       data:{ labels:Object.keys(deptRisk), datasets:[{ label:'High Risk', data:Object.values(deptRisk), backgroundColor:['#f87171','#fbbf24','#7c6aff','#34d399'], borderRadius:6 }] },
       options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,grid:{color:gc},ticks:{color:tc,stepSize:1}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
@@ -112,13 +112,14 @@ export async function render(container) {
     const high   = students.filter(s => s.riskLevel==='HIGH').length;
     const medium = students.filter(s => s.riskLevel==='MEDIUM').length;
     const low    = students.filter(s => !s.riskLevel||s.riskLevel==='LOW').length;
-    new window.Chart(document.getElementById('chart-risk-dist').getContext('2d'), {
+    new window.Chart((container.querySelector('#chart-risk-dist') || document.createElement('canvas')).getContext('2d'), {
       type:'doughnut',
       data:{ labels:['High','Medium','Low'], datasets:[{ data:[high,medium,low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }] },
       options:{ responsive:true,maintainAspectRatio:false,cutout:'60%', plugins:{ legend:{ position:'bottom',labels:{color:tc} } } }
     });
 
   } catch (err) {
-    document.getElementById('analytics-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#analytics-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
   }
 }
+

@@ -23,7 +23,7 @@ export async function render(container) {
     const open = issues.filter(i => i.status !== 'RESOLVED').length;
     const resolved = issues.filter(i => i.status === 'RESOLVED').length;
 
-    document.getElementById('section-dash-content').innerHTML = `
+    (container.querySelector('#section-dash-content') || {}).innerHTML = `
       <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px;">
         <div class="stat-card">
           <div class="stat-icon" style="background:var(--warning)22;">
@@ -49,6 +49,7 @@ export async function render(container) {
     `;
 
   } catch (err) {
-    document.getElementById('section-dash-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
+    (container.querySelector('#section-dash-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
   }
 }
+

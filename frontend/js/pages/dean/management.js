@@ -120,6 +120,7 @@ export async function render(container) {
     });
 
   } catch (err) {
-    document.getElementById('dept-content').innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
+    (container.querySelector('#dept-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
   }
 }
+

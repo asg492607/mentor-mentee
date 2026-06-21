@@ -95,7 +95,7 @@ export async function render(container) {
 
     function addVideo(id, name, stream, muted = false) {
         waiting?.remove();
-        let tile = document.querySelector(`[data-peer="${id}"]`);
+        let tile = container.querySelector(`[data-peer="${id}"]`);
         if (!tile) {
             tile = document.createElement('div');
             tile.className = 'video-tile';
@@ -139,12 +139,15 @@ export async function render(container) {
         bubble.className = 'chat-bubble';
         bubble.textContent = `${sender}: ${text}`;
         row.append(bubble);
-        document.getElementById('chat-messages').append(row);
-        row.scrollIntoView({ block: 'nearest' });
+        const chatBox = container.querySelector('#chat-messages');
+        if (chatBox) {
+            chatBox.append(row);
+            row.scrollIntoView({ block: 'nearest' });
+        }
     }
 
     function renderRoster(participants = []) {
-        document.getElementById('panel-participants').innerHTML = participants.map(person =>
+        (container.querySelector('#panel-participants') || {}).innerHTML = participants.map(person =>
             `<div class="participant-item"><div class="avatar avatar-sm">${escapeHtml((person.name || '?')[0])}</div><span class="participant-name">${escapeHtml(person.name)}${person.id === signaling.selfId ? ' (you)' : ''}</span></div>`
         ).join('');
     }
@@ -178,7 +181,8 @@ export async function render(container) {
                 renderRoster(participants);
                 peers.get(message.id)?.close();
                 peers.delete(message.id);
-                document.querySelector(`[data-peer="${message.id}"]`)?.remove();
+                const tile = container.querySelector(`[data-peer="${message.id}"]`);
+                if (tile) tile.remove();
                 showToast('A participant left the meeting', 'info');
             });
             signaling.onMessage('chat', message => appendMessage(message.name, message.text));
@@ -339,3 +343,4 @@ export async function render(container) {
     window.addEventListener('hashchange', cleanup, { once: true });
     init();
 }
+
