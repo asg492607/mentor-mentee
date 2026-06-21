@@ -62,7 +62,7 @@ export async function render(container) {
             <tr>
               <td>
                 <strong>${s.name}</strong><br>
-                <span style="font-size:0.75rem;color:var(--text-muted);">${s.rollNumber || 'N/A'} (Yr ${s.year||'?'})</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);">${s.enrollmentNumber || 'N/A'} (Yr ${s.year||'?'})</span>
               </td>
               <td>${s.class ? `Class ${s.class}` : '<span class="badge badge-warning">Unassigned</span>'}</td>
               <td>

@@ -85,7 +85,7 @@ export async function render(container) {
                   <div class="avatar avatar-sm">${(u.name||'?')[0]}</div>
                   <div>
                     <p style="font-weight:600;font-size:0.875rem;">${u.name||'—'}</p>
-                    ${u.rollNumber ? `<p style="color:var(--text-muted);font-size:0.75rem;">${u.rollNumber}</p>` : ''}
+                    ${u.enrollmentNumber ? `<p style="color:var(--text-muted);font-size:0.75rem;">${u.enrollmentNumber}</p>` : ''}
                   </div>
                 </div>
               </td>

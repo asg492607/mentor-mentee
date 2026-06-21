@@ -53,7 +53,7 @@ export async function render(container) {
     const wrap = document.getElementById('rs-table');
     let list = students;
     if (filter !== 'ALL') list = list.filter(s => s.riskLevel === filter);
-    if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.rollNumber?.toLowerCase().includes(search));
+    if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.enrollmentNumber?.toLowerCase().includes(search));
 
     if (!list.length) {
       wrap.innerHTML = `<div class="empty-state" style="padding:48px;"><h3>No students match filter</h3></div>`;
@@ -69,7 +69,7 @@ export async function render(container) {
               <td style="color:var(--text-muted);">${i+1}</td>
               <td>
                 <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                <p style="color:var(--text-muted);font-size:0.75rem;">${s.rollNumber||''}</p>
+                <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber||''}</p>
               </td>
               <td style="font-weight:600;color:${(s.cgpa||0)<6?'var(--danger)':(s.cgpa||0)<7?'var(--warning)':'inherit'};">${s.cgpa||'—'}</td>
               <td>

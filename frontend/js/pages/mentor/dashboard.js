@@ -103,7 +103,7 @@ export async function render(container) {
                           <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
                           <div>
                             <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                            <p style="color:var(--text-muted);font-size:0.75rem;">${s.rollNumber||''}</p>
+                            <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber||''}</p>
                           </div>
                         </div>
                       </td>

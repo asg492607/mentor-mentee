@@ -298,7 +298,7 @@ export async function render(container) {
               <select id="sched-student" class="form-select" required>
                 <option value="">Select Student</option>
                 <option value="ALL" style="font-weight:bold;color:var(--accent);">Group Meeting (All Assigned Students)</option>
-                ${students.map(s => `<option value="${s.id}">${s.name} (${s.rollNumber||'N/A'})</option>`).join('')}
+                ${students.map(s => `<option value="${s.id}">${s.name} (${s.enrollmentNumber||'N/A'})</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
@@ -331,7 +331,7 @@ export async function render(container) {
     // Re-populate students dynamically just in case
     const studentSelect = container.querySelector('#sched-student');
     studentSelect.innerHTML = '<option value="">Select Student</option><option value="ALL" style="font-weight:bold;color:var(--accent);">Group Meeting (All Assigned Students)</option>' + 
-      students.map(s => `<option value="${s.id}">${s.name} (${s.rollNumber||'N/A'})</option>`).join('');
+      students.map(s => `<option value="${s.id}">${s.name} (${s.enrollmentNumber||'N/A'})</option>`).join('');
     schedModal.style.display = 'flex';
   });
   container.querySelector('#close-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');

@@ -120,7 +120,7 @@ export async function register(data) {
         profileData.year = data.profile.year;
       }
       if (data.profile.class) profileData.class = data.profile.class;
-      if (data.profile.rollNumber) profileData.rollNumber = data.profile.rollNumber;
+      if (data.profile.enrollmentNumber) profileData.enrollmentNumber = data.profile.enrollmentNumber;
       profileData.cgpa = 0;
       profileData.attendance = 0;
       profileData.riskLevel = 'LOW';

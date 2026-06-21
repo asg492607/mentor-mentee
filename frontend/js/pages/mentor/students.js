@@ -21,7 +21,7 @@ export async function render(container) {
           <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
             <div class="search-box" style="flex:1;min-width:200px;">
               <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-              <input type="text" id="s-search" placeholder="Search by name or roll number...">
+              <input type="text" id="s-search" placeholder="Search by name or enrollment number...">
             </div>
             ${['ALL','HIGH','MEDIUM','LOW'].map((r,i) =>
               `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} rf" data-r="${r}">${r}</button>`
@@ -64,7 +64,7 @@ export async function render(container) {
     const wrap = document.getElementById('students-wrap');
     let list = students;
     if (riskFilter !== 'ALL') list = list.filter(s => s.riskLevel === riskFilter);
-    if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.rollNumber?.toLowerCase().includes(search));
+    if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.enrollmentNumber?.toLowerCase().includes(search));
 
     if (!list.length && !pendingStudents.length) {
       wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
@@ -112,7 +112,7 @@ export async function render(container) {
                   <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
                   <div>
                     <p style="font-weight:600;font-size:0.875rem;">${s.name || '—'}</p>
-                    <p style="color:var(--text-muted);font-size:0.75rem;">${s.rollNumber || ''}</p>
+                    <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber || ''}</p>
                   </div>
                 </div>
               </td>
@@ -150,7 +150,7 @@ export async function render(container) {
             <button class="btn btn-sm btn-secondary" id="student-detail-close">Close</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-            ${[['Email',s.email||'—'],['Roll No',s.rollNumber||'—'],['Department',s.department||'—'],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',s.interests||'—'],['Skills',s.skills||'—'],['Career Goal',s.careerGoal||'—']].map(([l,v]) => `
+            ${[['Email',s.email||'—'],['Enrollment No',s.enrollmentNumber||'—'],['Department',s.department||'—'],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',s.interests||'—'],['Skills',s.skills||'—'],['Career Goal',s.careerGoal||'—']].map(([l,v]) => `
               <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;">
                 <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${l}</p>
                 <p style="font-weight:600;font-size:0.825rem;word-break:break-word;">${v}</p>
