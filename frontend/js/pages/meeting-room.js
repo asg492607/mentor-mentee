@@ -73,12 +73,12 @@ export async function render(container) {
           </aside>
         </main>
         <footer class="meeting-controls">
-          <button class="control-btn" id="btn-mic"><span class="control-btn-icon">Mic</span><span class="control-btn-label">Microphone</span></button>
-          <button class="control-btn" id="btn-cam"><span class="control-btn-icon">Cam</span><span class="control-btn-label">Camera</span></button>
-          <button class="control-btn" id="btn-screen"><span class="control-btn-icon">Share</span><span class="control-btn-label">Share screen</span></button>
-          <button class="control-btn" id="btn-panel"><span class="control-btn-icon">Chat</span><span class="control-btn-label">Chat</span></button>
-          ${isMentor ? `<button class="control-btn" id="btn-record"><span class="control-btn-icon" style="color:var(--danger);">●</span><span class="control-btn-label">Record</span></button>` : ''}
-          <button class="control-btn end-call" id="btn-end"><span class="control-btn-icon">End</span><span class="control-btn-label">Leave</span></button>
+          <button class="control-btn" id="btn-mic"><span class="control-btn-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.39-.9.88C17 14.15 14.8 16 12 16s-5-.15-5.01-4.12c0-.49-.41-.88-.9-.88s-.89.39-.89.88c0 5.05 3.91 9.14 8.8 9.87V24h2v-2.25c4.89-.73 8.8-4.82 8.8-9.87 0-.49-.4-.88-.89-.88z"/></svg></span><span class="control-btn-label">Microphone</span></button>
+          <button class="control-btn" id="btn-cam"><span class="control-btn-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z"/></svg></span><span class="control-btn-label">Camera</span></button>
+          <button class="control-btn" id="btn-screen"><span class="control-btn-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 16V6h16v10H4z"/></svg></span><span class="control-btn-label">Share screen</span></button>
+          <button class="control-btn" id="btn-panel"><span class="control-btn-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></span><span class="control-btn-label">Chat</span></button>
+          ${isMentor ? `<button class="control-btn" id="btn-record"><span class="control-btn-icon" style="color:var(--danger);"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><circle cx="12" cy="12" r="8"/></svg></span><span class="control-btn-label">Record</span></button>` : ''}
+          <button class="control-btn end-call" id="btn-end"><span class="control-btn-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.52-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg></span><span class="control-btn-label">Leave</span></button>
         </footer>
       </div>`;
 
