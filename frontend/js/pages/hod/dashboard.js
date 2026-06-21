@@ -63,6 +63,21 @@ export async function render(container) {
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <!-- Bulk Registration -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h3>Bulk User Registration</h3>
+            <span style="font-size:0.8rem;color:var(--text-secondary);">Register students and faculty for your department via CSV</span>
+          </div>
+          <div style="padding:16px; display:flex; gap:12px; align-items:center;">
+            <button id="btn-hod-download-template" class="btn btn-secondary">⬇️ Download Template</button>
+            <label class="btn btn-primary" style="margin:0;cursor:pointer;">
+              📁 Bulk Import (CSV)
+              <input type="file" id="hod-csv-upload" accept=".csv" style="display:none;">
+            </label>
+          </div>
+        </div>
+
         <!-- Manage Classes -->
         <div class="card" style="grid-column: 1 / -1;">
           <div class="card-header">
@@ -184,6 +199,85 @@ export async function render(container) {
         }
       });
     });
+
+    // --- Bulk CSV Upload Logic ---
+    const btnDownloadTemplate = document.getElementById('btn-hod-download-template');
+    if (btnDownloadTemplate) {
+      btnDownloadTemplate.addEventListener('click', () => {
+        const csvContent = "role,name,email,password,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,,,EMP001\n";
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "User_Registration_Template.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    }
+
+    const csvUpload = document.getElementById('hod-csv-upload');
+    if (csvUpload) {
+      csvUpload.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!confirm(\`Are you sure you want to bulk import users into \${dept}?\`)) {
+          e.target.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const text = event.target.result;
+          const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+          if (lines.length <= 1) return showToast('CSV is empty or only contains headers', 'warning');
+
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          const expected = ['role', 'name', 'email', 'password'];
+          for (const req of expected) {
+            if (!headers.includes(req)) return showToast(\`Missing required column: \${req}\`, 'error');
+          }
+
+          showToast(\`Processing \${lines.length - 1} users for \${dept}...\`, 'info');
+          let successCount = 0; let failCount = 0;
+          const { AdminService } = await import('/js/services.js');
+
+          for (let i = 1; i < lines.length; i++) {
+            try {
+              const cols = lines[i].split(',').map(c => c.trim());
+              const row = {};
+              headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+              if (!row.role || !row.email || !row.password) { failCount++; continue; }
+
+              const role = row.role.toUpperCase();
+              const data = {
+                role, name: row.name, email: row.email, password: row.password, department: dept
+              };
+
+              if (role === 'STUDENT') {
+                data.class = row.class || null;
+                data.year = parseInt(row.year) || null;
+                data.enrollmentNumber = row.enrollmentnumber || row.employeeid || null;
+              } else {
+                data.employeeId = row.employeeid || row.enrollmentnumber || null;
+              }
+
+              await AdminService.createUser(data);
+              successCount++;
+            } catch(err) {
+              console.error(err);
+              failCount++;
+            }
+          }
+          e.target.value = '';
+          showToast(\`Bulk Import Complete. \${successCount} successful, \${failCount} failed.\`, successCount > 0 ? 'success' : 'warning');
+          if (successCount > 0) setTimeout(() => render(container), 1500);
+        };
+        reader.readAsText(file);
+      });
+    }
 
     // Load and render classes
     async function loadClasses() {
