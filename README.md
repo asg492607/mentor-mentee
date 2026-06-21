@@ -1,62 +1,84 @@
-# MentorOS
+# MentorOS: Comprehensive Documentation
 
-MentorOS is a college mentor-mentee platform with role-based dashboards, Firebase Authentication, Firestore data, WebRTC meetings, issue escalation, tasks, and reports.
+MentorOS is a robust, serverless college mentor-mentee platform built entirely on client-side web technologies and Firebase. It provides specialized, role-based dashboards to manage the academic lifecycle of students, issue escalation, scheduling, and real-time video meetings.
 
-## Modules
+## Technical Architecture
 
-- Exam, student, academic, teaching, mentor-mentee, travel, and non-academic sections.
-- Student meeting requests, task tracking, profile, issues, and mentor details.
-- Faculty mentor dashboards, assigned students, meeting approval, notes, and action items.
-- HOD and Dean escalation and analytics views.
-- Admin user, department, mentor allocation, and settings workflows.
+The platform has been upgraded to a **100% Serverless Architecture**. There is no backend server required.
 
-## Stack
+*   **Frontend Framework**: Vanilla JavaScript (ES6 Modules), HTML5, CSS3.
+*   **Routing**: Client-side hash-based Single Page Application (SPA) routing (`router.js`).
+*   **Database**: Firebase Firestore (NoSQL, real-time sync).
+*   **Authentication**: Firebase Authentication (Email/Password).
+*   **Video Conferencing**: Native WebRTC APIs (`navigator.mediaDevices`, `RTCPeerConnection`).
+*   **Signaling Server**: Serverless WebRTC signaling using Firestore real-time listeners (`onSnapshot`).
+*   **Media Processing**: Web Audio API for mixing local microphone tracks with screen audio during recordings.
+*   **Hosting**: Netlify / any static web host.
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | HTML, CSS, vanilla JavaScript |
-| Backend | FastAPI, Gunicorn, Uvicorn |
-| Auth | Firebase Authentication |
-| Database | Firestore |
-| Meetings | WebRTC plus FastAPI WebSocket signaling |
-| Frontend deploy | Netlify static hosting |
-| Backend deploy | Render web service |
+## User Roles & Hierarchy
 
-## Local Setup
+The system operates on a strict multi-tier hierarchy:
 
-### Backend
+1.  **Student**: Can view their profile, request meetings with their assigned mentor, join video calls, raise issues, and track tasks.
+2.  **Mentor (Faculty)**: Assigned to a cohort of students. Can view mentee stats, schedule/approve meetings, host video calls, manage waiting rooms, track action items, and resolve/escalate issues.
+3.  **Section Head**: Manages specific operational sections defined by the Admin (e.g., Exam Section, Travel Section). Handles escalated issues routed to their section.
+4.  **HOD (Head of Department)**: Views deep analytics for their specific department, handles escalated departmental issues, and bulk imports faculty/students via CSV.
+5.  **Dean**: Views global analytics across the entire institution and handles the highest-level issue escalations.
+6.  **Admin**: The system operator. Manages system-wide settings, creates dynamic Sections, registers user accounts, and allocates mentors (algorithmically or manually).
 
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+## Core Features & Workflows
 
-Set these environment variables before using authenticated API features:
+### 1. User Onboarding & Bulk Import
+*   Admins and HODs have access to a CSV Bulk Import tool to rapidly onboard hundreds of students and faculty members.
+*   The system parses the CSV, validates required fields, and registers the users securely via Firebase Auth while storing metadata in Firestore.
 
-```powershell
-$env:FIREBASE_CREDENTIALS_JSON = '<service account json>'
-$env:FIREBASE_PROJECT_ID = 'mentee-93ae9'
-$env:CORS_ORIGINS = 'http://localhost:4173,http://127.0.0.1:4173'
-```
+### 2. Algorithmic Mentor Allocation
+*   Admins can use the "Auto-Allocate" feature.
+*   The algorithm balances the load across all available Faculty members within a department (up to their `maxStudents` capacity, typically 20).
+*   Students are assigned sequentially based on their Enrollment Number to ensure fair distribution.
 
-### Frontend
+### 3. The Issue Escalation Matrix
+The platform features a multi-tiered ticketing system for student issues:
+*   A Student raises an issue (e.g., Academic, Financial, Personal).
+*   The Mentor attempts to resolve it. If unable, they escalate it to the appropriate **Section Head** (e.g., Exam Section).
+*   If the Section Head cannot resolve it, they escalate it up the chain to the **HOD**.
+*   The HOD can resolve it or escalate it globally to the **Dean**.
+*   A complete audit trail (`escalationHistory`) is permanently attached to the issue.
 
-```powershell
-cd frontend
-python -m http.server 4173
-```
+### 4. Serverless WebRTC Video Meetings
+The platform includes a built-in, Google Meet-style video conferencing tool that runs entirely peer-to-peer without a media server.
+*   **Signaling:** When users join a room, they exchange WebRTC SDP Offers/Answers and ICE Candidates by writing documents to a temporary Firestore collection.
+*   **Host Controls & Waiting Room:** 
+    *   Mentors join immediately as Hosts.
+    *   Students join as Guests and are placed in a **Waiting Room**.
+    *   Mentors receive a ringing audio notification and a UI popup when someone waits.
+    *   Mentors can Admit/Deny specific students, or Admit/Deny all.
+    *   Mentors can kick disruptive participants, immediately terminating their peer connection.
+*   **Permanent End:** Mentors can "End Meeting for All," changing the database status to `COMPLETED` and instantly kicking all active participants while preventing future joins.
+*   **Advanced Screen Recording:** If a mentor clicks "Record", the browser captures the screen and tab audio, while the Web Audio API digitally mixes in the mentor's local microphone stream, ensuring a perfect two-way audio recording.
 
-Update `frontend/js/config.js` so `API_BASE_URL` points to the backend URL you are using.
+## Directory Structure
 
-## Real Meeting Notes
+*   `/frontend/index.html`: The main entry point.
+*   `/frontend/css/`: Modular stylesheets (`main.css`, `dashboard.css`, `meeting.css`).
+*   `/frontend/js/router.js`: Core SPA navigation logic.
+*   `/frontend/js/services.js`: The central Firebase Firestore data layer (contains all CRUD operations).
+*   `/frontend/js/auth.js`: Firebase Authentication logic and session management.
+*   `/frontend/js/pages/`: Controller logic for every specific dashboard view (Admin, Dean, HOD, Mentor, Section, Student).
+*   `/frontend/js/webrtc/`: WebRTC peer connection, media capture, and Firestore signaling logic.
 
-The meeting room uses Firebase ID tokens on the WebSocket URL and only allows the meeting student or mentor to join. For reliable calls outside the same network, configure a TURN server in `frontend/js/config.js`; public STUN servers alone are not enough for all mobile/campus networks.
+## Local Setup & Deployment
 
-## Deployment
+Since the backend Python server has been fully deprecated in favor of Firebase, setup is incredibly simple:
 
-Deploy the backend using `render.yaml`. Store `FIREBASE_CREDENTIALS_JSON` and `CORS_ORIGINS` as secret environment variables in Render.
-
-Deploy the frontend from `frontend/` on Netlify. The included `frontend/netlify.toml` and `_redirects` support the hash-based SPA.
+1.  **Firebase Setup**: 
+    *   Create a Firebase project.
+    *   Enable **Authentication** (Email/Password).
+    *   Enable **Firestore Database**.
+2.  **Configuration**: Update `frontend/js/config.js` with your Firebase API keys and credentials.
+3.  **Local Development**: Run a simple local HTTP server in the frontend directory.
+    ```powershell
+    cd frontend
+    python -m http.server 4173
+    ```
+4.  **Deployment**: Drag and drop the `frontend/` folder into Netlify, Vercel, or GitHub Pages. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
