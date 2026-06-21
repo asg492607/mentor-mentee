@@ -224,10 +224,14 @@ export async function render(container) {
   const stuFields = document.getElementById('admin-student-fields');
   const classSel = document.getElementById('new-user-class');
   let allDepts = [];
+  let allSections = [];
 
-  import('/js/services.js').then(async ({ DepartmentService, ClassService }) => {
+  import('/js/services.js').then(async ({ DepartmentService, ClassService, SettingsService }) => {
     try {
-      allDepts = await DepartmentService.getAll();
+      [allDepts, allSections] = await Promise.all([
+        DepartmentService.getAll(),
+        SettingsService.getSections()
+      ]);
       populateAdminDepts('Academic');
       
       deptSel.addEventListener('change', async (e) => {
@@ -248,8 +252,13 @@ export async function render(container) {
 
   function populateAdminDepts(typeStr) {
     const isSec = typeStr === 'Section';
-    deptSel.innerHTML = '<option value="">Select ' + (isSec ? 'Section' : 'Department') + '</option>' +
-      allDepts.filter(d => isSec ? d.type === 'Section' : d.type !== 'Section').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    if (isSec) {
+      deptSel.innerHTML = '<option value="">Select Section</option>' + 
+        allSections.map(s => `<option value="${s}">${s}</option>`).join('');
+    } else {
+      deptSel.innerHTML = '<option value="">Select Department</option>' +
+        allDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    }
   }
 
   roleSel.addEventListener('change', (e) => {
