@@ -48,7 +48,7 @@ export async function render(container) {
         <div class="card" style="padding:20px;">
           <p style="font-size:0.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;">Academic Info</p>
           ${[
-            ['Roll Number', profile.rollNumber || '—'],
+            ['Enrollment Number', profile.enrollmentNumber || '—'],
             ['Department',  profile.department || '—'],
             ['Year',        profile.year ? `Year ${profile.year}` : '—'],
             ['CGPA',        profile.cgpa || '—'],
@@ -74,8 +74,8 @@ export async function render(container) {
             <input type="text" id="p-name" class="form-input" value="${profile.name || ''}">
           </div>
           <div class="form-group">
-            <label class="form-label">Roll Number</label>
-            <input type="text" id="p-roll" class="form-input" value="${profile.rollNumber || ''}" readonly style="opacity:0.6;">
+            <label class="form-label">Enrollment Number</label>
+            <input type="text" id="p-roll" class="form-input" value="${profile.enrollmentNumber || ''}" readonly style="opacity:0.6;">
           </div>
           <div class="form-group">
             <label class="form-label">CGPA</label>
