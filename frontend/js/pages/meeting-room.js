@@ -77,6 +77,7 @@ export async function render(container) {
           <button class="control-btn" id="btn-cam"><span class="control-btn-icon">Cam</span><span class="control-btn-label">Camera</span></button>
           <button class="control-btn" id="btn-screen"><span class="control-btn-icon">Share</span><span class="control-btn-label">Share screen</span></button>
           <button class="control-btn" id="btn-panel"><span class="control-btn-icon">Chat</span><span class="control-btn-label">Chat</span></button>
+          ${isMentor ? `<button class="control-btn" id="btn-record"><span class="control-btn-icon" style="color:var(--danger);">●</span><span class="control-btn-label">Record</span></button>` : ''}
           <button class="control-btn end-call" id="btn-end"><span class="control-btn-icon">End</span><span class="control-btn-label">Leave</span></button>
         </footer>
       </div>`;
@@ -223,6 +224,74 @@ export async function render(container) {
             showToast('Screen sharing was cancelled or unavailable', 'warning');
         }
     };
+    
+    // Recording Logic
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordStream = null;
+    const btnRecord = document.getElementById('btn-record');
+    if (btnRecord) {
+        btnRecord.onclick = async event => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                btnRecord.classList.remove('active');
+                btnRecord.querySelector('.control-btn-label').textContent = 'Record';
+                return;
+            }
+
+            try {
+                recordStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { displaySurface: 'browser' },
+                    audio: true
+                });
+
+                // Compress video: 500kbps bitrate
+                const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 500000 };
+                try {
+                    mediaRecorder = new MediaRecorder(recordStream, options);
+                } catch (e) {
+                    console.warn('VP8/Opus fallback:', e);
+                    mediaRecorder = new MediaRecorder(recordStream, { videoBitsPerSecond: 500000 });
+                }
+
+                recordedChunks = [];
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    document.body.appendChild(a);
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `meeting_recording_${new Date().toISOString().slice(0, 10)}.webm`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    recordStream.getTracks().forEach(t => t.stop());
+                    
+                    btnRecord.classList.remove('active');
+                    btnRecord.querySelector('.control-btn-label').textContent = 'Record';
+                    showToast('Recording downloaded locally', 'success');
+                };
+
+                recordStream.getVideoTracks()[0].onended = () => {
+                    if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                };
+
+                mediaRecorder.start(1000);
+                btnRecord.classList.add('active');
+                btnRecord.querySelector('.control-btn-label').textContent = 'Stop Recording';
+                showToast('Recording started (compressed)', 'info');
+
+            } catch (err) {
+                console.error(err);
+                showToast('Recording cancelled', 'warning');
+            }
+        };
+    }
+
     document.getElementById('btn-panel').onclick = () => document.getElementById('meeting-side-panel').classList.toggle('hidden');
     document.getElementById('chat-form').onsubmit = event => {
         event.preventDefault();
@@ -255,6 +324,9 @@ export async function render(container) {
         if (cleaned) return;
         cleaned = true;
         clearInterval(timer);
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop(); // save recording if active
+        }
         localStream?.getTracks().forEach(track => track.stop());
         stopScreenShare(screenStream);
         peers.forEach(peer => peer.close());
