@@ -181,7 +181,7 @@ export async function render(container) {
             <div class="form-group">
               <label class="form-label">Category</label>
               <select id="issue-cat" class="form-select" required>
-                <option>Academic</option><option>Attendance</option><option>Behavioral</option><option>Other</option>
+                <option>Exam Section</option><option>Student Section</option><option>Academic Section</option><option>Teaching (Mentor-mentee)</option><option>Non-Teaching</option><option>Travel Section</option><option>Non-Academic Section</option>
               </select>
             </div>
             <div class="form-group">
