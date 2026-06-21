@@ -25,6 +25,19 @@ function now() {
   return new Date().toISOString();
 }
 
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+
+export const SettingsService = {
+  async getSections() {
+    const snap = await getDoc(doc(db, 'settings', 'general'));
+    if (!snap.exists()) return ['Exam Section', 'Student Section', 'Academic Section', 'Teaching (Mentor-mentee)', 'Non-Teaching', 'Travel Section', 'Non-Academic Section'];
+    return snap.data().sections || ['Exam Section', 'Student Section', 'Academic Section', 'Teaching (Mentor-mentee)', 'Non-Teaching', 'Travel Section', 'Non-Academic Section'];
+  },
+  async updateSections(sections) {
+    await setDoc(doc(db, 'settings', 'general'), { sections }, { merge: true });
+  }
+};
+
 // ─── STUDENTS ─────────────────────────────────────────────────────────────────
 
 export const StudentService = {
@@ -355,9 +368,16 @@ export const AllocationService = {
   },
 
   async autoAllocate(department = null) {
-    const students = department
+    let students = department
       ? await StudentService.getUnassigned(department)
       : await StudentService.getUnassigned();
+
+    // Sort sequentially by Enrollment Number
+    students = students.sort((a, b) => {
+      const numA = parseInt((a.enrollmentNumber || a.rollNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+      const numB = parseInt((b.enrollmentNumber || b.rollNumber || '').replace(/[^0-9]/g, ''), 10) || 0;
+      return numA - numB;
+    });
 
     let mentors = department
       ? await FacultyService.getByDepartment(department)

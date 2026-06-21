@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { IssueService, NotificationService } from '/js/services.js';
+import { IssueService, NotificationService, SettingsService } from '/js/services.js';
 
 function statusBadge(s) {
   const cls = {OPEN:'badge-warning',RESOLVED:'badge-success',ESCALATED:'badge-danger',CLOSED:'badge-muted'}[s] || 'badge-muted';
@@ -18,6 +18,7 @@ function fmt(iso) {
 
 export async function render(container) {
   const user = getUserProfile();
+  const issueCategories = await SettingsService.getSections();
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -39,7 +40,7 @@ export async function render(container) {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div class="form-group">
                 <label class="form-label">Category</label>
-                <select id="i-cat" class="form-select"><option>Exam Section</option><option>Student Section</option><option>Academic Section</option><option>Teaching (Mentor-mentee)</option><option>Non-Teaching</option><option>Travel Section</option><option>Non-Academic Section</option></select>
+                <select id="i-cat" class="form-select">${issueCategories.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
               </div>
               <div class="form-group">
                 <label class="form-label">Priority</label>

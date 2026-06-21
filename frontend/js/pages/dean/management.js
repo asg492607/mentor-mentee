@@ -1,7 +1,7 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { DepartmentService, FacultyService } from '/js/services.js';
+import { DepartmentService, FacultyService, SettingsService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 
 export async function render(container) {
@@ -13,7 +13,8 @@ export async function render(container) {
       <div class="main-content">
         ${createHeader('Institution Management', user)}
         <div class="page-content">
-          <div class="card">
+          <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+            <div class="card">
             <div class="card-header">
               <h3>Departments & Sections</h3>
               <p style="color:var(--text-secondary);font-size:0.85rem;">Manage all departments and their HODs.</p>
@@ -21,7 +22,25 @@ export async function render(container) {
             <div id="dept-content" style="padding-top:16px;">
               <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
             </div>
+            </div>
           </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3>Manage Issue Sections</h3>
+              <p style="color:var(--text-secondary);font-size:0.85rem;">Add or remove sections available for students and mentors to raise issues against.</p>
+            </div>
+            <div style="padding:16px;">
+              <div id="sections-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+                <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
+              </div>
+              <div style="display:flex;gap:8px;max-width:400px;">
+                <input type="text" id="new-section-name" class="form-input" placeholder="New Section Name" style="flex:1;">
+                <button class="btn btn-primary" id="btn-add-section">Add Section</button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -118,6 +137,74 @@ export async function render(container) {
         }
       });
     });
+
+    // Sections management
+    let sections = [];
+    async function loadSections() {
+      try {
+        sections = await SettingsService.getSections();
+        renderSections();
+      } catch(err) {
+        document.getElementById('sections-list').innerHTML = '<p class="text-danger">Failed to load sections</p>';
+      }
+    }
+
+    function renderSections() {
+      const list = document.getElementById('sections-list');
+      if (!list) return;
+      list.innerHTML = sections.map((sec, i) => \`
+        <span class="badge badge-info" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
+          \${sec}
+          <button class="btn-del-section" data-idx="\${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
+        </span>
+      \`).join('');
+
+      list.querySelectorAll('.btn-del-section').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if(!confirm('Delete this section?')) return;
+          const idx = parseInt(e.currentTarget.dataset.idx);
+          const removed = sections.splice(idx, 1);
+          renderSections();
+          try {
+            await SettingsService.updateSections(sections);
+            showToast('Section deleted', 'success');
+          } catch(err) {
+            sections.splice(idx, 0, removed[0]); // revert
+            renderSections();
+            showToast('Error deleting section', 'error');
+          }
+        });
+      });
+    }
+
+    const btnAddSec = document.getElementById('btn-add-section');
+    if (btnAddSec) {
+      btnAddSec.addEventListener('click', async () => {
+        const input = document.getElementById('new-section-name');
+        const name = input.value.trim();
+        if (!name) return;
+        if (sections.includes(name)) {
+          showToast('Section already exists', 'warning');
+          return;
+        }
+        btnAddSec.disabled = true;
+        sections.push(name);
+        renderSections();
+        try {
+          await SettingsService.updateSections(sections);
+          showToast('Section added', 'success');
+          input.value = '';
+        } catch(err) {
+          sections.pop(); // revert
+          renderSections();
+          showToast('Error adding section', 'error');
+        } finally {
+          btnAddSec.disabled = false;
+        }
+      });
+    }
+
+    loadSections();
 
   } catch (err) {
     (container.querySelector('#dept-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;

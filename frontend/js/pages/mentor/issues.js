@@ -3,12 +3,13 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { showModal } from '/js/components/modal.js';
-import { IssueService, NotificationService } from '/js/services.js';
+import { IssueService, NotificationService, SettingsService } from '/js/services.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
 
 export async function render(container) {
   const user = getUserProfile();
+  const issueCategories = await SettingsService.getSections();
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -181,7 +182,7 @@ export async function render(container) {
             <div class="form-group">
               <label class="form-label">Category</label>
               <select id="issue-cat" class="form-select" required>
-                <option>Exam Section</option><option>Student Section</option><option>Academic Section</option><option>Teaching (Mentor-mentee)</option><option>Non-Teaching</option><option>Travel Section</option><option>Non-Academic Section</option>
+                ${issueCategories.map(c => `<option value="${c}">${c}</option>`).join('')}
               </select>
             </div>
             <div class="form-group">

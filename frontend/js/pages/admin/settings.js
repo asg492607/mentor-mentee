@@ -2,6 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
+import { SettingsService } from '/js/services.js';
 
 function getSetting(key, def) {
   const v = localStorage.getItem(`mentoros_${key}`);
@@ -64,6 +65,21 @@ export async function render(container) {
               <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
             </div>
 
+            <!-- Issue Sections -->
+            <div class="card" style="padding:24px;">
+              <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Manage Issue Sections</h3>
+              <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:16px;">Add or remove sections available for students and mentors to raise issues against.</p>
+              
+              <div id="sections-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+                <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
+              </div>
+
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="new-section-name" class="form-input" placeholder="New Section Name" style="flex:1;">
+                <button class="btn btn-primary" id="btn-add-section">Add Section</button>
+              </div>
+            </div>
+
             <!-- Theme -->
             <div class="card" style="padding:24px;">
               <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Appearance</h3>
@@ -115,6 +131,71 @@ export async function render(container) {
       showToast('Allocations reset (offline mode)', 'warning');
     }
   });
+
+  // Sections management
+  let sections = [];
+  async function loadSections() {
+    try {
+      sections = await SettingsService.getSections();
+      renderSections();
+    } catch(err) {
+      document.getElementById('sections-list').innerHTML = '<p class="text-danger">Failed to load sections</p>';
+    }
+  }
+
+  function renderSections() {
+    const list = document.getElementById('sections-list');
+    list.innerHTML = sections.map((sec, i) => \`
+      <span class="badge badge-info" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
+        \${sec}
+        <button class="btn-del-section" data-idx="\${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
+      </span>
+    \`).join('');
+
+    list.querySelectorAll('.btn-del-section').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        if(!confirm('Delete this section?')) return;
+        const idx = parseInt(e.currentTarget.dataset.idx);
+        const removed = sections.splice(idx, 1);
+        renderSections();
+        try {
+          await SettingsService.updateSections(sections);
+          showToast('Section deleted', 'success');
+        } catch(err) {
+          sections.splice(idx, 0, removed[0]); // revert
+          renderSections();
+          showToast('Error deleting section', 'error');
+        }
+      });
+    });
+  }
+
+  document.getElementById('btn-add-section').addEventListener('click', async () => {
+    const input = document.getElementById('new-section-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (sections.includes(name)) {
+      showToast('Section already exists', 'warning');
+      return;
+    }
+    const btn = document.getElementById('btn-add-section');
+    btn.disabled = true;
+    sections.push(name);
+    renderSections();
+    try {
+      await SettingsService.updateSections(sections);
+      showToast('Section added', 'success');
+      input.value = '';
+    } catch(err) {
+      sections.pop(); // revert
+      renderSections();
+      showToast('Error adding section', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  loadSections();
 
   document.getElementById('theme-dark').addEventListener('click', () => {
     document.documentElement.setAttribute('data-theme','dark');

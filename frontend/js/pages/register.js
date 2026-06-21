@@ -82,8 +82,8 @@ export async function render(container) {
               </div>
               
               <div class="form-group">
-                <label class="form-label">Roll Number</label>
-                <input type="text" id="rollNumber" class="form-input" placeholder="e.g. 2021CS01" required>
+                <label class="form-label">Enrollment Number</label>
+                <input type="text" id="enrollmentNumber" class="form-input" placeholder="e.g. EN2024001" required>
               </div>
             </div>
 
@@ -182,7 +182,7 @@ export async function render(container) {
       document.getElementById('department').required = true;
       document.getElementById('student-class').required = true;
       document.getElementById('year').required = true;
-      document.getElementById('rollNumber').required = true;
+      document.getElementById('enrollmentNumber').required = true;
       document.getElementById('teacher-department').required = false;
       document.getElementById('designation').required = false;
       document.getElementById('employeeId').required = false;
@@ -193,7 +193,7 @@ export async function render(container) {
       document.getElementById('department').required = false;
       document.getElementById('student-class').required = false;
       document.getElementById('year').required = false;
-      document.getElementById('rollNumber').required = false;
+      document.getElementById('enrollmentNumber').required = false;
       
       if (val === 'DEAN' || val === 'ADMIN') {
         staffGroup.style.display = 'none';
@@ -240,7 +240,7 @@ export async function render(container) {
       data.profile.department = document.getElementById('department').value;
       data.profile.class = document.getElementById('student-class').value;
       data.profile.year = parseInt(document.getElementById('year').value);
-      data.profile.rollNumber = document.getElementById('rollNumber').value;
+      data.profile.enrollmentNumber = document.getElementById('enrollmentNumber').value;
     } else {
       if (role !== 'DEAN' && role !== 'ADMIN') {
         data.profile.department = document.getElementById('teacher-department').value;
