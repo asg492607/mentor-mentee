@@ -73,6 +73,7 @@ export async function render(container) {
               ${issue.status !== 'RESOLVED' ? `
                 <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
                   <button class="btn btn-sm btn-success res-btn" data-id="${issue.id}" data-sid="${issue.studentId}">✓ Resolve</button>
+                  <button class="btn btn-sm btn-danger hod-btn" data-id="${issue.id}">↑ To HOD</button>
                 </div>
               ` : ''}
             </div>
@@ -100,17 +101,55 @@ export async function render(container) {
             }
             try {
               await IssueService.resolve(btn.dataset.id, resolution);
+              const issue = issues.find(i => i.id === btn.dataset.id);
               if (btn.dataset.sid) {
                 await NotificationService.create({
                   userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
                   title:'Issue Resolved', message:`Your issue has been resolved by the Section Head: ${resolution}`, relatedId:btn.dataset.id
                 });
               }
-              const issue = issues.find(i => i.id === btn.dataset.id);
-              issue.status = 'RESOLVED';
-              issue.resolution = resolution;
+              if (issue && issue.mentorId) {
+                await NotificationService.create({
+                  userId: issue.mentorId, type:'ISSUE_RESOLVED',
+                  title:'Issue Resolved', message:`Student issue resolved by Section Head: ${resolution}`, relatedId:btn.dataset.id
+                });
+              }
+              if (issue) {
+                issue.status = 'RESOLVED';
+                issue.resolution = resolution;
+              }
               close();
               showToast('Issue resolved!', 'success');
+              renderList();
+            } catch (err) { showToast(err.message, 'error'); }
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('.hod-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        showModal({
+          title: 'Escalate to HOD',
+          content: `
+            <div class="form-group">
+              <label class="form-label">Escalation reason</label>
+              <textarea id="hod-reason" class="form-textarea" style="min-height:120px;" placeholder="Explain why this issue requires HOD intervention."></textarea>
+            </div>
+          `,
+          confirmText: 'Escalate',
+          onConfirm: async (close) => {
+            const reason = document.getElementById('hod-reason').value.trim();
+            if (!reason) {
+              showToast('Escalation reason is required', 'error');
+              return;
+            }
+            try {
+              await IssueService.escalate(btn.dataset.id, 'HOD', reason, user.name);
+              showToast('Escalated to HOD', 'info');
+              const issue = issues.find(i => i.id === btn.dataset.id);
+              if (issue) issue.escalationLevel = 'HOD';
+              close();
               renderList();
             } catch (err) { showToast(err.message, 'error'); }
           }

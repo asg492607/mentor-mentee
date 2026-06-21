@@ -100,15 +100,23 @@ export async function render(container) {
             }
             try {
               await IssueService.resolve(btn.dataset.id, resolution);
+              const issue = issues.find(i => i.id === btn.dataset.id);
               if (btn.dataset.sid) {
                 await NotificationService.create({
                   userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
                   title:'Issue Resolved', message:`Your issue has been resolved by the Dean: ${resolution}`, relatedId:btn.dataset.id
                 });
               }
-              const issue = issues.find(i => i.id === btn.dataset.id);
-              issue.status = 'RESOLVED';
-              issue.resolution = resolution;
+              if (issue && issue.mentorId) {
+                await NotificationService.create({
+                  userId: issue.mentorId, type:'ISSUE_RESOLVED',
+                  title:'Issue Resolved', message:`Student issue resolved by the Dean: ${resolution}`, relatedId:btn.dataset.id
+                });
+              }
+              if (issue) {
+                issue.status = 'RESOLVED';
+                issue.resolution = resolution;
+              }
               close();
               showToast('Issue resolved!', 'success');
               renderList();
