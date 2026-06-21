@@ -59,16 +59,16 @@ export async function render(container) {
               const fStudents = students.filter(s => !studentSearch || s.name.toLowerCase().includes(studentSearch.toLowerCase()));
               if (students.length === 0) return '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>';
               if (fStudents.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
-              return fStudents.map(s => \`
-                <div class="list-item student-pick \${selectedStudent?.id===s.id?'active-pick':''}" data-id="\${s.id}"
-                  style="cursor:pointer;\${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
+              return fStudents.map(s => `
+                <div class="list-item student-pick ${selectedStudent?.id===s.id?'active-pick':''}" data-id="${s.id}"
+                  style="cursor:pointer;${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
                   <div>
-                    <p style="font-weight:600;font-size:0.875rem;">\${s.name}</p>
-                    <p style="color:var(--text-muted);font-size:0.78rem;">\${s.department||'—'} • Year \${s.year||'?'}</p>
+                    <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">${s.department||'—'} • Year ${s.year||'?'}</p>
                   </div>
-                  \${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
+                  ${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
                 </div>
-              \`).join('');
+              `).join('');
             })()}
           </div>
         </div>
@@ -87,15 +87,15 @@ export async function render(container) {
                 const capacity = m.maxStudents || 20;
                 const used     = m.assignedStudentCount || 0;
                 const full     = used >= capacity;
-                return \`
-                  <div class="list-item mentor-pick \${selectedMentor?.id===m.id?'active-pick':''}" data-id="\${m.id}"
-                    style="cursor:\${full?'not-allowed':'pointer'};opacity:\${full?0.5:1};\${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
+                return `
+                  <div class="list-item mentor-pick ${selectedMentor?.id===m.id?'active-pick':''}" data-id="${m.id}"
+                    style="cursor:${full?'not-allowed':'pointer'};opacity:${full?0.5:1};${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
                     <div>
-                      <p style="font-weight:600;font-size:0.875rem;">\${m.name}</p>
-                      <p style="color:var(--text-muted);font-size:0.78rem;">\${m.department||'—'}</p>
+                      <p style="font-weight:600;font-size:0.875rem;">${m.name}</p>
+                      <p style="color:var(--text-muted);font-size:0.78rem;">${m.department||'—'}</p>
                     </div>
-                    <span class="badge \${full?'badge-danger':'badge-success'}">\${used}/\${capacity}</span>
-                  </div>\`;
+                    <span class="badge ${full?'badge-danger':'badge-success'}">${used}/${capacity}</span>
+                  </div>`;
               }).join('');
             })()}
           </div>
