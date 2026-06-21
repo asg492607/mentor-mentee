@@ -47,8 +47,8 @@ service cloud.firestore {
       // Student reads their own doc; faculty reads any student; admin reads all
       allow read: if isAuth() && (uid() == studentId || isFaculty());
       // Student updates own doc; admin creates
-      allow create: if isAuth() && uid() == studentId &&
-        request.resource.data.role == 'STUDENT';
+      // Student updates own doc; admin creates
+      allow create: if (isAuth() && uid() == studentId && request.resource.data.role == 'STUDENT') || isAdmin();
       allow update: if isAuth() && (
         (uid() == studentId &&
           request.resource.data.diff(resource.data).affectedKeys()
@@ -72,7 +72,7 @@ service cloud.firestore {
           request.resource.data.status == 'approved' &&
           request.resource.data.isApproved == true
         )
-      );
+      ) || isAdmin();
       allow update: if isAuth() && (
         (uid() == facultyId &&
           request.resource.data.diff(resource.data).affectedKeys()
