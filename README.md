@@ -82,3 +82,23 @@ Since the backend Python server has been fully deprecated in favor of Firebase, 
     python -m http.server 4173
     ```
 4.  **Deployment**: Drag and drop the `frontend/` folder into Netlify, Vercel, or GitHub Pages. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
+
+## Scaling Risks & Architectural Considerations
+
+While the MVP is robust for early adoption, there are important architectural trade-offs to keep in mind as the platform scales:
+
+### 1. WebRTC Signaling over Firestore
+Relying on Firestore for WebRTC signaling (SDP/ICE candidate exchange) is functional but inherently fragile at scale.
+*   **Costs:** High chatty read/write operations during connection establishment can drive up Firestore billing.
+*   **State Management:** Stale ICE candidates, orphan room documents, and race conditions during multi-participant joins require careful handling and regular garbage collection.
+*   **Future Mitigation:** Transitioning to a dedicated WebSocket server (e.g., Socket.io or WebRTC specific SFU/TURN solutions like Mediasoup or LiveKit) will be necessary for large, stable, multi-party meetings.
+
+### 2. "Serverless" State Integrity
+"No backend" operationally simplifies deployment, but it pushes massive responsibilities onto the client-side logic and Firestore Security Rules.
+*   The "backend" still exists; it is just decentralized across client-side services, Firebase Auth logic, and Firestore listeners.
+*   **Security & Integrity:** Protecting the system requires incredibly rigorous, battle-tested `firestore.rules` to prevent malicious writes, privilege escalation, and corrupted state changes.
+
+### 3. Complex Role-Based Access Control (RBAC)
+With 6 different organizational roles (Student, Mentor, Section Head, HOD, Dean, Admin), the risk of visibility leaks and logic bugs increases exponentially.
+*   **Workflow Fragility:** Ensuring that approval logic routes correctly, CSV imports don't create malformed data, and users only see their designated data silos is the highest-risk area for bugs.
+*   **Future Mitigation:** Implement comprehensive End-to-End (E2E) testing specifically focused on role-based dashboard visibility and escalation routing to ensure data never moves to the wrong tier.
