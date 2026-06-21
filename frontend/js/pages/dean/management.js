@@ -152,12 +152,12 @@ export async function render(container) {
     function renderSections() {
       const list = document.getElementById('sections-list');
       if (!list) return;
-      list.innerHTML = sections.map((sec, i) => \`
+      list.innerHTML = sections.map((sec, i) => `
         <span class="badge badge-info" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
-          \${sec}
-          <button class="btn-del-section" data-idx="\${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
+          ${sec}
+          <button class="btn-del-section" data-idx="${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
         </span>
-      \`).join('');
+      `).join('');
 
       list.querySelectorAll('.btn-del-section').forEach(btn => {
         btn.addEventListener('click', async (e) => {

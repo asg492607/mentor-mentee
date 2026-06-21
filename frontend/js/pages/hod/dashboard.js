@@ -223,7 +223,7 @@ export async function render(container) {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!confirm(\`Are you sure you want to bulk import users into \${dept}?\`)) {
+        if (!confirm(`Are you sure you want to bulk import users into ${dept}?`)) {
           e.target.value = '';
           return;
         }
@@ -237,10 +237,10 @@ export async function render(container) {
           const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
           const expected = ['role', 'name', 'email', 'password'];
           for (const req of expected) {
-            if (!headers.includes(req)) return showToast(\`Missing required column: \${req}\`, 'error');
+            if (!headers.includes(req)) return showToast(`Missing required column: ${req}`, 'error');
           }
 
-          showToast(\`Processing \${lines.length - 1} users for \${dept}...\`, 'info');
+          showToast(`Processing ${lines.length - 1} users for ${dept}...`, 'info');
           let successCount = 0; let failCount = 0;
           const { AdminService } = await import('/js/services.js');
 
@@ -272,7 +272,7 @@ export async function render(container) {
             }
           }
           e.target.value = '';
-          showToast(\`Bulk Import Complete. \${successCount} successful, \${failCount} failed.\`, successCount > 0 ? 'success' : 'warning');
+          showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
           if (successCount > 0) setTimeout(() => render(container), 1500);
         };
         reader.readAsText(file);
