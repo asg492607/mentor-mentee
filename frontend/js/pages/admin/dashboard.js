@@ -78,6 +78,7 @@ export async function render(container) {
             <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
             <a href="#/admin/users"       class="btn btn-secondary">Manage Users →</a>
             <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
+            <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>
           </div>
         </div>
 
@@ -115,6 +116,19 @@ export async function render(container) {
         showToast(`Auto-allocated ${results.length} student(s)!`, 'success');
       } catch (err) { showToast('Error: ' + err.message, 'error'); }
       finally { btn.disabled = false; btn.textContent = 'Auto Allocate'; }
+    });
+
+    document.getElementById('btn-dash-download-template').addEventListener('click', () => {
+      const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "User_Registration_Template.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     });
 
   } catch (err) {
