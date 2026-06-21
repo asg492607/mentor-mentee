@@ -331,7 +331,7 @@ export async function render(container) {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!confirm(\`Are you sure you want to bulk import users from \${file.name}?\`)) {
+    if (!confirm(`Are you sure you want to bulk import users from ${file.name}?`)) {
       e.target.value = '';
       return;
     }
@@ -351,12 +351,12 @@ export async function render(container) {
       const expected = ['role', 'name', 'email', 'password'];
       for (const req of expected) {
         if (!headers.includes(req)) {
-          showToast(\`Invalid CSV format. Missing required column: \${req}\`, 'error');
+          showToast(`Invalid CSV format. Missing required column: ${req}`, 'error');
           return;
         }
       }
 
-      showToast(\`Processing \${lines.length - 1} users. Please wait...\`, 'info');
+      showToast(`Processing ${lines.length - 1} users. Please wait...`, 'info');
       let successCount = 0;
       let failCount = 0;
 
@@ -370,7 +370,7 @@ export async function render(container) {
           headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
 
           if (!row.role || !row.email || !row.password) {
-            console.warn(\`Row \${i} missing required fields.\`);
+            console.warn(`Row ${i} missing required fields.`);
             failCount++;
             continue;
           }
@@ -395,18 +395,17 @@ export async function render(container) {
           const newUser = await AdminService.createUser(data);
           allUsers.unshift({ ...newUser, isApproved: true, status: 'approved' });
           successCount++;
-        } catch(err) {
-          console.error(\`Failed to create user at row \${i}:\`, err);
+        } catch (err) {
+          console.error(`Failed to create user at row ${i}:`, err);
           failCount++;
         }
       }
 
-      e.target.value = ''; // reset
-      showToast(\`Bulk Import Complete. \${successCount} successful, \${failCount} failed.\`, successCount > 0 ? 'success' : 'warning');
-      renderTable();
+      e.target.value = ''; // Reset input
+      showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
+      if (successCount > 0) { renderTable(); }
     };
 
     reader.readAsText(file);
   });
 }
-
