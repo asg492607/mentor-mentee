@@ -27,84 +27,89 @@ service cloud.firestore {
       return isAuth() && exists(/databases/$(database)/documents/faculty/$(uid()));
     }
 
-    function isAdmin() {
+    function isSuperAdmin() {
       return (isAuth() && request.auth.token.email == 'gandhiatharv565@gmail.com') ||
-        (isAuth() &&
-        exists(/databases/$(database)/documents/faculty/$(uid())) &&
-        getFacultyDoc().role in ['ADMIN', 'HOD', 'DEAN', 'SECTION_HEAD']);
+             (isAuth() && exists(/databases/$(database)/documents/faculty/$(uid())) && getFacultyDoc().role == 'ADMIN');
+    }
+
+    function isDean() {
+      return isAuth() && exists(/databases/$(database)/documents/faculty/$(uid())) && getFacultyDoc().role == 'DEAN';
+    }
+
+    function isHOD() {
+      return isAuth() && exists(/databases/$(database)/documents/faculty/$(uid())) && getFacultyDoc().role == 'HOD';
+    }
+
+    function isSectionHead() {
+      return isAuth() && exists(/databases/$(database)/documents/faculty/$(uid())) && getFacultyDoc().role == 'SECTION_HEAD';
+    }
+
+    function isHODForDept(dept) {
+      return isHOD() && getFacultyDoc().department == dept;
     }
 
     // Global Admin Override: Super admins get full read/write access to everything
     match /{document=**} {
-      allow read, write: if (isAuth() && request.auth.token.email == 'gandhiatharv565@gmail.com') ||
-        (isAuth() &&
-        exists(/databases/$(database)/documents/faculty/$(uid())) &&
-        getFacultyDoc().role == 'ADMIN');
+      allow read, write: if isSuperAdmin();
     }
 
     // ── Students Collection ────────────────────────────────────────────────────
     match /students/{studentId} {
-      // Student reads their own doc; faculty reads any student; admin reads all
-      allow read: if isAuth() && (uid() == studentId || isFaculty());
-      // Student updates own doc; admin creates
-      // Student updates own doc; admin creates
-      allow create: if (isAuth() && uid() == studentId && request.resource.data.role == 'STUDENT') || isAdmin();
-      allow update: if isAuth() && (
-        (uid() == studentId &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['name', 'phone', 'interests', 'skills', 'careerGoal', 'updatedAt'])) ||
-        isFaculty()
+      allow read: if isAuth() && (
+        uid() == studentId || 
+        isFaculty() || 
+        isHODForDept(resource.data.department) || 
+        isDean() || 
+        isSuperAdmin()
       );
-      allow delete: if isAdmin();
+      allow create: if (isAuth() && uid() == studentId && request.resource.data.role == 'STUDENT') || isSuperAdmin();
+      allow update: if isAuth() && (
+        (uid() == studentId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'interests', 'skills', 'careerGoal', 'updatedAt'])) ||
+        isFaculty() || 
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
     }
 
     // ── Faculty Collection ─────────────────────────────────────────────────────
     match /faculty/{facultyId} {
-      allow read:   if isAuth();
+      allow read: if isAuth();
       allow create: if isAuth() && uid() == facultyId && (
-        (
-          request.resource.data.role == 'FACULTY' &&
-          request.resource.data.status == 'pending' &&
-          request.resource.data.isApproved == false
-        ) ||
-        (
-          request.resource.data.role in ['HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'] &&
-          request.resource.data.status == 'approved' &&
-          request.resource.data.isApproved == true
-        )
-      ) || isAdmin();
+        (request.resource.data.role == 'FACULTY' && request.resource.data.status == 'pending' && request.resource.data.isApproved == false) ||
+        (request.resource.data.role in ['HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'] && request.resource.data.status == 'approved' && request.resource.data.isApproved == true)
+      ) || isSuperAdmin();
       allow update: if isAuth() && (
-        (uid() == facultyId &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['name', 'phone', 'designation', 'updatedAt'])) ||
-        isAdmin()
+        (uid() == facultyId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'designation', 'updatedAt'])) ||
+        isSuperAdmin()
       );
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // ── Meetings Collection ────────────────────────────────────────────────────
     match /meetings/{meetingId} {
-      allow read: if isAuth() && (
-        resource.data.studentId == uid() ||
-        resource.data.mentorId  == uid() ||
-        (isStudent() && resource.data.studentId == 'ALL' && resource.data.mentorId == getUserDoc().mentorId) ||
-        isAdmin()
-      );
-      allow create: if (isStudent() &&
-        request.resource.data.studentId == uid() &&
-        request.resource.data.status == 'REQUESTED') ||
-        (isFaculty() && request.resource.data.mentorId == uid());
+      function canAccessMeeting() {
+        return isAuth() && (
+          resource.data.studentId == uid() ||
+          resource.data.mentorId  == uid() ||
+          (isStudent() && resource.data.studentId == 'ALL' && resource.data.mentorId == getUserDoc().mentorId) ||
+          isDean() || isSuperAdmin()
+        );
+      }
+
+      allow read: if canAccessMeeting();
+      allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'REQUESTED') ||
+                       (isFaculty() && request.resource.data.mentorId == uid());
       allow update: if isAuth() && (
-        (resource.data.studentId == uid() &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'updatedAt']) &&
-          request.resource.data.status == 'CANCELLED') ||
+        (resource.data.studentId == uid() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'CANCELLED') ||
         resource.data.mentorId == uid()
       );
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
       
+      // Lock down signaling to only people allowed to access the meeting
       match /signaling/{docId} {
-        allow read, write: if isAuth();
+        allow read, write: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == uid() ||
+                              get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
+                              (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId);
       }
     }
 
@@ -113,19 +118,19 @@ service cloud.firestore {
       allow read: if isAuth() && (
         resource.data.studentId  == uid() ||
         resource.data.mentorId   == uid() ||
-        isAdmin()
+        isHODForDept(resource.data.department) ||
+        (isSectionHead() && resource.data.escalationLevel == getFacultyDoc().department) || // Section Head uses department field for their section name
+        isDean() || isSuperAdmin()
       );
-      allow create: if (isStudent() &&
-        request.resource.data.studentId == uid() &&
-        request.resource.data.status == 'OPEN') ||
-        (isFaculty() &&
-        request.resource.data.mentorId == uid() &&
-        request.resource.data.status == 'OPEN');
+      allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'OPEN') ||
+                       (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status == 'OPEN');
       allow update: if isAuth() && (
         resource.data.mentorId  == uid() ||
-        isAdmin()
+        isHODForDept(resource.data.department) ||
+        (isSectionHead() && resource.data.escalationLevel == getFacultyDoc().department) ||
+        isDean() || isSuperAdmin()
       );
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     // ── Action Items (Tasks) Collection ───────────────────────────────────────
@@ -155,19 +160,19 @@ service cloud.firestore {
     // ── Departments Collection ─────────────────────────────────────────────────
     match /departments/{deptId} {
       allow read:   if true;
-      allow write:  if isAdmin();
+      allow write:  if isSuperAdmin();
     }
 
     // ── Classes Collection ─────────────────────────────────────────────────────
     match /classes/{classId} {
       allow read:   if true;
-      allow write:  if isAdmin();
+      allow write:  if isSuperAdmin();
     }
 
     // ── Settings Collection ────────────────────────────────────────────────────
     match /settings/{docId} {
       allow read:   if isAuth();
-      allow write:  if isAdmin();
+      allow write:  if isSuperAdmin();
     }
   }
 }
