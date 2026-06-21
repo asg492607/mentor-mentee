@@ -24,6 +24,8 @@ export async function render(container) {
   let selectedStudent = null;
   let selectedMentor  = null;
   let assignedPairs   = [];
+  let studentSearch   = '';
+  let mentorSearch    = '';
 
   try {
     [students, mentors] = await Promise.all([
@@ -48,46 +50,54 @@ export async function render(container) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <!-- Unassigned Students -->
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
             <h3>Unassigned Students (${students.length})</h3>
+            <input type="text" id="search-students" class="form-input" style="padding:4px 8px;font-size:0.8rem;width:120px;" placeholder="Search..." value="${studentSearch}">
           </div>
           <div style="max-height:320px;overflow-y:auto;" id="student-pick">
-            ${students.length === 0
-              ? '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>'
-              : students.map(s => `
-                <div class="list-item student-pick ${selectedStudent?.id===s.id?'active-pick':''}" data-id="${s.id}"
-                  style="cursor:pointer;${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
+            ${(() => {
+              const fStudents = students.filter(s => !studentSearch || s.name.toLowerCase().includes(studentSearch.toLowerCase()));
+              if (students.length === 0) return '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>';
+              if (fStudents.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
+              return fStudents.map(s => \`
+                <div class="list-item student-pick \${selectedStudent?.id===s.id?'active-pick':''}" data-id="\${s.id}"
+                  style="cursor:pointer;\${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
                   <div>
-                    <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                    <p style="color:var(--text-muted);font-size:0.78rem;">${s.department||'—'} • Year ${s.year||'?'}</p>
+                    <p style="font-weight:600;font-size:0.875rem;">\${s.name}</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;">\${s.department||'—'} • Year \${s.year||'?'}</p>
                   </div>
-                  ${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
+                  \${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
                 </div>
-              `).join('')
-            }
+              \`).join('');
+            })()}
           </div>
         </div>
 
         <!-- Available Mentors -->
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
             <h3>Available Mentors</h3>
+            <input type="text" id="search-mentors" class="form-input" style="padding:4px 8px;font-size:0.8rem;width:120px;" placeholder="Search..." value="${mentorSearch}">
           </div>
           <div style="max-height:320px;overflow-y:auto;" id="mentor-pick">
-            ${mentors.map(m => {
-              const capacity = m.maxStudents || 20;
-              const used     = m.assignedStudentCount || 0;
-              const full     = used >= capacity;
-              return `
-                <div class="list-item mentor-pick ${selectedMentor?.id===m.id?'active-pick':''}" data-id="${m.id}"
-                  style="cursor:${full?'not-allowed':'pointer'};opacity:${full?0.5:1};${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
-                  <div>
-                    <p style="font-weight:600;font-size:0.875rem;">${m.name}</p>
-                    <p style="color:var(--text-muted);font-size:0.78rem;">${m.department||'—'}</p>
-                  </div>
-                  <span class="badge ${full?'badge-danger':'badge-success'}">${used}/${capacity}</span>
-                </div>`;
-            }).join('')}
+            ${(() => {
+              const fMentors = mentors.filter(m => !mentorSearch || m.name.toLowerCase().includes(mentorSearch.toLowerCase()));
+              if (fMentors.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
+              return fMentors.map(m => {
+                const capacity = m.maxStudents || 20;
+                const used     = m.assignedStudentCount || 0;
+                const full     = used >= capacity;
+                return \`
+                  <div class="list-item mentor-pick \${selectedMentor?.id===m.id?'active-pick':''}" data-id="\${m.id}"
+                    style="cursor:\${full?'not-allowed':'pointer'};opacity:\${full?0.5:1};\${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
+                    <div>
+                      <p style="font-weight:600;font-size:0.875rem;">\${m.name}</p>
+                      <p style="color:var(--text-muted);font-size:0.78rem;">\${m.department||'—'}</p>
+                    </div>
+                    <span class="badge \${full?'badge-danger':'badge-success'}">\${used}/\${capacity}</span>
+                  </div>\`;
+              }).join('');
+            })()}
           </div>
         </div>
       </div>
@@ -143,6 +153,16 @@ export async function render(container) {
         buildUI();
       });
     });
+
+    // Search inputs (Debounced or handle focus loss)
+    const sInput = document.getElementById('search-students');
+    if (sInput) {
+      sInput.addEventListener('change', e => { studentSearch = e.target.value; buildUI(); });
+    }
+    const mInput = document.getElementById('search-mentors');
+    if (mInput) {
+      mInput.addEventListener('change', e => { mentorSearch = e.target.value; buildUI(); });
+    }
 
     // Mentor picks
     document.querySelectorAll('.mentor-pick').forEach(el => {
