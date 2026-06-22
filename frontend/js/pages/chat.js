@@ -2,6 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { ChatService, StudentService, FacultyService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 let currentChatUnsubscribe = null;
 
@@ -138,7 +139,7 @@ async function openConversation(studentId, mentorId, contactName, currentUserId)
       const time = new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       return `
         <div class="chat-bubble ${isMine ? 'mine' : 'theirs'}">
-          <div class="chat-text">${m.text}</div>
+          <div class="chat-text">${escapeHtml(m.text)}</div>
           <div class="chat-time">${time}</div>
         </div>
       `;

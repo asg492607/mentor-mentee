@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot } from 'https://www.gstatic.com/fi
 import { getCurrentUser } from '/js/auth.js';
 import { NotificationService } from '/js/services.js';
 import { navigateTo } from '/js/router.js';
+import { escapeHtml } from '/js/utils.js';
 
 let unsubscribe = null;
 let currentNotifications = [];
@@ -91,8 +92,8 @@ export function renderNotifications() {
         <i class="ph ${getIconForType(n.type)}"></i>
       </div>
       <div class="notification-content">
-        <h4>${n.title || 'Notification'}</h4>
-        <p>${n.message || ''}</p>
+        <h4>${escapeHtml(n.title || 'Notification')}</h4>
+        <p>${escapeHtml(n.message || '')}</p>
         <span class="notification-time">${timeAgo(n.createdAt)}</span>
       </div>
     </div>
