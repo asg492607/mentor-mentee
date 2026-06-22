@@ -35,6 +35,7 @@ export async function render(container) {
     }
 
     const safe = (val) => val || '';
+    const safeCheck = (val, expected) => val === expected ? 'checked' : '';
 
     container.innerHTML = `
         <div class="dashboard-layout fade-in">
@@ -42,143 +43,216 @@ export async function render(container) {
             <div class="main-content">
                 ${createHeader('Booklet: ' + safe(studentName), user)}
                 
-                <div class="page-content" style="max-width: 1000px; margin: 0 auto;">
+                <div class="page-content" style="max-width: 1200px; margin: 0 auto;">
                     <div style="margin-bottom:15px;">
                         <button class="btn btn-secondary btn-sm" onclick="window.history.back()">← Back to Students</button>
                     </div>
                     <div class="card" style="margin-bottom: 20px;">
                         <div class="tabs" style="display:flex; gap:10px; border-bottom:1px solid var(--border); padding-bottom:10px; overflow-x:auto;">
                             <button class="btn btn-sm btn-primary tab-btn" data-target="tab-personal">Personal Profile</button>
-                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-health">Health</button>
-                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-performance">Previous Records</button>
+                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-health">Health Service</button>
+                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-performance">Previous Performance</button>
                             <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-academics">Academics</button>
-                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-project">Project</button>
+                            <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-activities">Activities</button>
                             <button class="btn btn-sm btn-secondary tab-btn" data-target="tab-meets">Mentorship Meets</button>
                         </div>
                     </div>
 
                     <form id="booklet-form">
-                        <!-- Personal Profile Tab (Readonly for mentor) -->
+                        <!-- Personal Profile Tab (Readonly for Mentor) -->
                         <div id="tab-personal" class="tab-content card fade-in">
                             <h3>1. Personal Profile</h3>
+                            
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Basic Information</h4>
                             <div class="grid-2">
-                                <div class="form-group">
-                                    <label>Full Name</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.name)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Date of Birth</label>
-                                    <input type="date" class="form-control" value="${safe(bookletData.personal?.dob)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Email ID</label>
-                                    <input type="email" class="form-control" value="${safe(bookletData.personal?.email)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Phone Number</label>
-                                    <input type="tel" class="form-control" value="${safe(bookletData.personal?.phone)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Class / Year</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.class)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Religion / Caste / Category</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.category)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Father's Name, Occupation & Contact</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.fatherDetails)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Mother's Name, Occupation & Contact</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.motherDetails)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Local Guardian Name & Contact</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.guardian)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Permanent Address</label>
-                                    <textarea class="form-control" readonly>${safe(bookletData.personal?.address)}</textarea>
-                                </div>
+                                <div class="form-group"><label>Name of the Student</label><input type="text" class="form-control" value="${safe(bookletData.personal?.name)}" readonly></div>
+                                <div class="form-group"><label>Year of Admission</label><input type="text" class="form-control" value="${safe(bookletData.personal?.admissionYear)}" readonly></div>
+                                <div class="form-group"><label>Class</label><input type="text" class="form-control" value="${safe(bookletData.personal?.class)}" readonly></div>
+                                <div class="form-group"><label>E-mail ID</label><input type="email" class="form-control" value="${safe(bookletData.personal?.email)}" readonly></div>
+                                <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" value="${safe(bookletData.personal?.dob)}" readonly></div>
+                                <div class="form-group"><label>Place of Birth</label><input type="text" class="form-control" value="${safe(bookletData.personal?.placeOfBirth)}" readonly></div>
+                                <div class="form-group"><label>State</label><input type="text" class="form-control" value="${safe(bookletData.personal?.state)}" readonly></div>
+                                <div class="form-group"><label>Nationality</label><input type="text" class="form-control" value="${safe(bookletData.personal?.nationality)}" readonly></div>
+                                <div class="form-group"><label>Religion</label><input type="text" class="form-control" value="${safe(bookletData.personal?.religion)}" readonly></div>
+                                <div class="form-group"><label>Category</label><input type="text" class="form-control" value="${safe(bookletData.personal?.category)}" readonly></div>
+                                <div class="form-group"><label>Caste</label><input type="text" class="form-control" value="${safe(bookletData.personal?.caste)}" readonly></div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Father's Details</h4>
+                            <div class="grid-2">
+                                <div class="form-group"><label>Father's Full Name</label><input type="text" class="form-control" value="${safe(bookletData.personal?.fatherName)}" readonly></div>
+                                <div class="form-group"><label>Occupation</label><input type="text" class="form-control" value="${safe(bookletData.personal?.fatherOccupation)}" readonly></div>
+                                <div class="form-group"><label>Phone (Office)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.fatherPhoneO)}" readonly></div>
+                                <div class="form-group"><label>Phone (Residence)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.fatherPhoneR)}" readonly></div>
+                                <div class="form-group"><label>Phone (Mobile)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.fatherPhoneM)}" readonly></div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Mother's Details</h4>
+                            <div class="grid-2">
+                                <div class="form-group"><label>Mother's Full Name</label><input type="text" class="form-control" value="${safe(bookletData.personal?.motherName)}" readonly></div>
+                                <div class="form-group"><label>Occupation</label><input type="text" class="form-control" value="${safe(bookletData.personal?.motherOccupation)}" readonly></div>
+                                <div class="form-group"><label>Phone (Office)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.motherPhoneO)}" readonly></div>
+                                <div class="form-group"><label>Phone (Residence)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.motherPhoneR)}" readonly></div>
+                                <div class="form-group"><label>Phone (Mobile)</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.motherPhoneM)}" readonly></div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Local Guardian Details</h4>
+                            <div class="grid-2">
+                                <div class="form-group"><label>Name of local guardian</label><input type="text" class="form-control" value="${safe(bookletData.personal?.guardianName)}" readonly></div>
+                                <div class="form-group"><label>Phone Number</label><input type="tel" class="form-control" value="${safe(bookletData.personal?.guardianPhone)}" readonly></div>
+                                <div class="form-group"><label>Profession</label><input type="text" class="form-control" value="${safe(bookletData.personal?.guardianProfession)}" readonly></div>
+                                <div class="form-group"><label>Relation</label><input type="text" class="form-control" value="${safe(bookletData.personal?.guardianRelation)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Address</label><textarea class="form-control" readonly>${safe(bookletData.personal?.guardianAddress)}</textarea></div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Financial & Address Info</h4>
+                            <div class="grid-2">
+                                <div class="form-group"><label>Annual Income</label><input type="text" class="form-control" value="${safe(bookletData.personal?.annualIncome)}" readonly></div>
+                                <div class="form-group"><label>Pin Code</label><input type="text" class="form-control" value="${safe(bookletData.personal?.pinCode)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Present Address</label><textarea class="form-control" readonly>${safe(bookletData.personal?.presentAddress)}</textarea></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Permanent Address</label><textarea class="form-control" readonly>${safe(bookletData.personal?.permanentAddress)}</textarea></div>
                             </div>
                         </div>
 
-                        <!-- Health Tab (Readonly for mentor) -->
+                        <!-- Health Tab (Readonly for Mentor) -->
                         <div id="tab-health" class="tab-content card fade-in" hidden>
-                            <h3>2. Health Service</h3>
+                            <h3>2. Student's Health Service</h3>
+                            
+                            <div class="grid-2" style="margin-top:20px;">
+                                <div class="form-group"><label>Diet</label><input type="text" class="form-control" value="${safe(bookletData.health?.diet)}" readonly></div>
+                                <div class="form-group"><label>Exercise</label><input type="text" class="form-control" value="${safe(bookletData.health?.exercise)}" readonly></div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Habits (Check all that apply)</label>
+                                <div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:5px;">
+                                    <label><input type="checkbox" disabled ${bookletData.health?.habitTobacco ? 'checked' : ''}> Tobacco Chewing</label>
+                                    <label><input type="checkbox" disabled ${bookletData.health?.habitSmoking ? 'checked' : ''}> Tobacco Smoking</label>
+                                    <label><input type="checkbox" disabled ${bookletData.health?.habitAlcohol ? 'checked' : ''}> Alcohol Consumption</label>
+                                    <label><input type="checkbox" disabled ${bookletData.health?.habitPan ? 'checked' : ''}> Pan Parag</label>
+                                    <label><input type="checkbox" disabled ${bookletData.health?.habitGutka ? 'checked' : ''}> Gutka</label>
+                                </div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Physical Vitals</h4>
                             <div class="grid-2">
-                                <div class="form-group">
-                                    <label>Blood Group</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.health?.bloodGroup)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Diet (Veg/Non-Veg)</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.health?.diet)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Specific Health Complaints / Allergies</label>
-                                    <textarea class="form-control" readonly>${safe(bookletData.health?.complaints)}</textarea>
-                                </div>
+                                <div class="form-group"><label>Height (cms)</label><input type="text" class="form-control" value="${safe(bookletData.health?.height)}" readonly></div>
+                                <div class="form-group"><label>Weight (K.gm)</label><input type="text" class="form-control" value="${safe(bookletData.health?.weight)}" readonly></div>
+                                <div class="form-group"><label>Pulse</label><input type="text" class="form-control" value="${safe(bookletData.health?.pulse)}" readonly></div>
+                                <div class="form-group"><label>B.P. (mm of Hg)</label><input type="text" class="form-control" value="${safe(bookletData.health?.bp)}" readonly></div>
+                            </div>
+
+                            <h4 style="margin-top:20px; border-bottom:1px solid var(--border); padding-bottom:5px;">Complaints (if any)</h4>
+                            <div class="grid-2">
+                                <div class="form-group"><label>Menstrual History (females)</label><input type="text" class="form-control" value="${safe(bookletData.health?.menstrual)}" readonly></div>
+                                <div class="form-group"><label>Males specific</label><input type="text" class="form-control" value="${safe(bookletData.health?.malesComplaints)}" readonly></div>
+                                <div class="form-group"><label>C.V.S.</label><input type="text" class="form-control" value="${safe(bookletData.health?.cvs)}" readonly></div>
+                                <div class="form-group"><label>R.S.</label><input type="text" class="form-control" value="${safe(bookletData.health?.rs)}" readonly></div>
+                                <div class="form-group"><label>P/A</label><input type="text" class="form-control" value="${safe(bookletData.health?.pa)}" readonly></div>
+                                <div class="form-group"><label>SKIN</label><input type="text" class="form-control" value="${safe(bookletData.health?.skin)}" readonly></div>
+                                <div class="form-group"><label>EAR</label><input type="text" class="form-control" value="${safe(bookletData.health?.ear)}" readonly></div>
+                                <div class="form-group"><label>NOSE</label><input type="text" class="form-control" value="${safe(bookletData.health?.nose)}" readonly></div>
+                                <div class="form-group"><label>THROAT</label><input type="text" class="form-control" value="${safe(bookletData.health?.throat)}" readonly></div>
+                                <div class="form-group"><label>EYES</label><input type="text" class="form-control" value="${safe(bookletData.health?.eyes)}" readonly></div>
+                                <div class="form-group" style="grid-column:span 2;"><label>TEETH & GUMS</label><input type="text" class="form-control" value="${safe(bookletData.health?.teeth)}" readonly></div>
+                            </div>
+                            
+                            <div class="form-group" style="margin-top:20px;">
+                                <label>Medical Officer Certificate / Remarks</label>
+                                <textarea class="form-control" readonly>${safe(bookletData.health?.medicalOfficerRemarks)}</textarea>
                             </div>
                         </div>
 
-                        <!-- Performance Record Tab (Readonly for mentor) -->
+                        <!-- Performance Record Tab (Readonly for Mentor) -->
                         <div id="tab-performance" class="tab-content card fade-in" hidden>
-                            <h3>3. Previous Performance Record</h3>
-                            <div class="grid-2">
-                                <div class="form-group">
-                                    <label>HSC / Diploma Marks (%)</label>
-                                    <input type="number" class="form-control" value="${safe(bookletData.performance?.hscMarks)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Scholarships Received</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.performance?.scholarships)}" readonly>
-                                </div>
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Co-Curricular / Extra-Curricular Activities</label>
-                                    <textarea class="form-control" readonly>${safe(bookletData.performance?.activities)}</textarea>
-                                </div>
+                            <h3>3. Performance Record in the Previous Institute</h3>
+                            <div class="grid-2" style="margin-top:20px;">
+                                <div class="form-group" style="grid-column: span 2;"><label>Qualifying Examination Passed</label><input type="text" class="form-control" value="${safe(bookletData.performance?.examPassed)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>College / Institute previously attended</label><input type="text" class="form-control" value="${safe(bookletData.performance?.collegeAttended)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Board / University</label><input type="text" class="form-control" value="${safe(bookletData.performance?.board)}" readonly></div>
+                                <div class="form-group"><label>Month & Year of Passing</label><input type="text" class="form-control" value="${safe(bookletData.performance?.passingYear)}" readonly></div>
+                                <div class="form-group"><label>Class Awarded</label><input type="text" class="form-control" value="${safe(bookletData.performance?.classAwarded)}" readonly></div>
+                                <div class="form-group"><label>Total Marks obtained</label><input type="text" class="form-control" value="${safe(bookletData.performance?.totalMarks)}" readonly></div>
+                                <div class="form-group"><label>Total Marks in P.C.M. Group</label><input type="text" class="form-control" value="${safe(bookletData.performance?.pcmMarks)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Method of Selection</label><input type="text" class="form-control" value="${safe(bookletData.performance?.selectionMethod)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Extra Curricular activities</label><textarea class="form-control" readonly>${safe(bookletData.performance?.extraCurricular)}</textarea></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>NCC / NSS</label><input type="text" class="form-control" value="${safe(bookletData.performance?.ncc)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Scholarships held</label><input type="text" class="form-control" value="${safe(bookletData.performance?.scholarships)}" readonly></div>
+                                <div class="form-group" style="grid-column: span 2;"><label>Other achievements</label><textarea class="form-control" readonly>${safe(bookletData.performance?.otherAchievements)}</textarea></div>
                             </div>
                         </div>
 
                         <!-- Academics Tab (Editable by Mentor) -->
                         <div id="tab-academics" class="tab-content card fade-in" hidden>
-                            <h3>4. Academic Performance</h3>
+                            <h3>4. Performance Examination Profile (Academic)</h3>
+                            
+                            <div style="margin-bottom: 15px; display:flex; gap:10px; align-items:flex-end;">
+                                <div style="flex:1; max-width:200px;">
+                                    <label>Select Semester to View/Edit:</label>
+                                    <select class="form-control" id="academic-sem-select">
+                                        <option value="SEM I">SEM I</option>
+                                        <option value="SEM II">SEM II</option>
+                                        <option value="SEM III">SEM III</option>
+                                        <option value="SEM IV">SEM IV</option>
+                                        <option value="SEM V">SEM V</option>
+                                        <option value="SEM VI">SEM VI</option>
+                                        <option value="SEM VII">SEM VII</option>
+                                        <option value="SEM VIII">SEM VIII</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-secondary" id="btn-add-subject">Add Subject Row</button>
+                            </div>
+                            
                             <div class="table-responsive">
-                                <table style="width:100%; text-align:left; border-collapse:collapse;">
+                                <table style="width:100%; text-align:left; border-collapse:collapse; font-size:0.9rem;">
                                     <thead>
-                                        <tr style="border-bottom:1px solid var(--border);">
-                                            <th>Semester</th>
-                                            <th>Overall Attendance (%)</th>
-                                            <th>SGPA</th>
-                                            <th>Mentor Remarks</th>
+                                        <tr style="border-bottom:2px solid var(--border);">
+                                            <th>Name of Subject</th>
+                                            <th>Date of Passing</th>
+                                            <th>Univ. Seat No.</th>
+                                            <th>Th</th>
+                                            <th>Or/Pr</th>
+                                            <th>IA</th>
+                                            <th>Total</th>
+                                            <th>Result / Remark</th>
+                                            <th style="width:40px;"></th>
                                         </tr>
                                     </thead>
-                                    <tbody id="academics-tbody">
-                                        <!-- Dynamic rows for SEM I to VIII -->
+                                    <tbody id="academics-subjects-tbody">
+                                        <!-- Dynamic subjects rendered here -->
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <div style="margin-top: 20px;" class="grid-2">
+                                <div class="form-group">
+                                    <label>Overall Class / SGPA</label>
+                                    <input type="text" class="form-control" id="academic-class">
+                                </div>
+                                <div class="form-group">
+                                    <label>Total Backlogs</label>
+                                    <input type="text" class="form-control" id="academic-backlogs">
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Project Tab (Readonly for mentor) -->
-                        <div id="tab-project" class="tab-content card fade-in" hidden>
-                            <h3>5. Project Work Details</h3>
-                            <div class="grid-2">
-                                <div class="form-group" style="grid-column: span 2;">
-                                    <label>Title of Project</label>
-                                    <input type="text" class="form-control" value="${safe(bookletData.project?.title)}" readonly>
-                                </div>
-                                <div class="form-group">
-                                    <label>Project Team Members</label>
-                                    <textarea class="form-control" readonly>${safe(bookletData.project?.members)}</textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label>Placement Details / Organisation</label>
-                                    <textarea class="form-control" readonly>${safe(bookletData.project?.placement)}</textarea>
-                                </div>
+                        <!-- Activities Tab (Readonly for Mentor) -->
+                        <div id="tab-activities" class="tab-content card fade-in" hidden>
+                            <h3>5. Co-Curricular & Extra Curricular Activities</h3>
+                            <div class="table-responsive" style="margin-top:15px;">
+                                <table style="width:100%; text-align:left; border-collapse:collapse; font-size:0.9rem;">
+                                    <thead>
+                                        <tr style="border-bottom:1px solid var(--border);">
+                                            <th>Activity</th>
+                                            <th>Date</th>
+                                            <th>Name of Institution</th>
+                                            <th>Award / Prize Won</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="activities-tbody">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -189,13 +263,14 @@ export async function render(container) {
                                 <button type="button" class="btn btn-sm btn-secondary" id="btn-add-meet">Add Meeting Log</button>
                             </div>
                             <div class="table-responsive" style="margin-top:15px;">
-                                <table style="width:100%; text-align:left; border-collapse:collapse;">
+                                <table style="width:100%; text-align:left; border-collapse:collapse; font-size:0.9rem;">
                                     <thead>
                                         <tr style="border-bottom:1px solid var(--border);">
-                                            <th>Date</th>
+                                            <th>Date of Meeting</th>
                                             <th>Topic of Discussion</th>
-                                            <th>Issues / Suggestions</th>
-                                            <th style="width:50px;"></th>
+                                            <th>Issue / Suggestion</th>
+                                            <th>Final Attendance %</th>
+                                            <th style="width:40px;"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="meets-tbody">
@@ -214,58 +289,119 @@ export async function render(container) {
         </div>
     `;
 
-    // Render Academics Table
-    const academicsBody = document.getElementById('academics-tbody');
-    const sems = ['SEM I', 'SEM II', 'SEM III', 'SEM IV', 'SEM V', 'SEM VI', 'SEM VII', 'SEM VIII'];
-    const academicsData = bookletData.academics || {};
+    // Render Academics logic (Editable for Mentor)
+    let academicsData = bookletData.academics || {};
+    const semSelect = document.getElementById('academic-sem-select');
+    const acadTbody = document.getElementById('academics-subjects-tbody');
+    const acadClass = document.getElementById('academic-class');
+    const acadBacklogs = document.getElementById('academic-backlogs');
+    let currentSem = 'SEM I';
+
+    function renderAcademicsForSem(sem) {
+        currentSem = sem;
+        acadTbody.innerHTML = '';
+        if (!academicsData[sem]) {
+            academicsData[sem] = { subjects: [], classAwarded: '', backlogs: '' };
+        }
+        const data = academicsData[sem];
+        acadClass.value = data.classAwarded || '';
+        acadBacklogs.value = data.backlogs || '';
+        
+        if (data.subjects.length === 0) {
+            acadTbody.innerHTML = '<tr><td colspan="9" style="padding:15px 0; text-align:center; color:var(--text-muted);">No subjects added yet. Click "Add Subject Row".</td></tr>';
+        } else {
+            data.subjects.forEach((sub, idx) => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border)';
+                tr.innerHTML = `
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="name" value="${safe(sub.name)}" style="min-width:120px;"></td>
+                    <td style="padding:10px 2px;"><input type="date" class="form-control" data-idx="${idx}" data-field="date" value="${safe(sub.date)}"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="seatNo" value="${safe(sub.seatNo)}"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="th" value="${safe(sub.th)}" style="max-width:50px;"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="or" value="${safe(sub.or)}" style="max-width:50px;"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="ia" value="${safe(sub.ia)}" style="max-width:50px;"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="total" value="${safe(sub.total)}" style="max-width:60px;"></td>
+                    <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${idx}" data-field="result" value="${safe(sub.result)}"></td>
+                    <td style="padding:10px 2px;"><button type="button" class="btn btn-sm btn-secondary delete-sub" data-idx="${idx}" style="color:var(--danger);">X</button></td>
+                `;
+                acadTbody.appendChild(tr);
+            });
+
+            acadTbody.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    academicsData[currentSem].subjects[e.target.dataset.idx][e.target.dataset.field] = e.target.value;
+                });
+            });
+            acadTbody.querySelectorAll('.delete-sub').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    academicsData[currentSem].subjects.splice(e.target.dataset.idx, 1);
+                    renderAcademicsForSem(currentSem);
+                });
+            });
+        }
+    }
     
-    sems.forEach((sem, i) => {
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border)';
-        const d = academicsData[sem] || {};
-        tr.innerHTML = `
-            <td style="padding:10px 0;"><strong>${sem}</strong></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.attendance" value="${safe(d.attendance)}" placeholder="-" style="max-width:80px;"></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.sgpa" value="${safe(d.sgpa)}" placeholder="-" style="max-width:80px;"></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.remarks" value="${safe(d.remarks)}" placeholder="-"></td>
-        `;
-        academicsBody.appendChild(tr);
+    semSelect.addEventListener('change', (e) => renderAcademicsForSem(e.target.value));
+    renderAcademicsForSem('SEM I'); // Initial render
+
+    document.getElementById('btn-add-subject').addEventListener('click', () => {
+        academicsData[currentSem].subjects.push({ name: '', date: '', seatNo: '', th: '', or: '', ia: '', total: '', result: '' });
+        renderAcademicsForSem(currentSem);
     });
 
-    // Render Meets Table
+    acadClass.addEventListener('input', (e) => academicsData[currentSem].classAwarded = e.target.value);
+    acadBacklogs.addEventListener('input', (e) => academicsData[currentSem].backlogs = e.target.value);
+
+    // Render Activities Table (Readonly for Mentor)
+    const activitiesBody = document.getElementById('activities-tbody');
+    let activitiesData = bookletData.activities || [];
+    if (activitiesData.length === 0) {
+        activitiesBody.innerHTML = '<tr><td colspan="4" style="padding:15px 0; text-align:center; color:var(--text-muted);">No activities logged yet.</td></tr>';
+    } else {
+        activitiesData.forEach(act => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+            tr.innerHTML = `
+                <td style="padding:10px 0;">${safe(act.activity)}</td>
+                <td style="padding:10px 0;">${safe(act.date)}</td>
+                <td style="padding:10px 0;">${safe(act.institution)}</td>
+                <td style="padding:10px 0;">${safe(act.award)}</td>
+            `;
+            activitiesBody.appendChild(tr);
+        });
+    }
+
+    // Render Meets Table (Editable for Mentor)
     const meetsBody = document.getElementById('meets-tbody');
     let meetsData = bookletData.meets || [];
 
     function renderMeets() {
         meetsBody.innerHTML = '';
         if (meetsData.length === 0) {
-            meetsBody.innerHTML = '<tr><td colspan="4" style="padding:15px 0; text-align:center; color:var(--text-muted);">No meetings logged yet.</td></tr>';
+            meetsBody.innerHTML = '<tr><td colspan="5" style="padding:15px 0; text-align:center; color:var(--text-muted);">No meetings logged yet.</td></tr>';
             return;
         }
         meetsData.forEach((meet, index) => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
             tr.innerHTML = `
-                <td style="padding:10px 0;"><input type="date" class="form-control" data-idx="${index}" data-field="date" value="${safe(meet.date)}" style="max-width:140px;"></td>
-                <td style="padding:10px 0;"><input type="text" class="form-control" data-idx="${index}" data-field="topic" value="${safe(meet.topic)}"></td>
-                <td style="padding:10px 0;"><input type="text" class="form-control" data-idx="${index}" data-field="suggestions" value="${safe(meet.suggestions)}"></td>
-                <td style="padding:10px 0;"><button type="button" class="btn btn-sm btn-secondary delete-meet" data-idx="${index}" style="color:var(--danger);">X</button></td>
+                <td style="padding:10px 2px;"><input type="date" class="form-control" data-idx="${index}" data-field="date" value="${safe(meet.date)}"></td>
+                <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${index}" data-field="topic" value="${safe(meet.topic)}"></td>
+                <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${index}" data-field="suggestions" value="${safe(meet.suggestions)}"></td>
+                <td style="padding:10px 2px;"><input type="text" class="form-control" data-idx="${index}" data-field="attendance" value="${safe(meet.attendance)}" style="max-width:80px;"></td>
+                <td style="padding:10px 2px;"><button type="button" class="btn btn-sm btn-secondary delete-meet" data-idx="${index}" style="color:var(--danger);">X</button></td>
             `;
             meetsBody.appendChild(tr);
         });
 
-        // Attach listeners for dynamic row inputs
         meetsBody.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', (e) => {
-                const idx = e.target.dataset.idx;
-                const field = e.target.dataset.field;
-                meetsData[idx][field] = e.target.value;
+                meetsData[e.target.dataset.idx][e.target.dataset.field] = e.target.value;
             });
         });
         meetsBody.querySelectorAll('.delete-meet').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const idx = e.target.dataset.idx;
-                meetsData.splice(idx, 1);
+                meetsData.splice(e.target.dataset.idx, 1);
                 renderMeets();
             });
         });
@@ -274,7 +410,7 @@ export async function render(container) {
     renderMeets();
 
     document.getElementById('btn-add-meet').addEventListener('click', () => {
-        meetsData.push({ date: new Date().toISOString().split('T')[0], topic: '', suggestions: '' });
+        meetsData.push({ date: new Date().toISOString().split('T')[0], topic: '', suggestions: '', attendance: '' });
         renderMeets();
     });
 
@@ -314,22 +450,13 @@ export async function render(container) {
         btn.textContent = 'Saving...';
 
         try {
-            const formData = new FormData(e.target);
-            const updateData = { academics: {}, meets: meetsData };
-
-            sems.forEach((sem, i) => {
-                updateData.academics[sem] = {
-                    attendance: formData.get(`academics.${i}.attendance`),
-                    sgpa: formData.get(`academics.${i}.sgpa`),
-                    remarks: formData.get(`academics.${i}.remarks`)
-                };
-            });
+            // Mentor only updates academics and meets. Rest is preserved.
+            const updateData = { 
+                academics: academicsData, 
+                meets: meetsData 
+            };
 
             await setDoc(docRef, updateData, { merge: true });
-            
-            // Also optionally update the student's main cgpa/attendance stats if needed,
-            // but for now saving to booklet is enough.
-            
             showToast('Mentor logs saved successfully!', 'success');
         } catch (error) {
             console.error(error);
