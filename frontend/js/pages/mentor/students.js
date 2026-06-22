@@ -128,7 +128,10 @@ export async function render(container) {
                 </div>
               </td>
               <td>${riskBadge(s.riskLevel)}</td>
-              <td><button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button></td>
+              <td>
+                  <button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button>
+                  <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary">Booklet</a>
+              </td>
             </tr>
           `).join('')}
         </tbody>
@@ -146,7 +149,10 @@ export async function render(container) {
         panel.style.padding = '24px';
         panel.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <h3 style="font-size:1rem;font-weight:600;margin:0;">${s.name}</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h3 style="font-size:1rem;font-weight:600;margin:0;">${s.name}</h3>
+                <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-sm btn-primary">Open Mentorship Booklet</a>
+            </div>
             <button class="btn btn-sm btn-secondary" id="student-detail-close">Close</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">

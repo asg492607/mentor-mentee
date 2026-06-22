@@ -174,5 +174,29 @@ service cloud.firestore {
       allow read:   if isAuth();
       allow write:  if isSuperAdmin();
     }
+
+    // ── Booklets Collection ────────────────────────────────────────────────────
+    match /booklets/{studentId} {
+      allow read: if isAuth() && (
+        uid() == studentId ||
+        (isFaculty() && get(/databases/$(database)/documents/students/$(studentId)).data.mentorId == uid()) ||
+        isHODForDept(get(/databases/$(database)/documents/students/$(studentId)).data.department) ||
+        isDean() ||
+        isSuperAdmin()
+      );
+      
+      allow create: if isAuth() && (
+        uid() == studentId ||
+        isSuperAdmin()
+      );
+      
+      allow update: if isAuth() && (
+        uid() == studentId ||
+        (isFaculty() && get(/databases/$(database)/documents/students/$(studentId)).data.mentorId == uid()) ||
+        isSuperAdmin()
+      );
+      
+      allow delete: if isSuperAdmin();
+    }
   }
 }

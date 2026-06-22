@@ -109,7 +109,13 @@ export async function render(container) {
             <p style="font-size:0.875rem;margin-bottom:4px;">Student: <strong id="sel-s" style="color:var(--accent);">${selectedStudent?.name||'None'}</strong></p>
             <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
           </div>
-          <button class="btn btn-primary" id="btn-assign" ${(!selectedStudent||!selectedMentor)?'disabled':''}>Assign →</button>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-primary" id="btn-assign" ${(!selectedStudent||!selectedMentor)?'disabled':''}>Assign Selected →</button>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="bulk-amount" class="form-input" placeholder="Amount (e.g. 5)" style="width:120px; font-size:0.8rem;" min="1" value="1">
+                <button class="btn btn-primary btn-sm" id="btn-bulk-assign" ${(!selectedMentor)?'disabled':''}>Bulk Assign</button>
+            </div>
+          </div>
           <div style="border-left:1px solid var(--border);padding-left:16px;">
             <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Bulk Auto-Allocate</p>
             <div style="display:flex;gap:8px;">
@@ -184,10 +190,41 @@ export async function render(container) {
         const m = mentors.find(m => m.id === selectedMentor.id);
         if (m) m.assignedStudentCount = (m.assignedStudentCount||0)+1;
         students = students.filter(s => s.id !== selectedStudent.id);
-        selectedStudent = null; selectedMentor = null;
+        selectedStudent = null;
         showToast('Allocated successfully!', 'success');
         buildUI();
-      } catch (err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent='Assign →'; }
+      } catch (err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent='Assign Selected →'; }
+    });
+
+    document.getElementById('btn-bulk-assign')?.addEventListener('click', async () => {
+      if (!selectedMentor) return;
+      const amount = parseInt(document.getElementById('bulk-amount').value || '1', 10);
+      if (amount <= 0) return showToast('Please enter a valid amount', 'warning');
+      
+      const unassignedForDept = students.filter(s => s.department === selectedMentor.department || !selectedMentor.department);
+      if (unassignedForDept.length === 0) return showToast('No unassigned students available', 'warning');
+      
+      const toAssign = unassignedForDept.slice(0, amount);
+      const btn = document.getElementById('btn-bulk-assign');
+      btn.disabled = true; btn.textContent = 'Assigning...';
+
+      try {
+          let successCount = 0;
+          for (const s of toAssign) {
+              await AllocationService.assign(s.id, selectedMentor.id, selectedMentor.name);
+              assignedPairs.push({ studentName: s.name, mentorName: selectedMentor.name, department: s.department });
+              successCount++;
+          }
+          const m = mentors.find(m => m.id === selectedMentor.id);
+          if (m) m.assignedStudentCount = (m.assignedStudentCount || 0) + successCount;
+          students = students.filter(s => !toAssign.find(t => t.id === s.id));
+          selectedStudent = null;
+          showToast(`Successfully assigned ${successCount} student(s) to ${selectedMentor.name}!`, 'success');
+          buildUI();
+      } catch (err) {
+          showToast(err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Bulk Assign';
+      }
     });
 
     document.getElementById('btn-auto')?.addEventListener('click', async () => {
