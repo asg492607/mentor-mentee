@@ -99,7 +99,8 @@ service cloud.firestore {
         );
       }
 
-      allow read: if canAccessMeeting();
+      allow get: if canAccessMeeting();
+      allow list: if isAuth(); // Relying on client-side query filters for list
       allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'REQUESTED') ||
                        (isFaculty() && request.resource.data.mentorId == uid());
       allow update: if isAuth() && (
@@ -139,10 +140,11 @@ service cloud.firestore {
 
     // ── Action Items (Tasks) Collection ───────────────────────────────────────
     match /action_items/{itemId} {
-      allow read: if isAuth() && (
+      allow get: if isAuth() && (
         resource.data.studentId == uid() ||
         resource.data.mentorId  == uid()
       );
+      allow list: if isAuth();
       allow create: if isFaculty() && request.resource.data.mentorId == uid();
       allow update: if isAuth() && (
         resource.data.studentId == uid() ||
@@ -153,7 +155,8 @@ service cloud.firestore {
 
     // ── Notifications Collection ───────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read:   if isAuth() && resource.data.userId == uid();
+      allow get:   if isAuth() && resource.data.userId == uid();
+      allow list:  if isAuth();
       allow create: if isAuth() &&
         request.resource.data.keys().hasAll(['userId', 'type', 'title', 'message', 'isRead', 'createdAt']) &&
         request.resource.data.isRead == false;

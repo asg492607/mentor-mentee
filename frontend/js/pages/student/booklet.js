@@ -564,7 +564,7 @@ export async function render(container) {
             overlay.style.display = 'flex';
 
             try {
-                const storageRef = ref(storage, `booklets/${user.id}/profile.jpg`);
+                const storageRef = ref(storage, 'booklets/' + user.id + '/profile.jpg');
                 await uploadBytes(storageRef, file);
                 const url = await getDownloadURL(storageRef);
                 
