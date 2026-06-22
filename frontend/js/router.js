@@ -11,6 +11,7 @@ const routes = {
   '/student/tasks': './pages/student/tasks.js',
   '/student/profile': './pages/student/profile.js',
   '/student/booklet': './pages/student/booklet.js',
+  '/chat': './pages/chat.js',
   '/mentor/dashboard': './pages/mentor/dashboard.js',
   '/mentor/students': './pages/mentor/students.js',
   '/mentor/meetings': './pages/mentor/meetings.js',

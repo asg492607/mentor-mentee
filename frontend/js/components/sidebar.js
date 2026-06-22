@@ -6,6 +6,7 @@ export function createSidebar(role, activePath) {
   if (roleUpper === 'STUDENT') {
     navItems = [
       { path: '/student/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
+      { path: '/chat', label: 'Messages', icon: '<i class="ph ph-chat-circle-dots"></i>' },
       { path: '/student/meetings', label: 'Meetings', icon: '<i class="ph ph-calendar-check"></i>' },
       { path: '/student/issues', label: 'Issues', icon: '<i class="ph ph-warning-circle"></i>' },
       { path: '/student/tasks', label: 'Tasks', icon: '<i class="ph ph-check-square"></i>' },
@@ -15,6 +16,7 @@ export function createSidebar(role, activePath) {
   } else if (roleUpper === 'FACULTY' || roleUpper === 'MENTOR') {
     navItems = [
       { path: '/mentor/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
+      { path: '/chat', label: 'Messages', icon: '<i class="ph ph-chat-circle-dots"></i>' },
       { path: '/mentor/students', label: 'My Students', icon: '<i class="ph ph-users"></i>' },
       { path: '/mentor/meetings', label: 'Meetings', icon: '<i class="ph ph-calendar-check"></i>' },
       { path: '/mentor/issues', label: 'Issues', icon: '<i class="ph ph-warning-circle"></i>' },

@@ -318,6 +318,59 @@ export const NotificationService = {
   }
 };
 
+// ─── CHAT SERVICE ─────────────────────────────────────────────────────────────
+
+export const ChatService = {
+  // Get or create a conversation document
+  async getConversation(studentId, mentorId) {
+    const chatId = `${studentId}_${mentorId}`;
+    const docRef = doc(db, 'chats', chatId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      await setDoc(docRef, {
+        studentId,
+        mentorId,
+        createdAt: now(),
+        updatedAt: now(),
+        lastMessage: '',
+        unreadCount: 0
+      });
+    }
+    return chatId;
+  },
+
+  // Listen to messages in a conversation
+  listenToMessages(chatId, callback) {
+    const q = query(collection(db, 'chats', chatId, 'messages'), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(msgs);
+    });
+  },
+
+  // Send a message
+  async sendMessage(chatId, senderId, text) {
+    await addDoc(collection(db, 'chats', chatId, 'messages'), {
+      senderId,
+      text,
+      createdAt: now()
+    });
+    // Update the parent chat document
+    await updateDoc(doc(db, 'chats', chatId), {
+      lastMessage: text,
+      updatedAt: now()
+    });
+  },
+
+  // Get all conversations for a user
+  async getUserConversations(userId, role) {
+    const field = (role === 'STUDENT') ? 'studentId' : 'mentorId';
+    const q = query(collection(db, 'chats'), where(field, '==', userId));
+    const snapsResult = await getDocs(q);
+    return snapsResult.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+};
+
 // ─── DEPARTMENTS ──────────────────────────────────────────────────────────────
 
 export const DepartmentService = {
