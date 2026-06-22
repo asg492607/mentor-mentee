@@ -946,19 +946,16 @@
         display: none !important;
     }
 
-    /* Reset layout to take full width */
-    .dashboard-layout {
-        display: block !important;
-    }
-    
-    .main-content {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
-    }
-
+    /* Reset layout to take full width and allow multi-page printing */
+    .dashboard-layout,
+    .main-content,
     .page-content {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        width: 100% !important;
         max-width: 100% !important;
+        margin: 0 !important;
         padding: 0 !important;
     }
 
