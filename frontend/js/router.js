@@ -63,6 +63,8 @@ export function getCurrentRoute() {
   return (window.location.hash.slice(1).split('?')[0] || '/');
 }
 
+let currentModule = null;
+
 async function handleRoute() {
   let path = getCurrentRoute();
   
@@ -107,6 +109,10 @@ async function handleRoute() {
   const appContainer = document.getElementById('app');
 
   if (!modulePath) {
+    if (currentModule && currentModule.teardown) {
+      currentModule.teardown();
+      currentModule = null;
+    }
     appContainer.innerHTML = `
       <div class="empty-state h-screen">
         <h2>404 - Page Not Found</h2>
@@ -118,8 +124,12 @@ async function handleRoute() {
   }
 
   try {
+    if (currentModule && currentModule.teardown) {
+      currentModule.teardown();
+    }
     appContainer.innerHTML = '<div class="loader-overlay"><div class="spinner"></div></div>';
     const module = await import(modulePath);
+    currentModule = module;
     if (module.render) {
       await module.render(appContainer);
       updateThemeToggleUI();

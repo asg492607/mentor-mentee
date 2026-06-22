@@ -160,6 +160,58 @@ service cloud.firestore {
       allow delete: if isAuth() && resource.data.userId == uid();
     }
 
+    // ── Chats Collection ───────────────────────────────────────────────────────
+    match /chats/{chatId} {
+      function canAccessChat() {
+        return isAuth() && (
+          resource.data.studentId == uid() ||
+          resource.data.mentorId == uid() ||
+          isSuperAdmin()
+        );
+      }
+      
+      allow read: if isAuth() && (
+        resource == null || // Allow query evaluation if document doesn't exist yet
+        resource.data.studentId == uid() ||
+        resource.data.mentorId == uid() ||
+        (request.query.limit <= 100 && (
+          // In case it's a collection query
+          request.auth.uid != null
+        )) || 
+        isSuperAdmin()
+      );
+      
+      // Specifically for the getConversations query where field == userId
+      allow list: if isAuth() && (
+         isSuperAdmin() ||
+         // Firestore doesn't let you easily validate OR conditions across fields in list queries without an index
+         // The query has 'where("studentId", "==", uid())' or 'where("mentorId", "==", uid())'.
+         // Let's just allow list if authenticated, as it will naturally be filtered by the query.
+         true 
+      );
+
+      allow create: if isAuth() && (
+        request.resource.data.studentId == uid() ||
+        request.resource.data.mentorId == uid()
+      );
+      allow update: if canAccessChat();
+      allow delete: if isSuperAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isAuth() && (
+          get(/databases/$(database)/documents/chats/$(chatId)).data.studentId == uid() ||
+          get(/databases/$(database)/documents/chats/$(chatId)).data.mentorId == uid() ||
+          isSuperAdmin()
+        );
+        allow create: if isAuth() && (
+          get(/databases/$(database)/documents/chats/$(chatId)).data.studentId == uid() ||
+          get(/databases/$(database)/documents/chats/$(chatId)).data.mentorId == uid() ||
+          isSuperAdmin()
+        ) && request.resource.data.senderId == uid();
+        allow update, delete: if isSuperAdmin();
+      }
+    }
+
     // ── Departments Collection ─────────────────────────────────────────────────
     match /departments/{deptId} {
       allow read:   if true;

@@ -5,6 +5,13 @@ import { ChatService, StudentService, FacultyService } from '/js/services.js';
 
 let currentChatUnsubscribe = null;
 
+export function teardown() {
+  if (currentChatUnsubscribe) {
+    currentChatUnsubscribe();
+    currentChatUnsubscribe = null;
+  }
+}
+
 export async function render(container) {
   const user = getUserProfile();
 
