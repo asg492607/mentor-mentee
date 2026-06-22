@@ -164,20 +164,15 @@ service cloud.firestore {
     match /chats/{chatId} {
       function canAccessChat() {
         return isAuth() && (
-          resource.data.studentId == uid() ||
-          resource.data.mentorId == uid() ||
+          resource == null ||
+          (resource != null && (resource.data.studentId == uid() || resource.data.mentorId == uid())) ||
           isSuperAdmin()
         );
       }
       
       allow read: if isAuth() && (
-        resource == null || // Allow query evaluation if document doesn't exist yet
-        resource.data.studentId == uid() ||
-        resource.data.mentorId == uid() ||
-        (request.query.limit <= 100 && (
-          // In case it's a collection query
-          request.auth.uid != null
-        )) || 
+        resource == null || 
+        (resource != null && (resource.data.studentId == uid() || resource.data.mentorId == uid())) ||
         isSuperAdmin()
       );
       
