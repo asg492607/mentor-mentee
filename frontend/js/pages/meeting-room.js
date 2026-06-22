@@ -44,13 +44,18 @@ export async function render(container) {
         </header>
         <main class="meeting-main">
           <section class="video-grid grid-1" id="video-grid">
-            <div class="meeting-waiting" id="meeting-waiting">
+            <div id="join-screen" style="position:absolute; inset:0; z-index:100; background:#0a0a14; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
+              <h2>Ready to join?</h2>
+              <p style="color:rgba(255,255,255,0.6);">Your camera and microphone will be used</p>
+              <button class="btn btn-primary btn-lg" id="btn-join-meeting">Join Meeting</button>
+            </div>
+            <div class="meeting-waiting" id="meeting-waiting" hidden>
               <div class="pulse-ring"><div class="avatar avatar-lg">${escapeHtml((user.name || '?')[0])}</div></div>
               <h2>Waiting for the other participant</h2>
               <p>Keep this tab open. The call connects automatically.</p>
             </div>
           </section>
-          <aside class="meeting-side-panel" id="meeting-side-panel">
+          <aside class="meeting-side-panel hidden" id="meeting-side-panel">
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">Chat</button>
               <button class="side-panel-tab" data-panel="participants">People</button>
@@ -177,7 +182,11 @@ export async function render(container) {
                 <div class="avatar avatar-sm">${escapeHtml((person.name || '?')[0])}</div>
                 <span class="participant-name">${escapeHtml(person.name)}${person.id === signaling.selfId ? ' (you)' : ''}</span>
                 ${isMentor && person.id !== signaling.selfId ? `
-                    <button class="btn btn-sm btn-secondary" onclick="window.removeUser('${person.id}')" style="color:var(--danger);border-color:rgba(239,68,68,0.2);padding:2px 6px;font-size:0.7rem;">Remove</button>
+                    <div style="display:flex; gap:4px; margin-left:auto;">
+                        <button class="btn btn-sm btn-secondary" onclick="window.muteMic('${person.id}')" title="Mute Mic" style="padding:2px 6px;font-size:0.8rem;">🔇</button>
+                        <button class="btn btn-sm btn-secondary" onclick="window.stopCam('${person.id}')" title="Stop Camera" style="padding:2px 6px;font-size:0.8rem;">📷❌</button>
+                        <button class="btn btn-sm btn-secondary" onclick="window.removeUser('${person.id}')" style="color:var(--danger);border-color:rgba(239,68,68,0.2);padding:2px 6px;font-size:0.7rem;">Remove</button>
+                    </div>
                 ` : ''}
             </div>
         `).join('');
@@ -189,6 +198,8 @@ export async function render(container) {
     window.admitUser = (id) => signaling.sendControl(id, 'admit');
     window.denyUser = (id) => signaling.sendControl(id, 'deny');
     window.removeUser = (id) => signaling.sendControl(id, 'remove');
+    window.muteMic = (id) => signaling.sendControl(id, 'mute-mic');
+    window.stopCam = (id) => signaling.sendControl(id, 'disable-cam');
     window.admitAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'admit'));
     window.denyAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'deny'));
 
@@ -264,6 +275,15 @@ export async function render(container) {
             signaling.onMessage('kicked', (payload) => {
                 showToast(payload.reason === 'deny' ? 'The host denied your request to join' : 'You were removed from the meeting', 'error');
                 setTimeout(() => document.getElementById('btn-end').click(), 1500);
+            });
+            signaling.onMessage('remote-control', payload => {
+                if (payload.action === 'mute-mic' && localStream.getAudioTracks()[0]?.enabled) {
+                    document.getElementById('btn-mic').click();
+                    showToast('The host has muted your microphone', 'warning');
+                } else if (payload.action === 'disable-cam' && localStream.getVideoTracks()[0]?.enabled) {
+                    document.getElementById('btn-cam').click();
+                    showToast('The host has disabled your camera', 'warning');
+                }
             });
 
             signaling.onMessage('connect', () => {
@@ -441,6 +461,11 @@ export async function render(container) {
         navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
     };
     window.addEventListener('hashchange', cleanup, { once: true });
-    init();
+    
+    document.getElementById('btn-join-meeting').onclick = () => {
+        document.getElementById('join-screen').remove();
+        document.getElementById('meeting-waiting').hidden = false;
+        init();
+    };
 }
 

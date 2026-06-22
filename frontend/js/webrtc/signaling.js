@@ -111,6 +111,8 @@ export function createSignaling(meetingId, user) {
         } else if (action === 'deny' || action === 'remove') {
             emit('kicked', { reason: action });
             disconnect();
+        } else if (action === 'mute-mic' || action === 'disable-cam') {
+            emit('remote-control', { action });
         }
     }
 

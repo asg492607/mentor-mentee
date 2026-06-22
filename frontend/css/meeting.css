@@ -389,7 +389,19 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
-  .meeting-side-panel { display: none !important; }
+  .meeting-side-panel { 
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 72px;
+    z-index: 50;
+    width: 300px;
+    box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease;
+  }
+  .meeting-side-panel.hidden { 
+    transform: translateX(100%);
+  }
   .video-tile-local {
     width: 120px;
     height: 75px;
