@@ -58,21 +58,7 @@ export function createSidebar(role, activePath) {
     </a>
   `).join('');
 
-  // Wire logout after DOM updates (using requestAnimationFrame / timeout)
-  setTimeout(() => {
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn && !logoutBtn._wired) {
-      logoutBtn._wired = true;
-      logoutBtn.addEventListener('click', async () => {
-        try {
-          const { logout } = await import('/js/auth.js');
-          await logout();
-        } catch (e) {
-          window.location.hash = '/login';
-        }
-      });
-    }
-  }, 0);
+  // Global event delegation is set up at the module level below
 
   return `
     <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation"></button>
@@ -93,3 +79,22 @@ export function createSidebar(role, activePath) {
     </aside>
   `;
 }
+
+// Global Event Delegation for Sidebar Actions
+document.body.addEventListener('click', async (e) => {
+  // Handle Logout
+  const logoutBtn = e.target.closest('#logout-btn');
+  if (logoutBtn) {
+    try {
+      const { logout } = await import('/js/auth.js');
+      await logout();
+    } catch (err) {
+      window.location.hash = '/login';
+    }
+  }
+  
+  // Handle Mobile Backdrop Close
+  if (e.target.id === 'sidebar-backdrop') {
+    document.body.classList.remove('sidebar-open');
+  }
+});

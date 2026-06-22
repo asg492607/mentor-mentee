@@ -363,13 +363,13 @@ export async function render(container) {
                     ...dest.stream.getAudioTracks()
                 ]);
 
-                // Compress video: 500kbps bitrate
-                const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 500000 };
+                // Compress video: 2.5Mbps bitrate for high quality text
+                const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 };
                 try {
                     mediaRecorder = new MediaRecorder(mixedStream, options);
                 } catch (e) {
                     console.warn('VP8/Opus fallback:', e);
-                    mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 500000 });
+                    mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 2500000 });
                 }
 
                 recordedChunks = [];

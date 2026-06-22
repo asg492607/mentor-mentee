@@ -12,13 +12,29 @@ import {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+import { escapeHtml } from '/js/utils.js';
+
+function deepEscape(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return typeof obj === 'string' ? escapeHtml(obj) : obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(deepEscape);
+  }
+  const escapedObj = {};
+  for (const key in obj) {
+    escapedObj[key] = deepEscape(obj[key]);
+  }
+  return escapedObj;
+}
+
 function snap(docSnapshot) {
   if (!docSnapshot.exists()) return null;
-  return { id: docSnapshot.id, ...docSnapshot.data() };
+  return deepEscape({ id: docSnapshot.id, ...docSnapshot.data() });
 }
 
 function snaps(querySnapshot) {
-  return querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return querySnapshot.docs.map(d => deepEscape({ id: d.id, ...d.data() }));
 }
 
 function now() {
