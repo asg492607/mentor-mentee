@@ -1,7 +1,10 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StatsService, IssueService, MeetingService, FacultyService } from '/js/services.js';
+import { StatsService, IssueService, FacultyService } from '/js/services.js';
+import { exportToCSV } from '/js/utils.js';
+import { db } from '/js/firebase-init.js';
+import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -19,61 +22,89 @@ export async function render(container) {
   `;
 
   try {
-    const [instData, allIssues, allMentors] = await Promise.all([
+    const [instData, allIssues, allMentors, bookletsSnap] = await Promise.all([
       StatsService.getInstitutionStats(),
       IssueService.getAll(),
-      FacultyService.getAll()
+      FacultyService.getAll(),
+      getDocs(collection(db, 'booklets'))
     ]);
 
     const { students } = instData;
+    const booklets = bookletsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Merge booklets into students
+    const enrichedStudents = students.map(s => {
+      const b = booklets.find(bk => bk.id === s.id) || {};
+      let latestSGPA = 0;
+      let totalBacklogs = 0;
+      if (b.academics) {
+        const sems = ['SEM VIII', 'SEM VII', 'SEM VI', 'SEM V', 'SEM IV', 'SEM III', 'SEM II', 'SEM I'];
+        for (const sem of sems) {
+          if (b.academics[sem] && b.academics[sem].classAwarded) {
+             latestSGPA = parseFloat(b.academics[sem].classAwarded) || 0;
+             break;
+          }
+        }
+        for (const sem of sems) {
+          if (b.academics[sem] && b.academics[sem].backlogs) {
+             totalBacklogs += parseInt(b.academics[sem].backlogs) || 0;
+          }
+        }
+      }
+      return { ...s, latestSGPA, totalBacklogs };
+    });
 
     // Issue categories
     const issueCats = {};
     allIssues.forEach(i => { issueCats[i.category || 'Other'] = (issueCats[i.category || 'Other'] || 0) + 1; });
 
-    // Risk by dept
-    const deptRisk = {};
-    students.forEach(s => {
-      if (s.riskLevel === 'HIGH') {
-        deptRisk[s.department || 'Unknown'] = (deptRisk[s.department || 'Unknown'] || 0) + 1;
-      }
+    // SGPA by dept
+    const deptSGPASum = {};
+    const deptCount = {};
+    enrichedStudents.forEach(s => {
+       if (s.latestSGPA > 0) {
+           deptSGPASum[s.department || 'Unknown'] = (deptSGPASum[s.department || 'Unknown'] || 0) + s.latestSGPA;
+           deptCount[s.department || 'Unknown'] = (deptCount[s.department || 'Unknown'] || 0) + 1;
+       }
     });
+    const deptAvgSGPA = {};
+    for (const d in deptSGPASum) {
+       deptAvgSGPA[d] = (deptSGPASum[d] / deptCount[d]).toFixed(2);
+    }
 
     // Mentor performance (assigned count, issues)
-    const mentorPerf = allMentors.map(m => ({
+    const mentorPerf = allMentors.filter(m => m.role === 'MENTOR' || m.role === 'FACULTY').map(m => ({
       name: m.name,
       students: m.assignedStudentCount || 0,
       openIssues: allIssues.filter(i => i.mentorId === m.id && i.status === 'OPEN').length
     })).sort((a,b) => b.students - a.students).slice(0, 8);
 
-    // Meetings trend
-    const now = new Date();
-    const months = Array.from({length:6}, (_,i) => {
-      const d = new Date(now.getFullYear(), now.getMonth()-5+i, 1);
-      return d.toLocaleString('en-IN',{month:'short'});
-    });
-    const meetPerMonth = Array(6).fill(0);
-    // Note: would need MeetingService.getAll() but could be large; skip for now
-
     (container.querySelector('#analytics-content') || {}).innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="font-size:1.5rem; font-weight:700;">Institution Overview</h2>
+        <button id="btn-export-csv" class="btn btn-primary">
+          <i class="ph ph-download-simple" style="margin-right:8px;"></i> Export Risk Report (CSV)
+        </button>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card" style="padding:20px;">
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Average SGPA by Department</h3>
+          <div style="height:220px;"><canvas id="chart-sgpa"></canvas></div>
+        </div>
         <div class="card" style="padding:20px;">
           <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Issue Categories</h3>
           <div style="height:220px;"><canvas id="chart-issues"></canvas></div>
-        </div>
-        <div class="card" style="padding:20px;">
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Department Risk Distribution</h3>
-          <div style="height:220px;"><canvas id="chart-risk"></canvas></div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <div class="card" style="padding:20px;">
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Student Risk Levels</h3>
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Student Risk Distribution</h3>
           <div style="height:200px;"><canvas id="chart-risk-dist"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-header"><h3>Mentor Snapshot</h3></div>
+          <div class="card-header"><h3>Top Mentors Snapshot</h3></div>
           <table class="data-table">
             <thead><tr><th>Mentor</th><th>Students</th><th>Open Issues</th></tr></thead>
             <tbody>
@@ -90,22 +121,40 @@ export async function render(container) {
       </div>
     `;
 
+    // Export CSV logic
+    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+       const headers = ['Name', 'Enrollment No.', 'Department', 'Year', 'Latest SGPA', 'Total Backlogs', 'Risk Level'];
+       const rows = [headers];
+       enrichedStudents.forEach(s => {
+           rows.push([
+               s.name || 'Unknown',
+               s.enrollmentNumber || '—',
+               s.department || '—',
+               s.year || '—',
+               s.latestSGPA > 0 ? s.latestSGPA : '—',
+               s.totalBacklogs,
+               s.riskLevel || 'UNKNOWN'
+           ]);
+       });
+       exportToCSV('Student_Risk_Report.csv', rows);
+    });
+
     if (!window.Chart) return;
     const tc = '#777799';
     const gc = 'rgba(255,255,255,0.05)';
+
+    // Avg SGPA Bar
+    new window.Chart((container.querySelector('#chart-sgpa') || document.createElement('canvas')).getContext('2d'), {
+      type:'bar',
+      data:{ labels:Object.keys(deptAvgSGPA), datasets:[{ label:'Avg SGPA', data:Object.values(deptAvgSGPA), backgroundColor:['#34d399','#60a5fa','#7c6aff','#fbbf24'], borderRadius:6 }] },
+      options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, max:10, grid:{color:gc},ticks:{color:tc,stepSize:2}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
+    });
 
     // Issue categories doughnut
     new window.Chart((container.querySelector('#chart-issues') || document.createElement('canvas')).getContext('2d'), {
       type:'doughnut',
       data:{ labels:Object.keys(issueCats), datasets:[{ data:Object.values(issueCats), backgroundColor:['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171','#a78bfa'], borderWidth:0 }] },
       options:{ responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{ legend:{ position:'right',labels:{color:tc,font:{size:11}} } } }
-    });
-
-    // Dept risk bar
-    new window.Chart((container.querySelector('#chart-risk') || document.createElement('canvas')).getContext('2d'), {
-      type:'bar',
-      data:{ labels:Object.keys(deptRisk), datasets:[{ label:'High Risk', data:Object.values(deptRisk), backgroundColor:['#f87171','#fbbf24','#7c6aff','#34d399'], borderRadius:6 }] },
-      options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,grid:{color:gc},ticks:{color:tc,stepSize:1}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
     });
 
     // Risk level pie
