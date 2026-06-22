@@ -94,19 +94,44 @@ async function handleRoute() {
   }
 
   // Ensure profile is loaded before rendering authenticated routes
+  const appContainer = document.getElementById('app');
   if (user && !authFreeRoutes.includes(path)) {
     let profile = getUserProfile();
     if (!profile) {
-      profile = await fetchUserProfile();
+      appContainer.innerHTML = '<div class="loader-overlay" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;"><div class="spinner"></div><p style="margin-top:20px;color:var(--text-muted);font-weight:500;">Verifying your access...</p></div>';
+      try {
+        profile = await Promise.race([
+          fetchUserProfile(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Auth timeout: Connection is slow.')), 15000))
+        ]);
+      } catch (e) {
+        console.error('Profile fetch failed:', e);
+        appContainer.innerHTML = `<div class="empty-state h-screen">
+          <h2 class="text-danger">Connection Error</h2>
+          <p class="text-muted mt-2">${e.message || 'Could not verify your account details. Please check your connection.'}</p>
+          <button class="btn btn-primary mt-4" onclick="window.location.reload()">Retry</button>
+        </div>`;
+        return;
+      }
       if (!profile) {
         navigateTo('/login');
         return;
       }
     }
+
+    // Strict Role Route Protection
+    const role = String(profile.role).toUpperCase();
+    if (path !== '/chat' && path !== '/meeting-room' && path !== '/student/profile') {
+      if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/mentor') && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/hod') && role !== 'HOD') return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/dean') && role !== 'DEAN') return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/section') && role !== 'SECTION_HEAD') return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/admin') && role !== 'ADMIN') return navigateTo(getRoleDashboardPath(role));
+    }
   }
 
   const modulePath = routes[path];
-  const appContainer = document.getElementById('app');
 
   if (!modulePath) {
     if (currentModule && currentModule.teardown) {

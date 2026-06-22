@@ -46,7 +46,13 @@ export async function render(container) {
           <section class="video-grid grid-1" id="video-grid">
             <div id="join-screen" style="position:absolute; inset:0; z-index:100; background:#0a0a14; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
               <h2>Ready to join?</h2>
-              <p style="color:rgba(255,255,255,0.6);">Your camera and microphone will be used</p>
+              <div style="width: 400px; max-width: 90%; height: 250px; background: #000; border-radius: 8px; overflow: hidden; position: relative;">
+                <video id="preview-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <div style="position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px;">
+                  <button class="control-btn" id="preview-mic" style="background: rgba(0,0,0,0.6);"><i class="ph ph-microphone"></i></button>
+                  <button class="control-btn" id="preview-cam" style="background: rgba(0,0,0,0.6);"><i class="ph ph-video-camera"></i></button>
+                </div>
+              </div>
               <button class="btn btn-primary btn-lg" id="btn-join-meeting">Join Meeting</button>
             </div>
             <div class="meeting-waiting" id="meeting-waiting" hidden>
@@ -214,7 +220,7 @@ export async function render(container) {
 
     async function init() {
         try {
-            localStream = await getLocalStream();
+            if (!localStream) localStream = await getLocalStream();
             addVideo('local', `${user.name} (you)`, localStream, true);
             signaling.onMessage('joined', message => {
                 signaling.selfId = message.id;
@@ -462,6 +468,39 @@ export async function render(container) {
     };
     window.addEventListener('hashchange', cleanup, { once: true });
     
+    
+    // Initialize preview immediately
+    try {
+        localStream = await getLocalStream();
+        const previewVideo = document.getElementById('preview-video');
+        if (previewVideo) previewVideo.srcObject = localStream;
+        
+        document.getElementById('preview-mic').onclick = () => {
+            const isEnabled = toggleMic(localStream);
+            document.getElementById('preview-mic').innerHTML = isEnabled ? '<i class="ph ph-microphone"></i>' : '<i class="ph ph-microphone-slash"></i>';
+            document.getElementById('preview-mic').style.color = isEnabled ? 'inherit' : 'var(--danger)';
+            // Sync with actual meeting button if it exists
+            const mainMic = document.getElementById('btn-mic');
+            if (mainMic) {
+                mainMic.innerHTML = isEnabled ? '<i class="ph ph-microphone"></i><span class="control-btn-label">Mic</span>' : '<i class="ph ph-microphone-slash"></i><span class="control-btn-label">Mic</span>';
+                if (!isEnabled) mainMic.classList.add('danger'); else mainMic.classList.remove('danger');
+            }
+        };
+        
+        document.getElementById('preview-cam').onclick = () => {
+            const isEnabled = toggleCamera(localStream);
+            document.getElementById('preview-cam').innerHTML = isEnabled ? '<i class="ph ph-video-camera"></i>' : '<i class="ph ph-video-camera-slash"></i>';
+            document.getElementById('preview-cam').style.color = isEnabled ? 'inherit' : 'var(--danger)';
+            const mainCam = document.getElementById('btn-cam');
+            if (mainCam) {
+                mainCam.innerHTML = isEnabled ? '<i class="ph ph-video-camera"></i><span class="control-btn-label">Camera</span>' : '<i class="ph ph-video-camera-slash"></i><span class="control-btn-label">Camera</span>';
+                if (!isEnabled) mainCam.classList.add('danger'); else mainCam.classList.remove('danger');
+            }
+        };
+    } catch (e) {
+        console.warn('Could not initialize preview', e);
+    }
+
     document.getElementById('btn-join-meeting').onclick = () => {
         document.getElementById('join-screen').remove();
         document.getElementById('meeting-waiting').hidden = false;
