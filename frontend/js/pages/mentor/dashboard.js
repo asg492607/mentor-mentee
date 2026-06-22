@@ -130,27 +130,27 @@ export async function render(container) {
                     }
 
                     const photoHtml = b.personal?.photoUrl 
-                      ? \`<img src="\${b.personal.photoUrl}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">\`
-                      : \`<div class="avatar avatar-sm">\${(s.name||'?')[0]}</div>\`;
+                      ? `<img src="${b.personal.photoUrl}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">`
+                      : `<div class="avatar avatar-sm">${(s.name||'?')[0]}</div>`;
 
-                    return \`
-                    <tr style="cursor:pointer; border-bottom:1px solid var(--border);" class="student-row-link" onclick="window.location.hash='#/mentor/booklet?studentId=\${s.id}'">
+                    return `
+                    <tr style="cursor:pointer; border-bottom:1px solid var(--border);" class="student-row-link" onclick="window.location.hash='#/mentor/booklet?studentId=${s.id}'">
                       <td style="padding:10px 12px;">
                         <div style="display:flex;align-items:center;gap:12px;">
-                          \${photoHtml}
+                          ${photoHtml}
                           <div>
-                            <p style="font-weight:600;font-size:0.875rem;margin:0;">\${s.name}</p>
-                            <p style="color:var(--text-muted);font-size:0.75rem;margin:0;">\${s.enrollmentNumber||'No Roll No.'}</p>
+                            <p style="font-weight:600;font-size:0.875rem;margin:0;">${s.name}</p>
+                            <p style="color:var(--text-muted);font-size:0.75rem;margin:0;">${s.enrollmentNumber||'No Roll No.'}</p>
                           </div>
                         </div>
                       </td>
-                      <td style="padding:10px 12px; font-weight:500;">\${latestSGPA}</td>
-                      <td style="padding:10px 12px; color:\${totalBacklogs > 0 ? 'var(--danger)' : 'var(--text)'};">\${totalBacklogs}</td>
-                      <td style="padding:10px 12px; color:var(--text-muted);">\${lastMeet}</td>
-                      <td style="padding:10px 12px;">\${s.attendance||0}%</td>
-                      <td style="padding:10px 12px;">\${riskBadge(s.riskLevel)}</td>
+                      <td style="padding:10px 12px; font-weight:500;">${latestSGPA}</td>
+                      <td style="padding:10px 12px; color:${totalBacklogs > 0 ? 'var(--danger)' : 'var(--text)'};">${totalBacklogs}</td>
+                      <td style="padding:10px 12px; color:var(--text-muted);">${lastMeet}</td>
+                      <td style="padding:10px 12px;">${s.attendance||0}%</td>
+                      <td style="padding:10px 12px;">${riskBadge(s.riskLevel)}</td>
                     </tr>
-                  \`}).join('')}
+                  `}).join('')}
                 </tbody>
               </table>
              </div>`
