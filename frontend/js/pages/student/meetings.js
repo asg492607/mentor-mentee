@@ -14,7 +14,7 @@ function statusBadge(s) {
 function fmt(iso) {
   if (!iso) return 'Not Scheduled Yet';
   const d = new Date(iso);
-  if (isNaN(d.valueOf())) return 'Not Scheduled Yet';
+  if (isNaN(d.valueOf()) || d.getFullYear() < 2020) return 'Not Scheduled Yet';
   return d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
 }
 
