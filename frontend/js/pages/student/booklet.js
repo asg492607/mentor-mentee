@@ -29,7 +29,7 @@ export async function render(container) {
                 ${createHeader('Mentorship Booklet', user)}
                 
                 <div class="page-content" style="max-width: 1200px; margin: 0 auto;">
-                    <div style="margin-bottom: 24px;">
+                    <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
                         <div class="booklet-tabs tabs" style="overflow-x:auto;">
                             <button class="btn tab-btn btn-primary" data-target="tab-personal">
                                 <i class="ph ph-user"></i> Personal Profile
@@ -50,6 +50,9 @@ export async function render(container) {
                                 <i class="ph ph-users-three"></i> Mentorship Meets
                             </button>
                         </div>
+                        <button class="btn btn-secondary" type="button" onclick="window.print()" style="white-space: nowrap;">
+                            <i class="ph ph-printer"></i> Print / Export PDF
+                        </button>
                     </div>
 
                     <form id="booklet-form">

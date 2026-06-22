@@ -936,3 +936,101 @@
     border-color: var(--primary);
     box-shadow: 0 4px 12px rgba(98, 84, 231, 0.1);
 }
+
+/* ---------- Print Styles ---------- */
+@media print {
+    /* Hide navigation and unnecessary elements */
+    .sidebar, .header, .tabs, .booklet-tabs, button, #save-bar {
+        display: none !important;
+    }
+
+    /* Reset layout to take full width */
+    .dashboard-layout {
+        display: block !important;
+    }
+    
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .page-content {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    /* Force all tab contents to be visible */
+    .tab-content {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        height: auto !important;
+        overflow: visible !important;
+        page-break-inside: avoid;
+    }
+    
+    .tab-content[hidden] {
+        display: block !important;
+    }
+
+    /* Styling adjustments for printing */
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    .booklet-section {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        page-break-inside: avoid;
+        margin-bottom: 20px !important;
+        padding: 15px !important;
+    }
+
+    .booklet-section-title {
+        color: black !important;
+        border-bottom: 2px solid #ccc !important;
+    }
+
+    .booklet-section-title i {
+        background: transparent !important;
+        color: black !important;
+    }
+
+    .form-control, select, textarea {
+        background: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid #ccc !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        color: black !important;
+        padding: 4px 0 !important;
+    }
+
+    /* Ensure tables print properly */
+    .table-responsive {
+        background: transparent !important;
+        border: none !important;
+        overflow: visible !important;
+    }
+    
+    table.data-table {
+        border-collapse: collapse !important;
+        width: 100% !important;
+    }
+    
+    table.data-table th, table.data-table td {
+        border: 1px solid #ccc !important;
+        padding: 8px !important;
+        color: black !important;
+    }
+
+    /* Force browser to print colors */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
