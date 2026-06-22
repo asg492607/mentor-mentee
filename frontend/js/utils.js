@@ -8,7 +8,6 @@ export function escapeHtml(value) {
         "'": '&#039;'
     }[char]));
 }
-}
 
 export function exportToCSV(filename, rows) {
     const processRow = function (row) {
