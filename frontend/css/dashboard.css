@@ -470,6 +470,7 @@
 }
 
 .form-input,
+.form-control,
 .form-select,
 .form-textarea {
   width: 100%;
@@ -488,6 +489,7 @@
 .form-input::placeholder { color: var(--text-muted); }
 
 .form-input:focus,
+.form-control:focus,
 .form-select:focus,
 .form-textarea:focus {
   border-color: var(--accent);
@@ -909,7 +911,7 @@
 }
 
 .booklet-tabs .tab-btn.btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    background: var(--accent-gradient);
     color: white;
     box-shadow: 0 4px 15px rgba(98, 84, 231, 0.25);
 }
