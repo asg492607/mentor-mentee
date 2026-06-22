@@ -109,6 +109,7 @@ export async function render(container) {
 
     document.getElementById('btn-auto-alloc').addEventListener('click', async () => {
       const dept = document.getElementById('auto-dept').value || null;
+      if (!confirm(`Are you sure you want to auto-allocate unassigned students${dept ? ` in the ${dept} department` : ''}? This action cannot be easily undone.`)) return;
       const btn = document.getElementById('btn-auto-alloc');
       btn.disabled = true; btn.textContent = 'Allocating...';
       try {

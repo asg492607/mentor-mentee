@@ -63,38 +63,6 @@ export async function render(container) {
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <!-- Bulk Registration -->
-        <div class="card" style="grid-column: 1 / -1;">
-          <div class="card-header">
-            <h3>Bulk User Registration</h3>
-            <span style="font-size:0.8rem;color:var(--text-secondary);">Register students and faculty for your department via CSV</span>
-          </div>
-          <div style="padding:16px; display:flex; gap:12px; align-items:center;">
-            <button id="btn-hod-download-template" class="btn btn-secondary">⬇️ Download Template</button>
-            <label class="btn btn-primary" style="margin:0;cursor:pointer;">
-              📁 Bulk Import (CSV)
-              <input type="file" id="hod-csv-upload" accept=".csv" style="display:none;">
-            </label>
-          </div>
-        </div>
-
-        <!-- Manage Classes -->
-        <div class="card" style="grid-column: 1 / -1;">
-          <div class="card-header">
-            <h3>Manage Classes</h3>
-            <span style="font-size:0.8rem;color:var(--text-secondary);">Students select these when registering</span>
-          </div>
-          <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
-            <input type="text" id="new-class-name" class="form-input" placeholder="e.g. 1 or A" style="max-width:200px;">
-            <button class="btn btn-primary" id="btn-add-class">Add Class</button>
-          </div>
-          <div id="class-list" style="display:flex;gap:8px;flex-wrap:wrap;">
-            <!-- Classes will be rendered here -->
-          </div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
         <!-- High Risk -->
         <div class="card">
           <div class="card-header">
@@ -138,10 +106,40 @@ export async function render(container) {
                   <span class="badge ${e.status==='OPEN'?'badge-warning':'badge-success'}">${e.status}</span>
                 </div>
               `).join('')
-          }
+            }
         </div>
       </div>
 
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <!-- Bulk Registration -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h3>Bulk User Registration</h3>
+            <span style="font-size:0.8rem;color:var(--text-secondary);">Register students and faculty for your department via CSV</span>
+          </div>
+          <div style="padding:16px; display:flex; gap:12px; align-items:center;">
+            <button id="btn-hod-download-template" class="btn btn-secondary">⬇️ Download Template</button>
+            <label class="btn btn-primary" style="margin:0;cursor:pointer;">
+              📁 Bulk Import (CSV)
+              <input type="file" id="hod-csv-upload" accept=".csv" style="display:none;">
+            </label>
+          </div>
+        </div>
+
+        <!-- Manage Classes -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h3>Manage Classes</h3>
+            <span style="font-size:0.8rem;color:var(--text-secondary);">Students select these when registering</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+            <input type="text" id="new-class-name" class="form-input" placeholder="e.g. 1 or A" style="max-width:200px;">
+            <button class="btn btn-primary" id="btn-add-class">Add Class</button>
+          </div>
+          <div id="class-list" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <!-- Classes will be rendered here -->
+          </div>
+        </div>
       </div>
 
       <!-- Approvals Queue -->

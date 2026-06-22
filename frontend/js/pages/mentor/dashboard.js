@@ -167,6 +167,7 @@ export async function render(container) {
       btn.addEventListener('click', async () => {
         const scheduledAt = document.querySelector(`.sched-input[data-id="${btn.dataset.id}"]`)?.value;
         if (!scheduledAt) { showToast('Select a date/time first', 'warning'); return; }
+        if (!confirm(`Are you sure you want to approve this meeting for ${btn.dataset.name}?`)) return;
         try {
           await MeetingService.update(btn.dataset.id, { status: 'APPROVED', scheduledAt });
           await NotificationService.create({
@@ -185,6 +186,7 @@ export async function render(container) {
     // Reject
     document.querySelectorAll('.reject-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (!confirm(`Are you sure you want to reject this meeting for ${btn.dataset.name}?`)) return;
         const reason = 'Unavailable at the requested time';
         try {
           await MeetingService.update(btn.dataset.id, { status: 'REJECTED', rejectionReason: reason });

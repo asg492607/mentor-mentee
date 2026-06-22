@@ -131,6 +131,7 @@ export async function render(container) {
       btn.addEventListener('click', async () => {
         const scheduledAt = document.querySelector(`.sched-i[data-id="${btn.dataset.id}"]`)?.value;
         if (!scheduledAt) { showToast('Select date/time first', 'warning'); return; }
+        if (!confirm('Are you sure you want to approve this meeting?')) return;
         try {
           await MeetingService.update(btn.dataset.id, { status:'APPROVED', scheduledAt });
           if (btn.dataset.sid) {
