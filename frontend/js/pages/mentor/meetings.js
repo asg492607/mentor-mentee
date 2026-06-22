@@ -10,7 +10,10 @@ function statusBadge(s) {
   return `<span class="badge ${cls}">${s}</span>`;
 }
 function fmt(iso) {
-  return iso ? new Date(iso).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}) : '—';
+  if (!iso) return 'Not Scheduled Yet';
+  const d = new Date(iso);
+  if (isNaN(d.valueOf())) return 'Not Scheduled Yet';
+  return d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
 }
 
 export async function render(container) {
@@ -91,7 +94,7 @@ export async function render(container) {
             </div>
             <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
               ${m.status === 'REQUESTED' ? `
-                <input type="datetime-local" class="form-input sched-i" data-id="${m.id}" style="width:210px;padding:7px 10px;font-size:0.8rem;">
+                <input type="datetime-local" class="form-input sched-i" data-id="${m.id}" value="${m.preferredDate || ''}" style="width:210px;padding:7px 10px;font-size:0.8rem;">
                 <div style="display:flex;gap:8px;">
                   <button class="btn btn-sm btn-success appr-btn" data-id="${m.id}" data-sid="${m.studentId}">✓ Approve</button>
                   <button class="btn btn-sm btn-danger  rej-btn"  data-id="${m.id}" data-sid="${m.studentId}">✗ Reject</button>

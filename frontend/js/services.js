@@ -125,8 +125,8 @@ export const FacultyService = {
 export const MeetingService = {
   async create(data) {
     const ref = await addDoc(collection(db, 'meetings'), {
-      ...data,
       status: 'REQUESTED',
+      ...data,
       createdAt: now(),
       updatedAt: now()
     });

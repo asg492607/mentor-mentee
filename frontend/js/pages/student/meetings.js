@@ -12,7 +12,10 @@ function statusBadge(s) {
   return `<span class="badge ${cls}">${s}</span>`;
 }
 function fmt(iso) {
-  return iso ? new Date(iso).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}) : '—';
+  if (!iso) return 'Not Scheduled Yet';
+  const d = new Date(iso);
+  if (isNaN(d.valueOf())) return 'Not Scheduled Yet';
+  return d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
 }
 
 export async function render(container) {
