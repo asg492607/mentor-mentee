@@ -79,20 +79,28 @@ export async function render(container) {
                     <form id="booklet-form">
                         <!-- Personal Profile Tab (Readonly for Mentor) -->
                         <div id="tab-personal" class="tab-content fade-in">
-                            <div class="booklet-section">
-                                <h4 class="booklet-section-title"><i class="ph ph-identification-card"></i> Basic Information</h4>
-                                <div class="booklet-grid-3">
-                                    <div class="form-group"><label>Name of the Student</label><input type="text" class="form-control" value="${safe(bookletData.personal?.name)}" readonly></div>
-                                    <div class="form-group"><label>Year of Admission</label><input type="text" class="form-control" value="${safe(bookletData.personal?.admissionYear)}" readonly></div>
-                                    <div class="form-group"><label>Class</label><input type="text" class="form-control" value="${safe(bookletData.personal?.class)}" readonly></div>
-                                    <div class="form-group"><label>E-mail ID</label><input type="email" class="form-control" value="${safe(bookletData.personal?.email)}" readonly></div>
-                                    <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" value="${safe(bookletData.personal?.dob)}" readonly></div>
-                                    <div class="form-group"><label>Place of Birth</label><input type="text" class="form-control" value="${safe(bookletData.personal?.placeOfBirth)}" readonly></div>
-                                    <div class="form-group"><label>State</label><input type="text" class="form-control" value="${safe(bookletData.personal?.state)}" readonly></div>
-                                    <div class="form-group"><label>Nationality</label><input type="text" class="form-control" value="${safe(bookletData.personal?.nationality)}" readonly></div>
-                                    <div class="form-group"><label>Religion</label><input type="text" class="form-control" value="${safe(bookletData.personal?.religion)}" readonly></div>
-                                    <div class="form-group"><label>Category</label><input type="text" class="form-control" value="${safe(bookletData.personal?.category)}" readonly></div>
-                                    <div class="form-group"><label>Caste</label><input type="text" class="form-control" value="${safe(bookletData.personal?.caste)}" readonly></div>
+                            <div class="booklet-section" style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                <div style="flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                    <div style="width: 150px; height: 180px; border: 2px dashed var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; justify-content: center; align-items: center; background: var(--bg-input);">
+                                        <img src="${bookletData.personal?.photoUrl || ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${bookletData.personal?.photoUrl ? 'block' : 'none'};">
+                                        <i class="ph ph-user" style="font-size: 4rem; color: var(--text-muted); display: ${bookletData.personal?.photoUrl ? 'none' : 'block'};"></i>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; min-width: 300px;">
+                                    <h4 class="booklet-section-title" style="margin-top:0;"><i class="ph ph-identification-card"></i> Basic Information</h4>
+                                    <div class="booklet-grid-3">
+                                        <div class="form-group"><label>Name of the Student</label><input type="text" class="form-control" value="${safe(bookletData.personal?.name)}" readonly></div>
+                                        <div class="form-group"><label>Year of Admission</label><input type="text" class="form-control" value="${safe(bookletData.personal?.admissionYear)}" readonly></div>
+                                        <div class="form-group"><label>Class</label><input type="text" class="form-control" value="${safe(bookletData.personal?.class)}" readonly></div>
+                                        <div class="form-group"><label>E-mail ID</label><input type="email" class="form-control" value="${safe(bookletData.personal?.email)}" readonly></div>
+                                        <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" value="${safe(bookletData.personal?.dob)}" readonly></div>
+                                        <div class="form-group"><label>Place of Birth</label><input type="text" class="form-control" value="${safe(bookletData.personal?.placeOfBirth)}" readonly></div>
+                                        <div class="form-group"><label>State</label><input type="text" class="form-control" value="${safe(bookletData.personal?.state)}" readonly></div>
+                                        <div class="form-group"><label>Nationality</label><input type="text" class="form-control" value="${safe(bookletData.personal?.nationality)}" readonly></div>
+                                        <div class="form-group"><label>Religion</label><input type="text" class="form-control" value="${safe(bookletData.personal?.religion)}" readonly></div>
+                                        <div class="form-group"><label>Category</label><input type="text" class="form-control" value="${safe(bookletData.personal?.category)}" readonly></div>
+                                        <div class="form-group"><label>Caste</label><input type="text" class="form-control" value="${safe(bookletData.personal?.caste)}" readonly></div>
+                                    </div>
                                 </div>
                             </div>
 

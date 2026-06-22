@@ -1,6 +1,7 @@
 import { getUserProfile } from '../../auth.js';
-import { db } from '../../firebase-init.js';
+import { db, storage } from '../../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 import { showToast } from '../../components/toast.js';
 import { createSidebar } from '../../components/sidebar.js';
 import { createHeader } from '../../components/header.js';
@@ -58,20 +59,35 @@ export async function render(container) {
                     <form id="booklet-form">
                         <!-- Personal Profile Tab -->
                         <div id="tab-personal" class="tab-content fade-in">
-                            <div class="booklet-section">
-                                <h4 class="booklet-section-title"><i class="ph ph-identification-card"></i> Basic Information</h4>
-                                <div class="booklet-grid-3">
-                                    <div class="form-group"><label>Name of the Student</label><input type="text" class="form-control" name="personal.name" value="${safe(bookletData.personal?.name || user.name)}"></div>
-                                    <div class="form-group"><label>Year of Admission</label><input type="text" class="form-control" name="personal.admissionYear" value="${safe(bookletData.personal?.admissionYear)}"></div>
-                                    <div class="form-group"><label>Class</label><input type="text" class="form-control" name="personal.class" value="${safe(bookletData.personal?.class)}"></div>
-                                    <div class="form-group"><label>E-mail ID</label><input type="email" class="form-control" name="personal.email" value="${safe(bookletData.personal?.email || user.email)}"></div>
-                                    <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" name="personal.dob" value="${safe(bookletData.personal?.dob)}"></div>
-                                    <div class="form-group"><label>Place of Birth</label><input type="text" class="form-control" name="personal.placeOfBirth" value="${safe(bookletData.personal?.placeOfBirth)}"></div>
-                                    <div class="form-group"><label>State</label><input type="text" class="form-control" name="personal.state" value="${safe(bookletData.personal?.state)}"></div>
-                                    <div class="form-group"><label>Nationality</label><input type="text" class="form-control" name="personal.nationality" value="${safe(bookletData.personal?.nationality)}"></div>
-                                    <div class="form-group"><label>Religion</label><input type="text" class="form-control" name="personal.religion" value="${safe(bookletData.personal?.religion)}"></div>
-                                    <div class="form-group"><label>Category</label><input type="text" class="form-control" name="personal.category" value="${safe(bookletData.personal?.category)}"></div>
-                                    <div class="form-group"><label>Caste</label><input type="text" class="form-control" name="personal.caste" value="${safe(bookletData.personal?.caste)}"></div>
+                            <div class="booklet-section" style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                <div style="flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                    <div style="width: 150px; height: 180px; border: 2px dashed var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; justify-content: center; align-items: center; background: var(--bg-input); position: relative;">
+                                        <img id="profile-preview" src="${bookletData.personal?.photoUrl || ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${bookletData.personal?.photoUrl ? 'block' : 'none'};">
+                                        <i class="ph ph-user" id="profile-placeholder" style="font-size: 4rem; color: var(--text-muted); display: ${bookletData.personal?.photoUrl ? 'none' : 'block'};"></i>
+                                        <div id="upload-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; color:white;">
+                                            <i class="ph ph-spinner ph-spin" style="font-size:2rem;"></i>
+                                        </div>
+                                    </div>
+                                    <label class="btn btn-sm btn-secondary" style="width: 100%; cursor: pointer; text-align: center;">
+                                        <i class="ph ph-upload-simple"></i> Upload Photo
+                                        <input type="file" id="profile-photo-upload" accept="image/*" style="display: none;">
+                                    </label>
+                                </div>
+                                <div style="flex: 1; min-width: 300px;">
+                                    <h4 class="booklet-section-title" style="margin-top:0;"><i class="ph ph-identification-card"></i> Basic Information</h4>
+                                    <div class="booklet-grid-3">
+                                        <div class="form-group"><label>Name of the Student</label><input type="text" class="form-control" name="personal.name" value="${safe(bookletData.personal?.name || user.name)}"></div>
+                                        <div class="form-group"><label>Year of Admission</label><input type="text" class="form-control" name="personal.admissionYear" value="${safe(bookletData.personal?.admissionYear)}"></div>
+                                        <div class="form-group"><label>Class</label><input type="text" class="form-control" name="personal.class" value="${safe(bookletData.personal?.class)}"></div>
+                                        <div class="form-group"><label>E-mail ID</label><input type="email" class="form-control" name="personal.email" value="${safe(bookletData.personal?.email || user.email)}"></div>
+                                        <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" name="personal.dob" value="${safe(bookletData.personal?.dob)}"></div>
+                                        <div class="form-group"><label>Place of Birth</label><input type="text" class="form-control" name="personal.placeOfBirth" value="${safe(bookletData.personal?.placeOfBirth)}"></div>
+                                        <div class="form-group"><label>State</label><input type="text" class="form-control" name="personal.state" value="${safe(bookletData.personal?.state)}"></div>
+                                        <div class="form-group"><label>Nationality</label><input type="text" class="form-control" name="personal.nationality" value="${safe(bookletData.personal?.nationality)}"></div>
+                                        <div class="form-group"><label>Religion</label><input type="text" class="form-control" name="personal.religion" value="${safe(bookletData.personal?.religion)}"></div>
+                                        <div class="form-group"><label>Category</label><input type="text" class="form-control" name="personal.category" value="${safe(bookletData.personal?.category)}"></div>
+                                        <div class="form-group"><label>Caste</label><input type="text" class="form-control" name="personal.caste" value="${safe(bookletData.personal?.caste)}"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -446,6 +462,7 @@ export async function render(container) {
             const updateData = {
                 personal: {
                     name: formData.get('personal.name'),
+                    photoUrl: bookletData.personal?.photoUrl || null,
                     admissionYear: formData.get('personal.admissionYear'),
                     class: formData.get('personal.class'),
                     email: formData.get('personal.email'),
@@ -532,4 +549,42 @@ export async function render(container) {
             btn.innerHTML = '<i class="ph ph-floppy-disk" style="font-size:1.2rem; margin-right:8px;"></i> Save Booklet Changes';
         }
     });
+
+    // Handle Photo Upload
+    const photoUploadInput = document.getElementById('profile-photo-upload');
+    if (photoUploadInput) {
+        photoUploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const preview = document.getElementById('profile-preview');
+            const placeholder = document.getElementById('profile-placeholder');
+            const overlay = document.getElementById('upload-overlay');
+            
+            overlay.style.display = 'flex';
+
+            try {
+                const storageRef = ref(storage, \`booklets/\${user.id}/profile.jpg\`);
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                
+                if (!bookletData.personal) bookletData.personal = {};
+                bookletData.personal.photoUrl = url;
+                
+                // Save just the photo instantly so it's not lost
+                await setDoc(docRef, { personal: { photoUrl: url } }, { merge: true });
+                
+                preview.src = url;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                showToast('Photo uploaded successfully', 'success');
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to upload photo', 'error');
+            } finally {
+                overlay.style.display = 'none';
+                e.target.value = ''; // Reset input
+            }
+        });
+    }
 }
