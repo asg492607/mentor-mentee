@@ -85,35 +85,75 @@ export async function render(container) {
           </div>
         </div>
 
-        <!-- Students Overview -->
-        <div class="card">
+        <!-- Academic Progress Overview -->
+        <div class="card" style="grid-column: span 2;">
           <div class="card-header">
-            <h3>My Students</h3>
-            <a href="#/mentor/students" style="font-size:0.8rem;color:var(--accent);">View All</a>
+            <h3><i class="ph ph-books" style="margin-right:8px; vertical-align:middle;"></i> Academic Progress Overview</h3>
+            <a href="#/mentor/students" style="font-size:0.8rem;color:var(--accent);">View All Booklets</a>
           </div>
           ${students.length === 0
             ? '<p style="padding:20px;color:var(--text-muted);">No students assigned yet.</p>'
-            : `<table class="data-table">
-                <thead><tr><th>Name</th><th>CGPA</th><th>Att.</th><th>Risk</th></tr></thead>
+            : `<div class="table-responsive">
+                <table class="data-table" style="width:100%; border-collapse:collapse; text-align:left;">
+                <thead style="background:rgba(0,0,0,0.02); border-bottom:1px solid var(--border);">
+                  <tr>
+                    <th style="padding:12px;">Student Profile</th>
+                    <th style="padding:12px;">Current SGPA</th>
+                    <th style="padding:12px;">Total Backlogs</th>
+                    <th style="padding:12px;">Last Meet Date</th>
+                    <th style="padding:12px;">Attendance</th>
+                    <th style="padding:12px;">Risk</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  ${students.slice(0, 6).map(s => `
-                    <tr style="cursor:pointer;" class="student-row-link">
-                      <td>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                          <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
+                  ${students.slice(0, 6).map(s => {
+                    const b = s.booklet || {};
+                    let latestSGPA = '—';
+                    let totalBacklogs = '—';
+                    let lastMeet = '—';
+                    
+                    if (b.academics) {
+                      // Find the latest semester that has classAwarded or backlogs filled
+                      const sems = ['SEM VIII', 'SEM VII', 'SEM VI', 'SEM V', 'SEM IV', 'SEM III', 'SEM II', 'SEM I'];
+                      for (const sem of sems) {
+                        if (b.academics[sem] && (b.academics[sem].classAwarded || b.academics[sem].backlogs)) {
+                          latestSGPA = b.academics[sem].classAwarded || '—';
+                          totalBacklogs = b.academics[sem].backlogs || '—';
+                          break;
+                        }
+                      }
+                    }
+
+                    if (b.meets && b.meets.length > 0) {
+                      // Assuming meets are appended, the last element is the latest
+                      lastMeet = b.meets[b.meets.length - 1].date || '—';
+                    }
+
+                    const photoHtml = b.personal?.photoUrl 
+                      ? \`<img src="\${b.personal.photoUrl}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">\`
+                      : \`<div class="avatar avatar-sm">\${(s.name||'?')[0]}</div>\`;
+
+                    return \`
+                    <tr style="cursor:pointer; border-bottom:1px solid var(--border);" class="student-row-link" onclick="window.location.hash='#/mentor/booklet?studentId=\${s.id}'">
+                      <td style="padding:10px 12px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                          \${photoHtml}
                           <div>
-                            <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                            <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber||''}</p>
+                            <p style="font-weight:600;font-size:0.875rem;margin:0;">\${s.name}</p>
+                            <p style="color:var(--text-muted);font-size:0.75rem;margin:0;">\${s.enrollmentNumber||'No Roll No.'}</p>
                           </div>
                         </div>
                       </td>
-                      <td>${s.cgpa||'—'}</td>
-                      <td>${s.attendance||0}%</td>
-                      <td>${riskBadge(s.riskLevel)}</td>
+                      <td style="padding:10px 12px; font-weight:500;">\${latestSGPA}</td>
+                      <td style="padding:10px 12px; color:\${totalBacklogs > 0 ? 'var(--danger)' : 'var(--text)'};">\${totalBacklogs}</td>
+                      <td style="padding:10px 12px; color:var(--text-muted);">\${lastMeet}</td>
+                      <td style="padding:10px 12px;">\${s.attendance||0}%</td>
+                      <td style="padding:10px 12px;">\${riskBadge(s.riskLevel)}</td>
                     </tr>
-                  `).join('')}
+                  \`}).join('')}
                 </tbody>
-              </table>`
+              </table>
+             </div>`
           }
         </div>
       </div>
@@ -152,7 +192,7 @@ export async function render(container) {
     });
 
     document.querySelectorAll('.student-row-link').forEach(row => {
-      row.addEventListener('click', () => navigateTo('/mentor/students'));
+      // The row handles its own navigation via onclick attribute now.
     });
 
   } catch (err) {

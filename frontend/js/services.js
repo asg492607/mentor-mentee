@@ -446,11 +446,30 @@ export const StatsService = {
       IssueService.getByMentor(mentorId),
       TaskService.getByMentor(mentorId)
     ]);
-    const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
+
+    // Fetch booklets for these students
+    const booklets = [];
+    if (students.length > 0) {
+      const bookletPromises = students.map(s => getDoc(doc(db, 'booklets', s.id)));
+      const bookletSnaps = await Promise.all(bookletPromises);
+      bookletSnaps.forEach(snap => {
+        if (snap.exists()) {
+           booklets.push({ id: snap.id, ...snap.data() });
+        }
+      });
+    }
+
+    // Attach booklet data to student objects
+    const enrichedStudents = students.map(s => {
+      const b = booklets.find(bk => bk.id === s.id);
+      return { ...s, booklet: b || null };
+    });
+
+    const highRisk = enrichedStudents.filter(s => s.riskLevel === 'HIGH').length;
     const pending  = meetings.filter(m => m.status === 'REQUESTED').length;
     const open     = issues.filter(i => i.status === 'OPEN').length;
     const done     = meetings.filter(m => m.status === 'COMPLETED').length;
-    return { totalStudents: students.length, highRiskStudents: highRisk, pendingRequests: pending, openIssues: open, completedMeetings: done, students, meetings, issues, tasks };
+    return { totalStudents: enrichedStudents.length, highRiskStudents: highRisk, pendingRequests: pending, openIssues: open, completedMeetings: done, students: enrichedStudents, meetings, issues, tasks };
   },
 
   async getDeptStats(department) {
