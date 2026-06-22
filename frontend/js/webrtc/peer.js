@@ -15,26 +15,34 @@ export function createPeerConnection(signaling, localStream, remoteId) {
     };
 
     async function createOffer() {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
+        } catch (e) {
+            console.error('[WebRTC] Error creating offer:', e);
+        }
     }
 
     async function handleSignal(signal) {
-        if (signal.description) {
-            await pc.setRemoteDescription(signal.description);
-            while (pendingCandidates.length) {
-                await pc.addIceCandidate(pendingCandidates.shift());
+        try {
+            if (signal.description) {
+                await pc.setRemoteDescription(signal.description);
+                while (pendingCandidates.length) {
+                    await pc.addIceCandidate(pendingCandidates.shift());
+                }
+                if (signal.description.type === 'offer') {
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
+                }
             }
-            if (signal.description.type === 'offer') {
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                signaling.sendSignal(remoteId, { description: pc.localDescription.toJSON() });
+            if (signal.candidate) {
+                if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
+                else pendingCandidates.push(signal.candidate);
             }
-        }
-        if (signal.candidate) {
-            if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
-            else pendingCandidates.push(signal.candidate);
+        } catch (e) {
+            console.error('[WebRTC] Error handling signal:', e);
         }
     }
 

@@ -65,7 +65,9 @@ service cloud.firestore {
       allow create: if (isAuth() && uid() == studentId && request.resource.data.role == 'STUDENT') || isSuperAdmin();
       allow update: if isAuth() && (
         (uid() == studentId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'interests', 'skills', 'careerGoal', 'updatedAt'])) ||
-        isFaculty() || 
+        (isFaculty() && resource.data.mentorId == uid()) || 
+        isHODForDept(resource.data.department) ||
+        isDean() ||
         isSuperAdmin()
       );
       allow delete: if isSuperAdmin();
@@ -80,6 +82,7 @@ service cloud.firestore {
       ) || isSuperAdmin();
       allow update: if isAuth() && (
         (uid() == facultyId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'designation', 'updatedAt'])) ||
+        isDean() ||
         isSuperAdmin()
       );
       allow delete: if isSuperAdmin();
@@ -139,12 +142,12 @@ service cloud.firestore {
         resource.data.studentId == uid() ||
         resource.data.mentorId  == uid()
       );
-      allow create: if isFaculty();
+      allow create: if isFaculty() && request.resource.data.mentorId == uid();
       allow update: if isAuth() && (
         resource.data.studentId == uid() ||
         resource.data.mentorId  == uid()
       );
-      allow delete: if isFaculty();
+      allow delete: if isFaculty() && resource.data.mentorId == uid();
     }
 
     // ── Notifications Collection ───────────────────────────────────────────────

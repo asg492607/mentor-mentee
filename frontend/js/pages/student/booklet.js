@@ -200,9 +200,9 @@ export async function render(container) {
         const d = academicsData[sem] || {};
         tr.innerHTML = `
             <td style="padding:10px 0;"><strong>${sem}</strong></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.attendance" value="${safe(d.attendance)}" placeholder="-" style="max-width:80px;"></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.sgpa" value="${safe(d.sgpa)}" placeholder="-" style="max-width:80px;"></td>
-            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.remarks" value="${safe(d.remarks)}" placeholder="-"></td>
+            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.attendance" value="${safe(d.attendance)}" placeholder="-" style="max-width:80px;" readonly></td>
+            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.sgpa" value="${safe(d.sgpa)}" placeholder="-" style="max-width:80px;" readonly></td>
+            <td style="padding:10px 0;"><input type="text" class="form-control" name="academics.${i}.remarks" value="${safe(d.remarks)}" placeholder="-" readonly></td>
         `;
         academicsBody.appendChild(tr);
     });
@@ -279,16 +279,8 @@ export async function render(container) {
                 academics: {}
             };
 
-            // Grab academics data
-            sems.forEach((sem, i) => {
-                updateData.academics[sem] = {
-                    attendance: formData.get(`academics.${i}.attendance`),
-                    sgpa: formData.get(`academics.${i}.sgpa`),
-                    remarks: formData.get(`academics.${i}.remarks`)
-                };
-            });
-
-            // Preserve meets (since students don't write them)
+            // Preserve academics and meets (since students don't write them)
+            updateData.academics = bookletData.academics || {};
             updateData.meets = bookletData.meets || [];
 
             await setDoc(docRef, updateData, { merge: true });
