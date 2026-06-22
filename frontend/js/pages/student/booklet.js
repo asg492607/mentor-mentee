@@ -2,6 +2,8 @@ import { getUserProfile } from '../../auth.js';
 import { db } from '../../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { showToast } from '../../components/toast.js';
+import { createSidebar } from '../../components/sidebar.js';
+import { createHeader } from '../../components/header.js';
 
 export async function render(container) {
     const user = getUserProfile();
@@ -20,25 +22,12 @@ export async function render(container) {
     const safe = (val) => val || '';
 
     container.innerHTML = `
-        <div class="layout">
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <h2>MentorOS</h2>
-                </div>
-                <nav class="sidebar-nav">
-                    <a href="#/student/dashboard" class="sidebar-item">Dashboard</a>
-                    <a href="#/student/booklet" class="sidebar-item active">Mentorship Booklet</a>
-                    <a href="#/student/meetings" class="sidebar-item">Meetings</a>
-                </nav>
-            </aside>
-            <main class="main-content">
-                <header class="topbar">
-                    <div class="topbar-search">
-                        <h2 style="margin:0;">Digital Mentorship Booklet</h2>
-                    </div>
-                </header>
+        <div class="dashboard-layout fade-in">
+            ${createSidebar(user.role, '/student/booklet')}
+            <div class="main-content">
+                ${createHeader('Mentorship Booklet', user)}
                 
-                <div class="dashboard-content" style="max-width: 1000px; margin: 0 auto;">
+                <div class="page-content" style="max-width: 1000px; margin: 0 auto;">
                     <div class="card" style="margin-bottom: 20px;">
                         <div class="tabs" style="display:flex; gap:10px; border-bottom:1px solid var(--border); padding-bottom:10px; overflow-x:auto;">
                             <button class="btn btn-sm btn-primary tab-btn" data-target="tab-personal">Personal Profile</button>
@@ -52,7 +41,7 @@ export async function render(container) {
 
                     <form id="booklet-form">
                         <!-- Personal Profile Tab -->
-                        <div id="tab-personal" class="tab-content card">
+                        <div id="tab-personal" class="tab-content card fade-in">
                             <h3>1. Personal Profile</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -64,12 +53,28 @@ export async function render(container) {
                                     <input type="date" class="form-control" name="personal.dob" value="${safe(bookletData.personal?.dob)}">
                                 </div>
                                 <div class="form-group">
+                                    <label>Email ID</label>
+                                    <input type="email" class="form-control" name="personal.email" value="${safe(bookletData.personal?.email || user.email)}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" class="form-control" name="personal.phone" value="${safe(bookletData.personal?.phone)}">
+                                </div>
+                                <div class="form-group">
                                     <label>Class / Year</label>
                                     <input type="text" class="form-control" name="personal.class" value="${safe(bookletData.personal?.class)}">
                                 </div>
                                 <div class="form-group">
-                                    <label>Category</label>
+                                    <label>Religion / Caste / Category</label>
                                     <input type="text" class="form-control" name="personal.category" value="${safe(bookletData.personal?.category)}">
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Father's Name, Occupation & Contact</label>
+                                    <input type="text" class="form-control" name="personal.fatherDetails" value="${safe(bookletData.personal?.fatherDetails)}">
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Mother's Name, Occupation & Contact</label>
+                                    <input type="text" class="form-control" name="personal.motherDetails" value="${safe(bookletData.personal?.motherDetails)}">
                                 </div>
                                 <div class="form-group" style="grid-column: span 2;">
                                     <label>Local Guardian Name & Contact</label>
@@ -83,7 +88,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Health Tab -->
-                        <div id="tab-health" class="tab-content card" hidden>
+                        <div id="tab-health" class="tab-content card fade-in" hidden>
                             <h3>2. Health Service</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -102,7 +107,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Performance Record Tab -->
-                        <div id="tab-performance" class="tab-content card" hidden>
+                        <div id="tab-performance" class="tab-content card fade-in" hidden>
                             <h3>3. Previous Performance Record</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -121,7 +126,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Academics Tab -->
-                        <div id="tab-academics" class="tab-content card" hidden>
+                        <div id="tab-academics" class="tab-content card fade-in" hidden>
                             <h3>4. Academic Performance</h3>
                             <p class="text-muted" style="margin-bottom:15px; font-size:0.9rem;">(Unit Test marks and Attendance are generally updated by your Mentor)</p>
                             <div class="table-responsive">
@@ -142,7 +147,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Project Tab -->
-                        <div id="tab-project" class="tab-content card" hidden>
+                        <div id="tab-project" class="tab-content card fade-in" hidden>
                             <h3>5. Project Work Details</h3>
                             <div class="grid-2">
                                 <div class="form-group" style="grid-column: span 2;">
@@ -161,7 +166,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Mentorship Meets Tab -->
-                        <div id="tab-meets" class="tab-content card" hidden>
+                        <div id="tab-meets" class="tab-content card fade-in" hidden>
                             <h3>6. Mentorship Meets</h3>
                             <p class="text-muted" style="margin-bottom:15px; font-size:0.9rem;">(Filled by Mentor during/after meetings)</p>
                             <div class="table-responsive">
@@ -185,7 +190,7 @@ export async function render(container) {
                         </div>
                     </form>
                 </div>
-            </main>
+            </div>
         </div>
     `;
 
@@ -256,8 +261,12 @@ export async function render(container) {
                 personal: {
                     name: formData.get('personal.name'),
                     dob: formData.get('personal.dob'),
+                    email: formData.get('personal.email'),
+                    phone: formData.get('personal.phone'),
                     class: formData.get('personal.class'),
                     category: formData.get('personal.category'),
+                    fatherDetails: formData.get('personal.fatherDetails'),
+                    motherDetails: formData.get('personal.motherDetails'),
                     guardian: formData.get('personal.guardian'),
                     address: formData.get('personal.address')
                 },

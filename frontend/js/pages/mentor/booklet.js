@@ -2,6 +2,8 @@ import { getUserProfile } from '../../auth.js';
 import { db } from '../../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { showToast } from '../../components/toast.js';
+import { createSidebar } from '../../components/sidebar.js';
+import { createHeader } from '../../components/header.js';
 
 export async function render(container) {
     const user = getUserProfile();
@@ -35,25 +37,15 @@ export async function render(container) {
     const safe = (val) => val || '';
 
     container.innerHTML = `
-        <div class="layout">
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <h2>MentorOS</h2>
-                </div>
-                <nav class="sidebar-nav">
-                    <a href="#/mentor/dashboard" class="sidebar-item">Dashboard</a>
-                    <a href="#/mentor/students" class="sidebar-item active">My Students</a>
-                </nav>
-            </aside>
-            <main class="main-content">
-                <header class="topbar">
-                    <div class="topbar-search">
-                        <h2 style="margin:0;">Booklet: ${safe(studentName)}</h2>
-                    </div>
-                    <button class="btn btn-secondary" onclick="window.history.back()">Back</button>
-                </header>
+        <div class="dashboard-layout fade-in">
+            ${createSidebar(user.role, '/mentor/booklet')}
+            <div class="main-content">
+                ${createHeader('Booklet: ' + safe(studentName), user)}
                 
-                <div class="dashboard-content" style="max-width: 1000px; margin: 0 auto;">
+                <div class="page-content" style="max-width: 1000px; margin: 0 auto;">
+                    <div style="margin-bottom:15px;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.history.back()">← Back to Students</button>
+                    </div>
                     <div class="card" style="margin-bottom: 20px;">
                         <div class="tabs" style="display:flex; gap:10px; border-bottom:1px solid var(--border); padding-bottom:10px; overflow-x:auto;">
                             <button class="btn btn-sm btn-primary tab-btn" data-target="tab-personal">Personal Profile</button>
@@ -67,7 +59,7 @@ export async function render(container) {
 
                     <form id="booklet-form">
                         <!-- Personal Profile Tab (Readonly for mentor) -->
-                        <div id="tab-personal" class="tab-content card">
+                        <div id="tab-personal" class="tab-content card fade-in">
                             <h3>1. Personal Profile</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -79,12 +71,28 @@ export async function render(container) {
                                     <input type="date" class="form-control" value="${safe(bookletData.personal?.dob)}" readonly>
                                 </div>
                                 <div class="form-group">
+                                    <label>Email ID</label>
+                                    <input type="email" class="form-control" value="${safe(bookletData.personal?.email)}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" class="form-control" value="${safe(bookletData.personal?.phone)}" readonly>
+                                </div>
+                                <div class="form-group">
                                     <label>Class / Year</label>
                                     <input type="text" class="form-control" value="${safe(bookletData.personal?.class)}" readonly>
                                 </div>
                                 <div class="form-group">
-                                    <label>Category</label>
+                                    <label>Religion / Caste / Category</label>
                                     <input type="text" class="form-control" value="${safe(bookletData.personal?.category)}" readonly>
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Father's Name, Occupation & Contact</label>
+                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.fatherDetails)}" readonly>
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Mother's Name, Occupation & Contact</label>
+                                    <input type="text" class="form-control" value="${safe(bookletData.personal?.motherDetails)}" readonly>
                                 </div>
                                 <div class="form-group" style="grid-column: span 2;">
                                     <label>Local Guardian Name & Contact</label>
@@ -98,7 +106,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Health Tab (Readonly for mentor) -->
-                        <div id="tab-health" class="tab-content card" hidden>
+                        <div id="tab-health" class="tab-content card fade-in" hidden>
                             <h3>2. Health Service</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -117,7 +125,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Performance Record Tab (Readonly for mentor) -->
-                        <div id="tab-performance" class="tab-content card" hidden>
+                        <div id="tab-performance" class="tab-content card fade-in" hidden>
                             <h3>3. Previous Performance Record</h3>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -136,7 +144,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Academics Tab (Editable by Mentor) -->
-                        <div id="tab-academics" class="tab-content card" hidden>
+                        <div id="tab-academics" class="tab-content card fade-in" hidden>
                             <h3>4. Academic Performance</h3>
                             <div class="table-responsive">
                                 <table style="width:100%; text-align:left; border-collapse:collapse;">
@@ -156,7 +164,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Project Tab (Readonly for mentor) -->
-                        <div id="tab-project" class="tab-content card" hidden>
+                        <div id="tab-project" class="tab-content card fade-in" hidden>
                             <h3>5. Project Work Details</h3>
                             <div class="grid-2">
                                 <div class="form-group" style="grid-column: span 2;">
@@ -175,7 +183,7 @@ export async function render(container) {
                         </div>
 
                         <!-- Mentorship Meets Tab (Editable by Mentor) -->
-                        <div id="tab-meets" class="tab-content card" hidden>
+                        <div id="tab-meets" class="tab-content card fade-in" hidden>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <h3>6. Mentorship Meets</h3>
                                 <button type="button" class="btn btn-sm btn-secondary" id="btn-add-meet">Add Meeting Log</button>
@@ -202,7 +210,7 @@ export async function render(container) {
                         </div>
                     </form>
                 </div>
-            </main>
+            </div>
         </div>
     `;
 
