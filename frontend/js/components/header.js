@@ -20,9 +20,18 @@ export function createHeader(title, user, notificationCount = 0) {
           <!-- Moon Icon (visible in dark mode) -->
           <i class="ph ph-moon moon-icon" style="font-size:1.5rem; display:block;"></i>
         </button>
-        <div class="notification-bell">
+        <div class="notification-bell" id="global-notification-bell">
           <i class="ph ph-bell" style="font-size:1.5rem;"></i>
-          ${badgeHtml}
+          <span id="global-notification-badge" class="notification-badge" style="display:none;"></span>
+          <div class="notification-dropdown" id="global-notification-dropdown">
+            <div class="notification-dropdown-header">
+              <h3>Notifications</h3>
+              <button id="global-mark-all-read" type="button">Mark all as read</button>
+            </div>
+            <div class="notification-list" id="global-notification-list">
+              <!-- Dynamically populated via app.js -->
+            </div>
+          </div>
         </div>
         <div class="flex items-center gap-3">
           <div class="avatar avatar-sm">${initial}</div>

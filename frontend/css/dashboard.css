@@ -1034,3 +1034,139 @@
         print-color-adjust: exact !important;
     }
 }
+
+/* ---------- Notifications Dropdown ---------- */
+.notification-bell {
+    position: relative;
+    cursor: pointer;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: -10px;
+    margin-top: 12px;
+    width: 340px;
+    max-height: 400px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideDown 0.2s ease-out;
+}
+
+.notification-dropdown.show {
+    display: flex;
+}
+
+.notification-dropdown-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-secondary);
+}
+
+.notification-dropdown-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.notification-dropdown-header button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+}
+
+.notification-dropdown-header button:hover {
+    text-decoration: underline;
+}
+
+.notification-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.notification-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: var(--bg-hover);
+}
+
+.notification-item.unread {
+    background: rgba(98, 84, 231, 0.05);
+}
+
+.notification-item.unread:hover {
+    background: rgba(98, 84, 231, 0.1);
+}
+
+.notification-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.notification-item.unread .notification-icon {
+    background: var(--primary);
+    color: white;
+}
+
+.notification-content h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.notification-content p {
+    margin: 0 0 6px 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.notification-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.notification-empty i {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

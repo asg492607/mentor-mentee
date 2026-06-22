@@ -1,4 +1,5 @@
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
+import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
 
 const routes = {
   '/landing': './pages/landing.js',
@@ -121,6 +122,7 @@ async function handleRoute() {
     if (module.render) {
       await module.render(appContainer);
       updateThemeToggleUI();
+      renderNotifications();
     } else {
       throw new Error(`Module ${modulePath} does not export a render function`);
     }
@@ -142,6 +144,12 @@ window.addEventListener('hashchange', handleRoute);
 let isInitialLoad = true;
 
 onAuthChange((user) => {
+    if (user) {
+        initNotificationListener();
+    } else {
+        stopNotificationListener();
+    }
+
     if (isInitialLoad) {
         isInitialLoad = false;
         handleRoute();
