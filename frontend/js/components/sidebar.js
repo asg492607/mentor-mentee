@@ -34,6 +34,7 @@ export function createSidebar(role, activePath) {
     navItems = [
       { path: '/dean/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
       { path: '/dean/management', label: 'Management', icon: '<i class="ph ph-briefcase"></i>' },
+      { path: '/dean/directory', label: 'Directory', icon: '<i class="ph ph-users"></i>' },
       { path: '/dean/analytics', label: 'Analytics', icon: '<i class="ph ph-chart-line-up"></i>' },
       { path: '/dean/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
       { path: '/dean/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' }

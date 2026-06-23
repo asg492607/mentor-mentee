@@ -14,7 +14,7 @@ export async function render(container) {
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/admin/users')}
+      ${createSidebar(user.role, window.location.hash.slice(1).split('?')[0] || '/admin/users')}
       <div class="main-content">
         ${createHeader('User Management', user)}
         <div class="page-content">
@@ -29,12 +29,14 @@ export async function render(container) {
               ).join('')}
             </div>
             <div style="display:flex;gap:8px;">
+              ${user.role === 'ADMIN' ? `
               <button class="btn btn-secondary btn-sm" id="btn-download-template" title="Download CSV Template">⬇️ Template</button>
               <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
                 📁 Bulk Import (CSV)
                 <input type="file" id="csv-upload" accept=".csv" style="display:none;">
               </label>
               <button class="btn btn-primary btn-sm" id="btn-add-user">+ Add User</button>
+              ` : ''}
             </div>
           </div>
           <div class="card" id="users-wrap">
@@ -98,7 +100,8 @@ export async function render(container) {
                 </span>
               </td>
               <td>
-                ${!u.isApproved ? `<button class="btn btn-xs btn-primary btn-approve" data-id="${u.id}" data-role="${u.role}">Approve</button>` : `<span class="text-muted" style="font-size:0.75rem;">—</span>`}
+                <button class="btn btn-xs btn-secondary btn-view-profile" data-id="${u.id}">View</button>
+                ${!u.isApproved ? `<button class="btn btn-xs btn-primary btn-approve" style="margin-left:4px;" data-id="${u.id}" data-role="${u.role}">Approve</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -125,6 +128,12 @@ export async function render(container) {
           btn.disabled = false;
           btn.textContent = 'Approve';
         }
+      });
+    });
+
+    document.querySelectorAll('.btn-view-profile').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+         if (window.openUserProfile) window.openUserProfile(e.target.dataset.id);
       });
     });
   }
@@ -212,10 +221,87 @@ export async function render(container) {
   `;
   container.insertAdjacentHTML('beforeend', modalHtml);
 
+  const viewProfileHtml = `
+    <div id="view-profile-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal" style="max-width:500px;">
+        <div class="modal-header">
+          <h3>User Profile</h3>
+          <button class="btn btn-ghost btn-sm" id="close-view-profile-modal">✕</button>
+        </div>
+        <div class="modal-body" id="view-profile-body" style="max-height:60vh;overflow-y:auto;line-height:1.6;">
+          Loading...
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', viewProfileHtml);
+
   const modal = document.getElementById('add-user-modal');
-  document.getElementById('btn-add-user').addEventListener('click', () => modal.style.display = 'flex');
+  if (document.getElementById('btn-add-user')) {
+      document.getElementById('btn-add-user').addEventListener('click', () => modal.style.display = 'flex');
+  }
   document.getElementById('close-user-modal').addEventListener('click', () => modal.style.display = 'none');
   document.getElementById('cancel-user-modal').addEventListener('click', () => modal.style.display = 'none');
+
+  const viewModal = document.getElementById('view-profile-modal');
+  document.getElementById('close-view-profile-modal').addEventListener('click', () => viewModal.style.display = 'none');
+  
+  window.openUserProfile = (userId) => {
+     const u = allUsers.find(x => x.id === userId);
+     if (!u) return;
+     document.getElementById('view-profile-body').innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div class="avatar avatar-lg">${(u.name||'?')[0]}</div>
+          <div>
+            <h2 style="font-size:1.25rem;margin:0;">${u.name||'Unknown'}</h2>
+            <p style="color:var(--text-muted);font-size:0.875rem;">${u.email||'—'}</p>
+          </div>
+        </div>
+        
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom:16px;">
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Role</p>
+            <p style="font-weight:600;margin:0;">${u.role||'—'}</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Department</p>
+            <p style="font-weight:600;margin:0;">${u.department||'—'}</p>
+          </div>
+          ${u.role === 'STUDENT' ? `
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Enrollment / Year / Class</p>
+            <p style="font-weight:600;margin:0;">${u.enrollmentNumber||'—'} / Y${u.year||'?'} / ${u.class||'?'}</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">CGPA / Attendance</p>
+            <p style="font-weight:600;margin:0;">${u.cgpa||'—'} / ${u.attendance||0}%</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;grid-column:1/-1;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Career Goal</p>
+            <p style="font-weight:600;margin:0;">${u.careerGoal||'Not specified'}</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;grid-column:1/-1;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Interests</p>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+              ${(u.interests||[]).length ? u.interests.map(i=>`<span class="badge badge-info">${i}</span>`).join('') : '<span class="text-muted">None</span>'}
+            </div>
+          </div>
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;grid-column:1/-1;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Skills</p>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+              ${(u.skills||[]).length ? u.skills.map(s=>`<span class="badge badge-accent">${s}</span>`).join('') : '<span class="text-muted">None</span>'}
+            </div>
+          </div>
+          ` : `
+          <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;grid-column:1/-1;">
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">Designation</p>
+            <p style="font-weight:600;margin:0;">${u.designation||'Not specified'}</p>
+          </div>
+          `}
+        </div>
+     `;
+     viewModal.style.display = 'flex';
+  };
 
   const roleSel = document.getElementById('new-user-role');
   const deptGroup = document.getElementById('admin-dept-group');

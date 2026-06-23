@@ -28,6 +28,7 @@ const routes = {
   '/dean/analytics': './pages/dean/analytics.js',
   '/dean/escalations': './pages/dean/escalations.js',
   '/dean/allocation': './pages/admin/allocation.js',
+  '/dean/directory': './pages/admin/users.js',
   '/section/dashboard': './pages/section/dashboard.js',
   '/section/escalations': './pages/section/escalations.js',
   '/admin/dashboard': './pages/admin/dashboard.js',
