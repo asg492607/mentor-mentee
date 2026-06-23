@@ -219,11 +219,18 @@ export async function render(container) {
       });
     });
 
-    startTour('mentor_dashboard', [
+    const tourSteps = [
       { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to view all your students, schedule meetings, and resolve issues.', position: 'right' },
       { selector: '.stats-grid', title: 'Actionable Insights', desc: 'Quickly see how many pending meetings and high-risk students require your attention.', position: 'bottom' },
       { selector: '.card', title: 'Your Mentees', desc: 'A quick list of your assigned mentees. Click on any row to open their Mentor Booklet.', position: 'top' }
-    ]);
+    ];
+
+    startTour('mentor_dashboard', tourSteps);
+
+    const tourBtn = document.getElementById('start-tour-btn');
+    if (tourBtn) {
+      tourBtn.addEventListener('click', () => startTour('mentor_dashboard', tourSteps, true));
+    }
 
   } catch (err) {
     console.error('Mentor dashboard load error:', err);

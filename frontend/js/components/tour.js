@@ -1,6 +1,6 @@
-export function startTour(tourId, steps) {
+export function startTour(tourId, steps, force = false) {
   if (!steps || steps.length === 0) return;
-  if (localStorage.getItem(`hasSeenTour_${tourId}`)) return;
+  if (!force && localStorage.getItem(`hasSeenTour_${tourId}`)) return;
 
   let currentStepIndex = 0;
   let spotlight, popover, overlay;
@@ -83,7 +83,7 @@ export function startTour(tourId, steps) {
     `;
 
     // Attach event listeners
-    popover.querySelector('.tour-btn-skip').onclick = finishTour;
+    popover.querySelector('.tour-btn-skip').onclick = () => finishTour(false);
     if (!isFirst) {
       popover.querySelector('.tour-btn-prev').onclick = () => {
         currentStepIndex--;
@@ -92,7 +92,7 @@ export function startTour(tourId, steps) {
     }
     popover.querySelector('.tour-btn-next').onclick = () => {
       if (isLast) {
-        finishTour();
+        finishTour(true);
       } else {
         currentStepIndex++;
         renderStep();
@@ -138,16 +138,51 @@ export function startTour(tourId, steps) {
     popover.style.transform = 'none'; // reset centered transform if any
   }
 
-  function finishTour() {
+  function finishTour(withCelebration = false) {
     localStorage.setItem(`hasSeenTour_${tourId}`, 'true');
     spotlight.style.opacity = '0';
     popover.style.opacity = '0';
+    
+    if (withCelebration) celebrate();
+
     setTimeout(() => {
       spotlight.remove();
       popover.remove();
       document.body.style.overflow = '';
       window.removeEventListener('resize', handleResize);
     }, 300);
+  }
+
+  function celebrate() {
+    const colors = ['#6366f1', '#a855f7', '#ec4899', '#34d399', '#fcd34d'];
+    for (let i = 0; i < 60; i++) {
+      const conf = document.createElement('div');
+      conf.style.position = 'fixed';
+      conf.style.width = '10px';
+      conf.style.height = '10px';
+      conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      conf.style.top = '50%';
+      conf.style.left = '50%';
+      conf.style.zIndex = '10000';
+      conf.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      conf.style.pointerEvents = 'none';
+      
+      const angle = Math.random() * Math.PI * 2;
+      const velocity = 10 + Math.random() * 20;
+      const tx = Math.cos(angle) * velocity * 20;
+      const ty = Math.sin(angle) * velocity * 20;
+      
+      conf.animate([
+        { transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+      ], {
+        duration: 1000 + Math.random() * 1000,
+        easing: 'cubic-bezier(0.25, 1, 0.5, 1)'
+      });
+      
+      document.body.appendChild(conf);
+      setTimeout(() => conf.remove(), 2000);
+    }
   }
 
   // Delay init slightly to ensure DOM is fully rendered

@@ -173,11 +173,18 @@ export async function render(container) {
 
     container.querySelector('#btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
 
-    startTour('student_dashboard', [
+    const tourSteps = [
       { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to quickly jump between your modules like Meetings, Booklet, and Issues.', position: 'right' },
       { selector: '.stats-grid', title: 'Quick Overview', desc: 'Get a birds-eye view of all your upcoming meetings, pending tasks, and open issues here.', position: 'bottom' },
       { selector: '.card', title: 'Your Mentor', desc: 'Here is your assigned mentor. You can quickly request a meeting with them at any time.', position: 'bottom' }
-    ]);
+    ];
+
+    startTour('student_dashboard', tourSteps);
+
+    const tourBtn = document.getElementById('start-tour-btn');
+    if (tourBtn) {
+      tourBtn.addEventListener('click', () => startTour('student_dashboard', tourSteps, true));
+    }
 
   } catch (err) {
     console.error('Dashboard load error:', err);

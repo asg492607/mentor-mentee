@@ -14,6 +14,9 @@ export function createHeader(title, user, notificationCount = 0) {
         </div>
       </div>
       <div class="header-actions">
+        <button id="start-tour-btn" class="header-icon-btn" type="button" aria-label="Take a tour" title="Take a tour" style="background: rgba(99, 102, 241, 0.1); color: var(--accent);">
+          <i class="ph ph-question" style="font-size:1.5rem;"></i>
+        </button>
         <button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Switch color theme" title="Switch color theme">
           <!-- Sun Icon (visible in light mode) -->
           <i class="ph ph-sun sun-icon" style="font-size:1.5rem; display:none;"></i>
