@@ -410,98 +410,107 @@ export async function render(container) {
 
   // --- Bulk CSV Upload Logic ---
 
-  document.getElementById('btn-download-template').addEventListener('click', () => {
+  if (document.getElementById('btn-download-template')) {
+    document.getElementById('btn-download-template').addEventListener('click', () => {
     const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "User_Registration_Template.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  });
+      const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "User_Registration_Template.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
 
-  document.getElementById('csv-upload').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  if (document.getElementById('csv-upload')) {
+    document.getElementById('csv-upload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-    if (!confirm(`Are you sure you want to bulk import users from ${file.name}?`)) {
-      e.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target.result;
-      const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length <= 1) {
-        showToast('CSV is empty or only contains headers', 'warning');
+      if (!confirm(`Are you sure you want to bulk import users from ${file.name}?`)) {
+        e.target.value = '';
         return;
       }
 
-      // headers: role, name, email, password, department, class, year, enrollmentNumber
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
-      const expected = ['role', 'name', 'email', 'password'];
-      for (const req of expected) {
-        if (!headers.includes(req)) {
-          showToast(`Invalid CSV format. Missing required column: ${req}`, 'error');
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length <= 1) {
+          showToast('CSV is empty or only contains headers', 'warning');
           return;
         }
-      }
 
-      showToast(`Processing ${lines.length - 1} users. Please wait...`, 'info');
-      let successCount = 0;
-      let failCount = 0;
-
-      const { AdminService } = await import('/js/services.js');
-
-      for (let i = 1; i < lines.length; i++) {
-        try {
-          // Naive CSV split (fails on commas inside quotes, but acceptable for this usecase)
-          const cols = lines[i].split(',').map(c => c.trim());
-          const row = {};
-          headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
-
-          if (!row.role || !row.email || !row.password) {
-            console.warn(`Row ${i} missing required fields.`);
-            failCount++;
-            continue;
+        // headers: role, name, email, password, department, class, year, enrollmentNumber
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        
+        const expected = ['role', 'name', 'email', 'password'];
+        for (const req of expected) {
+          if (!headers.includes(req)) {
+            showToast(`Invalid CSV format. Missing required column: ${req}`, 'error');
+            return;
           }
-
-          const role = row.role.toUpperCase();
-          const data = {
-            role,
-            name: row.name,
-            email: row.email,
-            password: row.password,
-            department: (role === 'DEAN' || role === 'ADMIN') ? null : (row.department || null)
-          };
-
-          if (role === 'STUDENT') {
-            data.class = row.class || null;
-            data.year = parseInt(row.year) || null;
-            data.enrollmentNumber = row.enrollmentnumber || row.employeeid || null;
-          } else {
-            data.employeeId = row.employeeid || row.enrollmentnumber || null;
-          }
-
-          const newUser = await AdminService.createUser(data);
-          allUsers.unshift({ ...newUser, isApproved: true, status: 'approved' });
-          successCount++;
-        } catch (err) {
-          console.error(`Failed to create user at row ${i}:`, err);
-          failCount++;
         }
-      }
 
-      e.target.value = ''; // Reset input
-      showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
-      if (successCount > 0) { renderTable(); }
-    };
+        showToast(`Processing ${lines.length - 1} users. Please wait...`, 'info');
+        let successCount = 0;
+        let failCount = 0;
 
-    reader.readAsText(file);
-  });
+        const { AdminService } = await import('/js/services.js');
+
+        for (let i = 1; i < lines.length; i++) {
+          try {
+            // Naive CSV split (fails on commas inside quotes, but acceptable for this usecase)
+            const cols = lines[i].split(',').map(c => c.trim());
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+
+            if (!row.role || !row.email || !row.password) {
+              console.warn(`Row ${i} missing required fields.`);
+              failCount++;
+              continue;
+            }
+
+            const role = row.role.toUpperCase();
+            const data = {
+              role,
+              name: row.name,
+              email: row.email,
+              password: row.password,
+              department: (role === 'DEAN' || role === 'ADMIN') ? null : (row.department || null)
+            };
+
+            if (role === 'STUDENT') {
+              data.class = row.class || null;
+              data.year = parseInt(row.year) || null;
+              data.enrollmentNumber = row.enrollmentnumber || row.employeeid || null;
+            } else {
+              data.employeeId = row.employeeid || row.enrollmentnumber || null;
+            }
+
+            const newUser = await AdminService.createUser(data);
+            allUsers.unshift({ ...newUser, isApproved: true, status: 'approved' });
+            successCount++;
+          } catch (err) {
+            console.error(`Failed to create user at row ${i}:`, err);
+            failCount++;
+          }
+        }
+
+        e.target.value = ''; // Reset input
+        showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
+        if (successCount > 0) { renderTable(); }
+      };
+
+      reader.readAsText(file);
+    });
+  }
 }
