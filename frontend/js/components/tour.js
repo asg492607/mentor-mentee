@@ -12,6 +12,12 @@ export function startTour(tourId, steps, force = false) {
     // Create the dark overlay/spotlight element
     spotlight = document.createElement('div');
     spotlight.className = 'tour-spotlight';
+    
+    // Create beacon
+    const beacon = document.createElement('div');
+    beacon.className = 'tour-beacon';
+    spotlight.appendChild(beacon);
+    
     document.body.appendChild(spotlight);
 
     // Create the popover card
