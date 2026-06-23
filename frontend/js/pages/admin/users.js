@@ -412,11 +412,6 @@ export async function render(container) {
 
   if (document.getElementById('btn-download-template')) {
     document.getElementById('btn-download-template').addEventListener('click', () => {
-    const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
       const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
