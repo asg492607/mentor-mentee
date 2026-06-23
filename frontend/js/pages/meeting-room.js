@@ -253,6 +253,13 @@ export async function render(container) {
                     waitingList.push({ id: message.id, name: message.name });
                     renderRoster(participants, waitingList);
                     showToast(`${message.name} is waiting to join`, 'info');
+                    
+                    // Automatically open the side panel to the 'participants' tab so the host sees the Admit button
+                    const sidePanel = document.getElementById('meeting-side-panel');
+                    if (sidePanel) sidePanel.classList.remove('hidden');
+                    const peopleTab = document.querySelector('.side-panel-tab[data-panel="participants"]');
+                    if (peopleTab) peopleTab.click();
+
                     // Play a subtle ring tone
                     try {
                         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
