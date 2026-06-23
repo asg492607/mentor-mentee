@@ -3,6 +3,8 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, StatsService } from '/js/services.js';
+import { db } from '/js/firebase-init.js';
+import { doc, getDoc, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -26,6 +28,7 @@ export async function render(container) {
             ${['ALL','HIGH','MEDIUM','LOW'].map((r,i) =>
               `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} rf" data-r="${r}">${r}</button>`
             ).join('')}
+            <button class="btn btn-sm btn-primary" id="btn-bulk-log-meet" style="margin-left:auto;"><i class="ph ph-users-three"></i> Bulk Log Booklets</button>
           </div>
 
           <div id="students-wrap">
@@ -207,4 +210,89 @@ export async function render(container) {
   });
 
   render_table();
+
+  // Bulk Log Modal Setup
+  const bulkModalHtml = `
+    <div id="bulk-log-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Log Meet in Booklets (Bulk)</h3>
+          <button class="btn btn-ghost btn-sm" id="close-bulk-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:16px;">This will append a Mentorship Meet record directly into the Mentorship Booklet for all your assigned students simultaneously.</p>
+          <form id="bulk-log-form">
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" id="bulk-date" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Topic / Issue Discussed</label>
+              <input type="text" id="bulk-topic" class="form-input" required placeholder="e.g. Exam prep strategies">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Suggestions / Guidance</label>
+              <input type="text" id="bulk-sugg" class="form-input" required placeholder="e.g. Advised to focus on past papers">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Attendance</label>
+              <select id="bulk-att" class="form-input" required>
+                <option value="Present">Present</option>
+                <option value="Absent">Absent</option>
+              </select>
+            </div>
+            <div class="modal-footer mt-4" style="border:none;padding:0;margin-top:24px;justify-content:flex-end;">
+              <button type="button" class="btn btn-secondary" id="cancel-bulk-modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit-bulk">Log for All Students</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', bulkModalHtml);
+
+  const bulkModal = container.querySelector('#bulk-log-modal');
+  container.querySelector('#btn-bulk-log-meet').addEventListener('click', () => {
+    if (!students.length) { showToast('You have no assigned students!', 'warning'); return; }
+    bulkModal.style.display = 'flex';
+  });
+  container.querySelector('#close-bulk-modal').addEventListener('click', () => bulkModal.style.display = 'none');
+  container.querySelector('#cancel-bulk-modal').addEventListener('click', () => bulkModal.style.display = 'none');
+
+  container.querySelector('#bulk-log-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = container.querySelector('#btn-submit-bulk');
+    btn.disabled = true; btn.textContent = 'Logging...';
+    try {
+      const date = container.querySelector('#bulk-date').value;
+      const topic = container.querySelector('#bulk-topic').value;
+      const suggestions = container.querySelector('#bulk-sugg').value;
+      const attendance = container.querySelector('#bulk-att').value;
+
+      let successCount = 0;
+      for (const s of students) {
+        const docRef = doc(db, 'booklets', s.id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+           const data = snap.data();
+           const meets = data.meets || [];
+           meets.push({ date, topic, suggestions, attendance });
+           await updateDoc(docRef, { meets });
+        } else {
+           await setDoc(docRef, { meets: [{ date, topic, suggestions, attendance }] });
+        }
+        successCount++;
+      }
+      
+      showToast('Successfully logged meet in ' + successCount + ' booklets!', 'success');
+      bulkModal.style.display = 'none';
+      e.target.reset();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Log for All Students';
+    }
+  });
+
 }
