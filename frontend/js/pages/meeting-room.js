@@ -21,7 +21,9 @@ export async function render(container) {
     }
 
     const meeting = await MeetingService.get(meetingId);
-    if (!meeting || ![meeting.studentId, meeting.mentorId].includes(user.id)) {
+    const hasAccess = [meeting?.studentId, meeting?.mentorId].includes(user.id) || meeting?.studentId === 'ALL';
+    
+    if (!meeting || !hasAccess) {
         showToast('You do not have access to this meeting', 'error');
         navigateTo('/');
         return;
