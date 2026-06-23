@@ -191,6 +191,8 @@ export function startTour(tourId, steps, force = false) {
     }
   }
 
-  // Delay init slightly to ensure DOM is fully rendered
-  setTimeout(init, 500);
+  // Use requestAnimationFrame to ensure the DOM is fully painted before calculating bounding boxes
+  requestAnimationFrame(() => {
+    requestAnimationFrame(init);
+  });
 }

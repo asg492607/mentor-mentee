@@ -100,7 +100,11 @@ service cloud.firestore {
       }
 
       allow get: if canAccessMeeting();
-      allow list: if isAuth(); // Relying on client-side query filters for list
+      allow list: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId == uid() ||
+        isDean() || isSuperAdmin()
+      );
       allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'REQUESTED') ||
                        (isFaculty() && request.resource.data.mentorId == uid());
       allow update: if isAuth() && (
@@ -126,7 +130,13 @@ service cloud.firestore {
         (isSectionHead() && resource.data.escalationLevel == getFacultyDoc().department) ||
         isDean() || isSuperAdmin()
       );
-      allow list: if isAuth(); // In a production app, we would use strict request.query validation here
+      allow list: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId == uid() ||
+        isHODForDept(resource.data.department) ||
+        isSectionHead() ||
+        isDean() || isSuperAdmin()
+      );
       allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'OPEN') ||
                        (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status == 'OPEN');
       allow update: if isAuth() && (
@@ -144,7 +154,11 @@ service cloud.firestore {
         resource.data.studentId == uid() ||
         resource.data.mentorId  == uid()
       );
-      allow list: if isAuth();
+      allow list: if isAuth() && (
+        resource.data.studentId == uid() ||
+        resource.data.mentorId == uid() ||
+        isSuperAdmin()
+      );
       allow create: if isFaculty() && request.resource.data.mentorId == uid();
       allow update: if isAuth() && (
         resource.data.studentId == uid() ||
@@ -156,7 +170,7 @@ service cloud.firestore {
     // ── Notifications Collection ───────────────────────────────────────────────
     match /notifications/{notifId} {
       allow get:   if isAuth() && resource.data.userId == uid();
-      allow list:  if isAuth();
+      allow list: if isAuth() && (resource.data.userId == uid() || isSuperAdmin());
       allow create: if isAuth() &&
         request.resource.data.keys().hasAll(['userId', 'type', 'title', 'message', 'isRead', 'createdAt']) &&
         request.resource.data.isRead == false;
@@ -180,13 +194,10 @@ service cloud.firestore {
         isSuperAdmin()
       );
       
-      // Specifically for the getConversations query where field == userId
       allow list: if isAuth() && (
-         isSuperAdmin() ||
-         // Firestore doesn't let you easily validate OR conditions across fields in list queries without an index
-         // The query has 'where("studentId", "==", uid())' or 'where("mentorId", "==", uid())'.
-         // Let's just allow list if authenticated, as it will naturally be filtered by the query.
-         true 
+        resource.data.studentId == uid() || 
+        resource.data.mentorId == uid() || 
+        isSuperAdmin()
       );
 
       allow create: if isAuth() && (

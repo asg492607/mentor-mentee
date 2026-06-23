@@ -14,6 +14,12 @@ export function createSignaling(meetingId, user) {
         try {
             const sigRef = collection(db, 'meetings', meetingId, 'signaling');
 
+            // Cleanup any orphaned presence/waiting documents from previous crashed sessions
+            if (user?.id) {
+                const orphansSnapshot = await getDocs(query(sigRef, where('userId', '==', user.id)));
+                orphansSnapshot.forEach(doc => deleteDoc(doc.ref).catch(() => {}));
+            }
+
             // Listen for presence changes FIRST to build roster and catch new joins
             let initialPresenceDone = false;
             const unsubPresence = onSnapshot(query(sigRef, where('type', '==', 'presence')), snapshot => {
@@ -38,14 +44,14 @@ export function createSignaling(meetingId, user) {
                     initialPresenceDone = true;
                     if (isHost) {
                         myPresenceRef = doc(sigRef, `presence_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' }).then(() => {
+                        setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: user?.id || null, name: user?.name || 'Participant' }).then(() => {
                             connected = true;
                             emit('joined', { id: selfId, peers });
                             emit('connect');
                         });
                     } else {
                         myPresenceRef = doc(sigRef, `waiting_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, name: user?.name || 'Participant' }).then(() => {
+                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: user?.id || null, name: user?.name || 'Participant' }).then(() => {
                             emit('waiting');
                         });
                     }
