@@ -63,7 +63,7 @@ export async function render(container) {
               <p>Keep this tab open. The call connects automatically.</p>
             </div>
           </section>
-          <aside class="meeting-side-panel hidden" id="meeting-side-panel">
+          <aside class="meeting-side-panel" id="meeting-side-panel">
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">Chat</button>
               <button class="side-panel-tab" data-panel="participants">People</button>
