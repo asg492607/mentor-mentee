@@ -174,7 +174,7 @@ service cloud.firestore {
         );
       }
       
-      allow read: if isAuth() && (
+      allow get: if isAuth() && (
         resource == null || 
         (resource != null && (resource.data.studentId == uid() || resource.data.mentorId == uid())) ||
         isSuperAdmin()
