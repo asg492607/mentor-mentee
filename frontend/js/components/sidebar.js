@@ -27,6 +27,7 @@ export function createSidebar(role, activePath) {
     navItems = [
       { path: '/hod/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
       { path: '/hod/management', label: 'Management', icon: '<i class="ph ph-briefcase"></i>' },
+      { path: '/hod/directory', label: 'Directory', icon: '<i class="ph ph-users"></i>' },
       { path: '/hod/risk-students', label: 'Risk Students', icon: '<i class="ph ph-warning"></i>' },
       { path: '/hod/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' }
     ];
