@@ -34,7 +34,7 @@ export async function render(container) {
         return;
     }
 
-    const isMentor = ['FACULTY', 'MENTOR'].includes(String(user.role).toUpperCase());
+    const isMentor = ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user.role).toUpperCase());
     container.innerHTML = `
       <div class="meeting-room-layout">
         <header class="meeting-topbar">
