@@ -46,21 +46,28 @@ export async function render(container) {
         </header>
         <main class="meeting-main">
           <section class="video-grid grid-1" id="video-grid">
-            <div id="join-screen" style="position:absolute; inset:0; z-index:100; background:#0a0a14; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;">
-              <h2>Ready to join?</h2>
-              <div style="width: 400px; max-width: 90%; height: 250px; background: #000; border-radius: 8px; overflow: hidden; position: relative;">
-                <video id="preview-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
-                <div style="position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px;">
-                  <button class="control-btn" id="preview-mic" style="background: rgba(0,0,0,0.6);"><i class="ph ph-microphone"></i></button>
-                  <button class="control-btn" id="preview-cam" style="background: rgba(0,0,0,0.6);"><i class="ph ph-video-camera"></i></button>
+            <div class="meeting-join" id="join-screen">
+              <div class="meeting-waiting-card" style="width: 600px; max-width: 90%;">
+                <h2>Ready to join?</h2>
+                <p>You are about to join a meeting with <strong>${escapeHtml(meeting.mentorName)}</strong></p>
+                
+                <div style="width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; position: relative; margin: 24px 0; border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 0 40px rgba(0,0,0,0.8);">
+                  <video id="preview-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                  <div style="position: absolute; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; gap: 16px;">
+                    <button class="control-btn" id="preview-mic" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); width: 44px; height: 44px; border-radius: 50%; border: none; color: white;"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
+                    <button class="control-btn" id="preview-cam" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); width: 44px; height: 44px; border-radius: 50%; border: none; color: white;"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></button>
+                  </div>
                 </div>
+
+                <button class="btn btn-primary btn-lg" id="btn-join-meeting" style="width: 100%;">Join Meeting</button>
               </div>
-              <button class="btn btn-primary btn-lg" id="btn-join-meeting">Join Meeting</button>
             </div>
             <div class="meeting-waiting" id="meeting-waiting" hidden>
-              <div class="pulse-ring"><div class="avatar avatar-lg">${escapeHtml((user.name || '?')[0])}</div></div>
-              <h2>Waiting for the other participant</h2>
-              <p>Keep this tab open. The call connects automatically.</p>
+              <div class="meeting-waiting-card">
+                <div class="pulse-ring"><div class="avatar avatar-lg">${escapeHtml((user.name || '?')[0])}</div></div>
+                <h2>Waiting for the other participant</h2>
+                <p>Keep this tab open. The call connects automatically.</p>
+              </div>
             </div>
           </section>
           <aside class="meeting-side-panel" id="meeting-side-panel">
