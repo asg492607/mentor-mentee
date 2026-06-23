@@ -121,6 +121,29 @@ export async function render(container) {
         }
       </div>
 
+      <!-- At Risk Students Table -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h3>High Risk Students</h3></div>
+        ${students.filter(s => s.riskLevel === 'HIGH').length === 0
+          ? '<p style="padding:20px;color:var(--text-muted);">No high risk students currently.</p>'
+          : `<table class="data-table">
+              <thead><tr><th>Name</th><th>Department</th><th>CGPA</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${students.filter(s => s.riskLevel === 'HIGH').map(s => `
+                  <tr>
+                    <td><strong>${s.name || '—'}</strong></td>
+                    <td>${s.department || '—'}</td>
+                    <td>${s.cgpa || '—'}</td>
+                    <td>
+                      <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary">Booklet</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+             </table>`
+        }
+      </div>
+
       <!-- Department Table -->
       <div class="card">
         <div class="card-header"><h3>Department Overview</h3></div>
