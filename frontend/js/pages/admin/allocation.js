@@ -26,6 +26,7 @@ export async function render(container) {
   let assignedPairs   = [];
   let studentSearch   = '';
   let mentorSearch    = '';
+  let allDepartments  = [];
 
   try {
     [students, mentors] = await Promise.all([
@@ -40,6 +41,12 @@ export async function render(container) {
         const mentor = mentors.find(m => m.id === s.mentorId);
         return { studentName: s.name, mentorName: mentor?.name || 'Unknown', department: s.department };
       });
+    
+    // Extract unique departments from all users
+    allDepartments = [...new Set([
+        ...allStudents.map(s => s.department),
+        ...mentors.map(m => m.department)
+    ].filter(Boolean))].sort();
   } catch (err) {
     (container.querySelector('#alloc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
@@ -136,7 +143,7 @@ export async function render(container) {
             <div style="display:flex;flex-direction:column;gap:12px;">
               <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
                 <option value="">All Departments</option>
-                ${[...new Set(students.map(s => s.department).filter(Boolean))].map(d => `<option value="${d}">${d}</option>`).join('')}
+                ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
               </select>
               <button class="btn btn-secondary" style="width:100%;" id="btn-auto">Run Auto-Allocate</button>
             </div>
