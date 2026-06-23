@@ -4,6 +4,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, MeetingService, IssueService, TaskService, StatsService } from '/js/services.js';
+import { startTour } from '/js/components/tour.js';
 
 function fmt(iso) {
   return iso ? new Date(iso).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' }) : '—';
@@ -171,6 +172,12 @@ export async function render(container) {
     });
 
     container.querySelector('#btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
+
+    startTour('student_dashboard', [
+      { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to quickly jump between your modules like Meetings, Booklet, and Issues.', position: 'right' },
+      { selector: '.stats-grid', title: 'Quick Overview', desc: 'Get a birds-eye view of all your upcoming meetings, pending tasks, and open issues here.', position: 'bottom' },
+      { selector: '.card', title: 'Your Mentor', desc: 'Here is your assigned mentor. You can quickly request a meeting with them at any time.', position: 'bottom' }
+    ]);
 
   } catch (err) {
     console.error('Dashboard load error:', err);
