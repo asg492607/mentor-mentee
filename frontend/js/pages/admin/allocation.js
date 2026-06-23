@@ -116,11 +116,26 @@ export async function render(container) {
         <div class="card" style="padding:20px;">
             <h4 style="margin-bottom:12px;font-size:1rem;">Manual Allocation</h4>
             <p style="font-size:0.875rem;margin-bottom:8px;color:var(--text-secondary);">Assign specific students to a specific mentor.</p>
-            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);">
-              <p style="font-size:0.875rem;margin-bottom:4px;">Students: <strong id="sel-s" style="color:var(--accent);">${selectedStudents.length ? selectedStudents.length + ' Selected' : 'None'}</strong></p>
-              <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
-            </div>
-            <button class="btn btn-primary" style="width:100%;" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign Selected Students</button>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Select Mentor</label>
+            <select id="manual-mentor-select" class="form-select" style="width:100%;margin-bottom:12px;padding:8px;">
+              <option value="">-- Choose a Mentor --</option>
+              ${mentors.map(m => {
+                 const full = (m.assignedStudentCount||0) >= (m.maxStudents||20);
+                 const sel = (selectedMentor?.id === m.id) ? 'selected' : '';
+                 return `<option value="${m.id}" ${full?'disabled':''} ${sel}>${m.name} (${m.department||'No Dept'}) - ${m.assignedStudentCount||0}/${m.maxStudents||20} assigned</option>`;
+              }).join('')}
+            </select>
+
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Select Students (Hold Ctrl/Cmd for multiple)</label>
+            <select id="manual-student-select" class="form-select" multiple style="width:100%;height:120px;margin-bottom:16px;padding:8px;">
+              ${students.map(s => {
+                 const sel = selectedStudents.some(x => x.id === s.id) ? 'selected' : '';
+                 return `<option value="${s.id}" ${sel}>${s.name} (${s.department||'No Dept'})</option>`;
+              }).join('')}
+            </select>
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:-10px;margin-bottom:12px;">You can select up to the mentor's allocation limit.</p>
+            
+            <button class="btn btn-primary" style="width:100%;" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign ${selectedStudents.length ? selectedStudents.length : ''} Students</button>
         </div>
 
         <!-- Bulk Amount Allocation -->
@@ -204,6 +219,29 @@ export async function render(container) {
         selectedMentor = m;
         buildUI();
       });
+    });
+
+    document.getElementById('manual-mentor-select')?.addEventListener('change', (e) => {
+      selectedMentor = mentors.find(m => m.id === e.target.value) || null;
+      buildUI();
+    });
+
+    document.getElementById('manual-student-select')?.addEventListener('change', (e) => {
+      const selectedOptions = Array.from(e.target.selectedOptions);
+      const newSelectedStudents = selectedOptions.map(opt => students.find(s => s.id === opt.value));
+      
+      // Limit selection to mentor's remaining capacity if a mentor is selected
+      if (selectedMentor) {
+          const capacity = (selectedMentor.maxStudents || 20) - (selectedMentor.assignedStudentCount || 0);
+          if (newSelectedStudents.length > capacity) {
+              showToast(`This mentor can only take ${capacity} more students!`, 'warning');
+              buildUI(); // Re-render to undo the over-selection visually
+              return;
+          }
+      }
+      
+      selectedStudents = newSelectedStudents;
+      buildUI();
     });
 
     document.getElementById('btn-assign')?.addEventListener('click', async () => {
