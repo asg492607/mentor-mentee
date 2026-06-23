@@ -102,30 +102,44 @@ export async function render(container) {
         </div>
       </div>
 
-      <!-- Assign Controls -->
-      <div class="card" style="padding:20px;margin-bottom:20px;">
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="flex:1;">
-            <p style="font-size:0.875rem;margin-bottom:4px;">Students: <strong id="sel-s" style="color:var(--accent);">${selectedStudents.length ? selectedStudents.length + ' Selected' : 'None'}</strong></p>
-            <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
-          </div>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn btn-primary" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign Selected →</button>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="bulk-amount" class="form-input" placeholder="Amount (e.g. 5)" style="width:120px; font-size:0.8rem;" min="1" value="1">
-                <button class="btn btn-primary btn-sm" id="btn-bulk-assign" ${(!selectedMentor)?'disabled':''}>Bulk Assign</button>
+      <!-- Allocation Actions Grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;margin-bottom:20px;">
+        
+        <!-- Manual Allocation -->
+        <div class="card" style="padding:20px;">
+            <h4 style="margin-bottom:12px;font-size:1rem;">Manual Allocation</h4>
+            <p style="font-size:0.875rem;margin-bottom:8px;color:var(--text-secondary);">Assign specific students to a specific mentor.</p>
+            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);">
+              <p style="font-size:0.875rem;margin-bottom:4px;">Students: <strong id="sel-s" style="color:var(--accent);">${selectedStudents.length ? selectedStudents.length + ' Selected' : 'None'}</strong></p>
+              <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
             </div>
-          </div>
-          <div style="border-left:1px solid var(--border);padding-left:16px;">
-            <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">Bulk Auto-Allocate</p>
-            <div style="display:flex;gap:8px;">
-              <select id="auto-dept" class="form-select" style="padding:6px 10px;font-size:0.8rem;">
+            <button class="btn btn-primary" style="width:100%;" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign Selected Students</button>
+        </div>
+
+        <!-- Bulk Amount Allocation -->
+        <div class="card" style="padding:20px;">
+            <h4 style="margin-bottom:12px;font-size:1rem;">Bulk Mentor Allocation</h4>
+            <p style="font-size:0.875rem;margin-bottom:8px;color:var(--text-secondary);">Assign a specific number of unassigned students to the selected mentor.</p>
+            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);">
+              <p style="font-size:0.875rem;">Selected Mentor: <strong style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <input type="number" id="bulk-amount" class="form-input" placeholder="Amount (e.g. 5)" style="flex:1;" min="1" value="1">
+                <button class="btn btn-primary" id="btn-bulk-assign" ${(!selectedMentor)?'disabled':''}>Assign Amount</button>
+            </div>
+        </div>
+
+        <!-- Global Auto-Allocate -->
+        <div class="card" style="padding:20px;">
+            <h4 style="margin-bottom:12px;font-size:1rem;">Global Auto-Allocate</h4>
+            <p style="font-size:0.875rem;margin-bottom:16px;color:var(--text-secondary);">Automatically distribute all unassigned students evenly among available mentors.</p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
                 <option value="">All Departments</option>
                 ${[...new Set(students.map(s => s.department).filter(Boolean))].map(d => `<option value="${d}">${d}</option>`).join('')}
               </select>
-              <button class="btn btn-secondary btn-sm" id="btn-auto">Auto</button>
+              <button class="btn btn-secondary" style="width:100%;" id="btn-auto">Run Auto-Allocate</button>
             </div>
-          </div>
         </div>
       </div>
 
