@@ -43,7 +43,7 @@ export function createSidebar(role, activePath) {
   } else if (roleUpper === 'ADMIN') {
     navItems = [
       { path: '/admin/dashboard',   label: 'Dashboard',   icon: '<i class="ph ph-squares-four"></i>' },
-      { path: '/admin/users',       label: 'Users',       icon: '<i class="ph ph-users"></i>' },
+      { path: '/admin/users',       label: 'Directory',   icon: '<i class="ph ph-users"></i>' },
       { path: '/admin/departments', label: 'Departments', icon: '<i class="ph ph-buildings"></i>' },
       { path: '/admin/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
       { path: '/admin/settings',    label: 'Settings',    icon: '<i class="ph ph-gear"></i>' }

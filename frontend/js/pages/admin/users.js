@@ -16,7 +16,7 @@ export async function render(container) {
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, window.location.hash.slice(1).split('?')[0] || '/admin/users')}
       <div class="main-content">
-        ${createHeader('User Management', user)}
+        ${createHeader('Institution Directory', user)}
         <div class="page-content">
           <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
             <div style="display:flex;gap:12px;flex:1;min-width:300px;flex-wrap:wrap;">
