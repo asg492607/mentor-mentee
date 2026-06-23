@@ -21,7 +21,7 @@ export async function render(container) {
 
   let students = [];
   let mentors  = [];
-  let selectedStudent = null;
+  let selectedStudents = [];
   let selectedMentor  = null;
   let assignedPairs   = [];
   let studentSearch   = '';
@@ -60,13 +60,13 @@ export async function render(container) {
               if (students.length === 0) return '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>';
               if (fStudents.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
               return fStudents.map(s => `
-                <div class="list-item student-pick ${selectedStudent?.id===s.id?'active-pick':''}" data-id="${s.id}"
-                  style="cursor:pointer;${selectedStudent?.id===s.id?'background:var(--accent-light);':''}">
+                <div class="list-item student-pick ${selectedStudents.some(x=>x.id===s.id)?'active-pick':''}" data-id="${s.id}"
+                  style="cursor:pointer;${selectedStudents.some(x=>x.id===s.id)?'background:var(--accent-light);':''}">
                   <div>
                     <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
                     <p style="color:var(--text-muted);font-size:0.78rem;">${s.department||'—'} • Year ${s.year||'?'}</p>
                   </div>
-                  ${selectedStudent?.id===s.id ? '<span class="badge badge-accent">Selected</span>' : ''}
+                  ${selectedStudents.some(x=>x.id===s.id) ? '<span class="badge badge-accent">Selected</span>' : ''}
                 </div>
               `).join('');
             })()}
@@ -106,11 +106,11 @@ export async function render(container) {
       <div class="card" style="padding:20px;margin-bottom:20px;">
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <div style="flex:1;">
-            <p style="font-size:0.875rem;margin-bottom:4px;">Student: <strong id="sel-s" style="color:var(--accent);">${selectedStudent?.name||'None'}</strong></p>
+            <p style="font-size:0.875rem;margin-bottom:4px;">Students: <strong id="sel-s" style="color:var(--accent);">${selectedStudents.length ? selectedStudents.length + ' Selected' : 'None'}</strong></p>
             <p style="font-size:0.875rem;">Mentor: <strong id="sel-m" style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
           </div>
           <div style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn btn-primary" id="btn-assign" ${(!selectedStudent||!selectedMentor)?'disabled':''}>Assign Selected →</button>
+            <button class="btn btn-primary" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign Selected →</button>
             <div style="display:flex; gap:5px;">
                 <input type="number" id="bulk-amount" class="form-input" placeholder="Amount (e.g. 5)" style="width:120px; font-size:0.8rem;" min="1" value="1">
                 <button class="btn btn-primary btn-sm" id="btn-bulk-assign" ${(!selectedMentor)?'disabled':''}>Bulk Assign</button>
@@ -155,7 +155,12 @@ export async function render(container) {
     // Student picks
     document.querySelectorAll('.student-pick').forEach(el => {
       el.addEventListener('click', () => {
-        selectedStudent = students.find(s => s.id === el.dataset.id);
+        const student = students.find(s => s.id === el.dataset.id);
+        if (selectedStudents.some(x => x.id === student.id)) {
+            selectedStudents = selectedStudents.filter(x => x.id !== student.id);
+        } else {
+            selectedStudents.push(student);
+        }
         buildUI();
       });
     });
@@ -181,16 +186,20 @@ export async function render(container) {
     });
 
     document.getElementById('btn-assign')?.addEventListener('click', async () => {
-      if (!selectedStudent || !selectedMentor) return;
+      if (selectedStudents.length === 0 || !selectedMentor) return;
       const btn = document.getElementById('btn-assign');
       btn.disabled = true; btn.textContent = 'Assigning...';
       try {
-        await AllocationService.assign(selectedStudent.id, selectedMentor.id, selectedMentor.name);
-        assignedPairs.push({ studentName:selectedStudent.name, mentorName:selectedMentor.name, department:selectedStudent.department });
+        let successCount = 0;
+        for (const s of selectedStudents) {
+          await AllocationService.assign(s.id, selectedMentor.id, selectedMentor.name);
+          assignedPairs.push({ studentName:s.name, mentorName:selectedMentor.name, department:s.department });
+          successCount++;
+        }
         const m = mentors.find(m => m.id === selectedMentor.id);
-        if (m) m.assignedStudentCount = (m.assignedStudentCount||0)+1;
-        students = students.filter(s => s.id !== selectedStudent.id);
-        selectedStudent = null;
+        if (m) m.assignedStudentCount = (m.assignedStudentCount||0) + successCount;
+        students = students.filter(s => !selectedStudents.some(x => x.id === s.id));
+        selectedStudents = [];
         showToast('Allocated successfully!', 'success');
         buildUI();
       } catch (err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent='Assign Selected →'; }
@@ -218,7 +227,7 @@ export async function render(container) {
           const m = mentors.find(m => m.id === selectedMentor.id);
           if (m) m.assignedStudentCount = (m.assignedStudentCount || 0) + successCount;
           students = students.filter(s => !toAssign.find(t => t.id === s.id));
-          selectedStudent = null;
+          selectedStudents = selectedStudents.filter(s => !toAssign.find(t => t.id === s.id));
           showToast(`Successfully assigned ${successCount} student(s) to ${selectedMentor.name}!`, 'success');
           buildUI();
       } catch (err) {
