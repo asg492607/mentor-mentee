@@ -101,6 +101,7 @@ export async function render(container) {
               </td>
               <td>
                 <button class="btn btn-xs btn-secondary btn-view-profile" data-id="${u.id}">View</button>
+                ${(u.role||'').toUpperCase() === 'STUDENT' ? `<a href="#/mentor/booklet?studentId=${u.id}" class="btn btn-xs btn-primary" style="margin-left:4px;">Booklet</a>` : ''}
                 ${!u.isApproved ? `<button class="btn btn-xs btn-primary btn-approve" style="margin-left:4px;" data-id="${u.id}" data-role="${u.role}">Approve</button>` : ''}
               </td>
             </tr>

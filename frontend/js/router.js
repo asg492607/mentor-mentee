@@ -122,7 +122,8 @@ async function handleRoute() {
 
     // Strict Role Route Protection
     const role = String(profile.role).toUpperCase();
-    if (path !== '/chat' && path !== '/meeting-room' && path !== '/student/profile') {
+    const isGlobalRoute = ['/chat', '/meeting-room', '/student/profile', '/mentor/booklet'].includes(path);
+    if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/mentor') && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/hod') && role !== 'HOD') return navigateTo(getRoleDashboardPath(role));
