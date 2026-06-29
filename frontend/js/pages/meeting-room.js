@@ -110,8 +110,20 @@ export async function render(container) {
     let localStream;
     let screenStream;
     let elapsed = 0;
-    let timer;
     let cleaned = false;
+
+    // VISUAL DEBUGGER
+    const debugPanel = document.createElement('div');
+    debugPanel.style.cssText = 'position:fixed;bottom:80px;left:20px;background:rgba(0,0,0,0.8);color:#0f0;font-family:monospace;font-size:10px;padding:10px;max-height:200px;overflow-y:auto;z-index:9999;pointer-events:none;width:300px;border-radius:8px;';
+    document.body.appendChild(debugPanel);
+    const logDebug = (msg) => {
+        console.log('[DEBUG]', msg);
+        const p = document.createElement('div');
+        p.textContent = msg;
+        debugPanel.appendChild(p);
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+    };
+    window.logDebug = logDebug;
 
     function addVideo(id, name, stream, muted = false) {
         waiting?.remove();
@@ -209,9 +221,10 @@ export async function render(container) {
         (container.querySelector('#panel-participants') || {}).innerHTML = html;
     }
 
-    // Global handlers for UI buttons
     const handleControlAction = async (id, action) => {
+        window.logDebug(`Sending control ${action} to ${id}`);
         const success = await signaling.sendControl(id, action);
+        window.logDebug(`Control send success: ${success}`);
         if (!success) showToast('Failed to perform action. Check your connection.', 'error');
     };
     
@@ -234,20 +247,29 @@ export async function render(container) {
 
     async function init() {
         try {
+            window.logDebug(`Initializing as ${isMentor ? 'Host' : 'Guest'}`);
             if (!localStream) localStream = await getLocalStream();
             addVideo('local', `${user.name} (you)`, localStream, true);
             signaling.onMessage('joined', message => {
+                window.logDebug(`Joined room! Peers: ${message.peers.length}`);
                 signaling.selfId = message.id;
                 participants = [{ id: message.id, name: user.name }, ...message.peers];
                 renderRoster(participants, waitingList);
-                message.peers.forEach(person => createPeer(person.id, person.name, true));
+                message.peers.forEach(person => {
+                    window.logDebug(`Creating offer for ${person.name}`);
+                    createPeer(person.id, person.name, true);
+                });
             });
             signaling.onMessage('peer-joined', message => {
+                window.logDebug(`Peer joined: ${message.name}`);
                 participants.push({ id: message.id, name: message.name });
                 renderRoster(participants, waitingList);
                 createPeer(message.id, message.name, false);
             });
-            signaling.onMessage('signal', message => createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError));
+            signaling.onMessage('signal', message => {
+                window.logDebug(`Received signal from ${message.name}`);
+                createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError);
+            });
             signaling.onMessage('peer-left', message => {
                 participants = participants.filter(p => p.id !== message.id);
                 renderRoster(participants, waitingList);
