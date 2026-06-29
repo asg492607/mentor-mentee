@@ -116,14 +116,18 @@ async function handleRoute() {
         return;
       }
       if (!profile) {
-        navigateTo('/login');
+        appContainer.innerHTML = `<div class="empty-state h-screen">
+          <h2 class="text-danger">Account Not Found</h2>
+          <p class="text-muted mt-2">Your user profile does not exist in the database. Please contact an administrator.</p>
+          <button class="btn btn-primary mt-4" onclick="window.localStorage.clear(); window.location.hash = '/login'; window.location.reload();">Sign Out</button>
+        </div>`;
         return;
       }
     }
 
     // Strict Role Route Protection
     const role = String(profile.role).toUpperCase();
-    const isGlobalRoute = ['/chat', '/meeting-room', '/student/profile', '/mentor/booklet'].includes(path);
+    const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
     if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/mentor') && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
@@ -203,17 +207,7 @@ onAuthChange((user) => {
     }
 });
 
-// Fallback if onAuthChange doesn't fire quickly enough on first load
-window.addEventListener('DOMContentLoaded', () => {
-    if(isInitialLoad) {
-        setTimeout(() => {
-            if(isInitialLoad) {
-                isInitialLoad = false;
-                handleRoute();
-            }
-        }, 1000);
-    }
-});
+// Removed fallback timeout as it caused race conditions overriding deep links.
 
 function updateThemeToggleUI(theme) {
     const currentTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark';

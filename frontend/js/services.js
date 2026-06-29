@@ -7,7 +7,7 @@
 import { db } from '/js/firebase-init.js';
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion, writeBatch, increment
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -345,6 +345,8 @@ export const ChatService = {
     return onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       callback(msgs);
+    }, (error) => {
+      console.error('ChatService listenToMessages failed:', error);
     });
   },
 
@@ -411,14 +413,18 @@ export const ClassService = {
   async delete(id) {
     const cls = snap(await getDoc(doc(db, 'classes', id)));
     if (cls) {
-      // Find all students in this class and department, set class to null
       const q = query(collection(db, 'students'), where('department', '==', cls.department), where('class', '==', cls.className));
       const students = snaps(await getDocs(q));
+      
+      const batch = writeBatch(db);
       for (const s of students) {
-        await updateDoc(doc(db, 'students', s.id), { class: null, updatedAt: now() });
+        batch.update(doc(db, 'students', s.id), { class: null, updatedAt: now() });
       }
+      batch.delete(doc(db, 'classes', id));
+      await batch.commit();
+    } else {
+      await deleteDoc(doc(db, 'classes', id));
     }
-    await deleteDoc(doc(db, 'classes', id));
   }
 };
 
@@ -428,12 +434,8 @@ export const AllocationService = {
   async assign(studentId, mentorId, mentorName) {
     // Update student
     await StudentService.assignMentor(studentId, mentorId);
-    // Increment faculty counter
-    const facultyDoc = await getDoc(doc(db, 'faculty', mentorId));
-    if (facultyDoc.exists()) {
-      const current = facultyDoc.data().assignedStudentCount || 0;
-      await updateDoc(doc(db, 'faculty', mentorId), { assignedStudentCount: current + 1 });
-    }
+    // Increment faculty counter atomically
+    await updateDoc(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
   },
 
   async autoAllocate(department = null) {
@@ -464,10 +466,14 @@ export const AllocationService = {
     for (const student of students) {
       if (mentorIdx >= available.length) break;
       const mentor = available[mentorIdx];
-      await AllocationService.assign(student.id, mentor.id, mentor.name);
-      results.push({ studentId: student.id, mentorId: mentor.id });
-      mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
-      if (mentor.assignedStudentCount >= (mentor.maxStudents || 20)) mentorIdx++;
+      try {
+        await AllocationService.assign(student.id, mentor.id, mentor.name);
+        results.push({ studentId: student.id, mentorId: mentor.id });
+        mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
+        if (mentor.assignedStudentCount >= (mentor.maxStudents || 20)) mentorIdx++;
+      } catch (error) {
+        console.error(`Failed to assign student ${student.id}`, error);
+      }
     }
 
     return results;
@@ -493,18 +499,23 @@ export const StatsService = {
   },
 
   async getMentorStats(mentorId) {
-    const [students, meetings, issues, tasks] = await Promise.all([
+    const results = await Promise.allSettled([
       StudentService.getByMentor(mentorId),
       MeetingService.getByMentor(mentorId),
       IssueService.getByMentor(mentorId),
       TaskService.getByMentor(mentorId)
     ]);
+    const students = results[0].status === 'fulfilled' ? results[0].value : [];
+    const meetings = results[1].status === 'fulfilled' ? results[1].value : [];
+    const issues = results[2].status === 'fulfilled' ? results[2].value : [];
+    const tasks = results[3].status === 'fulfilled' ? results[3].value : [];
 
     // Fetch booklets for these students
     const booklets = [];
     if (students.length > 0) {
       const bookletPromises = students.map(s => getDoc(doc(db, 'booklets', s.id)));
-      const bookletSnaps = await Promise.all(bookletPromises);
+      const bookletResults = await Promise.allSettled(bookletPromises);
+      const bookletSnaps = bookletResults.filter(r => r.status === 'fulfilled').map(r => r.value);
       bookletSnaps.forEach(snap => {
         if (snap.exists()) {
            booklets.push({ id: snap.id, ...snap.data() });

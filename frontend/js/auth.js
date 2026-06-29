@@ -143,6 +143,7 @@ export async function register(data) {
     }
 
     if (data.email === 'gandhiatharv565@gmail.com') {
+      // NOTE: For true security, this should be moved to Custom Claims on the backend
       profileData.role = 'ADMIN';
       profileData.status = 'approved';
       profileData.isApproved = true;
@@ -197,6 +198,12 @@ export async function fetchUserProfile() {
   try {
     // Super Admin bypass
     if (email === 'gandhiatharv565@gmail.com') {
+      if (!user.emailVerified) {
+        console.warn("Super Admin email is not verified. Access denied.");
+        await signOut(auth);
+        cachedUserProfile = null;
+        return null;
+      }
       const adminProfile = {
         id: uid, email, name: 'Super Admin',
         role: 'ADMIN', status: 'approved', isApproved: true
