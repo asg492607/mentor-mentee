@@ -210,13 +210,18 @@ export async function render(container) {
     }
 
     // Global handlers for UI buttons
-    window.admitUser = (id) => signaling.sendControl(id, 'admit');
-    window.denyUser = (id) => signaling.sendControl(id, 'deny');
-    window.removeUser = (id) => signaling.sendControl(id, 'remove');
-    window.muteMic = (id) => signaling.sendControl(id, 'mute-mic');
-    window.stopCam = (id) => signaling.sendControl(id, 'disable-cam');
-    window.admitAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'admit'));
-    window.denyAll = () => waitingList.forEach(p => signaling.sendControl(p.id, 'deny'));
+    const handleControlAction = async (id, action) => {
+        const success = await signaling.sendControl(id, action);
+        if (!success) showToast('Failed to perform action. Check your connection.', 'error');
+    };
+    
+    window.admitUser = (id) => handleControlAction(id, 'admit');
+    window.denyUser = (id) => handleControlAction(id, 'deny');
+    window.removeUser = (id) => handleControlAction(id, 'remove');
+    window.muteMic = (id) => handleControlAction(id, 'mute-mic');
+    window.stopCam = (id) => handleControlAction(id, 'disable-cam');
+    window.admitAll = () => waitingList.forEach(p => handleControlAction(p.id, 'admit'));
+    window.denyAll = () => waitingList.forEach(p => handleControlAction(p.id, 'deny'));
 
     function handleError(error) {
         console.error(error);
@@ -327,14 +332,18 @@ export async function render(container) {
         }
     }
 
-    document.getElementById('btn-mic').onclick = event => event.currentTarget.classList.toggle('active', !toggleMic(localStream));
-    document.getElementById('btn-cam').onclick = event => event.currentTarget.classList.toggle('active', !toggleCamera(localStream));
+    document.getElementById('btn-mic').onclick = event => {
+        if (localStream) event.currentTarget.classList.toggle('active', !toggleMic(localStream));
+    };
+    document.getElementById('btn-cam').onclick = event => {
+        if (localStream) event.currentTarget.classList.toggle('active', !toggleCamera(localStream));
+    };
     document.getElementById('btn-screen').onclick = async event => {
         try {
             if (screenStream) {
                 stopScreenShare(screenStream);
                 screenStream = null;
-                const camera = localStream.getVideoTracks()[0];
+                const camera = localStream?.getVideoTracks()[0] || null;
                 await Promise.all([...peers.values()].map(peer => peer.replaceVideoTrack(camera)));
                 addVideo('local', `${user.name} (you)`, localStream, true);
                 event.currentTarget.classList.remove('active');
@@ -451,13 +460,21 @@ export async function render(container) {
         document.getElementById('chat-form').hidden = button.dataset.panel !== 'chat';
     });
     document.getElementById('copy-room-link').onclick = async () => {
-        await navigator.clipboard.writeText(location.href);
-        showToast('Meeting link copied', 'success');
+        try {
+            await navigator.clipboard.writeText(location.href);
+            showToast('Meeting link copied', 'success');
+        } catch (e) {
+            showToast('Failed to copy link. Check your permissions.', 'error');
+        }
     };
     document.getElementById('save-meeting-notes')?.addEventListener('click', async () => {
-        const summary = document.getElementById('meeting-notes').value.trim();
-        await MeetingService.update(meetingId, { notes: { ...(meeting.notes || {}), summary } });
-        showToast('Meeting notes saved', 'success');
+        try {
+            const summary = document.getElementById('meeting-notes').value.trim();
+            await MeetingService.update(meetingId, { notes: { ...(meeting.notes || {}), summary } });
+            showToast('Meeting notes saved', 'success');
+        } catch (e) {
+            showToast('Failed to save notes: ' + e.message, 'error');
+        }
     });
 
     async function cleanup() {
@@ -476,7 +493,11 @@ export async function render(container) {
         if (isMentor) {
             const endForAll = confirm("Do you want to end this meeting for everyone? (Click OK to End For All, Cancel to just Leave)");
             if (endForAll) {
-                await MeetingService.update(meetingId, { status: 'COMPLETED' });
+                try {
+                    await MeetingService.update(meetingId, { status: 'COMPLETED' });
+                } catch (e) {
+                    showToast('Failed to sync meeting status. Leaving anyway...', 'warning');
+                }
             }
         }
         await cleanup();

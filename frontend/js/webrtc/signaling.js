@@ -48,12 +48,12 @@ export function createSignaling(meetingId, user) {
                             connected = true;
                             emit('joined', { id: selfId, peers });
                             emit('connect');
-                        });
+                        }).catch(err => emit('error', new Error('Failed to join: ' + err.message)));
                     } else {
                         myPresenceRef = doc(sigRef, `waiting_${selfId}`);
                         setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: user?.id || null, name: user?.name || 'Participant' }).then(() => {
                             emit('waiting');
-                        });
+                        }).catch(err => emit('error', new Error('Failed to join waiting room: ' + err.message)));
                     }
                 }
             }, err => {
@@ -87,7 +87,7 @@ export function createSignaling(meetingId, user) {
                             } else if (data.type === 'chat') {
                                 emit('chat', { name: data.name, text: data.text });
                             } else if (data.type === 'control' && data.to === selfId) {
-                                handleControlMessage(data.action);
+                                handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                                 deleteDoc(change.doc.ref).catch(()=>{});
                             }
                         }
