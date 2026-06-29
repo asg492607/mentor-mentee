@@ -105,15 +105,20 @@ export function createSignaling(meetingId, user) {
 
     async function handleControlMessage(action) {
         if (action === 'admit') {
-            if (myPresenceRef) await deleteDoc(myPresenceRef).catch(()=>{});
-            const sigRef = collection(db, 'meetings', meetingId, 'signaling');
-            myPresenceRef = doc(sigRef, `presence_${selfId}`);
-            await setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' });
-            connected = true;
-            const presenceDocs = await getDocs(query(sigRef, where('type', '==', 'presence')));
-            const peers = presenceDocs.docs.map(d => d.data()).filter(d => d.id !== selfId);
-            emit('joined', { id: selfId, peers });
-            emit('connect');
+            try {
+                if (myPresenceRef) await deleteDoc(myPresenceRef).catch(()=>{});
+                const sigRef = collection(db, 'meetings', meetingId, 'signaling');
+                myPresenceRef = doc(sigRef, `presence_${selfId}`);
+                await setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' });
+                connected = true;
+                const presenceDocs = await getDocs(query(sigRef, where('type', '==', 'presence')));
+                const peers = presenceDocs.docs.map(d => d.data()).filter(d => d.id !== selfId);
+                emit('joined', { id: selfId, peers });
+                emit('connect');
+            } catch (err) {
+                console.error('[WebRTC] Admit processing failed:', err);
+                emit('error', new Error('Failed to join meeting room after being admitted: ' + err.message));
+            }
         } else if (action === 'deny' || action === 'remove') {
             emit('kicked', { reason: action });
             disconnect();
@@ -160,7 +165,10 @@ export function createSignaling(meetingId, user) {
                 type: 'control', from: selfId, to, action
             });
             return true;
-        } catch(e) { return false; }
+        } catch(e) {
+            console.error('[WebRTC] sendControl failed:', e);
+            return false;
+        }
     }
 
     async function disconnect() {
