@@ -128,11 +128,12 @@ export async function render(container) {
     function addVideo(id, name, stream, muted = false) {
         waiting?.remove();
         let tile = container.querySelector(`[data-peer="${id}"]`);
+        let video;
         if (!tile) {
             tile = document.createElement('div');
             tile.className = 'video-tile';
             tile.dataset.peer = id;
-            const video = document.createElement('video');
+            video = document.createElement('video');
             video.autoplay = true;
             video.playsInline = true;
             video.muted = muted;
@@ -141,8 +142,28 @@ export async function render(container) {
             label.textContent = name;
             tile.append(video, label);
             grid.append(tile);
+        } else {
+            video = tile.querySelector('video');
+            const label = tile.querySelector('.tile-label');
+            if (label && name) label.textContent = name;
         }
-        tile.querySelector('video').srcObject = stream;
+
+        if (video.srcObject !== stream) {
+            video.srcObject = stream;
+        }
+
+        video.play().catch(err => {
+            console.warn(`[Video] Auto-play suppressed for ${id}:`, err);
+        });
+
+        if (stream && stream.getVideoTracks) {
+            stream.getVideoTracks().forEach(track => {
+                track.onunmute = () => {
+                    video.play().catch(() => {});
+                };
+            });
+        }
+
         const count = grid.querySelectorAll('.video-tile').length;
         grid.className = `video-grid grid-${Math.min(count, 4)}`;
     }
@@ -150,13 +171,20 @@ export async function render(container) {
     function createPeer(id, name, offer) {
         if (peers.has(id)) return peers.get(id);
         const peer = createPeerConnection(signaling, localStream, id);
-        peer.onTrack(stream => addVideo(id, name || 'Participant', stream));
+        peer.onTrack(stream => {
+            window.logDebug(`Received remote track from ${name || id}`);
+            addVideo(id, name || 'Participant', stream);
+        });
         peers.set(id, peer);
 
         peer.pc.addEventListener('iceconnectionstatechange', () => {
+            window.logDebug(`ICE connection state (${id}): ${peer.pc.iceConnectionState}`);
             if (peer.pc.iceConnectionState === 'failed' || peer.pc.iceConnectionState === 'disconnected') {
                 console.log('ICE Connection failed/disconnected. Attempting restart...');
-                if (peer.pc.restartIce) peer.pc.restartIce();
+                if (peer.pc.restartIce) {
+                    peer.pc.restartIce();
+                    peer.createOffer().catch(handleError);
+                }
             }
         });
 

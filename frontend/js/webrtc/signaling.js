@@ -80,16 +80,14 @@ export function createSignaling(meetingId, user) {
                         const data = change.doc.data();
                         if (data.from === selfId) return;
 
-                        if (!isInitialMessages || data.type === 'control') {
-                            if (data.type === 'signal' && data.to === selfId) {
-                                emit('signal', { from: data.from, name: data.name, signal: data.signal });
-                                deleteDoc(change.doc.ref).catch(()=>{});
-                            } else if (data.type === 'chat') {
-                                emit('chat', { name: data.name, text: data.text });
-                            } else if (data.type === 'control' && data.to === selfId) {
-                                handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
-                                deleteDoc(change.doc.ref).catch(()=>{});
-                            }
+                        if (data.type === 'signal' && data.to === selfId) {
+                            emit('signal', { from: data.from, name: data.name, signal: data.signal });
+                            deleteDoc(change.doc.ref).catch(()=>{});
+                        } else if (!isInitialMessages && data.type === 'chat') {
+                            emit('chat', { name: data.name, text: data.text });
+                        } else if (data.type === 'control' && data.to === selfId) {
+                            handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
+                            deleteDoc(change.doc.ref).catch(()=>{});
                         }
                     }
                 });
