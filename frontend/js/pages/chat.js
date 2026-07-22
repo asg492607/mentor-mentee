@@ -21,9 +21,9 @@ export async function render(container) {
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/chat')}
-      <div class="main-content">
+      <div class="main-content" style="display:flex; flex-direction:column; height:100vh; overflow:hidden;">
         ${createHeader('Messages', user)}
-        <div class="page-content" style="padding:0; height: calc(100vh - 70px); overflow:hidden;">
+        <div class="page-content" style="flex:1; padding:16px; overflow:hidden; display:flex; box-sizing:border-box;">
           <div class="chat-container">
             <div class="chat-sidebar">
               <div class="chat-sidebar-header">

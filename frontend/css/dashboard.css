@@ -1174,17 +1174,19 @@
 /* ---------- Modern Chat UI ---------- */
 .chat-container {
     display: flex;
-    height: calc(100vh - 105px);
+    height: 100%;
+    width: 100%;
     background: #ffffff;
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     border: 1px solid #e2e8f0;
-    margin: 16px;
+    margin: 0;
+    box-sizing: border-box;
 }
 
 .chat-sidebar {
-    width: 320px;
+    width: 300px;
     border-right: 1px solid #e2e8f0;
     display: flex;
     flex-direction: column;
