@@ -22,7 +22,7 @@ export async function render(container) {
 
     const meeting = await MeetingService.get(meetingId);
     const hasAccess = [meeting?.studentId, meeting?.mentorId].includes(user.id) || meeting?.studentId === 'ALL';
-    
+
     if (!meeting || !hasAccess) {
         showToast('You do not have access to this meeting', 'error');
         navigateTo('/');
@@ -150,7 +150,7 @@ export async function render(container) {
         if (stream && stream.getVideoTracks) {
             stream.getVideoTracks().forEach(track => {
                 track.onunmute = () => {
-                    video.play().catch(() => {});
+                    video.play().catch(() => { });
                 };
             });
         }
@@ -199,7 +199,7 @@ export async function render(container) {
 
     function renderRoster(participants = [], waitingList = []) {
         let html = '';
-        
+
         if (isMentor && waitingList.length > 0) {
             html += `<div style="padding:12px;background:var(--warning)22;border-radius:8px;margin-bottom:12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -246,7 +246,7 @@ export async function render(container) {
         window.logDebug(`Control send success: ${success}`);
         if (!success) showToast('Failed to perform action. Check your connection.', 'error');
     };
-    
+
     window.admitUser = (id) => handleControlAction(id, 'admit');
     window.denyUser = (id) => handleControlAction(id, 'deny');
     window.removeUser = (id) => handleControlAction(id, 'remove');
@@ -299,14 +299,14 @@ export async function render(container) {
                 showToast('A participant left the meeting', 'info');
             });
             signaling.onMessage('chat', message => appendMessage(message.name, message.text));
-            
+
             // Host only: Listen to waiting room events
             signaling.onMessage('guest-waiting', message => {
                 if (!waitingList.find(p => p.id === message.id)) {
                     waitingList.push({ id: message.id, name: message.name });
                     renderRoster(participants, waitingList);
                     showToast(`${message.name} is waiting to join`, 'info');
-                    
+
                     // Automatically open the side panel to the 'participants' tab so the host sees the Admit button
                     const sidePanel = document.getElementById('meeting-side-panel');
                     if (sidePanel) sidePanel.classList.remove('hidden');
@@ -328,7 +328,7 @@ export async function render(container) {
                         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
                         osc.start(audioCtx.currentTime);
                         osc.stop(audioCtx.currentTime + 0.5);
-                    } catch(e) {}
+                    } catch (e) { }
                 }
             });
             signaling.onMessage('guest-left-waiting', message => {
@@ -401,7 +401,7 @@ export async function render(container) {
             showToast('Screen sharing was cancelled or unavailable', 'warning');
         }
     };
-    
+
     // Recording Logic
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -461,7 +461,7 @@ export async function render(container) {
                     a.click();
                     URL.revokeObjectURL(url);
                     recordStream.getTracks().forEach(t => t.stop());
-                    
+
                     btnRecord.classList.remove('active');
                     btnRecord.querySelector('.control-btn-label').textContent = 'Record';
                     showToast('Recording downloaded locally', 'success');
@@ -546,14 +546,14 @@ export async function render(container) {
         navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
     };
     window.addEventListener('hashchange', cleanup, { once: true });
-    
-    
+
+
     // Initialize preview immediately
     try {
         localStream = await getLocalStream();
         const previewVideo = document.getElementById('preview-video');
         if (previewVideo) previewVideo.srcObject = localStream;
-        
+
         document.getElementById('preview-mic').onclick = () => {
             const isEnabled = toggleMic(localStream);
             document.getElementById('preview-mic').innerHTML = isEnabled ? '<i class="ph ph-microphone"></i>' : '<i class="ph ph-microphone-slash"></i>';
@@ -565,7 +565,7 @@ export async function render(container) {
                 if (!isEnabled) mainMic.classList.add('danger'); else mainMic.classList.remove('danger');
             }
         };
-        
+
         document.getElementById('preview-cam').onclick = () => {
             const isEnabled = toggleCamera(localStream);
             document.getElementById('preview-cam').innerHTML = isEnabled ? '<i class="ph ph-video-camera"></i>' : '<i class="ph ph-video-camera-slash"></i>';
