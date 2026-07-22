@@ -137,8 +137,8 @@ service cloud.firestore {
         isSectionHead() ||
         isDean() || isSuperAdmin()
       );
-      allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'OPEN') ||
-                       (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status == 'OPEN');
+      allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']) ||
+                       (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']);
       allow update: if isAuth() && (
         resource.data.mentorId  == uid() ||
         isHODForDept(resource.data.department) ||
