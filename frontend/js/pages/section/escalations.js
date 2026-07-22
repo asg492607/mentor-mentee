@@ -4,6 +4,8 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { showModal } from '/js/components/modal.js';
 import { IssueService, NotificationService } from '/js/services.js';
+import { db } from '/js/firebase-init.js';
+import { collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
 
@@ -14,7 +16,7 @@ export async function render(container) {
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/section/escalations')}
       <div class="main-content">
-        ${createHeader('Escalations', user)}
+        ${createHeader('Section Escalations', user)}
         <div class="page-content">
           <div id="esc-content">
             <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
@@ -26,7 +28,9 @@ export async function render(container) {
 
   let issues = [];
   try {
-    issues = await IssueService.getEscalated(user.department);
+    const listSnap = await getDocs(query(collection(db, 'issues'), where('escalationLevel', '==', user.department)));
+    const list = listSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    issues = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   } catch (err) {
     (container.querySelector('#esc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
@@ -37,20 +41,20 @@ export async function render(container) {
     if (!issues.length) {
       wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
         <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-        <h3>No escalations</h3>
-        <p>All issues are being resolved at lower levels.</p>
+        <h3>No Escalated Issues</h3>
+        <p>No issues are currently assigned to your section (${user.department || 'Section Head'}).</p>
       </div>`;
       return;
     }
 
     wrap.innerHTML = `
       <div class="section-header" style="margin-bottom:16px;">
-        <h2 class="section-title">Escalated Issues</h2>
+        <h2 class="section-title">Section Issues (${user.department})</h2>
         <span class="badge badge-warning">${issues.filter(e=>e.status!=='RESOLVED').length} Open</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         ${issues.map(issue => `
-          <div class="card" style="padding:20px;border-left:3px solid ${issue.status==='RESOLVED'?'var(--success)':'var(--warning)'};" id="esc-${issue.id}">
+          <div class="card" style="padding:20px;border-left:4px solid ${issue.status==='RESOLVED'?'var(--success)':'var(--warning)'};" id="esc-${issue.id}">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
               <div style="flex:1;">
                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
@@ -59,15 +63,16 @@ export async function render(container) {
                   ${issue.priority ? `<span class="badge badge-danger">${issue.priority}</span>` : ''}
                 </div>
                 <p style="color:var(--text-secondary);font-size:0.825rem;margin-bottom:4px;">
-                  <strong>Student:</strong> ${issue.studentName||'—'}
+                  <strong>Student:</strong> ${issue.studentName||'—'} | <strong>Department:</strong> ${issue.department || '—'}
                 </p>
                 <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${issue.description||''}</p>
                 <p style="color:var(--text-muted);font-size:0.75rem;">Raised on ${fmt(issue.createdAt)}</p>
                 ${issue.resolution ? `<p style="color:var(--success);margin-top:8px;font-size:0.825rem;"><strong>Resolution:</strong> ${issue.resolution}</p>` : ''}
                 ${(issue.escalationHistory||[]).length > 0 ? `
-                  <p style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">
-                    Escalated from: ${issue.escalationHistory[issue.escalationHistory.length-1]?.from || 'MENTOR'}
-                  </p>
+                  <div style="background:var(--bg-tertiary, #f8fafc);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.75rem;">
+                    <strong>Escalation Trail:</strong>
+                    ${issue.escalationHistory.map(h => `<div style="color:var(--text-muted);margin-top:2px;">• Sent from ${h.from} to <strong>${h.to}</strong> by ${h.escalatedBy || 'Mentor'}: "${h.reason || ''}"</div>`).join('')}
+                  </div>
                 ` : ''}
               </div>
               ${issue.status !== 'RESOLVED' ? `
@@ -105,13 +110,13 @@ export async function render(container) {
               if (btn.dataset.sid) {
                 await NotificationService.create({
                   userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
-                  title:'Issue Resolved', message:`Your issue has been resolved by the Section Head: ${resolution}`, relatedId:btn.dataset.id
+                  title:'Issue Resolved', message:`Your issue has been resolved by Section Head (${user.department}): ${resolution}`, relatedId:btn.dataset.id
                 });
               }
               if (issue && issue.mentorId) {
                 await NotificationService.create({
                   userId: issue.mentorId, type:'ISSUE_RESOLVED',
-                  title:'Issue Resolved', message:`Student issue resolved by Section Head: ${resolution}`, relatedId:btn.dataset.id
+                  title:'Issue Resolved', message:`Issue resolved by Section Head (${user.department}): ${resolution}`, relatedId:btn.dataset.id
                 });
               }
               if (issue) {
@@ -156,9 +161,7 @@ export async function render(container) {
         });
       });
     });
-
   }
 
   renderList();
 }
-
