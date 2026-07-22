@@ -112,17 +112,7 @@ export async function render(container) {
     let elapsed = 0;
     let cleaned = false;
 
-    // VISUAL DEBUGGER
-    const debugPanel = document.createElement('div');
-    debugPanel.style.cssText = 'position:fixed;bottom:80px;left:20px;background:rgba(0,0,0,0.8);color:#0f0;font-family:monospace;font-size:10px;padding:10px;max-height:200px;overflow-y:auto;z-index:9999;pointer-events:none;width:300px;border-radius:8px;';
-    document.body.appendChild(debugPanel);
-    const logDebug = (msg) => {
-        console.log('[DEBUG]', msg);
-        const p = document.createElement('div');
-        p.textContent = msg;
-        debugPanel.appendChild(p);
-        debugPanel.scrollTop = debugPanel.scrollHeight;
-    };
+    const logDebug = (...args) => console.log('[DEBUG]', ...args);
     window.logDebug = logDebug;
 
     function addVideo(id, name, stream, muted = false) {
