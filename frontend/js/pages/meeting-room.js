@@ -110,13 +110,14 @@ export async function render(container) {
     let localStream;
     let screenStream;
     let elapsed = 0;
+    let timer = null;
     let cleaned = false;
 
     const logDebug = (...args) => console.log('[DEBUG]', ...args);
     window.logDebug = logDebug;
 
     function addVideo(id, name, stream, muted = false) {
-        waiting?.remove();
+        container.querySelector('#meeting-waiting')?.remove();
         let tile = container.querySelector(`[data-peer="${id}"]`);
         let video;
         if (!tile) {
@@ -355,6 +356,7 @@ export async function render(container) {
 
             signaling.onMessage('connect', () => {
                 status.textContent = 'Connected';
+                if (timer) clearInterval(timer);
                 timer = setInterval(() => {
                     elapsed += 1;
                     const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
