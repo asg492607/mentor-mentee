@@ -127,7 +127,7 @@ function downloadPdfReport(reportRows, mentors, allStudents) {
       // Title & Header
       doc.setFontSize(16);
       doc.setTextColor(98, 84, 231); // App Accent color
-      doc.text("Agnistambh — Master Mentor & Associated Students Allocation Report", 14, 15);
+      doc.text("Lumina — Master Mentor & Associated Students Allocation Report", 14, 15);
 
       doc.setFontSize(9);
       doc.setTextColor(100);

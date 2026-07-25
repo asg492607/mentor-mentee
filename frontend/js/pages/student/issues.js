@@ -85,7 +85,7 @@ export async function render(container) {
       const freshUser = await StudentService.get(user.id);
       if (freshUser) {
         Object.assign(user, freshUser);
-        localStorage.setItem('mentorOS_profile', JSON.stringify(user));
+        localStorage.setItem('lumina_profile', JSON.stringify(user));
       }
 
       const id = await IssueService.create({
@@ -121,7 +121,8 @@ export async function render(container) {
   async function loadIssues() {
     const wrap = document.getElementById('issues-wrap');
     try {
-      const issues = await IssueService.getByStudent(user.id);
+      const rawIssues = await IssueService.getByStudent(user.id);
+      const issues = rawIssues.map(i => IssueService.sanitizeForStudent(i));
 
       if (!issues.length) {
         wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">

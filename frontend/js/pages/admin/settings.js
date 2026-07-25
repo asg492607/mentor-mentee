@@ -5,12 +5,12 @@ import { showToast } from '/js/components/toast.js';
 import { SettingsService } from '/js/services.js';
 
 function getSetting(key, def) {
-  const v = localStorage.getItem(`mentoros_${key}`);
+  const v = localStorage.getItem(`lumina_${key}`);
   return v !== null ? JSON.parse(v) : def;
 }
 
 function setSetting(key, val) {
-  localStorage.setItem(`mentoros_${key}`, JSON.stringify(val));
+  localStorage.setItem(`lumina_${key}`, JSON.stringify(val));
 }
 
 export async function render(container) {

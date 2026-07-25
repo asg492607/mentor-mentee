@@ -105,7 +105,7 @@ export async function render(container) {
               return;
             }
             try {
-              await IssueService.resolve(btn.dataset.id, resolution);
+              await IssueService.resolve(btn.dataset.id, resolution, 'SECTION_HEAD');
               const issue = issues.find(i => i.id === btn.dataset.id);
               if (btn.dataset.sid) {
                 await NotificationService.create({
@@ -150,7 +150,7 @@ export async function render(container) {
               return;
             }
             try {
-              await IssueService.escalate(btn.dataset.id, 'HOD', reason, user.name);
+              await IssueService.escalate(btn.dataset.id, 'HOD', reason, user.name, 'SECTION_HEAD');
               showToast('Escalated to HOD', 'info');
               const issue = issues.find(i => i.id === btn.dataset.id);
               if (issue) issue.escalationLevel = 'HOD';

@@ -1,7 +1,7 @@
 from app.firebase.client import firebase_auth, db
 from app.models.enums import UserRole
 from app.utils.helpers import get_timestamp
-from app.core.exceptions import BadRequestException, MentorOSException, NotFoundException, ServiceUnavailableException
+from app.core.exceptions import BadRequestException, LuminaException, NotFoundException, ServiceUnavailableException
 
 class AuthService:
     def register_user(self, data):
@@ -66,7 +66,7 @@ class AuthService:
             db.collection(collection).document(user.uid).set(profile_data)
             
             return profile_data
-        except MentorOSException:
+        except LuminaException:
             raise
         except Exception as e:
             raise BadRequestException(f"Failed to register user: {str(e)}")
@@ -90,7 +90,7 @@ class AuthService:
                 raise ServiceUnavailableException("Firebase authentication is not configured")
             firebase_auth.set_custom_user_claims(uid, {'role': role.value})
             return {"message": "Role updated successfully"}
-        except MentorOSException:
+        except LuminaException:
             raise
         except Exception as e:
             raise BadRequestException(str(e))

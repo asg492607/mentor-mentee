@@ -99,7 +99,7 @@ export async function render(container) {
               return;
             }
             try {
-              await IssueService.resolve(btn.dataset.id, resolution);
+              await IssueService.resolve(btn.dataset.id, resolution, 'DEAN');
               const issue = issues.find(i => i.id === btn.dataset.id);
               if (btn.dataset.sid) {
                 await NotificationService.create({

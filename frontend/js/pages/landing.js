@@ -4,7 +4,7 @@ export async function render(container) {
       
       <!-- Navbar -->
       <nav style="display: flex; justify-content: space-between; align-items: center; padding: 20px 60px; background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border);">
-        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;">mentor<span style="color:var(--accent);">-mentee</span></div>
+        <div style="font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;">Lumina</div>
         <div style="display:flex; align-items:center; gap: 20px;">
           <button id="theme-toggle" class="btn btn-ghost" style="border-radius: 50%;">
             <svg class="sun-icon" viewBox="0 0 24 24" width="22" height="22" style="display:none;fill:currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>
@@ -73,48 +73,12 @@ export async function render(container) {
         </div>
       </section>
 
-      <!-- Contributors Section -->
-      <section style="padding: 100px 40px; background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(124,106,255,0.05) 100%);">
-        <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
-          <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 16px;">Meet the Team</h2>
-          <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind Agnistambh.</p>
-          
-          <!-- Guide Highlight -->
-          <div style="margin-bottom: 80px; display: flex; justify-content: center;">
-            <div class="card" style="display: flex; flex-direction: column; align-items: center; padding: 40px 60px; border: 2px solid var(--primary); box-shadow: 0 10px 30px rgba(124,106,255,0.15);">
-              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=DrThorat&backgroundColor=7c6aff" alt="Dr. Nilesh Thorat" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 20px; border: 3px solid var(--primary);">
-              <h3 style="font-size: 1.8rem; margin-bottom: 8px;">Dr. Nilesh Thorat</h3>
-              <span class="badge badge-primary" style="font-size: 0.9rem; padding: 6px 16px;">Project Guide</span>
-            </div>
-          </div>
 
-          <!-- Development Team -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px;">
-            <div class="card" style="padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
-              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=AtharvaGandhi&backgroundColor=17a2b8" alt="Atharva Gandhi" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 20px; border: 3px solid var(--info);">
-              <h3 style="font-size: 1.3rem; margin-bottom: 6px;">Atharva Gandhi</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Developer & Contributor</p>
-            </div>
-            
-            <div class="card" style="padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
-              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=VaibhavBariyar&backgroundColor=ffc107" alt="Vaibhav Bariyar" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 20px; border: 3px solid var(--warning);">
-              <h3 style="font-size: 1.3rem; margin-bottom: 6px;">Vaibhav Bariyar</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Developer & Contributor</p>
-            </div>
-            
-            <div class="card" style="padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
-              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=SatwikDhole&backgroundColor=28a745" alt="Satwik Dhole" style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 20px; border: 3px solid var(--success);">
-              <h3 style="font-size: 1.3rem; margin-bottom: 6px;">Satwik Dhole</h3>
-              <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500;">Developer & Contributor</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- Footer -->
       <footer style="background: var(--bg-secondary); padding: 40px 40px; text-align: center; border-top: 1px solid var(--border); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">Agnistambh</div>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} Agnistambh Team. All rights reserved.</p>
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">Lumina</div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} Lumina Team. All rights reserved.</p>
         <div style="display: flex; gap: 16px;">
           <a href="#/login" style="color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; font-weight: 500;">Login</a>
         </div>

@@ -57,7 +57,8 @@ export async function render(container) {
     const dash = container.querySelector('#dean-content');
     if (!dash) return;
     dash.innerHTML = `
-      <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px;">
+      <div class="dashboard-container">
+        <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px;">
         ${[
           ['Students',     totalStudents,    'var(--info)',   'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z'],
           ['Faculty',      totalFaculty,     'var(--accent)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
@@ -163,7 +164,8 @@ export async function render(container) {
           </tbody>
         </table>
       </div>
-    `;
+    </div>
+  `;
 
     container.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {

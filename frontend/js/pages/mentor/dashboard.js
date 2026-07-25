@@ -148,25 +148,43 @@ export async function render(container) {
     if (!dash) return;
 
     dash.innerHTML = `
-      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
-        ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings)}
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div class="card">
-          <div class="card-header">
-            <h3>Pending Meeting Requests</h3>
-            <a href="#/mentor/meetings" style="font-size:0.8rem;color:var(--accent);">View All</a>
-          </div>
-          <div id="pending-list">${renderPendingMeetings(pendingMeetings)}</div>
+      <div class="dashboard-container">
+        <!-- Quick Actions Bar -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+          <a href="#/mentor/students" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-users" style="font-size:1.1rem;"></i> My Students
+          </a>
+          <a href="#/chat" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-chat-circle-text" style="font-size:1.1rem; color:var(--accent);"></i> Messages
+          </a>
+          <a href="#/mentor/meetings" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-calendar-check" style="font-size:1.1rem; color:var(--info);"></i> Schedule / Meetings
+          </a>
+          <a href="#/mentor/reports" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-chart-bar" style="font-size:1.1rem; color:var(--success);"></i> Export Reports
+          </a>
         </div>
 
-        <div class="card" style="grid-column: span 2;">
-          <div class="card-header">
-            <h3><i class="ph ph-books" style="margin-right:8px; vertical-align:middle;"></i> Academic Progress Overview</h3>
-            <a href="#/mentor/students" style="font-size:0.8rem;color:var(--accent);">View All Booklets</a>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+          ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings)}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="card">
+            <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="font-size:0.95rem; font-weight:700; margin:0;">Pending Meeting Requests</h3>
+              <a href="#/mentor/meetings" style="font-size:0.8rem;color:var(--accent);font-weight:600;">View All</a>
+            </div>
+            <div id="pending-list">${renderPendingMeetings(pendingMeetings)}</div>
           </div>
-          ${renderAcademicOverview(students)}
+
+          <div class="card" style="grid-column: span 2;">
+            <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="font-size:0.95rem; font-weight:700; margin:0;"><i class="ph ph-books" style="margin-right:8px; vertical-align:middle; color:var(--accent);"></i> Academic Progress Overview</h3>
+              <a href="#/mentor/students" style="font-size:0.8rem;color:var(--accent);font-weight:600;">View All Booklets</a>
+            </div>
+            ${renderAcademicOverview(students)}
+          </div>
         </div>
       </div>
     `;

@@ -86,7 +86,7 @@ export async function render(container) {
       const freshUser = await StudentService.get(user.id);
       if (freshUser) {
         Object.assign(user, freshUser);
-        localStorage.setItem('mentorOS_profile', JSON.stringify(user));
+        localStorage.setItem('lumina_profile', JSON.stringify(user));
       }
 
       if (!user.mentorId) {

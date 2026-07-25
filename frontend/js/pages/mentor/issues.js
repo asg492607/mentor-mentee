@@ -133,7 +133,7 @@ export async function render(container) {
               return;
             }
             try {
-              await IssueService.resolve(btn.dataset.id, resolution);
+              await IssueService.resolve(btn.dataset.id, resolution, 'FACULTY');
               if (btn.dataset.sid) {
                 await NotificationService.create({
                   userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
@@ -185,7 +185,7 @@ export async function render(container) {
             const reason = document.getElementById('escalate-reason').value.trim();
             if (!reason) { showToast('Escalation reason is required', 'error'); return; }
             try {
-              await IssueService.escalate(btn.dataset.id, escalateTarget, reason, user.name);
+              await IssueService.escalate(btn.dataset.id, escalateTarget, reason, user.name, 'FACULTY');
               showToast(`Escalated to ${escalateTarget}`, 'info');
               const issue = issues.find(i => i.id === btn.dataset.id);
               if (issue) {

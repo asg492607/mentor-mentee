@@ -12,7 +12,7 @@ export async function render(container) {
       <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: 40px; z-index: 10;">
         <div class="text-center mb-8">
           <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University" style="height: 60px; width: auto; max-width: 240px; margin: 0 auto 16px; display: block; object-fit: contain; background: white; padding: 6px 12px; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.1);">
-          <h1 class="text-gradient mb-2" style="font-size: 2.2rem; letter-spacing: -1px;">Agnistambh</h1>
+          <h1 class="text-gradient mb-2" style="font-size: 2.2rem; letter-spacing: -1px;">Lumina</h1>
           <p class="text-secondary">Empowering Student Success</p>
         </div>
 

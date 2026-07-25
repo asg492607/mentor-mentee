@@ -1,6 +1,6 @@
-# MentorOS: Comprehensive Documentation
+# Lumina: Comprehensive Documentation
 
-MentorOS is a robust, serverless college mentor-mentee platform built entirely on client-side web technologies and Firebase. It provides specialized, role-based dashboards to manage the academic lifecycle of students, issue escalation, scheduling, and real-time video meetings.
+Lumina is a robust, serverless college mentor-mentee platform built entirely on client-side web technologies and Firebase. It provides specialized, role-based dashboards to manage the academic lifecycle of students, issue escalation, scheduling, and real-time video meetings.
 
 ## Technical Architecture
 

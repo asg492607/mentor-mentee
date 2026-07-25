@@ -1,5 +1,5 @@
 /* ============================================================
-   MentorOS Dashboard CSS — Full Dark/Light Theme Support
+   Lumina Dashboard CSS — Full Dark/Light Theme Support
    All colors use CSS variables — never hardcoded
    ============================================================ */
 
@@ -22,7 +22,14 @@
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: 28px 32px;
+  padding: 24px 32px;
+}
+
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ---------- Sidebar ---------- */
@@ -1204,7 +1211,7 @@
 /* ── Sidebar ───────────────────────────────────────────────── */
 
 .chat-sidebar {
-  width: 300px;
+  width: 340px;
   flex-shrink: 0;
   height: 100%;
   display: flex;

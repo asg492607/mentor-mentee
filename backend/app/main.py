@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     initialize_firebase()
     yield
 
-app = FastAPI(title="MentorOS API", lifespan=lifespan)
+app = FastAPI(title="Lumina API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

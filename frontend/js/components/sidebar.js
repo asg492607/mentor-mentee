@@ -70,7 +70,7 @@ export function createSidebar(role, activePath) {
     <aside class="sidebar">
       <div class="sidebar-logo">
         <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" class="sidebar-logo-img">
-        <span>Agnistambh<small>${roleUpper.toLowerCase()} portal</small></span>
+        <span>Lumina<small>${roleUpper.toLowerCase()} portal</small></span>
       </div>
       <nav class="sidebar-nav">
         ${navHtml}

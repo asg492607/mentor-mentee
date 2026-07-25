@@ -1,5 +1,5 @@
 /**
- * MentorOS — Firestore Service Layer
+ * Lumina — Firestore Service Layer
  * All data operations go directly through Firebase Firestore.
  * No mock data. No backend API calls for CRUD.
  */
@@ -265,11 +265,13 @@ export const IssueService = {
     await updateDoc(doc(db, 'issues', id), { ...data, updatedAt: now() });
   },
 
-  async resolve(id, resolution) {
-    await updateDoc(doc(db, 'issues', id), { status: 'RESOLVED', resolution, updatedAt: now() });
+  async resolve(id, resolution, resolvedByRole = null) {
+    const updateData = { status: 'RESOLVED', resolution, updatedAt: now() };
+    if (resolvedByRole) updateData.resolvedByRole = resolvedByRole;
+    await updateDoc(doc(db, 'issues', id), updateData);
   },
 
-  async escalate(id, toLevel, reason, escalatedBy) {
+  async escalate(id, toLevel, reason, escalatedBy, byRole = null) {
     const issueSnap = await getDoc(doc(db, 'issues', id));
     if (!issueSnap.exists()) throw new Error("Issue not found");
     const issue = issueSnap.data();
@@ -282,10 +284,42 @@ export const IssueService = {
         to: toLevel,
         reason,
         escalatedBy,
+        byRole: byRole || issue.escalationLevel || 'MENTOR',
         at: now()
       }),
       updatedAt: now()
     });
+  },
+
+  sanitizeForStudent(issue) {
+    if (!issue) return issue;
+    const sanitized = { ...issue };
+
+    // Filter comments if any exist
+    if (Array.isArray(sanitized.comments)) {
+      sanitized.comments = sanitized.comments.filter(c => {
+        const role = String(c.authorRole || c.byRole || '').toUpperCase();
+        return role !== 'HOD' && role !== 'DEAN';
+      });
+    }
+
+    // Filter escalation history
+    if (Array.isArray(sanitized.escalationHistory)) {
+      sanitized.escalationHistory = sanitized.escalationHistory.filter(h => {
+        const fromRole = String(h.from || '').toUpperCase();
+        const toRole = String(h.to || '').toUpperCase();
+        const byRole = String(h.byRole || '').toUpperCase();
+        return fromRole !== 'HOD' && fromRole !== 'DEAN' && toRole !== 'HOD' && toRole !== 'DEAN' && byRole !== 'HOD' && byRole !== 'DEAN';
+      });
+    }
+
+    // If resolved by HOD or DEAN, display generic resolution badge for privacy
+    const resolvedBy = String(sanitized.resolvedByRole || '').toUpperCase();
+    if (resolvedBy === 'HOD' || resolvedBy === 'DEAN') {
+      sanitized.resolution = 'Resolved by Academic Administration';
+    }
+
+    return sanitized;
   }
 };
 
