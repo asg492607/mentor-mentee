@@ -21,6 +21,7 @@ const routes = {
   '/mentor/booklet': './pages/mentor/booklet.js',
   '/hod/dashboard': './pages/hod/dashboard.js',
   '/hod/management': './pages/hod/management.js',
+  '/hod/allocation': './pages/admin/allocation.js',
   '/hod/directory': './pages/admin/users.js',
   '/hod/risk-students': './pages/hod/risk-students.js',
   '/hod/escalations': './pages/hod/escalations.js',

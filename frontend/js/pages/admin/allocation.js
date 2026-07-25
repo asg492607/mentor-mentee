@@ -19,294 +19,501 @@ export async function render(container) {
     </div>
   `;
 
-  let students = [];
-  let mentors  = [];
-  let selectedStudents = [];
-  let selectedMentor  = null;
-  let assignedPairs   = [];
-  let studentSearch   = '';
-  let mentorSearch    = '';
-  let allDepartments  = [];
+  let allStudents = [];
+  let unassignedStudents = [];
+  let mentors = [];
+  let assignedPairs = [];
+  let allDepartments = [];
+  let allClasses = [];
 
-  try {
-    [students, mentors] = await Promise.all([
+  // Classwise Allocation state
+  let selectedClasswiseMentorId = '';
+  let selectedClasswiseClass = '';
+  let classwiseSearchQuery = '';
+  let tickedStudentIds = new Set();
+  let allocPage = 1;
+  const allocPageSize = 20;
+
+  async function loadData() {
+    const [unassigned, allMentors, fullStudentList] = await Promise.all([
       StudentService.getUnassigned(),
-      FacultyService.getAll().then(all => all.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR'))
+      FacultyService.getAll().then(all => all.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR')),
+      StudentService.getAll()
     ]);
-    // Build current allocations
-    const allStudents = await StudentService.getAll();
+
+    unassignedStudents = unassigned;
+    mentors = allMentors;
+    allStudents = fullStudentList;
+
     assignedPairs = allStudents
       .filter(s => s.mentorId)
       .map(s => {
-        const mentor = mentors.find(m => m.id === s.mentorId);
-        return { studentName: s.name, mentorName: mentor?.name || 'Unknown', department: s.department };
+        const m = mentors.find(x => x.id === s.mentorId);
+        return { studentName: s.name, mentorName: m?.name || 'Unknown', department: s.department, className: s.class || 'Unassigned' };
       });
-    
-    // Extract unique departments from all users
+
     allDepartments = [...new Set([
-        ...allStudents.map(s => s.department),
-        ...mentors.map(m => m.department)
+      ...allStudents.map(s => s.department),
+      ...mentors.map(m => m.department)
     ].filter(Boolean))].sort();
+
+    allClasses = [...new Set(allStudents.map(s => s.class).filter(Boolean))].sort();
+  }
+
+  try {
+    await loadData();
   } catch (err) {
-    (container.querySelector('#alloc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+    (container.querySelector('#alloc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading data: ${err.message}</h3></div>`;
     return;
   }
 
   function buildUI() {
-    (container.querySelector('#alloc-content') || {}).innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <!-- Unassigned Students -->
-        <div class="card">
-          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-            <h3>Unassigned Students (${students.length})</h3>
-            <input type="text" id="search-students" class="form-input" style="padding:4px 8px;font-size:0.8rem;width:120px;" placeholder="Search..." value="${studentSearch}">
+    const content = container.querySelector('#alloc-content');
+    if (!content) return;
+
+    const selectedMentor = mentors.find(m => m.id === selectedClasswiseMentorId) || null;
+    const mentorCurrentAssigned = selectedMentor ? (selectedMentor.assignedStudentCount || 0) : 0;
+
+    content.innerHTML = `
+      <!-- CLASSWISE MANUAL ALLOCATION SECTION -->
+      <div class="card" style="padding:24px;margin-bottom:24px;border:1px solid var(--border);">
+        <div class="card-header" style="padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h3 style="margin:0;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+              📌 Classwise Manual Mentor Allocation
+            </h3>
+            <p style="margin:4px 0 0 0;font-size:0.85rem;color:var(--text-secondary);">
+              Step 1: Select Mentor → Step 2: Select Class → Step 3: Search & Tick Students → Step 4: Allocate (Max 50 per batch)
+            </p>
           </div>
-          <div style="max-height:320px;overflow-y:auto;" id="student-pick">
-            ${(() => {
-              const fStudents = students.filter(s => !studentSearch || s.name.toLowerCase().includes(studentSearch.toLowerCase()));
-              if (students.length === 0) return '<p style="padding:20px;color:var(--text-muted);">All students are assigned.</p>';
-              if (fStudents.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
-              return fStudents.map(s => `
-                <div class="list-item student-pick ${selectedStudents.some(x=>x.id===s.id)?'active-pick':''}" data-id="${s.id}"
-                  style="cursor:pointer;${selectedStudents.some(x=>x.id===s.id)?'background:var(--accent-light);':''}">
-                  <div>
-                    <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                    <p style="color:var(--text-muted);font-size:0.78rem;">${s.department||'—'} • Year ${s.year||'?'}</p>
-                  </div>
-                  ${selectedStudents.some(x=>x.id===s.id) ? '<span class="badge badge-accent">Selected</span>' : ''}
-                </div>
-              `).join('');
-            })()}
+          <span class="badge ${selectedMentor ? 'badge-accent' : 'badge-muted'}" style="font-size:0.8rem;padding:6px 12px;">
+            ${selectedMentor ? `Selected Mentor: ${selectedMentor.name} (${mentorCurrentAssigned} assigned)` : 'No Mentor Selected'}
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <!-- Step 1: Select Mentor -->
+          <div>
+            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;">1. Select Mentor Name</label>
+            <select id="classwise-mentor-select" class="form-select" style="width:100%;padding:10px;">
+              <option value="">-- Select Mentor Name --</option>
+              ${mentors.map(m => {
+                const used = m.assignedStudentCount || 0;
+                const sel = selectedClasswiseMentorId === m.id ? 'selected' : '';
+                return `<option value="${m.id}" ${sel}>${m.name} (${m.department || 'No Dept'}) — ${used} Assigned</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <!-- Step 2: Select Class -->
+          <div>
+            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;">2. Select Class</label>
+            <select id="classwise-class-select" class="form-select" style="width:100%;padding:10px;">
+              <option value="">-- Select Class --</option>
+              ${allClasses.map(c => {
+                const count = allStudents.filter(s => s.class === c).length;
+                const sel = selectedClasswiseClass === c ? 'selected' : '';
+                return `<option value="${c}" ${sel}>Class ${c} (${count} students)</option>`;
+              }).join('')}
+              <option value="UNASSIGNED_CLASS" ${selectedClasswiseClass === 'UNASSIGNED_CLASS' ? 'selected' : ''}>Unassigned Class (${allStudents.filter(s => !s.class).length} students)</option>
+            </select>
           </div>
         </div>
 
-        <!-- Available Mentors -->
-        <div class="card">
-          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-            <h3>Available Mentors</h3>
-            <input type="text" id="search-mentors" class="form-input" style="padding:4px 8px;font-size:0.8rem;width:120px;" placeholder="Search..." value="${mentorSearch}">
+        <!-- Step 3: Tick Students Table -->
+        ${selectedClasswiseClass ? `
+          <div id="classwise-students-wrap" style="margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;background:var(--bg-secondary);padding:12px 16px;border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;gap:12px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" id="classwise-select-all" style="width:18px;height:18px;cursor:pointer;">
+                <label for="classwise-select-all" style="font-weight:600;font-size:0.875rem;cursor:pointer;margin:0;">
+                  Tick All in Class ${selectedClasswiseClass === 'UNASSIGNED_CLASS' ? '(Unassigned)' : selectedClasswiseClass} (Max 50)
+                </label>
+              </div>
+
+              <!-- Search Bar & Counter -->
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <input type="text" id="classwise-student-search" class="form-input" placeholder="🔍 Search name or roll no..." value="${classwiseSearchQuery}" style="padding:6px 12px;font-size:0.85rem;width:240px;background:var(--bg-primary);">
+                <span class="badge ${tickedStudentIds.size >= 50 ? 'badge-warning' : 'badge-info'}" id="ticked-counter" style="font-size:0.85rem;padding:6px 12px;">
+                  ${tickedStudentIds.size} / 50 Selected
+                </span>
+              </div>
+            </div>
+
+            <!-- Expanded Height Container (520px max-height) -->
+            <div style="max-height:520px;min-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);">
+              <table class="data-table" style="font-size:0.825rem;">
+                <thead>
+                  <tr>
+                    <th style="width:50px;text-align:center;">Tick</th>
+                    <th>Student Name</th>
+                    <th>Enrollment No</th>
+                    <th>Department</th>
+                    <th>Class</th>
+                    <th>Current Mentor Status</th>
+                  </tr>
+                </thead>
+                <tbody id="classwise-students-tbody">
+                  <!-- Dynamically rendered by renderClasswiseTableRows -->
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <span style="font-size:0.75rem;color:var(--text-muted);">
+                Each batch can allocate up to 50 students at once to the selected mentor. Use search to filter students instantly.
+              </span>
+              <button class="btn btn-primary" id="btn-classwise-allocate" ${(!selectedClasswiseMentorId || tickedStudentIds.size === 0) ? 'disabled' : ''}>
+                Allocate ${tickedStudentIds.size} Ticked Student(s) →
+              </button>
+            </div>
           </div>
-          <div style="max-height:320px;overflow-y:auto;" id="mentor-pick">
-            ${(() => {
-              const fMentors = mentors.filter(m => !mentorSearch || m.name.toLowerCase().includes(mentorSearch.toLowerCase()));
-              if (fMentors.length === 0) return '<p style="padding:20px;color:var(--text-muted);">No match found.</p>';
-              return fMentors.map(m => {
-                const capacity = m.maxStudents || 20;
-                const used     = m.assignedStudentCount || 0;
-                const full     = used >= capacity;
-                return `
-                  <div class="list-item mentor-pick ${selectedMentor?.id===m.id?'active-pick':''}" data-id="${m.id}"
-                    style="cursor:${full?'not-allowed':'pointer'};opacity:${full?0.5:1};${selectedMentor?.id===m.id?'background:var(--accent-light);':''}">
-                    <div>
-                      <p style="font-weight:600;font-size:0.875rem;">${m.name}</p>
-                      <p style="color:var(--text-muted);font-size:0.78rem;">${m.department||'—'}</p>
-                    </div>
-                    <span class="badge ${full?'badge-danger':'badge-success'}">${used}/${capacity}</span>
-                  </div>`;
-              }).join('');
-            })()}
+        ` : `
+          <div style="padding:24px;text-align:center;background:var(--bg-secondary);border-radius:8px;border:1px dashed var(--border);">
+            <p style="color:var(--text-secondary);margin:0;font-size:0.9rem;">
+              👆 Select a <strong>Mentor Name</strong> and a <strong>Class</strong> above to view, search, and tick students for allocation.
+            </p>
           </div>
-        </div>
+        `}
       </div>
 
-      <!-- Allocation Actions Grid -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;margin-bottom:20px;">
-        
-        <!-- Manual Allocation -->
-        <div class="card" style="padding:20px;">
-            <h4 style="margin-bottom:12px;font-size:1rem;">Manual Allocation</h4>
-            <p style="font-size:0.875rem;margin-bottom:8px;color:var(--text-secondary);">Assign specific students to a specific mentor.</p>
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Select Mentor</label>
-            <select id="manual-mentor-select" class="form-select" style="width:100%;margin-bottom:12px;padding:8px;">
-              <option value="">-- Choose a Mentor --</option>
-              ${mentors.map(m => {
-                 const full = (m.assignedStudentCount||0) >= (m.maxStudents||20);
-                 const sel = (selectedMentor?.id === m.id) ? 'selected' : '';
-                 return `<option value="${m.id}" ${full?'disabled':''} ${sel}>${m.name} (${m.department||'No Dept'}) - ${m.assignedStudentCount||0}/${m.maxStudents||20} assigned</option>`;
-              }).join('')}
-            </select>
-
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Select Students (Hold Ctrl/Cmd for multiple)</label>
-            <select id="manual-student-select" class="form-select" multiple style="width:100%;height:120px;margin-bottom:16px;padding:8px;">
-              ${students.map(s => {
-                 const sel = selectedStudents.some(x => x.id === s.id) ? 'selected' : '';
-                 return `<option value="${s.id}" ${sel}>${s.name} (${s.department||'No Dept'})</option>`;
-              }).join('')}
-            </select>
-            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:-10px;margin-bottom:12px;">You can select up to the mentor's allocation limit.</p>
-            
-            <button class="btn btn-primary" style="width:100%;" id="btn-assign" ${(selectedStudents.length===0||!selectedMentor)?'disabled':''}>Assign ${selectedStudents.length ? selectedStudents.length : ''} Students</button>
-        </div>
-
-        <!-- Bulk Amount Allocation -->
-        <div class="card" style="padding:20px;">
-            <h4 style="margin-bottom:12px;font-size:1rem;">Bulk Mentor Allocation</h4>
-            <p style="font-size:0.875rem;margin-bottom:8px;color:var(--text-secondary);">Assign a specific number of unassigned students to the selected mentor.</p>
-            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);">
-              <p style="font-size:0.875rem;">Selected Mentor: <strong style="color:var(--accent);">${selectedMentor?.name||'None'}</strong></p>
-            </div>
-            <div style="display:flex; gap:8px;">
-                <input type="number" id="bulk-amount" class="form-input" placeholder="Amount (e.g. 5)" style="flex:1;" min="1" value="1">
-                <button class="btn btn-primary" id="btn-bulk-assign" ${(!selectedMentor)?'disabled':''}>Assign Amount</button>
-            </div>
-        </div>
-
+      <!-- SECONDARY ACTIONS GRID -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;margin-bottom:24px;">
         <!-- Global Auto-Allocate -->
         <div class="card" style="padding:20px;">
-            <h4 style="margin-bottom:12px;font-size:1rem;">Global Auto-Allocate</h4>
-            <p style="font-size:0.875rem;margin-bottom:16px;color:var(--text-secondary);">Automatically distribute all unassigned students evenly among available mentors.</p>
-            <div style="display:flex;flex-direction:column;gap:12px;">
-              <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
-                <option value="">All Departments</option>
-                ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
-              </select>
-              <button class="btn btn-secondary" style="width:100%;" id="btn-auto">Run Auto-Allocate</button>
+          <h4 style="margin-bottom:8px;font-size:1rem;">Global Auto-Allocate</h4>
+          <p style="font-size:0.85rem;margin-bottom:16px;color:var(--text-secondary);">Automatically distribute unassigned students evenly among mentors in a department.</p>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
+              <option value="">All Departments</option>
+              ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
+            </select>
+            <button class="btn btn-secondary" style="width:100%;" id="btn-auto">Run Auto-Allocate</button>
+          </div>
+        </div>
+
+        <!-- Quick Summary Stats -->
+        <div class="card" style="padding:20px;">
+          <h4 style="margin-bottom:8px;font-size:1rem;">Allocation Statistics</h4>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+              <span style="color:var(--text-secondary);">Total Students:</span>
+              <strong>${allStudents.length}</strong>
             </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+              <span style="color:var(--text-secondary);">Assigned Students:</span>
+              <strong style="color:var(--success);">${assignedPairs.length}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+              <span style="color:var(--text-secondary);">Unassigned Students:</span>
+              <strong style="color:var(--warning);">${unassignedStudents.length}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+              <span style="color:var(--text-secondary);">Available Mentors:</span>
+              <strong>${mentors.length}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Current Allocations -->
+      <!-- CURRENT ALLOCATIONS TABLE -->
       <div class="card">
-        <div class="card-header"><h3>Current Allocations</h3></div>
-        <div style="max-height:300px;overflow-y:auto;">
-          ${assignedPairs.length === 0
-            ? '<p style="padding:20px;color:var(--text-muted);">No allocations yet.</p>'
-            : `<table class="data-table">
-                <thead><tr><th>Student</th><th>Mentor</th><th>Department</th></tr></thead>
-                <tbody id="alloc-tbody">
-                  ${assignedPairs.map(a => `
-                    <tr>
-                      <td style="font-weight:600;">${a.studentName}</td>
-                      <td>${a.mentorName}</td>
-                      <td style="color:var(--text-muted);font-size:0.825rem;">${a.department||'—'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>`
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <h3>Current Allocations (${assignedPairs.length})</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-secondary" id="btn-export-excel" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-xls" style="font-size:1rem;"></i> Export Excel
+            </button>
+            <button class="btn btn-sm btn-secondary" id="btn-export-pdf" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-pdf" style="font-size:1rem;"></i> Export PDF
+            </button>
+          </div>
+        </div>
+        <div id="alloc-table-wrap" style="overflow-x:auto;"></div>
+      </div>
+    `;
+
+    renderClasswiseTableRows();
+    renderAllocationsTable();
+    attachEventListeners();
+  }
+
+  function renderClasswiseTableRows() {
+    const tbody = container.querySelector('#classwise-students-tbody');
+    if (!tbody) return;
+
+    let classFilteredStudents = [];
+    if (selectedClasswiseClass === 'UNASSIGNED_CLASS') {
+      classFilteredStudents = allStudents.filter(s => !s.class);
+    } else if (selectedClasswiseClass) {
+      classFilteredStudents = allStudents.filter(s => s.class === selectedClasswiseClass);
+    }
+
+    if (classwiseSearchQuery) {
+      const q = classwiseSearchQuery.toLowerCase();
+      classFilteredStudents = classFilteredStudents.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.enrollmentNumber || s.employeeId || '').toLowerCase().includes(q) ||
+        (s.department || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (classFilteredStudents.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">${classwiseSearchQuery ? 'No matching students found.' : 'No students found in this class.'}</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = classFilteredStudents.map(s => {
+      const isTicked = tickedStudentIds.has(s.id);
+      const curMentor = s.mentorId ? mentors.find(m => m.id === s.mentorId) : null;
+      return `
+        <tr style="${isTicked ? 'background:var(--accent-light);' : ''}">
+          <td style="text-align:center;">
+            <input type="checkbox" class="classwise-student-cb" data-id="${s.id}" ${isTicked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+          </td>
+          <td style="font-weight:600;">${s.name}</td>
+          <td>${s.enrollmentNumber || '—'}</td>
+          <td>${s.department || '—'}</td>
+          <td>${s.class ? `Class ${s.class}` : 'Unassigned'}</td>
+          <td>
+            ${curMentor ? `<span class="badge badge-info">Mentor: ${curMentor.name}</span>` : '<span class="badge badge-warning">Unassigned</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    attachRowCheckboxListeners();
+  }
+
+  function updateTickedUI() {
+    const counter = container.querySelector('#ticked-counter');
+    if (counter) {
+      counter.textContent = `${tickedStudentIds.size} / 50 Selected`;
+      counter.className = `badge ${tickedStudentIds.size >= 50 ? 'badge-warning' : 'badge-info'}`;
+    }
+
+    const btnAllocate = container.querySelector('#btn-classwise-allocate');
+    if (btnAllocate) {
+      btnAllocate.disabled = !selectedClasswiseMentorId || tickedStudentIds.size === 0;
+      btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) →`;
+    }
+
+    const selectAllCb = container.querySelector('#classwise-select-all');
+    if (selectAllCb) {
+      let classFiltered = [];
+      if (selectedClasswiseClass === 'UNASSIGNED_CLASS') {
+        classFiltered = allStudents.filter(s => !s.class);
+      } else if (selectedClasswiseClass) {
+        classFiltered = allStudents.filter(s => s.class === selectedClasswiseClass);
+      }
+      selectAllCb.checked = classFiltered.length > 0 && classFiltered.every(s => tickedStudentIds.has(s.id));
+    }
+  }
+
+  function attachRowCheckboxListeners() {
+    container.querySelectorAll('.classwise-student-cb').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const id = e.target.dataset.id;
+        const row = e.target.closest('tr');
+        const maxAllowed = 50;
+
+        if (e.target.checked) {
+          if (tickedStudentIds.size >= maxAllowed) {
+            e.target.checked = false;
+            showToast(`Maximum ${maxAllowed} students can be selected for this allocation batch`, 'warning');
+            return;
           }
+          tickedStudentIds.add(id);
+          if (row) row.style.background = 'var(--accent-light)';
+        } else {
+          tickedStudentIds.delete(id);
+          if (row) row.style.background = '';
+        }
+        updateTickedUI();
+      });
+    });
+  }
+
+  function renderAllocationsTable() {
+    const tableWrap = container.querySelector('#alloc-table-wrap');
+    if (!tableWrap) return;
+
+    const totalAllocPages = Math.ceil(assignedPairs.length / allocPageSize) || 1;
+    if (allocPage > totalAllocPages) allocPage = totalAllocPages;
+    if (allocPage < 1) allocPage = 1;
+
+    const startIdx = (allocPage - 1) * allocPageSize;
+    const endIdx = Math.min(startIdx + allocPageSize, assignedPairs.length);
+    const visiblePairs = assignedPairs.slice(startIdx, endIdx);
+
+    if (assignedPairs.length === 0) {
+      tableWrap.innerHTML = '<p style="padding:24px;color:var(--text-muted);text-align:center;">No allocations recorded yet.</p>';
+      return;
+    }
+
+    tableWrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Student Name</th>
+            <th>Class</th>
+            <th>Assigned Mentor</th>
+            <th>Department</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${visiblePairs.map(a => `
+            <tr>
+              <td style="font-weight:600;">${a.studentName}</td>
+              <td><span class="badge badge-muted">${a.className}</span></td>
+              <td style="color:var(--accent);font-weight:500;">${a.mentorName}</td>
+              <td style="color:var(--text-muted);font-size:0.825rem;">${a.department || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;">
+        <span style="font-size:0.8rem;color:var(--text-secondary);">Showing ${startIdx + 1}–${endIdx} of ${assignedPairs.length}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-xs btn-secondary" id="btn-alloc-prev" ${allocPage === 1 ? 'disabled' : ''}>← Prev</button>
+          <span style="font-size:0.8rem;font-weight:600;">Page ${allocPage} of ${totalAllocPages}</span>
+          <button class="btn btn-xs btn-secondary" id="btn-alloc-next" ${allocPage === totalAllocPages ? 'disabled' : ''}>Next →</button>
         </div>
       </div>
     `;
 
-    // Student picks
-    document.querySelectorAll('.student-pick').forEach(el => {
-      el.addEventListener('click', () => {
-        const student = students.find(s => s.id === el.dataset.id);
-        if (selectedStudents.some(x => x.id === student.id)) {
-            selectedStudents = selectedStudents.filter(x => x.id !== student.id);
-        } else {
-            selectedStudents.push(student);
-        }
+    document.getElementById('btn-alloc-prev')?.addEventListener('click', () => {
+      if (allocPage > 1) { allocPage--; renderAllocationsTable(); }
+    });
+    document.getElementById('btn-alloc-next')?.addEventListener('click', () => {
+      if (allocPage < totalAllocPages) { allocPage++; renderAllocationsTable(); }
+    });
+  }
+
+  function attachEventListeners() {
+    // Step 1: Mentor Selection
+    const mentorSelect = container.querySelector('#classwise-mentor-select');
+    if (mentorSelect) {
+      mentorSelect.addEventListener('change', (e) => {
+        selectedClasswiseMentorId = e.target.value;
+        tickedStudentIds.clear();
         buildUI();
       });
-    });
-
-    // Search inputs (Debounced or handle focus loss)
-    const sInput = document.getElementById('search-students');
-    if (sInput) {
-      sInput.addEventListener('change', e => { studentSearch = e.target.value; buildUI(); });
-    }
-    const mInput = document.getElementById('search-mentors');
-    if (mInput) {
-      mInput.addEventListener('change', e => { mentorSearch = e.target.value; buildUI(); });
     }
 
-    // Mentor picks
-    document.querySelectorAll('.mentor-pick').forEach(el => {
-      el.addEventListener('click', () => {
-        const m = mentors.find(m => m.id === el.dataset.id);
-        if ((m.assignedStudentCount||0) >= (m.maxStudents||20)) return;
-        selectedMentor = m;
+    // Step 2: Class Selection
+    const classSelect = container.querySelector('#classwise-class-select');
+    if (classSelect) {
+      classSelect.addEventListener('change', (e) => {
+        selectedClasswiseClass = e.target.value;
+        classwiseSearchQuery = '';
+        tickedStudentIds.clear();
         buildUI();
       });
-    });
+    }
 
-    document.getElementById('manual-mentor-select')?.addEventListener('change', (e) => {
-      selectedMentor = mentors.find(m => m.id === e.target.value) || null;
-      buildUI();
-    });
+    // Live Search Filter Listener
+    const searchInput = container.querySelector('#classwise-student-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        classwiseSearchQuery = e.target.value.toLowerCase().trim();
+        renderClasswiseTableRows();
+      });
+    }
 
-    document.getElementById('manual-student-select')?.addEventListener('change', (e) => {
-      const selectedOptions = Array.from(e.target.selectedOptions);
-      const newSelectedStudents = selectedOptions.map(opt => students.find(s => s.id === opt.value));
-      
-      // Limit selection to mentor's remaining capacity if a mentor is selected
-      if (selectedMentor) {
-          const capacity = (selectedMentor.maxStudents || 20) - (selectedMentor.assignedStudentCount || 0);
-          if (newSelectedStudents.length > capacity) {
-              showToast(`This mentor can only take ${capacity} more students!`, 'warning');
-              buildUI(); // Re-render to undo the over-selection visually
-              return;
-          }
-      }
-      
-      selectedStudents = newSelectedStudents;
-      buildUI();
-    });
-
-    document.getElementById('btn-assign')?.addEventListener('click', async () => {
-      if (selectedStudents.length === 0 || !selectedMentor) return;
-      const btn = document.getElementById('btn-assign');
-      btn.disabled = true; btn.textContent = 'Assigning...';
-      try {
-        let successCount = 0;
-        for (const s of selectedStudents) {
-          await AllocationService.assign(s.id, selectedMentor.id, selectedMentor.name);
-          assignedPairs.push({ studentName:s.name, mentorName:selectedMentor.name, department:s.department });
-          successCount++;
+    // Select All in Class
+    const selectAllCb = container.querySelector('#classwise-select-all');
+    if (selectAllCb) {
+      selectAllCb.addEventListener('change', (e) => {
+        let classFiltered = [];
+        if (selectedClasswiseClass === 'UNASSIGNED_CLASS') {
+          classFiltered = allStudents.filter(s => !s.class);
+        } else if (selectedClasswiseClass) {
+          classFiltered = allStudents.filter(s => s.class === selectedClasswiseClass);
         }
-        const m = mentors.find(m => m.id === selectedMentor.id);
-        if (m) m.assignedStudentCount = (m.assignedStudentCount||0) + successCount;
-        students = students.filter(s => !selectedStudents.some(x => x.id === s.id));
-        selectedStudents = [];
-        showToast('Allocated successfully!', 'success');
-        buildUI();
-      } catch (err) { showToast(err.message, 'error'); btn.disabled=false; btn.textContent='Assign Selected →'; }
-    });
 
-    document.getElementById('btn-bulk-assign')?.addEventListener('click', async () => {
-      if (!selectedMentor) return;
-      const amount = parseInt(document.getElementById('bulk-amount').value || '1', 10);
-      if (amount <= 0) return showToast('Please enter a valid amount', 'warning');
-      
-      const unassignedForDept = students.filter(s => s.department === selectedMentor.department || !selectedMentor.department);
-      if (unassignedForDept.length === 0) return showToast('No unassigned students available', 'warning');
-      
-      const toAssign = unassignedForDept.slice(0, amount);
-      const btn = document.getElementById('btn-bulk-assign');
-      btn.disabled = true; btn.textContent = 'Assigning...';
+        const maxAllowed = 50;
+        tickedStudentIds.clear();
 
-      try {
-          let successCount = 0;
-          for (const s of toAssign) {
-              await AllocationService.assign(s.id, selectedMentor.id, selectedMentor.name);
-              assignedPairs.push({ studentName: s.name, mentorName: selectedMentor.name, department: s.department });
-              successCount++;
+        if (e.target.checked) {
+          const toTick = classFiltered.slice(0, maxAllowed);
+          toTick.forEach(s => tickedStudentIds.add(s.id));
+          if (classFiltered.length > maxAllowed) {
+            showToast(`Selected first 50 students (batch limit)`, 'info');
           }
-          const m = mentors.find(m => m.id === selectedMentor.id);
-          if (m) m.assignedStudentCount = (m.assignedStudentCount || 0) + successCount;
-          students = students.filter(s => !toAssign.find(t => t.id === s.id));
-          selectedStudents = selectedStudents.filter(s => !toAssign.find(t => t.id === s.id));
-          showToast(`Successfully assigned ${successCount} student(s) to ${selectedMentor.name}!`, 'success');
+        }
+
+        renderClasswiseTableRows();
+        updateTickedUI();
+      });
+    }
+
+    // Step 4: Allocate Action
+    const btnAllocate = container.querySelector('#btn-classwise-allocate');
+    if (btnAllocate) {
+      btnAllocate.addEventListener('click', async () => {
+        const selectedMentor = mentors.find(m => m.id === selectedClasswiseMentorId);
+        if (!selectedMentor) return showToast('Please select a Mentor name first', 'warning');
+        if (tickedStudentIds.size === 0) return showToast('Please tick at least one student to allocate', 'warning');
+
+        btnAllocate.disabled = true;
+        btnAllocate.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Allocating...';
+
+        try {
+          const studentIdsArray = Array.from(tickedStudentIds);
+          await AllocationService.batchAssign(studentIdsArray, selectedMentor.id);
+
+          showToast(`Successfully allocated ${studentIdsArray.length} student(s) to ${selectedMentor.name}!`, 'success');
+
+          // Reset selection state & refresh
+          tickedStudentIds.clear();
+          await loadData();
           buildUI();
-      } catch (err) {
+        } catch (err) {
+          console.error("Allocation error:", err);
+          showToast(err.message || 'Failed to allocate students', 'error');
+          btnAllocate.disabled = false;
+          btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) →`;
+        }
+      });
+    }
+
+    // Global Auto Allocate Action
+    const btnAuto = container.querySelector('#btn-auto');
+    if (btnAuto) {
+      btnAuto.addEventListener('click', async () => {
+        const dept = container.querySelector('#auto-dept').value || null;
+        if (!confirm(`Are you sure you want to auto-allocate unassigned students${dept ? ` in ${dept}` : ''}?`)) return;
+
+        btnAuto.disabled = true;
+        btnAuto.textContent = 'Allocating...';
+
+        try {
+          const results = await AllocationService.autoAllocate(dept, (count, total) => {
+            btnAuto.textContent = `Allocating (${count}/${total})...`;
+          });
+          showToast(`Auto-allocated ${results.length} student(s)!`, 'success');
+          await loadData();
+          buildUI();
+        } catch (err) {
+          console.error("Auto allocate error:", err);
           showToast(err.message, 'error');
-          btn.disabled = false; btn.textContent = 'Bulk Assign';
-      }
+        } finally {
+          btnAuto.disabled = false;
+          btnAuto.textContent = 'Run Auto-Allocate';
+        }
+      });
+    }
+
+    // Master Export Buttons
+    container.querySelector('#btn-export-excel')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('excel');
     });
 
-    document.getElementById('btn-auto')?.addEventListener('click', async () => {
-      const dept = document.getElementById('auto-dept').value || null;
-      if (!confirm(`Are you sure you want to auto-allocate unassigned students${dept ? ` in the ${dept} department` : ''}? This action cannot be easily undone.`)) return;
-      const btn = document.getElementById('btn-auto');
-      btn.disabled = true; btn.textContent = '...';
-      try {
-        const results = await AllocationService.autoAllocate(dept);
-        showToast(`Auto-allocated ${results.length} student(s)!`, 'success');
-        // Reload
-        students = await StudentService.getUnassigned(dept);
-      } catch (err) { showToast(err.message, 'error'); }
-      finally { btn.disabled=false; btn.textContent='Auto'; buildUI(); }
+    container.querySelector('#btn-export-pdf')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('pdf');
     });
   }
 

@@ -26,20 +26,20 @@ export async function render(container) {
 
   try {
     const data = await StatsService.getInstitutionStats();
-    const { totalStudents, totalFaculty, totalDepartments, highRiskStudents, openIssues, completedMeetings, students, faculty, issues, depts } = data;
+    const { totalStudents = 0, totalFaculty = 0, totalDepartments = 0, highRiskStudents = 0, openIssues = 0, totalIssues = 0, students = [], faculty = [], issues = [], depts = [] } = data;
 
     // Per-department breakdown
     const deptMap = {};
-    depts.forEach(d => { deptMap[d.name] = { name:d.name, students:0, mentors:0, highRisk:0, openIssues:0, cgpaSum:0 }; });
-    students.forEach(s => {
+    (depts || []).forEach(d => { deptMap[d.name] = { name:d.name, students:0, mentors:0, highRisk:0, openIssues:0, cgpaSum:0 }; });
+    (students || []).forEach(s => {
       const d = deptMap[s.department];
       if (d) { d.students++; d.cgpaSum += parseFloat(s.cgpa)||0; if (s.riskLevel==='HIGH') d.highRisk++; }
     });
-    faculty.forEach(f => {
+    (faculty || []).forEach(f => {
       const d = deptMap[f.department];
       if (d) d.mentors++;
     });
-    issues.forEach(i => {
+    (issues || []).forEach(i => {
       if (i.status === 'OPEN' && deptMap[i.department]) deptMap[i.department].openIssues++;
     });
     const deptRows = Object.values(deptMap).map(d => ({

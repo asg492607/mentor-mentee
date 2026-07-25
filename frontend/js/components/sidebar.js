@@ -26,6 +26,7 @@ export function createSidebar(role, activePath) {
   } else if (roleUpper === 'HOD') {
     navItems = [
       { path: '/hod/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
+      { path: '/hod/allocation', label: 'Allocation', icon: '<i class="ph ph-users-three"></i>' },
       { path: '/hod/management', label: 'Management', icon: '<i class="ph ph-briefcase"></i>' },
       { path: '/hod/directory', label: 'Users', icon: '<i class="ph ph-users"></i>' },
       { path: '/hod/risk-students', label: 'Risk Students', icon: '<i class="ph ph-warning"></i>' },
@@ -68,8 +69,8 @@ export function createSidebar(role, activePath) {
     <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation"></button>
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <span class="sidebar-logo-mark">m</span>
-        <span>mentor-mentee<small>${roleUpper.toLowerCase()} portal</small></span>
+        <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" class="sidebar-logo-img">
+        <span>Agnistambh<small>${roleUpper.toLowerCase()} portal</small></span>
       </div>
       <nav class="sidebar-nav">
         ${navHtml}

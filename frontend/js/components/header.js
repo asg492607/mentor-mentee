@@ -9,7 +9,7 @@ export function createHeader(title, user, notificationCount = 0) {
           <i class="ph ph-list" style="font-size:1.5rem;"></i>
         </button>
         <div>
-          <p class="header-kicker">mentor-mentee workspace</p>
+          <p class="header-kicker">Agnistambh workspace</p>
           <h2 class="header-title">${title}</h2>
         </div>
       </div>

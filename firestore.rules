@@ -231,7 +231,7 @@ service cloud.firestore {
     // ── Classes Collection ─────────────────────────────────────────────────────
     match /classes/{classId} {
       allow read:   if true;
-      allow write:  if isSuperAdmin();
+      allow write:  if isAuth();
     }
 
     // ── Settings Collection ────────────────────────────────────────────────────

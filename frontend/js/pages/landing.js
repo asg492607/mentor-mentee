@@ -77,7 +77,7 @@ export async function render(container) {
       <section style="padding: 100px 40px; background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(124,106,255,0.05) 100%);">
         <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
           <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 16px;">Meet the Team</h2>
-          <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind mentor-mentee.</p>
+          <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 80px;">The brilliant minds behind Agnistambh.</p>
           
           <!-- Guide Highlight -->
           <div style="margin-bottom: 80px; display: flex; justify-content: center;">
@@ -113,8 +113,8 @@ export async function render(container) {
 
       <!-- Footer -->
       <footer style="background: var(--bg-secondary); padding: 40px 40px; text-align: center; border-top: 1px solid var(--border); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">mentor<span style="color:var(--accent);">-mentee</span></div>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} mentor-mentee Team. All rights reserved.</p>
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">Agnistambh</div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">&copy; ${new Date().getFullYear()} Agnistambh Team. All rights reserved.</p>
         <div style="display: flex; gap: 16px;">
           <a href="#/login" style="color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; font-weight: 500;">Login</a>
         </div>

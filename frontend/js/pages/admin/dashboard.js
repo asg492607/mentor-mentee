@@ -78,6 +78,8 @@ export async function render(container) {
             <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
             <a href="#/admin/users"       class="btn btn-secondary">Manage Users →</a>
             <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
+            <button id="btn-export-dash-excel" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Export Mentors & Students (Excel)</button>
+            <button id="btn-export-dash-pdf" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-pdf" style="font-size:1.1rem;color:var(--danger);"></i> Export Mentors & Students (PDF)</button>
             <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>
           </div>
         </div>
@@ -119,8 +121,18 @@ export async function render(container) {
       finally { btn.disabled = false; btn.textContent = 'Auto Allocate'; }
     });
 
+    document.getElementById('btn-export-dash-excel')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('excel');
+    });
+
+    document.getElementById('btn-export-dash-pdf')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('pdf');
+    });
+
     document.getElementById('btn-dash-download-template').addEventListener('click', () => {
-      const csvContent = "role,name,email,password,department,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,,EMP001\n";
+      const csvContent = "role,name,email,password,department,class,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,EMP001\n";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);

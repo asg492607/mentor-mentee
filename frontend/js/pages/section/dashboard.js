@@ -2,6 +2,8 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { IssueService } from '/js/services.js';
+import { showToast } from '/js/components/toast.js';
+import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -41,17 +43,16 @@ export async function render(container) {
         </div>
       </div>
 
-      <!-- Bulk Registration -->
       <div class="card" style="margin-bottom:24px;">
         <div class="card-header">
-          <h3>Bulk User Registration</h3>
-          <span style="font-size:0.8rem;color:var(--text-secondary);">Register staff for your section via CSV</span>
+          <h3 class="card-title">Section Staff Management</h3>
+          <p class="card-subtitle">Bulk import staff/faculty for ${user.department || 'your department'}</p>
         </div>
         <div style="padding:16px; display:flex; gap:12px; align-items:center;">
           <button id="btn-sec-download-template" class="btn btn-secondary">⬇️ Download Template</button>
           <label class="btn btn-primary" style="margin:0;cursor:pointer;">
-            📁 Bulk Import (CSV)
-            <input type="file" id="sec-csv-upload" accept=".csv" style="display:none;">
+            📁 Bulk Import (CSV / Excel)
+            <input type="file" id="sec-csv-upload" accept=".csv, .xlsx, .xls" style="display:none;">
           </label>
         </div>
       </div>
@@ -63,7 +64,7 @@ export async function render(container) {
       </div>
     `;
 
-    // --- Bulk CSV Upload Logic ---
+    // --- Bulk Upload Logic ---
     const btnDownloadTemplate = document.getElementById('btn-sec-download-template');
     if (btnDownloadTemplate) {
       btnDownloadTemplate.addEventListener('click', () => {
@@ -91,29 +92,57 @@ export async function render(container) {
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const text = event.target.result;
-          const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-          if (lines.length <= 1) return showToast('CSV is empty or only contains headers', 'warning');
-
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          const expected = ['role', 'name', 'email', 'password'];
-          for (const req of expected) {
-            if (!headers.includes(req)) return showToast(`Missing required column: ${req}`, 'error');
+        try {
+          const rowsMatrix = await parseImportFile(file);
+          if (!rowsMatrix || rowsMatrix.length <= 1) {
+            e.target.value = '';
+            return showToast('File is empty or only contains headers', 'warning');
           }
 
-          showToast(`Processing ${lines.length - 1} staff for ${user.department}...`, 'info');
-          let successCount = 0; let failCount = 0;
+          const headers = rowsMatrix[0].map(h => String(h || '').trim().toLowerCase());
+          const expected = ['role', 'name', 'email', 'password'];
+          for (const req of expected) {
+            if (!headers.includes(req)) {
+              e.target.value = '';
+              return showToast(`Missing required column: ${req}`, 'error');
+            }
+          }
+
+          const dataRows = [];
+          for (let i = 1; i < rowsMatrix.length; i++) {
+            const cols = rowsMatrix[i].map(c => String(c !== null && c !== undefined ? c : '').trim());
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+
+            // Skip completely empty rows or rows missing essential fields
+            if (isRowObjectEmpty(row)) continue;
+            if (!row.role || !row.email || !row.password) continue;
+
+            dataRows.push(row);
+          }
+
+          if (dataRows.length === 0) {
+            e.target.value = '';
+            return showToast('No valid non-empty staff records found in file', 'warning');
+          }
+
+          showToast(`Processing ${dataRows.length} staff for ${user.department}...`, 'info');
+          let successCount = 0;
+          let duplicateCount = 0;
+          let failCount = 0;
           const { AdminService } = await import('/js/services.js');
+          const seenEmails = new Set();
 
-          for (let i = 1; i < lines.length; i++) {
+          for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            const cleanEmail = (row.email || '').toLowerCase().trim();
+
+            if (seenEmails.has(cleanEmail)) {
+              duplicateCount++;
+              continue;
+            }
+
             try {
-              const cols = lines[i].split(',').map(c => c.trim());
-              const row = {};
-              headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
-              if (!row.role || !row.email || !row.password) { failCount++; continue; }
-
               const data = {
                 role: row.role.toUpperCase(),
                 name: row.name,
@@ -124,17 +153,30 @@ export async function render(container) {
               };
 
               await AdminService.createUser(data);
+              seenEmails.add(cleanEmail);
               successCount++;
             } catch(err) {
-              console.error(err);
-              failCount++;
+              console.error(`Error importing row ${i + 1}:`, err);
+              if (err.code === 'auth/email-already-in-use' || String(err.message || '').includes('already in use')) {
+                duplicateCount++;
+              } else {
+                failCount++;
+              }
+            }
+
+            if ((i + 1) % 5 === 0) {
+              await new Promise(r => setTimeout(r, 0));
             }
           }
           e.target.value = '';
-          showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
+          const msg = `Bulk Import Finished! ${successCount} created successfully. ${duplicateCount ? duplicateCount + ' duplicates skipped. ' : ''}${failCount ? failCount + ' failed.' : ''}`;
+          showToast(msg, successCount > 0 ? 'success' : 'info');
           if (successCount > 0) setTimeout(() => render(container), 1500);
-        };
-        reader.readAsText(file);
+        } catch (err) {
+          console.error('Import error:', err);
+          e.target.value = '';
+          showToast(err.message || 'Failed to parse file', 'error');
+        }
       });
     }
 
@@ -142,4 +184,3 @@ export async function render(container) {
     (container.querySelector('#section-dash-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
   }
 }
-

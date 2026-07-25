@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StatsService, IssueService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
+import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -120,8 +121,8 @@ export async function render(container) {
           <div style="padding:16px; display:flex; gap:12px; align-items:center;">
             <button id="btn-hod-download-template" class="btn btn-secondary">⬇️ Download Template</button>
             <label class="btn btn-primary" style="margin:0;cursor:pointer;">
-              📁 Bulk Import (CSV)
-              <input type="file" id="hod-csv-upload" accept=".csv" style="display:none;">
+              📁 Bulk Import (CSV / Excel)
+              <input type="file" id="hod-csv-upload" accept=".csv, .xlsx, .xls" style="display:none;">
             </label>
           </div>
         </div>
@@ -202,7 +203,7 @@ export async function render(container) {
     const btnDownloadTemplate = document.getElementById('btn-hod-download-template');
     if (btnDownloadTemplate) {
       btnDownloadTemplate.addEventListener('click', () => {
-        const csvContent = "role,name,email,password,class,year,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,A,2,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,,,EMP001\n";
+        const csvContent = "role,name,email,password,class,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,A,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,,EMP001\n";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
@@ -226,29 +227,57 @@ export async function render(container) {
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const text = event.target.result;
-          const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-          if (lines.length <= 1) return showToast('CSV is empty or only contains headers', 'warning');
-
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          const expected = ['role', 'name', 'email', 'password'];
-          for (const req of expected) {
-            if (!headers.includes(req)) return showToast(`Missing required column: ${req}`, 'error');
+        try {
+          const rowsMatrix = await parseImportFile(file);
+          if (!rowsMatrix || rowsMatrix.length <= 1) {
+            e.target.value = '';
+            return showToast('File is empty or only contains headers', 'warning');
           }
 
-          showToast(`Processing ${lines.length - 1} users for ${dept}...`, 'info');
-          let successCount = 0; let failCount = 0;
+          const headers = rowsMatrix[0].map(h => String(h || '').trim().toLowerCase());
+          const expected = ['role', 'name', 'email', 'password'];
+          for (const req of expected) {
+            if (!headers.includes(req)) {
+              e.target.value = '';
+              return showToast(`Missing required column: ${req}`, 'error');
+            }
+          }
+
+          const dataRows = [];
+          for (let i = 1; i < rowsMatrix.length; i++) {
+            const cols = rowsMatrix[i].map(c => String(c !== null && c !== undefined ? c : '').trim());
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
+            
+            // Skip completely empty rows or rows missing required fields
+            if (isRowObjectEmpty(row)) continue;
+            if (!row.role || !row.email || !row.password) continue;
+            
+            dataRows.push(row);
+          }
+
+          if (dataRows.length === 0) {
+            e.target.value = '';
+            return showToast('No valid non-empty user records found in file', 'warning');
+          }
+
+          showToast(`Processing ${dataRows.length} users for ${dept}...`, 'info');
+          let successCount = 0;
+          let duplicateCount = 0;
+          let failCount = 0;
           const { AdminService } = await import('/js/services.js');
+          const seenEmails = new Set();
 
-          for (let i = 1; i < lines.length; i++) {
+          for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            const cleanEmail = (row.email || '').toLowerCase().trim();
+
+            if (seenEmails.has(cleanEmail)) {
+              duplicateCount++;
+              continue;
+            }
+
             try {
-              const cols = lines[i].split(',').map(c => c.trim());
-              const row = {};
-              headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
-              if (!row.role || !row.email || !row.password) { failCount++; continue; }
-
               const role = row.role.toUpperCase();
               const data = {
                 role, name: row.name, email: row.email, password: row.password, department: dept
@@ -256,66 +285,109 @@ export async function render(container) {
 
               if (role === 'STUDENT') {
                 data.class = row.class || null;
-                data.year = parseInt(row.year) || null;
+                data.year = (row.year && !isNaN(parseInt(row.year))) ? parseInt(row.year) : null;
                 data.enrollmentNumber = row.enrollmentnumber || row.employeeid || null;
               } else {
                 data.employeeId = row.employeeid || row.enrollmentnumber || null;
               }
 
               await AdminService.createUser(data);
+              seenEmails.add(cleanEmail);
               successCount++;
             } catch(err) {
-              console.error(err);
-              failCount++;
+              console.error(`Error importing row ${i + 1}:`, err);
+              if (err.code === 'auth/email-already-in-use' || String(err.message || '').includes('already in use')) {
+                duplicateCount++;
+              } else {
+                failCount++;
+              }
+            }
+
+            if ((i + 1) % 5 === 0) {
+              await new Promise(r => setTimeout(r, 0));
             }
           }
           e.target.value = '';
-          showToast(`Bulk Import Complete. ${successCount} successful, ${failCount} failed.`, successCount > 0 ? 'success' : 'warning');
+          const msg = `Bulk Import Finished! ${successCount} created successfully. ${duplicateCount ? duplicateCount + ' duplicates skipped. ' : ''}${failCount ? failCount + ' failed.' : ''}`;
+          showToast(msg, successCount > 0 ? 'success' : 'info');
           if (successCount > 0) setTimeout(() => render(container), 1500);
-        };
-        reader.readAsText(file);
+        } catch (err) {
+          console.error('Import error:', err);
+          e.target.value = '';
+        }
       });
     }
 
     // Load and render classes
     async function loadClasses() {
+      const list = container.querySelector('#class-list');
+      if (!list) return;
       try {
         const { ClassService } = await import('/js/services.js');
         const classes = await ClassService.getByDepartment(dept);
-        const list = container.querySelector('#class-list');
-        if (!classes.length) {
+        if (!classes || !classes.length) {
           list.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;">No classes defined.</span>';
           return;
         }
         list.innerHTML = classes.map(c => `
           <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
             Class ${c.className}
-            <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;margin-left:4px;">✕</button>
+            <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;margin-left:4px;" title="Delete class">✕</button>
           </span>
         `).join('');
 
         container.querySelectorAll('.btn-del-class').forEach(btn => {
           btn.addEventListener('click', async () => {
             if(!confirm('Delete this class?')) return;
-            await ClassService.delete(btn.dataset.id);
-            showToast('Class deleted', 'success');
-            loadClasses();
+            try {
+              await ClassService.delete(btn.dataset.id);
+              showToast('Class deleted', 'success');
+              await loadClasses();
+            } catch (err) {
+              showToast('Error deleting class: ' + err.message, 'error');
+            }
           });
         });
       } catch (e) {
-        console.error(e);
+        console.error('Failed to load classes:', e);
+        if (list) list.innerHTML = '<span style="color:var(--danger);font-size:0.85rem;">Error loading classes</span>';
       }
     }
 
-    container.querySelector('#btn-add-class').addEventListener('click', async () => {
-      const name = container.querySelector('#new-class-name').value.trim();
-      if (!name) return;
-      const { ClassService } = await import('/js/services.js');
-      await ClassService.create({ department: dept, className: name });
-      container.querySelector('#new-class-name').value = '';
-      showToast('Class added', 'success');
-      loadClasses();
-    });
+    const addClassBtn = container.querySelector('#btn-add-class');
+    if (addClassBtn) {
+      addClassBtn.addEventListener('click', async () => {
+        const input = container.querySelector('#new-class-name');
+        const name = input ? input.value.trim() : '';
+        if (!name) {
+          showToast('Please enter a class name (e.g. TY-CORE-1)', 'warning');
+          return;
+        }
+        if (!dept) {
+          showToast('Department is not set in your profile', 'error');
+          return;
+        }
+        addClassBtn.disabled = true;
+        try {
+          const { ClassService } = await import('/js/services.js');
+          const existing = await ClassService.getByDepartment(dept);
+          if (existing.some(c => (c.className || '').toLowerCase() === name.toLowerCase())) {
+            showToast(`Class "${name}" already exists for ${dept}`, 'warning');
+            addClassBtn.disabled = false;
+            return;
+          }
+          await ClassService.create({ department: dept, className: name });
+          if (input) input.value = '';
+          showToast(`Class "${name}" added successfully!`, 'success');
+          await loadClasses();
+        } catch (err) {
+          console.error('Failed to add class:', err);
+          showToast('Failed to add class: ' + (err.message || err), 'error');
+        } finally {
+          addClassBtn.disabled = false;
+        }
+      });
+    }
 
     loadClasses();
 

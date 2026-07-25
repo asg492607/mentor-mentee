@@ -7,7 +7,7 @@
 import { db } from '/js/firebase-init.js';
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion, writeBatch, increment
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion, writeBatch, increment, getCountFromServer
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -61,8 +61,16 @@ export const StudentService = {
     return snap(await getDoc(doc(db, 'students', uid)));
   },
 
-  async getAll() {
+  async getAll(limitCount = null) {
+    if (limitCount && typeof limitCount === 'number') {
+      return snaps(await getDocs(query(collection(db, 'students'), limit(limitCount))));
+    }
     return snaps(await getDocs(collection(db, 'students')));
+  },
+
+  async getCount() {
+    const snap = await getCountFromServer(collection(db, 'students'));
+    return snap.data().count;
   },
 
   async getByMentor(mentorId) {
@@ -89,8 +97,33 @@ export const StudentService = {
 
   async approve(uid) {
     await updateDoc(doc(db, 'students', uid), { status: 'approved', isApproved: true, updatedAt: now() });
+  },
+
+  async unassignMentor(studentId) {
+    const studentSnap = await getDoc(doc(db, 'students', studentId));
+    if (!studentSnap.exists()) throw new Error('Student not found');
+    const mentorId = studentSnap.data().mentorId;
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'students', studentId), { mentorId: null, updatedAt: now() });
+    if (mentorId) {
+      batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
+    }
+    await batch.commit();
+  },
+
+  async deleteStudent(studentId) {
+    const studentSnap = await getDoc(doc(db, 'students', studentId));
+    if (!studentSnap.exists()) throw new Error('Student not found');
+    const mentorId = studentSnap.data().mentorId;
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'students', studentId));
+    if (mentorId) {
+      batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
+    }
+    await batch.commit();
   }
 };
+
 
 // ─── FACULTY ──────────────────────────────────────────────────────────────────
 
@@ -402,11 +435,22 @@ export const ClassService = {
   },
 
   async getByDepartment(dept) {
+    if (!dept) return [];
     return snaps(await getDocs(query(collection(db, 'classes'), where('department', '==', dept))));
   },
 
   async create(data) {
-    const ref = await addDoc(collection(db, 'classes'), { ...data, createdAt: now() });
+    const className = (data.className || '').trim();
+    const department = (data.department || '').trim();
+    if (!className || !department) {
+      throw new Error('Both Department and Class Name are required.');
+    }
+    const ref = await addDoc(collection(db, 'classes'), {
+      ...data,
+      className,
+      department,
+      createdAt: now()
+    });
     return ref.id;
   },
 
@@ -438,7 +482,17 @@ export const AllocationService = {
     await updateDoc(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
   },
 
-  async autoAllocate(department = null) {
+  async batchAssign(studentIds, mentorId) {
+    if (!studentIds || studentIds.length === 0) return;
+    const batch = writeBatch(db);
+    studentIds.forEach(id => {
+      batch.update(doc(db, 'students', id), { mentorId: mentorId, updatedAt: new Date().toISOString() });
+    });
+    batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(studentIds.length) });
+    await batch.commit();
+  },
+
+  async autoAllocate(department = null, onProgress = null) {
     let students = department
       ? await StudentService.getUnassigned(department)
       : await StudentService.getUnassigned();
@@ -462,17 +516,34 @@ export const AllocationService = {
 
     let mentorIdx = 0;
     const results = [];
+    let mentorIncrements = {};
 
-    for (const student of students) {
+    let currentBatch = writeBatch(db);
+    let batchCount = 0;
+
+    for (let i = 0; i < students.length; i++) {
       if (mentorIdx >= available.length) break;
+      const student = students[i];
       const mentor = available[mentorIdx];
-      try {
-        await AllocationService.assign(student.id, mentor.id, mentor.name);
-        results.push({ studentId: student.id, mentorId: mentor.id });
-        mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
-        if (mentor.assignedStudentCount >= (mentor.maxStudents || 20)) mentorIdx++;
-      } catch (error) {
-        console.error(`Failed to assign student ${student.id}`, error);
+
+      currentBatch.update(doc(db, 'students', student.id), { mentorId: mentor.id, updatedAt: now() });
+      batchCount++;
+      mentorIncrements[mentor.id] = (mentorIncrements[mentor.id] || 0) + 1;
+      results.push({ studentId: student.id, mentorId: mentor.id });
+
+      mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
+      if (mentor.assignedStudentCount >= (mentor.maxStudents || 20)) mentorIdx++;
+
+      if (batchCount >= 400 || i === students.length - 1 || mentorIdx >= available.length) {
+        for (const [mId, inc] of Object.entries(mentorIncrements)) {
+          currentBatch.update(doc(db, 'faculty', mId), { assignedStudentCount: increment(inc) });
+        }
+        await currentBatch.commit();
+        if (onProgress) onProgress(results.length, students.length);
+
+        currentBatch = writeBatch(db);
+        batchCount = 0;
+        mentorIncrements = {};
       }
     }
 
@@ -547,21 +618,42 @@ export const StatsService = {
   },
 
   async getInstitutionStats() {
-    const [students, faculty, issues, depts] = await Promise.all([
-      StudentService.getAll(),
-      FacultyService.getAll(),
-      IssueService.getAll(),
-      DepartmentService.getAll()
+    const [
+      studentCountSnap,
+      facultyCountSnap,
+      highRiskSnap,
+      openIssueSnap,
+      totalIssueSnap,
+      depts,
+      facultySample
+    ] = await Promise.all([
+      getCountFromServer(collection(db, 'students')).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(collection(db, 'faculty')).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(query(collection(db, 'students'), where('riskLevel', '==', 'HIGH'))).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(query(collection(db, 'issues'), where('status', '==', 'OPEN'))).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(collection(db, 'issues')).catch(() => ({ data: () => ({ count: 0 }) })),
+      DepartmentService.getAll(),
+      FacultyService.getAll()
     ]);
-    const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
+
+    const totalStudents = studentCountSnap.data().count;
+    const totalFaculty = facultyCountSnap.data().count;
+    const highRiskStudents = highRiskSnap.data().count;
+    const openIssues = openIssueSnap.data().count;
+    const totalIssues = totalIssueSnap.data().count;
+
     return {
-      totalStudents: students.length,
-      totalFaculty: faculty.length,
+      totalStudents,
+      totalFaculty,
       totalDepartments: depts.length,
-      highRiskStudents: highRisk,
-      openIssues: issues.filter(i => i.status === 'OPEN').length,
-      completedMeetings: 0, // would need meeting count
-      students, faculty, issues, depts
+      highRiskStudents,
+      openIssues,
+      totalIssues,
+      completedMeetings: 0,
+      students: [],
+      faculty: facultySample,
+      issues: [],
+      depts
     };
   }
 };
@@ -578,42 +670,71 @@ let secondaryAuth = null;
 
 export const AdminService = {
   async createUser(data) {
-    if (!secondaryApp) {
-      secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-      secondaryAuth = getAuth(secondaryApp);
+    const role = (data.role || 'STUDENT').toUpperCase();
+    const collectionName = role === 'STUDENT' ? 'students' : 'faculty';
+    const email = data.email.trim();
+    
+    let password = String(data.password || data.mobileNumber || '').trim();
+    if (password.length < 6) {
+      password = password.padEnd(6, '0');
     }
 
-    // Create user in secondary auth (doesn't affect primary admin session)
-    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, data.email, data.password);
-    const uid = userCredential.user.uid;
+    let uid = null;
 
-    const role = data.role.toUpperCase();
+    // Try secondary Auth registration
+    try {
+      if (!secondaryApp) {
+        secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        secondaryAuth = getAuth(secondaryApp);
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+      uid = userCredential.user.uid;
+      await signOut(secondaryAuth);
+    } catch (authErr) {
+      if (authErr.code === 'auth/email-already-in-use') {
+        const dupErr = new Error('This email is already registered.');
+        dupErr.code = 'auth/email-already-in-use';
+        throw dupErr;
+      }
+      // If rate-limited (too-many-requests) or network throttled, generate a new Firestore doc ID
+      console.warn(`Auth API rate-limited/skipped for ${email} (${authErr.code || authErr.message}). Writing profile to Firestore directly.`);
+      const newDocRef = doc(collection(db, collectionName));
+      uid = newDocRef.id;
+    }
+
     const profileData = {
       id: uid,
-      email: data.email,
-      name: data.name,
+      email: email,
+      name: data.name || '',
       role: role,
       department: data.department || null,
+      mobileNumber: data.mobileNumber || data.phone || data.mobile || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     if (role === 'STUDENT') {
-      profileData.cgpa = 0;
-      profileData.attendance = 0;
-      profileData.riskLevel = 'LOW';
-      profileData.mentorId = null;
+      profileData.enrollmentNumber = data.enrollmentNumber || data.enrollmentNo || data.employeeId || null;
+      profileData.cgpa = data.cgpa || 0;
+      profileData.attendance = data.attendance || 0;
+      profileData.riskLevel = data.riskLevel || 'LOW';
+      profileData.mentorId = data.mentorId || null;
       profileData.status = 'approved';
       profileData.isApproved = true;
       if (data.class) profileData.class = data.class;
       if (data.year) profileData.year = data.year;
     } else if (role === 'SECTION_HEAD') {
+      profileData.employeeId = data.employeeId || data.enrollmentNumber || null;
+      profileData.designation = data.designation || 'Section Head';
       profileData.maxStudents = 0;
       profileData.assignedStudentCount = 0;
       profileData.status = 'approved';
       profileData.isApproved = true;
     } else {
-      profileData.maxStudents = role === 'FACULTY' ? 20 : 0;
+      profileData.employeeId = data.employeeId || data.enrollmentNumber || null;
+      profileData.designation = data.designation || (role === 'HOD' ? 'Head of Department' : role === 'DEAN' ? 'Dean' : 'Faculty / Mentor');
+      profileData.maxStudents = role === 'FACULTY' || role === 'TEACHER' || role === 'MENTOR' ? 20 : 0;
       profileData.assignedStudentCount = 0;
       profileData.status = 'approved';
       profileData.isApproved = true;
@@ -624,13 +745,13 @@ export const AdminService = {
       profileData.isApproved = true;
     }
 
-    const collectionName = role === 'STUDENT' ? 'students' : 'faculty';
-    
+    // Remove undefined values
+    Object.keys(profileData).forEach(key => {
+      if (profileData[key] === undefined) delete profileData[key];
+    });
+
     // Admin has global write access, so this will succeed on the primary db
     await setDoc(doc(db, collectionName, uid), profileData);
-    
-    // Sign out the secondary app immediately
-    await signOut(secondaryAuth);
     
     return profileData;
   }

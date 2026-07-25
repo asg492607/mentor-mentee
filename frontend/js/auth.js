@@ -3,22 +3,28 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { 
   doc, 
   getDoc, 
-  setDoc 
+  setDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
 
 let cachedUserProfile = null;
-const PRIVILEGED_ROLES = new Set(['HOD', 'DEAN', 'ADMIN']);
 
 function normalizeAuthError(error) {
   const code = error?.code || '';
   if (code === 'auth/network-request-failed') {
     return new Error('Firebase Auth network request failed. Check internet access, Firebase project settings, and whether this domain is allowed.');
+  }
+  if (code === 'auth/user-not-found') {
+    return new Error('No user account found matching this email address.');
+  }
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+    return new Error('Incorrect email or password. Please try again.');
   }
   if (code === 'auth/email-already-in-use') {
     return new Error('This email is already registered. Please sign in or use another email.');
@@ -42,16 +48,18 @@ function getCollectionForRole(role) {
   return 'faculty';
 }
 
+
 export async function login(email, password) {
+  const normEmail = String(email || '').trim().toLowerCase();
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, normEmail, password);
     const uid = userCredential.user.uid;
     
     // Super Admin Override
-    if (email === 'gandhiatharv565@gmail.com') {
+    if (normEmail === 'gandhiatharv565@gmail.com') {
       const adminProfile = {
         id: uid,
-        email: email,
+        email: normEmail,
         name: 'Super Admin',
         role: 'ADMIN',
         status: 'approved',
@@ -198,12 +206,6 @@ export async function fetchUserProfile() {
   try {
     // Super Admin bypass
     if (email === 'gandhiatharv565@gmail.com') {
-      if (!user.emailVerified) {
-        console.warn("Super Admin email is not verified. Access denied.");
-        await signOut(auth);
-        cachedUserProfile = null;
-        return null;
-      }
       const adminProfile = {
         id: uid, email, name: 'Super Admin',
         role: 'ADMIN', status: 'approved', isApproved: true
@@ -240,3 +242,14 @@ export async function fetchUserProfile() {
   }
   return null;
 }
+
+export async function forgotPassword(email) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return true;
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    throw normalizeAuthError(error);
+  }
+}
+

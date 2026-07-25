@@ -74,6 +74,7 @@ export async function render(container) {
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">Chat</button>
               <button class="side-panel-tab" data-panel="participants">People</button>
+              ${isMentor ? '<button class="side-panel-tab" data-panel="controls">Controls</button>' : ''}
               ${isMentor ? '<button class="side-panel-tab" data-panel="notes">Notes</button>' : ''}
             </div>
             <div class="side-panel-body">
@@ -81,6 +82,26 @@ export async function render(container) {
                 <div class="chat-messages" id="chat-messages"></div>
               </div>
               <div id="panel-participants" hidden></div>
+              ${isMentor ? `<div id="panel-controls" hidden style="padding:16px;">
+                <h4 style="margin-bottom:12px;font-size:0.9rem;color:var(--text-primary);">Teacher Control Center</h4>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">Global access controls for student participants.</p>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <button class="btn btn-secondary btn-sm" id="btn-host-mute-all" style="justify-content:flex-start;">🔇 Mute All Student Mics</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-host-disable-cams" style="justify-content:flex-start;">📷 Disable All Student Cameras</button>
+                  <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;">
+                    <span style="font-size:0.825rem;font-weight:600;">Lock Student Chat</span>
+                    <input type="checkbox" id="toggle-host-chat-lock" style="cursor:pointer;width:18px;height:18px;">
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;">
+                    <span style="font-size:0.825rem;font-weight:600;">Lock Screen Sharing</span>
+                    <input type="checkbox" id="toggle-host-screen-lock" style="cursor:pointer;width:18px;height:18px;">
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;">
+                    <span style="font-size:0.825rem;font-weight:600;">Lock Meeting Room</span>
+                    <input type="checkbox" id="toggle-host-room-lock" style="cursor:pointer;width:18px;height:18px;">
+                  </div>
+                </div>
+              </div>` : ''}
               ${isMentor ? `<div id="panel-notes" hidden>
                 <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Private meeting summary...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                 <button class="btn btn-primary w-full mt-3" id="save-meeting-notes">Save notes</button>
@@ -88,7 +109,7 @@ export async function render(container) {
             </div>
             <form class="chat-input-wrap" id="chat-form">
               <input class="chat-input" id="chat-input" maxlength="2000" placeholder="Message everyone" autocomplete="off">
-              <button class="btn btn-primary btn-sm" type="submit">Send</button>
+              <button class="btn btn-primary btn-sm" type="submit" id="btn-chat-send">Send</button>
             </form>
           </aside>
         </main>
@@ -345,12 +366,75 @@ export async function render(container) {
                 setTimeout(() => document.getElementById('btn-end').click(), 1500);
             });
             signaling.onMessage('remote-control', payload => {
-                if (payload.action === 'mute-mic' && localStream.getAudioTracks()[0]?.enabled) {
+                if ((payload.action === 'mute-mic' || payload.action === 'mute-all-mic') && localStream?.getAudioTracks()[0]?.enabled) {
                     document.getElementById('btn-mic').click();
                     showToast('The host has muted your microphone', 'warning');
-                } else if (payload.action === 'disable-cam' && localStream.getVideoTracks()[0]?.enabled) {
+                } else if ((payload.action === 'disable-cam' || payload.action === 'disable-all-cam') && localStream?.getVideoTracks()[0]?.enabled) {
                     document.getElementById('btn-cam').click();
                     showToast('The host has disabled your camera', 'warning');
+                }
+            });
+
+            // Teacher Controls Event Listeners & Sync
+            if (isMentor) {
+                document.getElementById('btn-host-mute-all')?.addEventListener('click', async () => {
+                    await handleControlAction('ALL', 'mute-all-mic');
+                    showToast('Sent Mute All signal to students', 'info');
+                });
+
+                document.getElementById('btn-host-disable-cams')?.addEventListener('click', async () => {
+                    await handleControlAction('ALL', 'disable-all-cam');
+                    showToast('Sent Disable Cameras signal to students', 'info');
+                });
+
+                document.getElementById('toggle-host-chat-lock')?.addEventListener('change', async (e) => {
+                    await signaling.updateRoomSettings({ chatLocked: e.target.checked });
+                    showToast(e.target.checked ? 'Chat locked for students' : 'Chat unlocked', 'info');
+                });
+
+                document.getElementById('toggle-host-screen-lock')?.addEventListener('change', async (e) => {
+                    await signaling.updateRoomSettings({ screenLocked: e.target.checked });
+                    showToast(e.target.checked ? 'Screen sharing locked for students' : 'Screen sharing unlocked', 'info');
+                });
+
+                document.getElementById('toggle-host-room-lock')?.addEventListener('change', async (e) => {
+                    await signaling.updateRoomSettings({ roomLocked: e.target.checked });
+                    showToast(e.target.checked ? 'Meeting room locked' : 'Meeting room unlocked', 'info');
+                });
+            }
+
+            // Real-time Room Settings Listener
+            signaling.onMessage('room-settings', settings => {
+                if (!isMentor) {
+                    const chatInput = document.getElementById('chat-input');
+                    const chatBtn = document.getElementById('btn-chat-send');
+                    if (settings.chatLocked) {
+                        if (chatInput) { chatInput.disabled = true; chatInput.placeholder = 'Chat locked by host'; }
+                        if (chatBtn) chatBtn.disabled = true;
+                    } else {
+                        if (chatInput) { chatInput.disabled = false; chatInput.placeholder = 'Message everyone'; }
+                        if (chatBtn) chatBtn.disabled = false;
+                    }
+
+                    const screenBtn = document.getElementById('btn-screen');
+                    if (screenBtn) {
+                        if (settings.screenLocked) {
+                            screenBtn.disabled = true;
+                            screenBtn.style.opacity = '0.5';
+                            screenBtn.title = 'Screen sharing is locked by host';
+                        } else {
+                            screenBtn.disabled = false;
+                            screenBtn.style.opacity = '1';
+                            screenBtn.title = 'Share screen';
+                        }
+                    }
+                } else {
+                    const chatToggle = document.getElementById('toggle-host-chat-lock');
+                    const screenToggle = document.getElementById('toggle-host-screen-lock');
+                    const roomToggle = document.getElementById('toggle-host-room-lock');
+                    if (chatToggle && settings.chatLocked !== undefined) chatToggle.checked = settings.chatLocked;
+                    if (screenToggle && settings.screenLocked !== undefined) screenToggle.checked = settings.screenLocked;
+                    if (roomToggle && settings.roomLocked !== undefined) roomToggle.checked = settings.roomLocked;
                 }
             });
 

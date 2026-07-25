@@ -20,6 +20,15 @@ export function createSignaling(meetingId, user) {
                 orphansSnapshot.forEach(doc => deleteDoc(doc.ref).catch(() => {}));
             }
 
+            // Listen for room settings changes
+            const settingsRef = doc(db, 'meetings', meetingId, 'controls', 'settings');
+            const unsubSettings = onSnapshot(settingsRef, snapshot => {
+                if (snapshot.exists()) {
+                    emit('room-settings', snapshot.data());
+                }
+            }, () => {});
+            unsubscribes.push(unsubSettings);
+
             // Listen for presence changes FIRST to build roster and catch new joins
             let initialPresenceDone = false;
             const unsubPresence = onSnapshot(query(sigRef, where('type', '==', 'presence')), snapshot => {
@@ -30,9 +39,9 @@ export function createSignaling(meetingId, user) {
                     
                     if (change.type === 'added') {
                         if (!initialPresenceDone) {
-                            peers.push({ id: data.id, name: data.name });
+                            peers.push({ id: data.id, name: data.name, isHost: !!data.isHost });
                         } else {
-                            emit('peer-joined', { id: data.id, name: data.name });
+                            emit('peer-joined', { id: data.id, name: data.name, isHost: !!data.isHost });
                         }
                     }
                     if (change.type === 'removed') {
@@ -44,14 +53,14 @@ export function createSignaling(meetingId, user) {
                     initialPresenceDone = true;
                     if (isHost) {
                         myPresenceRef = doc(sigRef, `presence_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: user?.id || null, name: user?.name || 'Participant' }).then(() => {
+                        setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: user?.id || null, name: user?.name || 'Participant', isHost: true }).then(() => {
                             connected = true;
                             emit('joined', { id: selfId, peers });
                             emit('connect');
                         }).catch(err => emit('error', new Error('Failed to join: ' + err.message)));
                     } else {
                         myPresenceRef = doc(sigRef, `waiting_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: user?.id || null, name: user?.name || 'Participant' }).then(() => {
+                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: user?.id || null, name: user?.name || 'Participant', isHost: false }).then(() => {
                             emit('waiting');
                         }).catch(err => emit('error', new Error('Failed to join waiting room: ' + err.message)));
                     }
@@ -85,9 +94,9 @@ export function createSignaling(meetingId, user) {
                             deleteDoc(change.doc.ref).catch(()=>{});
                         } else if (!isInitialMessages && data.type === 'chat') {
                             emit('chat', { name: data.name, text: data.text });
-                        } else if (data.type === 'control' && data.to === selfId) {
+                        } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
-                            deleteDoc(change.doc.ref).catch(()=>{});
+                            if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
                         }
                     }
                 });
@@ -107,7 +116,7 @@ export function createSignaling(meetingId, user) {
                 if (myPresenceRef) await deleteDoc(myPresenceRef).catch(()=>{});
                 const sigRef = collection(db, 'meetings', meetingId, 'signaling');
                 myPresenceRef = doc(sigRef, `presence_${selfId}`);
-                await setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant' });
+                await setDoc(myPresenceRef, { type: 'presence', id: selfId, name: user?.name || 'Participant', isHost: false });
                 connected = true;
                 const presenceDocs = await getDocs(query(sigRef, where('type', '==', 'presence')));
                 const peers = presenceDocs.docs.map(d => d.data()).filter(d => d.id !== selfId);
@@ -120,7 +129,7 @@ export function createSignaling(meetingId, user) {
         } else if (action === 'deny' || action === 'remove') {
             emit('kicked', { reason: action });
             disconnect();
-        } else if (action === 'mute-mic' || action === 'disable-cam') {
+        } else if (['mute-mic', 'disable-cam', 'mute-all-mic', 'disable-all-cam'].includes(action)) {
             emit('remote-control', { action });
         }
     }
@@ -169,6 +178,18 @@ export function createSignaling(meetingId, user) {
         }
     }
 
+    async function updateRoomSettings(settings) {
+        if (!isHost) return false;
+        try {
+            const settingsRef = doc(db, 'meetings', meetingId, 'controls', 'settings');
+            await setDoc(settingsRef, { ...settings, updatedAt: new Date().toISOString() }, { merge: true });
+            return true;
+        } catch (e) {
+            console.error('[WebRTC] updateRoomSettings failed:', e);
+            return false;
+        }
+    }
+
     async function disconnect() {
         if (intentionalClose) return;
         intentionalClose = true;
@@ -185,6 +206,7 @@ export function createSignaling(meetingId, user) {
         sendSignal,
         sendChat,
         sendControl,
+        updateRoomSettings,
         disconnect,
         get isConnected() { return connected; },
         get selfId() { return selfId; },
