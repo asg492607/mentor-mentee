@@ -7,11 +7,11 @@
 import { db } from '/js/firebase-init.js';
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, Timestamp, arrayUnion, writeBatch, increment, getCountFromServer
+  query, where, orderBy, limit, startAfter, serverTimestamp, onSnapshot, Timestamp, arrayUnion, writeBatch, increment, getCountFromServer
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
+// ─── Cache Manager ─────────────────────────────────────────────────────────────
+import { CacheManager } from '/js/cache.js';
 import { escapeHtml } from '/js/utils.js';
 
 function deepEscape(obj) {
@@ -66,6 +66,17 @@ export const StudentService = {
       return snaps(await getDocs(query(collection(db, 'students'), limit(limitCount))));
     }
     return snaps(await getDocs(collection(db, 'students')));
+  },
+
+  async getPaginated(lastDocSnapshot = null, pageSize = 50) {
+    let q = lastDocSnapshot
+      ? query(collection(db, 'students'), orderBy('createdAt', 'desc'), startAfter(lastDocSnapshot), limit(pageSize))
+      : query(collection(db, 'students'), orderBy('createdAt', 'desc'), limit(pageSize));
+
+    const snapResult = await getDocs(q);
+    const students = snapResult.docs.map(d => ({ id: d.id, ...d.data() }));
+    const lastVisible = snapResult.docs[snapResult.docs.length - 1] || null;
+    return { students, lastDoc: lastVisible };
   },
 
   async getCount() {
@@ -490,20 +501,27 @@ export const ChatService = {
 
 export const DepartmentService = {
   async getAll() {
-    return snaps(await getDocs(collection(db, 'departments')));
+    const cached = CacheManager.get('departments');
+    if (cached) return cached;
+    const res = snaps(await getDocs(collection(db, 'departments')));
+    CacheManager.set('departments', res);
+    return res;
   },
 
   async create(data) {
     const ref = await addDoc(collection(db, 'departments'), { ...data, createdAt: now() });
+    CacheManager.invalidate('departments');
     return ref.id;
   },
 
   async update(id, data) {
     await updateDoc(doc(db, 'departments', id), data);
+    CacheManager.invalidate('departments');
   },
 
   async delete(id) {
     await deleteDoc(doc(db, 'departments', id));
+    CacheManager.invalidate('departments');
   }
 };
 
@@ -511,7 +529,11 @@ export const DepartmentService = {
 
 export const ClassService = {
   async getAll() {
-    return snaps(await getDocs(collection(db, 'classes')));
+    const cached = CacheManager.get('classes');
+    if (cached) return cached;
+    const res = snaps(await getDocs(collection(db, 'classes')));
+    CacheManager.set('classes', res);
+    return res;
   },
 
   async getByDepartment(dept) {
@@ -531,6 +553,7 @@ export const ClassService = {
       department,
       createdAt: now()
     });
+    CacheManager.invalidate('classes');
     return ref.id;
   },
 
@@ -549,6 +572,7 @@ export const ClassService = {
     } else {
       await deleteDoc(doc(db, 'classes', id));
     }
+    CacheManager.invalidate('classes');
   }
 };
 

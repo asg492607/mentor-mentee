@@ -1,5 +1,5 @@
 import { db } from '/js/firebase-init.js';
-import { collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, query, where, limit, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { getCurrentUser } from '/js/auth.js';
 import { NotificationService } from '/js/services.js';
 import { navigateTo } from '/js/router.js';
@@ -20,7 +20,12 @@ export function initNotificationListener() {
   
   if (unsubscribe) return; // already listening
 
-  const q = query(collection(db, 'notifications'), where('userId', '==', user.uid));
+  const q = query(
+    collection(db, 'notifications'),
+    where('userId', '==', user.uid),
+    where('isRead', '==', false),
+    limit(15)
+  );
   
   unsubscribe = onSnapshot(q, (snapshot) => {
     currentNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
