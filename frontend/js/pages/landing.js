@@ -202,6 +202,9 @@ export async function render(container) {
           <a href="#capabilities-section" class="mobile-drawer-item" id="drawer-link-caps">
             <i class="ph ph-squares-four" style="font-size:1.2rem; color:var(--accent);"></i> Core Capabilities
           </a>
+          <a href="#guides-section" class="mobile-drawer-item" id="drawer-link-guides">
+            <i class="ph ph-book-open" style="font-size:1.2rem; color:var(--success);"></i> Role Guides & Manuals
+          </a>
           <a href="#contributors-section" class="mobile-drawer-item" id="drawer-link-contribs">
             <i class="ph ph-users-three" style="font-size:1.2rem; color:var(--primary);"></i> Contributors & Team
           </a>
@@ -288,8 +291,124 @@ export async function render(container) {
         </div>
       </section>
 
+      <!-- User Guides & Role Manuals Section -->
+      <section id="guides-section" style="background: var(--bg-primary); padding: 70px 20px; border-top: 1px solid var(--border);">
+        <div style="max-width: 1100px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 40px;">
+            <span class="badge" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; background: rgba(98,84,231,0.1); color: var(--accent); border: 1px solid rgba(98,84,231,0.2);">
+              DOCUMENTATION & OPERATING MANUALS
+            </span>
+            <h2 style="font-size: 2.2rem; font-weight: 800; margin: 12px 0 8px; color: var(--text-primary);">
+              User Operating Guides & Downloads
+            </h2>
+            <p style="color: var(--text-muted); font-size: 1.05rem; max-width: 700px; margin: 0 auto;">
+              Download step-by-step PDF manuals for your role. All user accounts log in with <strong>Username = Email Address</strong> and <strong>Password = Registered Mobile Number</strong>.
+            </p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+            <!-- Admin Card -->
+            <div class="card" style="padding: 26px 20px; border-top: 4px solid #6254e7; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
+              <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(98,84,231,0.12); color: #6254e7; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
+                    <i class="ph ph-shield-check"></i>
+                  </div>
+                  <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Administrator</h3>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">System Operator</span>
+                  </div>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+                  Setup infrastructure, departments, CSV bulk user imports, classwise mentor allocations & annual year resets.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="/docs/pdf/Lumina_Admin_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #6254e7; color:#fff; border-radius:8px; padding:10px;">
+                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
+                </a>
+                <a href="/docs/ADMIN_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
+              </div>
+            </div>
+
+            <!-- HOD Card -->
+            <div class="card" style="padding: 26px 20px; border-top: 4px solid #9333ea; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
+              <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(147,51,234,0.12); color: #9333ea; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
+                    <i class="ph ph-user-gear"></i>
+                  </div>
+                  <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Head of Dept (HOD)</h3>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Department Manager</span>
+                  </div>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+                  Monitor mentor workloads, reassign mentees with audit reasons, review audit logs & single-mentor exports.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="/docs/pdf/Lumina_HOD_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #9333ea; color:#fff; border-radius:8px; padding:10px;">
+                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
+                </a>
+                <a href="/docs/HOD_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
+              </div>
+            </div>
+
+            <!-- Mentor Card -->
+            <div class="card" style="padding: 26px 20px; border-top: 4px solid #3b82f6; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
+              <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59,130,246,0.12); color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
+                    <i class="ph ph-chalkboard-teacher"></i>
+                  </div>
+                  <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Faculty Mentor</h3>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Faculty Advisor</span>
+                  </div>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+                  Manage mentee cohorts, host WebRTC video calls with waiting room, log session notes & escalate issues.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="/docs/pdf/Lumina_Mentor_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #3b82f6; color:#fff; border-radius:8px; padding:10px;">
+                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
+                </a>
+                <a href="/docs/MENTOR_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
+              </div>
+            </div>
+
+            <!-- Student Card -->
+            <div class="card" style="padding: 26px 20px; border-top: 4px solid #10b981; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
+              <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16,185,129,0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
+                    <i class="ph ph-student"></i>
+                  </div>
+                  <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Student Mentee</h3>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Student Cohort</span>
+                  </div>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+                  View mentor contact card, request 1-on-1 meetings, join video calls, raise issues & complete tasks.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <a href="/docs/pdf/Lumina_Student_Mentee_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #10b981; color:#fff; border-radius:8px; padding:10px;">
+                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
+                </a>
+                <a href="/docs/STUDENT_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       <!-- Contributors Section -->
-      <section id="contributors-section" style="padding: 60px 20px; background: var(--bg-primary); border-top: 1px solid var(--border);">
+      <section id="contributors-section" style="padding: 60px 20px; background: var(--bg-secondary); border-top: 1px solid var(--border);">
         <div style="max-width: 1000px; margin: 0 auto; text-align: center;">
           <div style="margin-bottom: 12px;">
             <span class="badge" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; background: rgba(92,27,94,0.08); color: var(--primary); border: 1px solid rgba(92,27,94,0.15);">
