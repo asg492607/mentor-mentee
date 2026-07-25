@@ -47,6 +47,22 @@ export async function render(container) {
     if (!content) return;
     content.innerHTML = `
       <div class="dashboard-container">
+        <!-- Quick Actions Bar -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+          <a href="#/hod/reports" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-chart-bar" style="font-size:1.1rem;"></i> Mentor Reports
+          </a>
+          <a href="#/hod/allocation" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-users-three" style="font-size:1.1rem; color:var(--accent);"></i> Allocation
+          </a>
+          <a href="#/hod/risk-students" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-warning" style="font-size:1.1rem; color:var(--danger);"></i> Risk Students
+          </a>
+          <a href="#/hod/escalations" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-siren" style="font-size:1.1rem; color:var(--warning);"></i> Escalations
+          </a>
+        </div>
+
         <!-- Stats -->
       <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
         ${[

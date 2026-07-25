@@ -30,7 +30,8 @@ export function createSidebar(role, activePath) {
       { path: '/hod/management', label: 'Management', icon: '<i class="ph ph-briefcase"></i>' },
       { path: '/hod/directory', label: 'Users', icon: '<i class="ph ph-users"></i>' },
       { path: '/hod/risk-students', label: 'Risk Students', icon: '<i class="ph ph-warning"></i>' },
-      { path: '/hod/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' }
+      { path: '/hod/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' },
+      { path: '/hod/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' }
     ];
   } else if (roleUpper === 'DEAN') {
     navItems = [
@@ -39,7 +40,8 @@ export function createSidebar(role, activePath) {
       { path: '/dean/directory', label: 'Users', icon: '<i class="ph ph-users"></i>' },
       { path: '/dean/analytics', label: 'Analytics', icon: '<i class="ph ph-chart-line-up"></i>' },
       { path: '/dean/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
-      { path: '/dean/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' }
+      { path: '/dean/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' },
+      { path: '/dean/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' }
     ];
   } else if (roleUpper === 'ADMIN') {
     navItems = [
