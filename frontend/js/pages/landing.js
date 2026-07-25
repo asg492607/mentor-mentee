@@ -300,42 +300,51 @@ export async function render(container) {
             Contributors
           </h2>
 
-          <!-- Faculty Guidance Card -->
-          <div style="background: linear-gradient(135deg, rgba(194,24,91,0.06), rgba(92,27,94,0.08)); border: 1px solid rgba(92,27,94,0.2); border-radius: 16px; padding: 20px 24px; max-width: 450px; margin: 0 auto 36px; display: flex; align-items: center; justify-content: center; gap: 14px;">
-            <i class="ph ph-user-circle-gear" style="font-size: 2.2rem; color: var(--primary);"></i>
-            <div style="text-align: left;">
-              <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">GUIDED BY</div>
-              <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">Dr. Nilesh Thorat</div>
+          <!-- Top Row: Faculty Guide & Team Lead -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 760px; margin: 0 auto 24px;">
+            <!-- Faculty Guidance Card -->
+            <div style="background: linear-gradient(135deg, rgba(194,24,91,0.06), rgba(92,27,94,0.08)); border: 1.5px solid rgba(92,27,94,0.25); border-radius: 16px; padding: 22px; display: flex; align-items: center; justify-content: center; gap: 14px; box-shadow: 0 4px 16px rgba(92,27,94,0.06);">
+              <i class="ph ph-user-circle-gear" style="font-size: 2.4rem; color: var(--primary);"></i>
+              <div style="text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">GUIDED BY</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Dr. Nilesh Thorat</div>
+              </div>
+            </div>
+
+            <!-- Team Lead Card -->
+            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--accent); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #C2185B, #5C1B5E); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
+                AG
+              </div>
+              <div style="text-align: left;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Atharva Sameer Gandhi</h3>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent);">Contributor & Team Lead</div>
+              </div>
             </div>
           </div>
 
-          <!-- Team Members Grid -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-            <!-- Member 1 -->
-            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--accent); background: var(--bg-card);">
-              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #C2185B, #5C1B5E); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
-                AG
-              </div>
-              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Atharva Sameer Gandhi</h3>
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent);">Contributor & Team Lead</div>
-            </div>
-
+          <!-- Bottom Row: Remaining Team Members -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 760px; margin: 0 auto;">
             <!-- Member 2 -->
-            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--primary); background: var(--bg-card);">
-              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #5C1B5E, #4A154B); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
+            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--primary); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #5C1B5E, #4A154B); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
                 VB
               </div>
-              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Vaibhav Bariyar</h3>
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">Contributor</div>
+              <div style="text-align: left;">
+                <h3 style="font-size: 1.1rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Vaibhav Bariyar</h3>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">Contributor</div>
+              </div>
             </div>
 
             <!-- Member 3 -->
-            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--accent-gold); background: var(--bg-card);">
-              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #E67E22, #D35400); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
+            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--accent-gold); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #E67E22, #D35400); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
                 SD
               </div>
-              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Satwik Dhole</h3>
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-gold);">Contributor</div>
+              <div style="text-align: left;">
+                <h3 style="font-size: 1.1rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Satwik Dhole</h3>
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-gold);">Contributor</div>
+              </div>
             </div>
           </div>
         </div>
