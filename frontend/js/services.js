@@ -102,8 +102,65 @@ export const StudentService = {
     await updateDoc(doc(db, 'students', uid), { ...data, updatedAt: now() });
   },
 
-  async assignMentor(studentId, mentorId) {
-    await updateDoc(doc(db, 'students', studentId), { mentorId, updatedAt: now() });
+  async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL') {
+    const time = now();
+    await updateDoc(doc(db, 'students', studentId), {
+      mentorId,
+      allocatedBy,
+      allocatedAt: time,
+      allocationType,
+      updatedAt: time
+    });
+  },
+
+  async reassignMentor(studentId, newMentorId, reassignedBy = 'HOD', reason = 'Reassigned by HOD') {
+    const studentSnap = await getDoc(doc(db, 'students', studentId));
+    if (!studentSnap.exists()) throw new Error('Student not found');
+    const sData = studentSnap.data();
+    const oldMentorId = sData.mentorId || null;
+
+    let oldMentorName = 'Unassigned';
+    let newMentorName = 'Unassigned';
+
+    if (oldMentorId) {
+      const oldSnap = await getDoc(doc(db, 'faculty', oldMentorId));
+      if (oldSnap.exists()) oldMentorName = oldSnap.data().name || 'Faculty';
+    }
+    if (newMentorId) {
+      const newSnap = await getDoc(doc(db, 'faculty', newMentorId));
+      if (newSnap.exists()) newMentorName = newSnap.data().name || 'Faculty';
+    }
+
+    const time = now();
+    const historyEntry = {
+      previousMentorId: oldMentorId,
+      previousMentorName: oldMentorName,
+      newMentorId,
+      newMentorName,
+      reassignedBy,
+      reassignedAt: time,
+      reason
+    };
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'students', studentId), {
+      mentorId: newMentorId,
+      allocatedBy: reassignedBy,
+      allocatedAt: time,
+      allocationType: 'MANUAL',
+      updatedAt: time,
+      reassignmentHistory: arrayUnion(historyEntry)
+    });
+
+    if (oldMentorId && oldMentorId !== newMentorId) {
+      batch.update(doc(db, 'faculty', oldMentorId), { assignedStudentCount: increment(-1) });
+    }
+    if (newMentorId && oldMentorId !== newMentorId) {
+      batch.update(doc(db, 'faculty', newMentorId), { assignedStudentCount: increment(1) });
+    }
+
+    await batch.commit();
+    return historyEntry;
   },
 
   async approve(uid) {

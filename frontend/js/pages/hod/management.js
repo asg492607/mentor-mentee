@@ -99,11 +99,20 @@ export async function render(container) {
       sel.addEventListener('change', async (e) => {
         const id = e.target.dataset.id;
         const newMentor = e.target.value || null;
+        const reason = prompt('Enter reason for mentor reassignment:', 'Workload Balancing / Academic Reassignment');
+        if (reason === null) {
+          // User cancelled prompt, reset selection
+          e.target.value = e.target.getAttribute('data-prev') || '';
+          return;
+        }
+
         try {
-          await StudentService.assignMentor(id, newMentor);
-          showToast('Mentor updated successfully', 'success');
+          await StudentService.reassignMentor(id, newMentor, user.name || 'HOD', reason || 'Academic Reassignment');
+          e.target.setAttribute('data-prev', newMentor || '');
+          showToast('Mentor reassigned successfully with audit trail recorded!', 'success');
         } catch(err) {
-          showToast('Error updating mentor', 'error');
+          console.error('Reassign error:', err);
+          showToast('Error reassigning mentor: ' + err.message, 'error');
         }
       });
     });

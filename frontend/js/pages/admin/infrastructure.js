@@ -190,7 +190,7 @@ export async function render(container) {
                   <span style="font-weight:800; font-size:0.95rem; color:#10b981;">98.4%</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; padding: 10px 14px; background: var(--bg-secondary); border-radius: 10px;">
-                  <span style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Cursor Pagination (`startAfter`)</span>
+                  <span style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Cursor Pagination (startAfter)</span>
                   <span style="font-weight:800; font-size:0.95rem; color:#3b82f6;">Active (50/chunk)</span>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export async function render(container) {
                   <i class="ph ph-shield-check" style="font-size: 1.3rem; color: #f59e0b;"></i>
                   <div>
                     <strong style="font-size:0.9rem; color:var(--text-primary);">WebRTC Peer Connectivity Status</strong>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Public Google STUN active (`stun:stun.l.google.com:19302`). Zero media relay cost.</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Public Google STUN active (stun:stun.l.google.com:19302). Zero media relay cost.</div>
                   </div>
                 </div>
                 <span style="font-size:0.75rem; color:var(--text-muted);">1h ago</span>

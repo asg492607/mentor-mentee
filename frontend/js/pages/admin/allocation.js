@@ -31,6 +31,7 @@ export async function render(container) {
   let selectedClasswiseClass = '';
   let classwiseSearchQuery = '';
   let tickedStudentIds = new Set();
+  let allocFilterClass = '';
   let allocPage = 1;
   const allocPageSize = 20;
 
@@ -49,15 +50,40 @@ export async function render(container) {
       .filter(s => s.mentorId)
       .map(s => {
         const m = mentors.find(x => x.id === s.mentorId);
-        return { studentName: s.name, mentorName: m?.name || 'Unknown', department: s.department, className: s.class || 'Unassigned' };
+        return {
+          studentId: s.id,
+          studentName: s.name,
+          enrollmentNumber: s.enrollmentNumber || '—',
+          mentorName: m?.name || 'Unknown',
+          department: s.department || '—',
+          className: s.class ? `${s.class}` : 'Unassigned'
+        };
       });
+
+    // Natural classwise sorting: TY CORE 1 first, then TY CORE 2, etc.
+    // Secondary sorting: Mentorwise (for one mentor first all, then other)
+    assignedPairs.sort((a, b) => {
+      const classA = a.className || 'Unassigned';
+      const classB = b.className || 'Unassigned';
+      if (classA === 'Unassigned' && classB !== 'Unassigned') return 1;
+      if (classB === 'Unassigned' && classA !== 'Unassigned') return -1;
+      const classComp = classA.localeCompare(classB, undefined, { numeric: true, sensitivity: 'base' });
+      if (classComp !== 0) return classComp;
+
+      const mentorComp = (a.mentorName || '').localeCompare(b.mentorName || '');
+      if (mentorComp !== 0) return mentorComp;
+
+      return a.studentName.localeCompare(b.studentName);
+    });
 
     allDepartments = [...new Set([
       ...allStudents.map(s => s.department),
       ...mentors.map(m => m.department)
     ].filter(Boolean))].sort();
 
-    allClasses = [...new Set(allStudents.map(s => s.class).filter(Boolean))].sort();
+    allClasses = [...new Set(allStudents.map(s => s.class).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
   }
 
   try {
@@ -221,11 +247,40 @@ export async function render(container) {
         </div>
       </div>
 
+      <!-- ONE-CLICK SINGLE MENTOR REPORT BAR -->
+      <div class="card" style="padding:16px 20px;margin-bottom:24px;background:var(--bg-secondary);border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <i class="ph ph-file-arrow-down" style="font-size:1.3rem;color:var(--accent);"></i>
+            <div>
+              <h4 style="margin:0;font-size:0.9rem;font-weight:700;">One-Click Single Mentor Report Download</h4>
+              <p style="margin:2px 0 0;font-size:0.78rem;color:var(--text-secondary);">Download mentee list for a specific faculty mentor</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="single-mentor-select-admin" class="form-select" style="padding:6px 10px;font-size:0.85rem;min-width:220px;">
+              <option value="">-- Select Mentor Name --</option>
+              ${mentors.map(m => `<option value="${m.id}">${m.name} (${m.assignedStudentCount || 0}/${m.maxStudents || 20} assigned)</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-primary" id="btn-single-mentor-excel-admin"><i class="ph ph-file-xls"></i> Excel</button>
+            <button class="btn btn-sm btn-secondary" id="btn-single-mentor-pdf-admin"><i class="ph ph-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+      </div>
+
       <!-- CURRENT ALLOCATIONS TABLE -->
       <div class="card">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-          <h3>Current Allocations (${assignedPairs.length})</h3>
-          <div style="display:flex;gap:8px;">
+          <div>
+            <h3 style="margin:0;">Current Allocations (${assignedPairs.length})</h3>
+            <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">Ordered Classwise (e.g., TY CORE 1 first, TY CORE 2 next, likewise)</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="alloc-class-filter" class="form-select" style="padding:6px 12px;font-size:0.85rem;min-width:200px;">
+              <option value="">All Classes (Classwise Order)</option>
+              ${allClasses.map(c => `<option value="${c}" ${allocFilterClass === c ? 'selected' : ''}>Class: ${c}</option>`).join('')}
+              <option value="Unassigned" ${allocFilterClass === 'Unassigned' ? 'selected' : ''}>Unassigned Class</option>
+            </select>
             <button class="btn btn-sm btn-secondary" id="btn-export-excel" style="display:flex;align-items:center;gap:6px;">
               <i class="ph ph-file-xls" style="font-size:1rem;"></i> Export Excel
             </button>
@@ -343,16 +398,21 @@ export async function render(container) {
     const tableWrap = container.querySelector('#alloc-table-wrap');
     if (!tableWrap) return;
 
-    const totalAllocPages = Math.ceil(assignedPairs.length / allocPageSize) || 1;
+    let targetPairs = assignedPairs;
+    if (allocFilterClass) {
+      targetPairs = assignedPairs.filter(a => a.className === allocFilterClass);
+    }
+
+    const totalAllocPages = Math.ceil(targetPairs.length / allocPageSize) || 1;
     if (allocPage > totalAllocPages) allocPage = totalAllocPages;
     if (allocPage < 1) allocPage = 1;
 
     const startIdx = (allocPage - 1) * allocPageSize;
-    const endIdx = Math.min(startIdx + allocPageSize, assignedPairs.length);
-    const visiblePairs = assignedPairs.slice(startIdx, endIdx);
+    const endIdx = Math.min(startIdx + allocPageSize, targetPairs.length);
+    const visiblePairs = targetPairs.slice(startIdx, endIdx);
 
-    if (assignedPairs.length === 0) {
-      tableWrap.innerHTML = '<p style="padding:24px;color:var(--text-muted);text-align:center;">No allocations recorded yet.</p>';
+    if (targetPairs.length === 0) {
+      tableWrap.innerHTML = `<p style="padding:24px;color:var(--text-muted);text-align:center;">${allocFilterClass ? `No allocations found for Class "${allocFilterClass}".` : 'No allocations recorded yet.'}</p>`;
       return;
     }
 
@@ -360,25 +420,27 @@ export async function render(container) {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Student Name</th>
             <th>Class</th>
             <th>Assigned Mentor</th>
+            <th>Student Name</th>
+            <th>Enrollment No</th>
             <th>Department</th>
           </tr>
         </thead>
         <tbody>
           ${visiblePairs.map(a => `
             <tr>
+              <td><span class="badge badge-accent" style="font-weight:600;">Class ${a.className}</span></td>
+              <td style="color:var(--accent);font-weight:600;">${a.mentorName}</td>
               <td style="font-weight:600;">${a.studentName}</td>
-              <td><span class="badge badge-muted">${a.className}</span></td>
-              <td style="color:var(--accent);font-weight:500;">${a.mentorName}</td>
-              <td style="color:var(--text-muted);font-size:0.825rem;">${a.department || '—'}</td>
+              <td>${a.enrollmentNumber}</td>
+              <td style="color:var(--text-muted);font-size:0.825rem;">${a.department}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;">
-        <span style="font-size:0.8rem;color:var(--text-secondary);">Showing ${startIdx + 1}–${endIdx} of ${assignedPairs.length}</span>
+        <span style="font-size:0.8rem;color:var(--text-secondary);">Showing ${startIdx + 1}–${endIdx} of ${targetPairs.length} ${allocFilterClass ? `in Class ${allocFilterClass}` : 'allocations (classwise order)'}</span>
         <div style="display:flex;gap:6px;align-items:center;">
           <button class="btn btn-xs btn-secondary" id="btn-alloc-prev" ${allocPage === 1 ? 'disabled' : ''}>← Prev</button>
           <span style="font-size:0.8rem;font-weight:600;">Page ${allocPage} of ${totalAllocPages}</span>
@@ -396,6 +458,15 @@ export async function render(container) {
   }
 
   function attachEventListeners() {
+    // Current Allocations Class Filter Listener
+    const classFilterSelect = container.querySelector('#alloc-class-filter');
+    if (classFilterSelect) {
+      classFilterSelect.addEventListener('change', (e) => {
+        allocFilterClass = e.target.value;
+        allocPage = 1;
+        renderAllocationsTable();
+      });
+    }
     // Step 1: Mentor Selection
     const mentorSelect = container.querySelector('#classwise-mentor-select');
     if (mentorSelect) {
@@ -547,6 +618,21 @@ export async function render(container) {
     container.querySelector('#btn-export-pdf')?.addEventListener('click', async () => {
       const { exportMentorStudentReport } = await import('/js/report-export.js');
       await exportMentorStudentReport('pdf');
+    });
+
+    // Single Mentor Report Listeners
+    container.querySelector('#btn-single-mentor-excel-admin')?.addEventListener('click', async () => {
+      const mId = container.querySelector('#single-mentor-select-admin')?.value;
+      if (!mId) return showToast('Please select a Mentor Name first', 'warning');
+      const { exportSingleMentorReport } = await import('/js/report-export.js');
+      await exportSingleMentorReport(mId, 'excel');
+    });
+
+    container.querySelector('#btn-single-mentor-pdf-admin')?.addEventListener('click', async () => {
+      const mId = container.querySelector('#single-mentor-select-admin')?.value;
+      if (!mId) return showToast('Please select a Mentor Name first', 'warning');
+      const { exportSingleMentorReport } = await import('/js/report-export.js');
+      await exportSingleMentorReport(mId, 'pdf');
     });
   }
 

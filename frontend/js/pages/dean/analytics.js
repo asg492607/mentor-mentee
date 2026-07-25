@@ -123,7 +123,7 @@ export async function render(container) {
 
     // Export CSV logic
     document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-       const headers = ['Name', 'Enrollment No.', 'Department', 'Year', 'Latest SGPA', 'Total Backlogs', 'Risk Level'];
+       const headers = ['Name', 'Enrollment No.', 'Department', 'Year', 'Latest SGPA', 'Total Backlogs'];
        const rows = [headers];
        enrichedStudents.forEach(s => {
            rows.push([
@@ -132,11 +132,10 @@ export async function render(container) {
                s.department || '—',
                s.year || '—',
                s.latestSGPA > 0 ? s.latestSGPA : '—',
-               s.totalBacklogs,
-               s.riskLevel || 'UNKNOWN'
+               s.totalBacklogs
            ]);
        });
-       exportToCSV('Student_Risk_Report.csv', rows);
+       exportToCSV('Student_Academic_Report.csv', rows);
     });
 
     if (!window.Chart) return;

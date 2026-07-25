@@ -2,7 +2,7 @@ import { FacultyService, StudentService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 
 export async function exportMentorStudentReport(format = 'excel') {
-  showToast(`Preparing ${format.toUpperCase()} master allocation report...`, 'info');
+  showToast(`Preparing ${format.toUpperCase()} classwise allocation report...`, 'info');
   try {
     const [allMentors, allStudents] = await Promise.all([
       FacultyService.getAll(),
@@ -15,49 +15,46 @@ export async function exportMentorStudentReport(format = 'excel') {
       return showToast('No mentors or students found to generate report', 'warning');
     }
 
-    // Build flat row list
-    const reportRows = [];
-    let srNo = 1;
+    // 1. Sort Primary: Classwise (TY CORE 1, TY CORE 2, etc.)
+    // 2. Sort Secondary: Mentorwise (All mentees of Mentor 1 first, then Mentor 2, etc.)
+    // 3. Sort Tertiary: Student Name
+    const sortedStudents = [...allStudents].sort((a, b) => {
+      const classA = a.class ? `${a.class}` : 'Unassigned';
+      const classB = b.class ? `${b.class}` : 'Unassigned';
+      if (classA === 'Unassigned' && classB !== 'Unassigned') return 1;
+      if (classB === 'Unassigned' && classA !== 'Unassigned') return -1;
+      const classComp = classA.localeCompare(classB, undefined, { numeric: true, sensitivity: 'base' });
+      if (classComp !== 0) return classComp;
 
-    mentors.forEach(m => {
-      const assignedStudents = allStudents.filter(s => s.mentorId === m.id);
-      if (assignedStudents.length === 0) {
-        reportRows.push({
-          'Sr No': srNo++,
-          'Mentor Name': m.name,
-          'Mentor Department': m.department || '—',
-          'Mentor Designation': m.designation || 'Faculty',
-          'Student Name': 'No assigned students',
-          'Enrollment No': '—',
-          'Class': '—',
-          'Student Dept': '—',
-          'CGPA': '—',
-          'Attendance (%)': '—',
-          'Risk Level': '—'
-        });
-      } else {
-        assignedStudents.forEach(s => {
-          reportRows.push({
-            'Sr No': srNo++,
-            'Mentor Name': m.name,
-            'Mentor Department': m.department || '—',
-            'Mentor Designation': m.designation || 'Faculty',
-            'Student Name': s.name,
-            'Enrollment No': s.enrollmentNumber || '—',
-            'Class': s.class ? `Class ${s.class}` : 'Unassigned',
-            'Student Dept': s.department || '—',
-            'CGPA': s.cgpa || '0',
-            'Attendance (%)': (s.attendance || 0) + '%',
-            'Risk Level': s.riskLevel || 'LOW'
-          });
-        });
-      }
+      const mA = mentors.find(x => x.id === a.mentorId)?.name || 'Unassigned Mentor';
+      const mB = mentors.find(x => x.id === b.mentorId)?.name || 'Unassigned Mentor';
+      if (mA === 'Unassigned Mentor' && mB !== 'Unassigned Mentor') return 1;
+      if (mB === 'Unassigned Mentor' && mA !== 'Unassigned Mentor') return -1;
+      const mentorComp = mA.localeCompare(mB);
+      if (mentorComp !== 0) return mentorComp;
+
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    // Build flat row list ordered Classwise -> Mentorwise -> Studentwise
+    const reportRows = sortedStudents.map((s, idx) => {
+      const m = mentors.find(x => x.id === s.mentorId);
+      return {
+        'Sr No': idx + 1,
+        'Class': s.class ? `Class ${s.class}` : 'Unassigned Class',
+        'Assigned Mentor': m ? m.name : 'Unassigned',
+        'Student Name': s.name || '—',
+        'Enrollment No': s.enrollmentNumber || '—',
+        'Mentor Dept': m ? (m.department || '—') : '—',
+        'Mentor Designation': m ? (m.designation || 'Faculty') : '—',
+        'Student Dept': s.department || '—'
+      };
     });
 
     if (format === 'excel') {
-      downloadExcelReport(reportRows, mentors, allStudents);
+      downloadExcelReport(reportRows, mentors, sortedStudents);
     } else if (format === 'pdf') {
-      downloadPdfReport(reportRows, mentors, allStudents);
+      downloadPdfReport(reportRows, mentors, sortedStudents);
     }
   } catch (err) {
     console.error("Export error:", err);
@@ -65,35 +62,64 @@ export async function exportMentorStudentReport(format = 'excel') {
   }
 }
 
-function downloadExcelReport(reportRows, mentors, allStudents) {
+function downloadExcelReport(reportRows, mentors, sortedStudents) {
   if (typeof XLSX === 'undefined') {
     return showToast('Excel export library (SheetJS) is not loaded', 'error');
   }
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Master Allocation List
+  // Sheet 1: Classwise & Mentorwise Allocation List
   const ws1 = XLSX.utils.json_to_sheet(reportRows);
-
-  // Set column widths for readability
   ws1['!cols'] = [
     { wch: 8 },  // Sr No
-    { wch: 25 }, // Mentor Name
-    { wch: 20 }, // Mentor Dept
-    { wch: 20 }, // Mentor Designation
+    { wch: 18 }, // Class
+    { wch: 25 }, // Assigned Mentor
     { wch: 25 }, // Student Name
     { wch: 18 }, // Enrollment No
-    { wch: 15 }, // Class
-    { wch: 20 }, // Student Dept
-    { wch: 10 }, // CGPA
-    { wch: 15 }, // Attendance
-    { wch: 12 }  // Risk Level
+    { wch: 20 }, // Mentor Dept
+    { wch: 20 }, // Mentor Designation
+    { wch: 20 }  // Student Dept
   ];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Mentor-Student Allocations');
+  XLSX.utils.book_append_sheet(wb, ws1, 'Class & Mentor Allocations');
 
-  // Sheet 2: Mentor Summary
+  // Sheet 2: Class Summary
+  const classMap = {};
+  sortedStudents.forEach(s => {
+    const cName = s.class ? `Class ${s.class}` : 'Unassigned Class';
+    if (!classMap[cName]) {
+      classMap[cName] = { total: 0, assigned: 0, mentors: new Set() };
+    }
+    classMap[cName].total++;
+    if (s.mentorId) {
+      classMap[cName].assigned++;
+      classMap[cName].mentors.add(s.mentorId);
+    }
+  });
+
+  const classSummary = Object.keys(classMap).map((cName, idx) => ({
+    'Sr No': idx + 1,
+    'Class Name': cName,
+    'Total Students': classMap[cName].total,
+    'Assigned Mentees': classMap[cName].assigned,
+    'Unassigned Students': classMap[cName].total - classMap[cName].assigned,
+    'Unique Mentors Count': classMap[cName].mentors.size
+  }));
+
+  const ws2 = XLSX.utils.json_to_sheet(classSummary);
+  ws2['!cols'] = [
+    { wch: 8 },
+    { wch: 22 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Class Summary');
+
+  // Sheet 3: Mentor Summary
   const mentorSummary = mentors.map((m, idx) => {
-    const count = allStudents.filter(s => s.mentorId === m.id).length;
+    const count = sortedStudents.filter(s => s.mentorId === m.id).length;
     return {
       'Sr No': idx + 1,
       'Mentor Name': m.name,
@@ -102,23 +128,23 @@ function downloadExcelReport(reportRows, mentors, allStudents) {
       'Total Assigned Students': count
     };
   });
-  const ws2 = XLSX.utils.json_to_sheet(mentorSummary);
-  ws2['!cols'] = [
+  const ws3 = XLSX.utils.json_to_sheet(mentorSummary);
+  ws3['!cols'] = [
     { wch: 8 },
     { wch: 25 },
     { wch: 20 },
     { wch: 22 },
     { wch: 25 }
   ];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Mentor Summary');
+  XLSX.utils.book_append_sheet(wb, ws3, 'Mentor Summary');
 
   const dateStr = new Date().toISOString().slice(0, 10);
-  const fileName = `Master_Mentor_Student_Allocations_${dateStr}.xlsx`;
+  const fileName = `Classwise_Mentor_Student_Allocations_${dateStr}.xlsx`;
   XLSX.writeFile(wb, fileName);
-  showToast('Excel master report downloaded successfully!', 'success');
+  showToast('Excel classwise allocation report downloaded successfully!', 'success');
 }
 
-function downloadPdfReport(reportRows, mentors, allStudents) {
+function downloadPdfReport(reportRows, mentors, sortedStudents) {
   if (window.jspdf && window.jspdf.jsPDF) {
     try {
       const { jsPDF } = window.jspdf;
@@ -126,24 +152,23 @@ function downloadPdfReport(reportRows, mentors, allStudents) {
 
       // Title & Header
       doc.setFontSize(16);
-      doc.setTextColor(98, 84, 231); // App Accent color
-      doc.text("Lumina — Master Mentor & Associated Students Allocation Report", 14, 15);
+      doc.setTextColor(98, 84, 231);
+      doc.text("Lumina — Classwise & Mentorwise Allocation Report", 14, 15);
 
       doc.setFontSize(9);
       doc.setTextColor(100);
-      const assignedCount = allStudents.filter(s => s.mentorId).length;
-      doc.text(`Generated on: ${new Date().toLocaleString()} | Total Mentors: ${mentors.length} | Assigned Students: ${assignedCount} / ${allStudents.length}`, 14, 22);
+      const assignedCount = sortedStudents.filter(s => s.mentorId).length;
+      doc.text(`Generated on: ${new Date().toLocaleString()} | Total Students: ${sortedStudents.length} | Assigned Mentees: ${assignedCount} | Total Mentors: ${mentors.length}`, 14, 22);
 
-      const headers = [['#', 'Mentor Name', 'Mentor Dept', 'Student Name', 'Enrollment No', 'Class', 'Student Dept', 'Risk Level']];
+      const headers = [['#', 'Class', 'Assigned Mentor', 'Student Name', 'Enrollment No', 'Mentor Dept', 'Student Dept']];
       const body = reportRows.map(r => [
         r['Sr No'],
-        r['Mentor Name'],
-        r['Mentor Department'],
+        r['Class'],
+        r['Assigned Mentor'],
         r['Student Name'],
         r['Enrollment No'],
-        r['Class'],
-        r['Student Dept'],
-        r['Risk Level']
+        r['Mentor Dept'],
+        r['Student Dept']
       ]);
 
       doc.autoTable({
@@ -155,20 +180,19 @@ function downloadPdfReport(reportRows, mentors, allStudents) {
         styles: { fontSize: 8, cellPadding: 2.5 },
         columnStyles: {
           0: { cellWidth: 10 },
-          1: { cellWidth: 45 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 45 },
-          4: { cellWidth: 35 },
-          5: { cellWidth: 25 },
-          6: { cellWidth: 35 },
-          7: { cellWidth: 25 }
+          1: { cellWidth: 35 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 50 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 40 },
+          6: { cellWidth: 40 }
         }
       });
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      const fileName = `Master_Mentor_Student_Allocations_${dateStr}.pdf`;
+      const fileName = `Classwise_Mentor_Student_Allocations_${dateStr}.pdf`;
       doc.save(fileName);
-      showToast('PDF master report downloaded successfully!', 'success');
+      showToast('PDF classwise allocation report downloaded successfully!', 'success');
       return;
     } catch (err) {
       console.warn("jsPDF error, falling back to print window:", err);
@@ -176,77 +200,195 @@ function downloadPdfReport(reportRows, mentors, allStudents) {
   }
 
   // Fallback: Printable HTML Report Window
-  openPrintableReportWindow(reportRows, mentors, allStudents);
+  openPrintableReportWindow(reportRows, mentors, sortedStudents);
 }
 
-function openPrintableReportWindow(reportRows, mentors, allStudents) {
-  const printWin = window.open('', '_blank', 'width=1000,height=750');
+function openPrintableReportWindow(reportRows, mentors, sortedStudents) {
+  const printWin = window.open('', '_blank', 'width=1050,height=800');
   if (!printWin) {
     return showToast('Pop-up blocked. Please allow pop-ups to view printable PDF report.', 'warning');
   }
 
-  const assignedCount = allStudents.filter(s => s.mentorId).length;
+  const assignedCount = sortedStudents.filter(s => s.mentorId).length;
+
+  // Group reportRows by Class -> then by Mentor
+  const classGroups = {};
+  reportRows.forEach(r => {
+    const c = r['Class'];
+    if (!classGroups[c]) classGroups[c] = {};
+    const m = r['Assigned Mentor'];
+    if (!classGroups[c][m]) classGroups[c][m] = [];
+    classGroups[c][m].push(r);
+  });
 
   printWin.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Master Mentor & Associated Students Allocation Report</title>
+      <title>Classwise & Mentorwise Allocation Report</title>
       <style>
         body { font-family: 'Inter', system-ui, sans-serif; padding: 24px; color: #1e293b; background: #fff; }
         h2 { color: #6254e7; margin-bottom: 4px; }
         .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.825rem; }
+        .class-header { background: #f1f5f9; padding: 10px 14px; border-left: 5px solid #6254e7; font-size: 1.05rem; font-weight: 800; margin: 28px 0 14px 0; border-radius: 0 6px 6px 0; display: flex; justify-content: space-between; align-items: center; }
+        .mentor-header { background: #faf5ff; padding: 8px 12px; border-left: 4px solid #9333ea; font-size: 0.925rem; font-weight: 700; color: #6b21a8; margin: 16px 0 8px 0; border-radius: 0 4px 4px 0; display: flex; justify-content: space-between; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.825rem; margin-bottom: 16px; }
         th { background: #6254e7; color: #fff; text-align: left; padding: 8px; font-weight: 600; }
         td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
         tr:nth-child(even) { background: #f8fafc; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .badge-low { background: #dcfce7; color: #166534; }
-        .badge-high { background: #fee2e2; color: #991b1b; }
         @media print {
           body { padding: 0; }
           button { display: none; }
+          .class-header, .mentor-header { break-after: avoid; }
         }
       </style>
     </head>
     <body>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2>Master Mentor & Associated Students Allocation Report</h2>
+        <h2>Classwise & Mentorwise Allocation Report</h2>
         <button onclick="window.print()" style="padding:8px 16px;background:#6254e7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">🖨️ Print / Save as PDF</button>
       </div>
       <div class="meta">
-        Generated: ${new Date().toLocaleString()} | Total Mentors: ${mentors.length} | Total Assigned Students: ${assignedCount} / ${allStudents.length}
+        Generated: ${new Date().toLocaleString()} | Total Students: ${sortedStudents.length} | Assigned Mentees: ${assignedCount} | Total Mentors: ${mentors.length}
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Mentor Name</th>
-            <th>Mentor Dept</th>
-            <th>Student Name</th>
-            <th>Enrollment No</th>
-            <th>Class</th>
-            <th>Student Dept</th>
-            <th>Risk</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${reportRows.map(r => `
-            <tr>
-              <td>${r['Sr No']}</td>
-              <td><strong>${r['Mentor Name']}</strong></td>
-              <td>${r['Mentor Department']}</td>
-              <td>${r['Student Name']}</td>
-              <td>${r['Enrollment No']}</td>
-              <td>${r['Class']}</td>
-              <td>${r['Student Dept']}</td>
-              <td><span class="badge ${r['Risk Level'] === 'HIGH' ? 'badge-high' : 'badge-low'}">${r['Risk Level']}</span></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+
+      ${Object.keys(classGroups).map(cName => {
+        const mentorsInClass = classGroups[cName];
+        let totalInClass = 0;
+        Object.values(mentorsInClass).forEach(arr => totalInClass += arr.length);
+
+        return `
+          <div class="class-header">
+            <span>📌 ${cName}</span>
+            <span style="font-size:0.85rem;font-weight:600;color:#64748b;">${totalInClass} Student(s) across ${Object.keys(mentorsInClass).length} Mentor(s)</span>
+          </div>
+
+          ${Object.keys(mentorsInClass).map(mName => {
+            const rows = mentorsInClass[mName];
+            return `
+              <div class="mentor-header">
+                <span>👤 Mentor: <strong>${mName}</strong></span>
+                <span>${rows.length} Assigned Mentees</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:40px;">#</th>
+                    <th>Student Name</th>
+                    <th>Enrollment No</th>
+                    <th>Mentor Dept</th>
+                    <th>Student Dept</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map(r => `
+                    <tr>
+                      <td>${r['Sr No']}</td>
+                      <td><strong>${r['Student Name']}</strong></td>
+                      <td>${r['Enrollment No']}</td>
+                      <td>${r['Mentor Dept']}</td>
+                      <td>${r['Student Dept']}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }).join('')}
+        `;
+      }).join('')}
     </body>
     </html>
   `);
   printWin.document.close();
+}
+
+export async function exportSingleMentorReport(mentorId, format = 'excel') {
+  if (!mentorId) return showToast('Please select a mentor first', 'warning');
+  showToast(`Preparing ${format.toUpperCase()} report for selected mentor...`, 'info');
+  try {
+    const mentor = await FacultyService.get(mentorId);
+    if (!mentor) return showToast('Mentor not found', 'error');
+
+    const students = await StudentService.getByMentor(mentorId);
+    if (!students || students.length === 0) {
+      return showToast(`No assigned mentees found for ${mentor.name}`, 'warning');
+    }
+
+    // Sort students classwise, then by student name
+    const sorted = [...students].sort((a, b) => {
+      const classA = a.class ? `${a.class}` : 'Unassigned';
+      const classB = b.class ? `${b.class}` : 'Unassigned';
+      if (classA === 'Unassigned' && classB !== 'Unassigned') return 1;
+      if (classB === 'Unassigned' && classA !== 'Unassigned') return -1;
+      const cComp = classA.localeCompare(classB, undefined, { numeric: true, sensitivity: 'base' });
+      if (cComp !== 0) return cComp;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const reportRows = sorted.map((s, idx) => ({
+      'Sr No': idx + 1,
+      'Class': s.class ? `Class ${s.class}` : 'Unassigned Class',
+      'Student Name': s.name || '—',
+      'Enrollment No': s.enrollmentNumber || '—',
+      'Department': s.department || '—'
+    }));
+
+    const sanitizeName = (mentor.name || 'Mentor').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    if (format === 'excel') {
+      if (typeof XLSX === 'undefined') return showToast('Excel export library is not loaded', 'error');
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(reportRows);
+      ws['!cols'] = [
+        { wch: 8 },  // Sr No
+        { wch: 18 }, // Class
+        { wch: 25 }, // Student Name
+        { wch: 18 }, // Enrollment No
+        { wch: 20 }  // Department
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'Mentees List');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `${sanitizeName}_Mentees_${dateStr}.xlsx`);
+      showToast(`Excel mentee report for ${mentor.name} downloaded successfully!`, 'success');
+    } else if (format === 'pdf') {
+      if (window.jspdf && window.jspdf.jsPDF) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        doc.setFontSize(14);
+        doc.setTextColor(98, 84, 231);
+        doc.text(`Mentee Allocation Report — ${mentor.name}`, 14, 15);
+
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text(`Department: ${mentor.department || '—'} | Designation: ${mentor.designation || 'Faculty'} | Total Mentees: ${students.length}`, 14, 22);
+
+        const headers = [['#', 'Class', 'Student Name', 'Enrollment No', 'Department']];
+        const body = reportRows.map(r => [
+          r['Sr No'],
+          r['Class'],
+          r['Student Name'],
+          r['Enrollment No'],
+          r['Department']
+        ]);
+
+        doc.autoTable({
+          startY: 26,
+          head: headers,
+          body: body,
+          theme: 'grid',
+          headStyles: { fillColor: [98, 84, 231], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+          styles: { fontSize: 8, cellPadding: 2.5 }
+        });
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        doc.save(`${sanitizeName}_Mentees_${dateStr}.pdf`);
+        showToast(`PDF mentee report for ${mentor.name} downloaded successfully!`, 'success');
+      } else {
+        openPrintableReportWindow(reportRows, [mentor], sorted);
+      }
+    }
+  } catch (err) {
+    console.error("Single mentor export error:", err);
+    showToast(`Export failed: ${err.message}`, 'error');
+  }
 }
