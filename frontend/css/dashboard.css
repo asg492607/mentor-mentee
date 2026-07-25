@@ -1937,6 +1937,13 @@
 }
 
 /* ── Landing Page Responsive Styles ────────────────────────── */
+.landing-page {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
 .landing-nav {
   display: flex;
   justify-content: space-between;
@@ -1950,6 +1957,47 @@
   z-index: 100;
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 4px 20px rgba(92, 27, 94, 0.08);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.landing-brand-logo {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+}
+
+.landing-brand-text {
+  font-size: 1.85rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+
+.landing-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #5C1B5E;
+  background: rgba(92,27,94,0.08);
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(92,27,94,0.15);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.landing-login-btn {
+  background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%);
+  color: #ffffff;
+  border-radius: 30px;
+  padding: 10px 26px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(194, 24, 91, 0.4);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .landing-hero {
@@ -1971,6 +2019,7 @@
   line-height: 1.12;
   margin-bottom: 20px;
   letter-spacing: -0.02em;
+  word-break: break-word;
 }
 
 .landing-hero-desc {
@@ -2012,37 +2061,60 @@
   position: relative;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .landing-nav {
-    padding: 14px 20px;
+    padding: 10px 12px;
   }
-
+  .landing-brand-logo {
+    height: 30px;
+  }
+  .landing-brand-text {
+    font-size: 1.25rem;
+  }
+  .landing-login-btn {
+    padding: 7px 14px;
+    font-size: 0.8rem;
+  }
+  .desktop-only {
+    display: none !important;
+  }
   .landing-hero {
     grid-template-columns: 1fr;
-    padding: 40px 20px;
+    padding: 30px 16px;
     text-align: center;
-    gap: 30px;
+    gap: 24px;
   }
-
   .landing-hero-title {
-    font-size: 2.35rem;
+    font-size: 1.9rem;
+    line-height: 1.22;
   }
-
   .landing-hero-desc {
-    font-size: 1rem;
-    margin-bottom: 24px;
+    font-size: 0.95rem;
+    margin-bottom: 20px;
   }
-
   .landing-hero-img {
     width: 100%;
-    max-width: 420px;
+    max-width: 360px;
   }
-
   .landing-ack-section {
-    padding: 50px 20px;
+    padding: 40px 16px;
   }
-
   .landing-ack-card {
-    padding: 28px 20px;
+    padding: 24px 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .landing-badge {
+    display: none;
+  }
+  .landing-brand-logo {
+    height: 26px;
+  }
+  .landing-brand-text {
+    font-size: 1.15rem;
+  }
+  .landing-hero-title {
+    font-size: 1.65rem;
   }
 }
