@@ -29,9 +29,102 @@ export async function render(container) {
           word-break: break-word;
         }
 
+        /* Mobile Drawer Slide Bar Styles */
+        .mobile-drawer-backdrop {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+          z-index: 999;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.3s ease;
+        }
+        .mobile-drawer-backdrop.active {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .mobile-drawer {
+          position: fixed;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          width: 280px;
+          max-width: 80vw;
+          background: var(--bg-card);
+          border-left: 1px solid var(--border);
+          box-shadow: -8px 0 30px rgba(0,0,0,0.3);
+          z-index: 1000;
+          transform: translateX(100%);
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          flex-direction: column;
+        }
+        .mobile-drawer.active {
+          transform: translateX(0);
+        }
+
+        .mobile-drawer-header {
+          padding: 16px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .mobile-drawer-body {
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .mobile-drawer-divider {
+          height: 1px;
+          background: var(--border);
+          margin: 4px 0;
+        }
+
+        .mobile-drawer-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: var(--text-primary);
+          font-weight: 600;
+          font-size: 0.95rem;
+          text-decoration: none;
+          padding: 10px 14px;
+          border-radius: 10px;
+          transition: background 0.2s;
+        }
+        .mobile-drawer-item:hover {
+          background: var(--bg-secondary);
+        }
+
+        .mobile-menu-toggle {
+          display: none;
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          padding: 0;
+          align-items: center;
+          justify-content: center;
+          background: rgba(15,23,42,0.06);
+          border: 1px solid rgba(15,23,42,0.12);
+          color: #1e293b;
+          cursor: pointer;
+        }
+
         @media (max-width: 768px) {
+          .mobile-menu-toggle {
+            display: flex !important;
+          }
           .landing-nav {
-            padding: 10px 12px !important;
+            padding: 10px 14px !important;
             gap: 6px !important;
           }
           .landing-brand-logo {
@@ -72,7 +165,7 @@ export async function render(container) {
           }
         }
 
-        @media (max-width: 400px) {
+        @media (max-width: 420px) {
           .landing-brand-text {
             display: none !important;
           }
@@ -85,6 +178,32 @@ export async function render(container) {
           }
         }
       </style>
+
+      <!-- Mobile Navigation Drawer & Backdrop -->
+      <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop"></div>
+      <div id="mobile-drawer" class="mobile-drawer">
+        <div class="mobile-drawer-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT Logo" style="height:28px; width:auto;">
+            <div style="font-size:1.2rem; font-weight:800; color:var(--primary);">Lumina</div>
+          </div>
+          <button id="mobile-drawer-close" class="btn btn-ghost" style="border-radius:50%; width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center;">
+            <i class="ph ph-x" style="font-size:1.3rem; color:var(--text-primary);"></i>
+          </button>
+        </div>
+        <div class="mobile-drawer-body">
+          <a href="#/login" class="btn" style="background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%); color:#fff; text-align:center; font-weight:700; border-radius:30px; padding:12px 20px; text-decoration:none;">
+            <i class="ph ph-sign-in" style="margin-right:6px;"></i> Login Portal
+          </a>
+          <div class="mobile-drawer-divider"></div>
+          <a href="#capabilities-section" class="mobile-drawer-item" id="drawer-link-caps">
+            <i class="ph ph-squares-four" style="font-size:1.2rem; color:var(--accent);"></i> Core Capabilities
+          </a>
+          <a href="#pilot-ack-section" class="mobile-drawer-item" id="drawer-link-pilot">
+            <i class="ph ph-medal" style="font-size:1.2rem; color:var(--accent-gold);"></i> TY CSE Core Pilot
+          </a>
+        </div>
+      </div>
       
       <!-- Navbar -->
       <nav class="landing-nav">
@@ -93,12 +212,15 @@ export async function render(container) {
           <div class="landing-brand-text">Lumina</div>
           <span class="landing-badge">MIT-ADT</span>
         </div>
-        <div style="display:flex; align-items:center; gap: 6px; flex-shrink: 0;">
-          <button id="theme-toggle" class="btn" style="border-radius: 50%; width: 34px; height: 34px; min-width: 34px; padding:0; display:flex; align-items:center; justify-content:center; background: rgba(15,23,42,0.06); border: 1px solid rgba(15,23,42,0.12); color: #1e293b;">
-            <svg class="sun-icon" viewBox="0 0 24 24" width="17" height="17" style="display:none;fill:currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>
-            <svg class="moon-icon" viewBox="0 0 24 24" width="17" height="17" style="display:none;fill:currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7c.18 0 .35.02.52.05-.72.82-1.18 1.89-1.25 3.05-.03.58.05 1.15.22 1.69.34 1.12.97 2.1 1.8 2.87.82.76 1.83 1.33 2.95 1.6.51.13 1.04.18 1.57.14 1.12-.08 2.14-.52 2.94-1.21.03.17.05.34.05.52 0 3.86-3.14 7-7 7z"/></svg>
+        <div style="display:flex; align-items:center; gap: 8px; flex-shrink: 0;">
+          <button id="theme-toggle" class="btn" style="border-radius: 50%; width: 36px; height: 36px; min-width: 36px; padding:0; display:flex; align-items:center; justify-content:center; background: rgba(15,23,42,0.06); border: 1px solid rgba(15,23,42,0.12); color: #1e293b;">
+            <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" style="display:none;fill:currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" style="display:none;fill:currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7c.18 0 .35.02.52.05-.72.82-1.18 1.89-1.25 3.05-.03.58.05 1.15.22 1.69.34 1.12.97 2.1 1.8 2.87.82.76 1.83 1.33 2.95 1.6.51.13 1.04.18 1.57.14 1.12-.08 2.14-.52 2.94-1.21.03.17.05.34.05.52 0 3.86-3.14 7-7 7z"/></svg>
           </button>
           <a href="#/login" class="btn landing-login-btn">Login Portal</a>
+          <button id="mobile-menu-toggle" class="btn mobile-menu-toggle" aria-label="Open mobile menu">
+            <i class="ph ph-list" style="font-size:1.3rem;"></i>
+          </button>
         </div>
       </nav>
 
@@ -129,7 +251,7 @@ export async function render(container) {
       </section>
 
       <!-- Features Section -->
-      <section style="background: var(--bg-secondary); padding: 70px 20px; border-top: 1px solid var(--border);">
+      <section id="capabilities-section" style="background: var(--bg-secondary); padding: 70px 20px; border-top: 1px solid var(--border);">
         <div style="max-width: 1200px; margin: 0 auto;">
           <div style="text-align: center; margin-bottom: 50px;">
             <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 12px;">Core Capabilities</h2>
@@ -161,7 +283,7 @@ export async function render(container) {
       </section>
 
       <!-- Special Thanks & Pilot Recognition Section -->
-      <section class="landing-ack-section">
+      <section id="pilot-ack-section" class="landing-ack-section">
         <div class="landing-ack-card">
           <div style="margin-bottom: 16px;">
             <span class="badge badge-accent" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; letter-spacing: 0.04em;">
@@ -190,6 +312,28 @@ export async function render(container) {
       </footer>
     </div>
   `;
+
+  // Mobile Drawer toggle logic
+  const menuToggle = container.querySelector('#mobile-menu-toggle');
+  const drawer = container.querySelector('#mobile-drawer');
+  const backdrop = container.querySelector('#mobile-drawer-backdrop');
+  const closeBtn = container.querySelector('#mobile-drawer-close');
+
+  const openDrawer = () => {
+    drawer?.classList.add('active');
+    backdrop?.classList.add('active');
+  };
+  const closeDrawer = () => {
+    drawer?.classList.remove('active');
+    backdrop?.classList.remove('active');
+  };
+
+  menuToggle?.addEventListener('click', openDrawer);
+  closeBtn?.addEventListener('click', closeDrawer);
+  backdrop?.addEventListener('click', closeDrawer);
+
+  container.querySelector('#drawer-link-caps')?.addEventListener('click', closeDrawer);
+  container.querySelector('#drawer-link-pilot')?.addEventListener('click', closeDrawer);
 
   // Trigger initial UI theme update
   const event = new Event('DOMContentLoaded');
