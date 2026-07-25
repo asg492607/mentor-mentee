@@ -628,6 +628,51 @@ export const AllocationService = {
     }
 
     return results;
+  },
+
+  async unallotAll(department = null, onProgress = null) {
+    let students = department
+      ? await StudentService.getByDepartment(department)
+      : await StudentService.getAll();
+    const assignedStudents = students.filter(s => s.mentorId);
+
+    let mentors = department
+      ? await FacultyService.getByDepartment(department)
+      : await FacultyService.getAll();
+
+    let currentBatch = writeBatch(db);
+    let batchCount = 0;
+    let processed = 0;
+
+    // Reset student mentorId assignments
+    for (let i = 0; i < assignedStudents.length; i++) {
+      const student = assignedStudents[i];
+      currentBatch.update(doc(db, 'students', student.id), { mentorId: null, updatedAt: now() });
+      batchCount++;
+      processed++;
+
+      if (batchCount >= 400 || i === assignedStudents.length - 1) {
+        await currentBatch.commit();
+        if (onProgress) onProgress(processed, assignedStudents.length);
+        currentBatch = writeBatch(db);
+        batchCount = 0;
+      }
+    }
+
+    // Reset faculty assigned counts to 0
+    let facultyBatch = writeBatch(db);
+    let fCount = 0;
+    for (let i = 0; i < mentors.length; i++) {
+      facultyBatch.update(doc(db, 'faculty', mentors[i].id), { assignedStudentCount: 0 });
+      fCount++;
+      if (fCount >= 400 || i === mentors.length - 1) {
+        await facultyBatch.commit();
+        facultyBatch = writeBatch(db);
+        fCount = 0;
+      }
+    }
+
+    return assignedStudents.length;
   }
 };
 

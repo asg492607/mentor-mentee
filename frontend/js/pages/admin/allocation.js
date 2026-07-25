@@ -179,16 +179,21 @@ export async function render(container) {
 
       <!-- SECONDARY ACTIONS GRID -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;margin-bottom:24px;">
-        <!-- Global Auto-Allocate -->
+        <!-- Global Auto-Allocate & Reset -->
         <div class="card" style="padding:20px;">
-          <h4 style="margin-bottom:8px;font-size:1rem;">Global Auto-Allocate</h4>
-          <p style="font-size:0.85rem;margin-bottom:16px;color:var(--text-secondary);">Automatically distribute unassigned students evenly among mentors in a department.</p>
+          <h4 style="margin-bottom:8px;font-size:1rem;">Auto-Allocate & Year Reset</h4>
+          <p style="font-size:0.85rem;margin-bottom:16px;color:var(--text-secondary);">Distribute or reset student-mentor pairings for academic year transition.</p>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
               <option value="">All Departments</option>
               ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
             </select>
-            <button class="btn btn-secondary" style="width:100%;" id="btn-auto">Run Auto-Allocate</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" style="flex:1;min-width:120px;" id="btn-auto">Run Auto-Allocate</button>
+              <button class="btn btn-danger" style="flex:1;min-width:140px;background:var(--danger);color:#fff;" id="btn-unallot-all" title="Unallot all students to reset for academic year change">
+                <i class="ph ph-arrow-counter-clockwise"></i> Reset / Unallot All
+              </button>
+            </div>
           </div>
         </div>
 
@@ -501,6 +506,34 @@ export async function render(container) {
         } finally {
           btnAuto.disabled = false;
           btnAuto.textContent = 'Run Auto-Allocate';
+        }
+      });
+    }
+
+    // Unallot All / Year Change Reset Action
+    const btnUnallot = container.querySelector('#btn-unallot-all');
+    if (btnUnallot) {
+      btnUnallot.addEventListener('click', async () => {
+        const dept = container.querySelector('#auto-dept').value || null;
+        const targetDesc = dept ? `all students in ${dept}` : 'ALL students across all departments';
+        if (!confirm(`⚠️ ACADEMIC YEAR RESET CONFIRMATION:\n\nAre you sure you want to UNALLOT ${targetDesc}?\n\nThis will clear all current mentor assignments so you can cleanly re-allocate students for the new academic year.`)) return;
+
+        btnUnallot.disabled = true;
+        btnUnallot.textContent = 'Resetting...';
+
+        try {
+          const count = await AllocationService.unallotAll(dept, (processed, total) => {
+            btnUnallot.textContent = `Resetting (${processed}/${total})...`;
+          });
+          showToast(`Successfully unallocated ${count} student(s)! You can now run Auto-Allocate.`, 'success');
+          await loadData();
+          buildUI();
+        } catch (err) {
+          console.error("Unallot error:", err);
+          showToast(err.message || 'Failed to unallocate students', 'error');
+        } finally {
+          btnUnallot.disabled = false;
+          btnUnallot.innerHTML = '<i class="ph ph-arrow-counter-clockwise"></i> Reset / Unallot All';
         }
       });
     }
