@@ -357,12 +357,58 @@ export const TaskService = {
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
 
 export const NotificationService = {
-  async create({ userId, type, title, message, relatedId = null }) {
+  async create({ userId, userEmail = null, type, title, message, relatedId = null }) {
     await addDoc(collection(db, 'notifications'), {
       userId, type, title, message, relatedId,
       isRead: false,
       createdAt: now()
     });
+
+    // Obtain target user email if not explicitly passed
+    let targetEmail = userEmail;
+    if (!targetEmail && userId) {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', userId));
+        if (userSnap.exists()) {
+          targetEmail = userSnap.data().email;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user email for notification dispatch:', e);
+      }
+    }
+
+    // Queue email payload to Firestore /mail collection for Firebase Trigger Email Extension (firestore-send-email)
+    if (targetEmail) {
+      try {
+        await addDoc(collection(db, 'mail'), {
+          to: [targetEmail],
+          message: {
+            subject: `[Lumina Mentorship] ${title}`,
+            text: `${title}\n\n${message}\n\nLumina Mentorship Platform — MIT-ADT University`,
+            html: `
+              <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #1e293b;">
+                <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                  <div style="background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%); padding: 20px 24px; color: #ffffff;">
+                    <h1 style="margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px;">Lumina</h1>
+                    <p style="margin: 4px 0 0; font-size: 0.8rem; opacity: 0.9;">Student Mentorship Platform — MIT-ADT University</p>
+                  </div>
+                  <div style="padding: 24px;">
+                    <h2 style="font-size: 1.1rem; color: #5C1B5E; margin-top: 0;">${title}</h2>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: #334155;">${message}</p>
+                    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 0.8rem; color: #64748b;">
+                      This is an automated notification from Lumina. Please log in to your dashboard to view complete details.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `
+          },
+          createdAt: now()
+        });
+      } catch (err) {
+        console.warn('Could not queue email payload to Firestore /mail:', err);
+      }
+    }
   },
 
   async getForUser(userId, unreadOnly = false) {
