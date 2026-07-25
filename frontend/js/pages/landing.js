@@ -4,7 +4,8 @@ export async function render(container) {
       
       <!-- Navbar -->
       <nav class="landing-nav">
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" style="height: 42px; width: auto; object-fit: contain;">
           <div style="font-size: 1.85rem; font-weight: 900; background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px;">Lumina</div>
           <span style="font-size: 0.72rem; font-weight: 700; color: #5C1B5E; background: rgba(92,27,94,0.08); padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(92,27,94,0.15); letter-spacing:0.04em;">MIT-ADT</span>
         </div>
