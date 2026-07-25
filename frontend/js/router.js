@@ -163,7 +163,7 @@ async function handleRoute() {
       currentModule.teardown();
     }
     appContainer.innerHTML = '<div class="loader-overlay"><div class="spinner"></div></div>';
-    const module = await import(`${modulePath}?v=3`);
+    const module = await import(`${modulePath}?v=5`);
     currentModule = module;
     if (module.render) {
       await module.render(appContainer);
