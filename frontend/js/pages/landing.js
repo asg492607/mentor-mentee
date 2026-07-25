@@ -199,12 +199,15 @@ export async function render(container) {
           <a href="#capabilities-section" class="mobile-drawer-item" id="drawer-link-caps">
             <i class="ph ph-squares-four" style="font-size:1.2rem; color:var(--accent);"></i> Core Capabilities
           </a>
+          <a href="#contributors-section" class="mobile-drawer-item" id="drawer-link-contribs">
+            <i class="ph ph-users-three" style="font-size:1.2rem; color:var(--primary);"></i> Contributors & Team
+          </a>
           <a href="#pilot-ack-section" class="mobile-drawer-item" id="drawer-link-pilot">
             <i class="ph ph-medal" style="font-size:1.2rem; color:var(--accent-gold);"></i> TY CSE Core Pilot
           </a>
         </div>
       </div>
-      
+
       <!-- Navbar -->
       <nav class="landing-nav">
         <div style="display:flex; align-items:center; gap:8px; min-width: 0; flex-shrink: 1;">
@@ -277,6 +280,59 @@ export async function render(container) {
               <div style="font-size: 2.8rem; margin-bottom: 16px;">📈</div>
               <h3 style="margin-bottom: 10px; font-size: 1.25rem;">Multi-Tier Escalation</h3>
               <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6;">Robust issue tracking workflow routing from Mentors directly to specific Section Heads, HODs, and the Dean.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contributors Section -->
+      <section id="contributors-section" style="padding: 60px 20px; background: var(--bg-primary); border-top: 1px solid var(--border);">
+        <div style="max-width: 1000px; margin: 0 auto; text-align: center;">
+          <div style="margin-bottom: 12px;">
+            <span class="badge" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; background: rgba(92,27,94,0.08); color: var(--primary); border: 1px solid rgba(92,27,94,0.15);">
+              PROJECT TEAM & GUIDANCE
+            </span>
+          </div>
+          <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 32px; color: var(--text-primary);">
+            Contributors
+          </h2>
+
+          <!-- Faculty Guidance Card -->
+          <div style="background: linear-gradient(135deg, rgba(194,24,91,0.06), rgba(92,27,94,0.08)); border: 1px solid rgba(92,27,94,0.2); border-radius: 16px; padding: 20px 24px; max-width: 450px; margin: 0 auto 36px; display: flex; align-items: center; justify-content: center; gap: 14px;">
+            <i class="ph ph-user-circle-gear" style="font-size: 2.2rem; color: var(--primary);"></i>
+            <div style="text-align: left;">
+              <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">GUIDED BY</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">Dr. Nilesh Thorat</div>
+            </div>
+          </div>
+
+          <!-- Team Members Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+            <!-- Member 1 -->
+            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--accent); background: var(--bg-card);">
+              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #C2185B, #5C1B5E); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
+                AG
+              </div>
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Atharva Sameer Gandhi</h3>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent);">Contributor & Team Lead</div>
+            </div>
+
+            <!-- Member 2 -->
+            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--primary); background: var(--bg-card);">
+              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #5C1B5E, #4A154B); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
+                VB
+              </div>
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Vaibhav Bariyar</h3>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">Contributor</div>
+            </div>
+
+            <!-- Member 3 -->
+            <div class="card" style="padding: 24px; text-align: center; border-top: 4px solid var(--accent-gold); background: var(--bg-card);">
+              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #E67E22, #D35400); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 800; font-size: 1.15rem;">
+                SD
+              </div>
+              <h3 style="font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; color: var(--text-primary);">Satwik Dhole</h3>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-gold);">Contributor</div>
             </div>
           </div>
         </div>
