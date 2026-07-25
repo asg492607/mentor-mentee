@@ -11,11 +11,13 @@
   --text-muted: #555577;
   --text-inverse: #06060f;
   --primary: var(--text-primary);
-  --accent: #7c6aff;
-  --accent-hover: #9585ff;
-  --accent-light: rgba(124, 106, 255, 0.15);
-  --accent-gradient: linear-gradient(135deg, #7c6aff 0%, #c084fc 50%, #e879f9 100%);
-  --accent-gradient-subtle: linear-gradient(135deg, rgba(124,106,255,0.2) 0%, rgba(192,132,252,0.1) 100%);
+  --accent: #C2185B;
+  --accent-hover: #D81B60;
+  --accent-light: rgba(194, 24, 91, 0.15);
+  --accent-gradient: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(194,24,91,0.2) 0%, rgba(92,27,94,0.1) 100%);
+  --accent-gold: #E67E22;
+  --accent-gold-gradient: linear-gradient(135deg, #E67E22 0%, #D35400 100%);
   --success: #34d399;
   --success-light: rgba(52, 211, 153, 0.12);
   --warning: #fbbf24;
