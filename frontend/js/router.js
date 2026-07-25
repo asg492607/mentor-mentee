@@ -204,7 +204,7 @@ onAuthChange((user) => {
         const path = getCurrentRoute();
         if (!user && !authFreeRoutes.includes(path)) {
             navigateTo('/login');
-        } else if (user && authFreeRoutes.includes(path)) {
+        } else if (user && ['/login', '/register'].includes(path)) {
             navigateTo('/'); // handleRoute will redirect to appropriate dashboard
         }
     }

@@ -58,6 +58,9 @@ export function createSidebar(role, activePath) {
     ];
   }
 
+  // Always append Landing Page link for quick access
+  navItems.push({ path: '/landing', label: 'Landing Page', icon: '<i class="ph ph-house"></i>' });
+
   const navHtml = navItems.map(item => `
     <a href="#${item.path}" class="sidebar-item ${activePath === item.path ? 'active' : ''}">
       ${item.icon}
