@@ -49,7 +49,8 @@ export function createSidebar(role, activePath) {
       { path: '/admin/users',       label: 'Users',   icon: '<i class="ph ph-users"></i>' },
       { path: '/admin/departments', label: 'Departments', icon: '<i class="ph ph-buildings"></i>' },
       { path: '/admin/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
-      { path: '/admin/settings',    label: 'Settings',    icon: '<i class="ph ph-gear"></i>' }
+      { path: '/admin/settings',    label: 'Settings',    icon: '<i class="ph ph-gear"></i>' },
+      { path: '/admin/infrastructure', label: 'System Intelligence', icon: '<i class="ph ph-cpu"></i>' }
     ];
   } else if (roleUpper === 'SECTION_HEAD') {
     navItems = [
