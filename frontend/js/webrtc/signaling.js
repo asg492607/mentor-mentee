@@ -1,14 +1,14 @@
 import { db } from '/js/firebase-init.js';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-export function createSignaling(meetingId, user) {
+export function createSignaling(meetingId, user, isHostExplicit = null) {
     let handlers = {};
     let connected = false;
     let intentionalClose = false;
     let selfId = Math.random().toString(36).substring(2, 10);
     let unsubscribes = [];
     let myPresenceRef = null;
-    const isHost = ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
+    const isHost = isHostExplicit !== null ? !!isHostExplicit : ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
 
     async function connect() {
         try {
