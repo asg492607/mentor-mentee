@@ -1,537 +1,885 @@
+import { getUserProfile } from '../auth.js';
+import { navigateTo } from '../router.js';
+
 export async function render(container) {
+  const user = getUserProfile();
+
   container.innerHTML = `
-    <div class="landing-page" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-primary); font-family: 'Inter', sans-serif; width: 100%; max-width: 100vw; overflow-x: hidden; box-sizing: border-box;">
+    <div class="landing-page" style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg-primary);font-family:'Outfit','Inter',sans-serif;color:var(--text-primary);overflow-x:hidden;">
       <style>
-        .landing-nav {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 32px;
-          background: rgba(255, 255, 255, 0.94);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+        /* ── Modern Landing Page Styling ── */
+        .landing-header {
           position: sticky;
           top: 0;
-          z-index: 100;
-          border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-          box-shadow: 0 4px 20px rgba(92, 27, 94, 0.08);
-          box-sizing: border-box;
-          width: 100%;
-          max-width: 100vw;
-        }
-
-        .landing-hero-title {
-          font-size: 3.25rem;
-          font-weight: 800;
-          line-height: 1.15;
-          margin-bottom: 20px;
-          letter-spacing: -0.02em;
-          word-break: break-word;
-        }
-
-        /* Mobile Drawer Slide Bar Styles */
-        .mobile-drawer-backdrop {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(4px);
-          z-index: 999;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.3s ease;
-        }
-        .mobile-drawer-backdrop.active {
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .mobile-drawer {
-          position: fixed;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          width: 280px;
-          max-width: 80vw;
-          background: var(--bg-card);
-          border-left: 1px solid var(--border);
-          box-shadow: -8px 0 30px rgba(0,0,0,0.3);
           z-index: 1000;
-          transform: translateX(100%);
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          padding: 14px 32px;
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
-          flex-direction: column;
-        }
-        .mobile-drawer.active {
-          transform: translateX(0);
-        }
-
-        .mobile-drawer-header {
-          padding: 16px 20px;
-          display: flex;
+          align-items: center;
           justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid var(--border);
+          transition: all 0.3s ease;
         }
 
-        .mobile-drawer-body {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
+        [data-theme="light"] .landing-header {
+          background: rgba(255, 255, 255, 0.88);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
         }
 
-        .mobile-drawer-divider {
-          height: 1px;
-          background: var(--border);
-          margin: 4px 0;
-        }
-
-        .mobile-drawer-item {
+        .brand-logo-wrap {
           display: flex;
           align-items: center;
-          gap: 12px;
-          color: var(--text-primary);
-          font-weight: 600;
-          font-size: 0.95rem;
+          gap: 14px;
           text-decoration: none;
-          padding: 10px 14px;
-          border-radius: 10px;
-          transition: background 0.2s;
-        }
-        .mobile-drawer-item:hover {
-          background: var(--bg-secondary);
+          color: var(--text-primary);
         }
 
-        .mobile-menu-toggle {
-          display: none;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          padding: 0;
+        .college-logo-img {
+          height: 42px;
+          width: auto;
+          object-fit: contain;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+        }
+
+        .brand-logo-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #6c47ff, #a855f7);
+          display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(15,23,42,0.06);
-          border: 1px solid rgba(15,23,42,0.12);
-          color: #1e293b;
+          color: #fff;
+          font-weight: 800;
+          font-size: 1.3rem;
+          box-shadow: 0 4px 14px rgba(108, 71, 255, 0.35);
+        }
+
+        .nav-links {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        }
+
+        .nav-link {
+          color: var(--text-secondary);
+          text-decoration: none;
+          font-size: 0.9rem;
+          font-weight: 500;
+          transition: color 0.2s ease;
+        }
+
+        .nav-link:hover {
+          color: var(--accent);
+        }
+
+        .hero-section {
+          position: relative;
+          padding: 70px 24px 60px 24px;
+          max-width: 1240px;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .hero-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 20px;
+          border-radius: 30px;
+          background: rgba(108, 71, 255, 0.12);
+          border: 1px solid rgba(108, 71, 255, 0.25);
+          color: var(--accent);
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 24px;
+          animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-6px); }
+        }
+
+        .hero-title {
+          font-size: clamp(2.4rem, 5vw, 4.2rem);
+          font-weight: 800;
+          line-height: 1.12;
+          letter-spacing: -0.03em;
+          margin-bottom: 20px;
+          background: linear-gradient(135deg, var(--text-primary) 30%, var(--text-secondary) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .hero-title span {
+          background: linear-gradient(135deg, #6c47ff, #a855f7, #ec4899);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .hero-desc {
+          font-size: clamp(1rem, 2vw, 1.2rem);
+          color: var(--text-secondary);
+          max-width: 760px;
+          margin: 0 auto 36px auto;
+          line-height: 1.6;
+        }
+
+        .hero-ctas {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          flex-wrap: wrap;
+          margin-bottom: 60px;
+        }
+
+        .btn-gradient {
+          background: linear-gradient(135deg, #6c47ff, #a855f7);
+          color: #ffffff !important;
+          border: none;
+          padding: 14px 32px;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 1rem;
           cursor: pointer;
+          transition: all 0.25s ease;
+          box-shadow: 0 8px 24px rgba(108, 71, 255, 0.35);
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .btn-gradient:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 30px rgba(108, 71, 255, 0.5);
+        }
+
+        .btn-glass {
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
+          padding: 14px 28px;
+          border-radius: 12px;
+          font-weight: 600;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .btn-glass:hover {
+          background: var(--bg-card-hover);
+          border-color: var(--accent);
+          transform: translateY(-2px);
+        }
+
+        /* ── Metric Cards Grid ── */
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 20px;
+          max-width: 1100px;
+          margin: 0 auto 80px auto;
+          padding: 0 16px;
+        }
+
+        .metric-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 24px;
+          text-align: center;
+          transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .metric-card:hover {
+          transform: translateY(-4px);
+          border-color: rgba(108, 71, 255, 0.4);
+        }
+
+        .metric-val {
+          font-size: 2.2rem;
+          font-weight: 800;
+          background: linear-gradient(135deg, #6c47ff, #a855f7);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          margin-bottom: 6px;
+        }
+
+        .metric-lbl {
+          font-size: 0.85rem;
+          color: var(--text-muted);
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        /* ── Special Thanks & Pilot Card ── */
+        .pilot-ack-card {
+          background: linear-gradient(135deg, rgba(108, 71, 255, 0.12), rgba(168, 85, 247, 0.12));
+          border: 1.5px solid rgba(108, 71, 255, 0.3);
+          border-radius: 24px;
+          padding: 40px 32px;
+          max-width: 1100px;
+          margin: 0 auto 80px auto;
+          text-align: center;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        /* ── Section Title ── */
+        .section-header {
+          text-align: center;
+          max-width: 700px;
+          margin: 0 auto 50px auto;
+          padding: 0 16px;
+        }
+
+        .section-tag {
+          color: var(--accent);
+          font-size: 0.82rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-bottom: 10px;
+          display: block;
+        }
+
+        .section-title {
+          font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 14px;
+        }
+
+        .section-desc {
+          color: var(--text-secondary);
+          font-size: 0.98rem;
+          line-height: 1.6;
+        }
+
+        /* ── Feature Cards Grid ── */
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          gap: 24px;
+          max-width: 1200px;
+          margin: 0 auto 100px auto;
+          padding: 0 24px;
+        }
+
+        .feature-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          padding: 32px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .feature-card:hover {
+          transform: translateY(-6px);
+          border-color: rgba(108, 71, 255, 0.4);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .feature-icon-wrap {
+          width: 54px;
+          height: 54px;
+          border-radius: 14px;
+          background: rgba(108, 71, 255, 0.12);
+          color: var(--accent);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.6rem;
+          margin-bottom: 20px;
+        }
+
+        .feature-card-title {
+          font-size: 1.2rem;
+          font-weight: 700;
+          margin-bottom: 10px;
+        }
+
+        .feature-card-desc {
+          color: var(--text-secondary);
+          font-size: 0.88rem;
+          line-height: 1.65;
+        }
+
+        /* ── Interactive Role Tabs ── */
+        .role-tabs-wrap {
+          max-width: 1100px;
+          margin: 0 auto 100px auto;
+          padding: 0 24px;
+        }
+
+        .role-tabs {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 32px;
+        }
+
+        .role-tab-btn {
+          padding: 10px 22px;
+          border-radius: 30px;
+          border: 1px solid var(--border);
+          background: var(--bg-secondary);
+          color: var(--text-secondary);
+          font-weight: 600;
+          font-size: 0.88rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .role-tab-btn.active {
+          background: linear-gradient(135deg, #6c47ff, #a855f7);
+          color: #fff;
+          border-color: transparent;
+          box-shadow: 0 4px 16px rgba(108, 71, 255, 0.35);
+        }
+
+        .role-tab-content {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          padding: 36px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 32px;
+          align-items: center;
         }
 
         @media (max-width: 768px) {
-          .mobile-menu-toggle {
-            display: flex !important;
+          .role-tab-content {
+            grid-template-columns: 1fr;
           }
-          .landing-nav {
-            padding: 10px 14px !important;
-            gap: 6px !important;
+          .nav-links {
+            display: none;
           }
-          .landing-brand-logo {
-            max-height: 32px !important;
-            max-width: 110px !important;
-            object-fit: contain !important;
+          .landing-header {
+            padding: 12px 16px;
           }
-          .landing-brand-text {
-            font-size: 1.25rem !important;
-          }
-          .landing-badge {
-            display: none !important;
-          }
-          .landing-login-btn {
-            padding: 6px 12px !important;
-            font-size: 0.78rem !important;
-            border-radius: 20px !important;
-          }
-          .desktop-only {
-            display: none !important;
-          }
-          .landing-hero {
-            padding: 24px 16px !important;
-            text-align: center !important;
-            gap: 20px !important;
-          }
-          .landing-hero-title {
-            font-size: 1.75rem !important;
-            line-height: 1.25 !important;
-          }
-          .landing-hero-desc {
-            font-size: 0.92rem !important;
-            margin-bottom: 18px !important;
-          }
-          .landing-hero-img {
-            width: 100% !important;
-            max-width: 320px !important;
+          .college-logo-img {
+            height: 34px;
           }
         }
 
-        @media (max-width: 420px) {
-          .landing-brand-text {
-            display: none !important;
-          }
-          .landing-brand-logo {
-            max-height: 28px !important;
-            max-width: 95px !important;
-          }
-          .landing-hero-title {
-            font-size: 1.55rem !important;
-          }
+        /* ── FAQ Accordion ── */
+        .faq-wrap {
+          max-width: 800px;
+          margin: 0 auto 100px auto;
+          padding: 0 24px;
+        }
+
+        .faq-item {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          margin-bottom: 12px;
+          overflow: hidden;
+          transition: border-color 0.2s ease;
+        }
+
+        .faq-question {
+          padding: 18px 24px;
+          font-weight: 700;
+          font-size: 0.98rem;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .faq-answer {
+          padding: 0 24px 20px 24px;
+          color: var(--text-secondary);
+          font-size: 0.88rem;
+          line-height: 1.6;
+          display: none;
+        }
+
+        .faq-item.active .faq-answer {
+          display: block;
+        }
+
+        .faq-item.active .faq-chevron {
+          transform: rotate(180deg);
+        }
+
+        /* ── Footer ── */
+        .landing-footer {
+          background: #090d16;
+          color: #94a3b8;
+          padding: 60px 32px 30px 32px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          margin-top: auto;
         }
       </style>
 
-      <!-- Mobile Navigation Drawer & Backdrop -->
-      <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop"></div>
-      <div id="mobile-drawer" class="mobile-drawer">
-        <div class="mobile-drawer-header">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT Logo" style="height:28px; width:auto;">
-            <div style="font-size:1.2rem; font-weight:800; color:var(--primary);">Lumina</div>
+      <!-- Navigation Header -->
+      <header class="landing-header">
+        <a href="#/landing" class="brand-logo-wrap">
+          <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" class="college-logo-img" onError="this.style.display='none';">
+          <div style="display:flex;flex-direction:column;">
+            <span style="font-weight:800;font-size:1.2rem;letter-spacing:-0.02em;">Lumina</span>
+            <span style="font-size:0.68rem;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">MIT-ADT Mentorship Intelligence</span>
           </div>
-          <button id="mobile-drawer-close" class="btn btn-ghost" style="border-radius:50%; width:34px; height:34px; padding:0; display:flex; align-items:center; justify-content:center;">
-            <i class="ph ph-x" style="font-size:1.3rem; color:var(--text-primary);"></i>
-          </button>
-        </div>
-        <div class="mobile-drawer-body">
-          <a href="#/login" class="btn" style="background: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%); color:#fff; text-align:center; font-weight:700; border-radius:30px; padding:12px 20px; text-decoration:none;">
-            <i class="ph ph-sign-in" style="margin-right:6px;"></i> Login Portal
-          </a>
-          <div class="mobile-drawer-divider"></div>
-          <button id="mobile-drawer-theme-toggle" class="mobile-drawer-item" style="border:none; background:transparent; width:100%; text-align:left; cursor:pointer;">
-            <i class="ph ph-moon" style="font-size:1.2rem; color:var(--primary);"></i> Toggle Dark / Light Theme
-          </button>
-          <a href="#capabilities-section" class="mobile-drawer-item" id="drawer-link-caps">
-            <i class="ph ph-squares-four" style="font-size:1.2rem; color:var(--accent);"></i> Core Capabilities
-          </a>
-          <a href="#guides-section" class="mobile-drawer-item" id="drawer-link-guides">
-            <i class="ph ph-book-open" style="font-size:1.2rem; color:var(--success);"></i> Role Guides & Manuals
-          </a>
-          <a href="#contributors-section" class="mobile-drawer-item" id="drawer-link-contribs">
-            <i class="ph ph-users-three" style="font-size:1.2rem; color:var(--primary);"></i> Contributors & Team
-          </a>
-          <a href="#pilot-ack-section" class="mobile-drawer-item" id="drawer-link-pilot">
-            <i class="ph ph-medal" style="font-size:1.2rem; color:var(--accent-gold);"></i> TY CSE Core Pilot
-          </a>
-        </div>
-      </div>
+        </a>
 
-      <!-- Navbar -->
-      <nav class="landing-nav">
-        <div style="display:flex; align-items:center; gap:8px; min-width: 0; flex-shrink: 1;">
-          <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" class="landing-brand-logo">
-          <div class="landing-brand-text">Lumina</div>
-          <span class="landing-badge">MIT-ADT</span>
+        <ul class="nav-links">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#roles" class="nav-link">User Roles</a></li>
+          <li><a href="#special-thanks" class="nav-link">Special Thanks</a></li>
+          <li><a href="#contributors" class="nav-link">Contributors</a></li>
+          <li><a href="#faq" class="nav-link">FAQs</a></li>
+        </ul>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${user ? `
+            <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">
+              Go to Dashboard →
+            </a>
+          ` : `
+            <a href="#/login" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">Log In Portal →</a>
+          `}
         </div>
-        <div style="display:flex; align-items:center; gap: 8px; flex-shrink: 0;">
-          <button id="theme-toggle" class="btn desktop-only" style="border-radius: 50%; width: 36px; height: 36px; min-width: 36px; padding:0; display:flex; align-items:center; justify-content:center; background: rgba(15,23,42,0.06); border: 1px solid rgba(15,23,42,0.12); color: #1e293b;">
-            <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" style="display:none;fill:currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z"/></svg>
-            <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" style="display:none;fill:currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4C12.92 3.04 12.46 3 12 3zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7c.18 0 .35.02.52.05-.72.82-1.18 1.89-1.25 3.05-.03.58.05 1.15.22 1.69.34 1.12.97 2.1 1.8 2.87.82.76 1.83 1.33 2.95 1.6.51.13 1.04.18 1.57.14 1.12-.08 2.14-.52 2.94-1.21.03.17.05.34.05.52 0 3.86-3.14 7-7 7z"/></svg>
-          </button>
-          <a href="#/login" class="btn landing-login-btn desktop-only">Login Portal</a>
-          <button id="mobile-menu-toggle" class="btn mobile-menu-toggle" aria-label="Open mobile menu">
-            <i class="ph ph-list" style="font-size:1.3rem;"></i>
-          </button>
-        </div>
-      </nav>
+      </header>
 
       <!-- Hero Section -->
-      <section class="landing-hero">
-        <div>
-          <h1 class="landing-hero-title">
-            The Future of <br class="desktop-only">
-            <span style="background: linear-gradient(90deg, #CE1126 0%, #C2185B 50%, #5C1B5E 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">Student Mentorship</span>
-          </h1>
-          <p class="landing-hero-desc">
-            Connect students, faculty, and administration through seamless communication, real-time analytics, and automated risk management all in one place.
-          </p>
-          <div style="display: flex; gap: 16px; justify-content: inherit;">
-            <a href="#/login" class="btn" style="background: linear-gradient(135deg, #E67E22 0%, #D35400 100%); color: #ffffff; padding: 16px 38px; font-size: 1.1rem; border-radius: 30px; font-weight: 700; box-shadow: 0 8px 24px rgba(230, 126, 34, 0.4); text-decoration:none;">Get Started Now</a>
-          </div>
+      <section class="hero-section">
+        <div class="hero-pill">
+          <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT Logo" style="height:20px;width:auto;" onError="this.style.display='none';">
+          <span>🚀 MIT-ADT University — TY CSE Core Pilot &amp; Mentorship Ecosystem</span>
         </div>
-        <div class="landing-hero-img-wrap">
-          <img src="/assets/images/hero.png" alt="Dashboard Illustration" class="landing-hero-img">
-          <style>
-            @keyframes float {
-              0% { transform: translateY(0px); }
-              50% { transform: translateY(-16px); }
-              100% { transform: translateY(0px); }
-            }
-          </style>
+
+        <h1 class="hero-title">
+          Empowering Next-Gen Mentorship, <span>Student Growth</span> &amp; Analytics
+        </h1>
+
+        <p class="hero-desc">
+          Lumina unifies Students, Mentors, HODs, Deans, and Admins into one seamless platform.
+          Featuring automated capacity allocation, paperless mentorship booklets, real-time risk intelligence, and WebRTC video meeting rooms.
+        </p>
+
+        <div class="hero-ctas">
+          ${user ? `
+            <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient">
+              Open Dashboard Portal <i class="ph ph-arrow-right"></i>
+            </a>
+          ` : `
+            <a href="#/login" class="btn-gradient" style="padding:14px 40px;font-size:1.05rem;">
+              Access Portal Login <i class="ph ph-arrow-right"></i>
+            </a>
+          `}
         </div>
-      </section>
 
-      <!-- Features Section -->
-      <section id="capabilities-section" style="background: var(--bg-secondary); padding: 70px 20px; border-top: 1px solid var(--border);">
-        <div style="max-width: 1200px; margin: 0 auto;">
-          <div style="text-align: center; margin-bottom: 50px;">
-            <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 12px;">Core Capabilities</h2>
-            <p style="color: var(--text-muted); font-size: 1.05rem;">Everything your institution needs to ensure student success.</p>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;">
-            <div class="card" style="padding: 36px 24px; text-align: center; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'">
-              <div style="font-size: 2.8rem; margin-bottom: 16px;">🤖</div>
-              <h3 style="margin-bottom: 10px; font-size: 1.25rem;">Smart Allocation</h3>
-              <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6;">Intelligently distributes students to faculty mentors based on departmental capacity and dynamic workload balancing.</p>
-            </div>
-            <div class="card" style="padding: 36px 24px; text-align: center; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'">
-              <div style="font-size: 2.8rem; margin-bottom: 16px;">📊</div>
-              <h3 style="margin-bottom: 10px; font-size: 1.25rem;">Risk Assessment</h3>
-              <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6;">Automatically computes student risk scores using academic metrics like CGPA and Attendance to flag at-risk students instantly.</p>
-            </div>
-            <div class="card" style="padding: 36px 24px; text-align: center; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'">
-              <div style="font-size: 2.8rem; margin-bottom: 16px;">📹</div>
-              <h3 style="margin-bottom: 10px; font-size: 1.25rem;">WebRTC Meetings</h3>
-              <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6;">Host secure, peer-to-peer video conferencing directly within the platform. Complete with live chat and screen sharing.</p>
-            </div>
-            <div class="card" style="padding: 36px 24px; text-align: center; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-6px)'" onmouseout="this.style.transform='translateY(0)'">
-              <div style="font-size: 2.8rem; margin-bottom: 16px;">📈</div>
-              <h3 style="margin-bottom: 10px; font-size: 1.25rem;">Multi-Tier Escalation</h3>
-              <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6;">Robust issue tracking workflow routing from Mentors directly to specific Section Heads, HODs, and the Dean.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- User Guides & Role Manuals Section -->
-      <section id="guides-section" style="background: var(--bg-primary); padding: 70px 20px; border-top: 1px solid var(--border);">
-        <div style="max-width: 1100px; margin: 0 auto;">
-          <div style="text-align: center; margin-bottom: 40px;">
-            <span class="badge" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; background: rgba(98,84,231,0.1); color: var(--accent); border: 1px solid rgba(98,84,231,0.2);">
-              DOCUMENTATION & OPERATING MANUALS
-            </span>
-            <h2 style="font-size: 2.2rem; font-weight: 800; margin: 12px 0 8px; color: var(--text-primary);">
-              User Operating Guides & Downloads
-            </h2>
-            <p style="color: var(--text-muted); font-size: 1.05rem; max-width: 700px; margin: 0 auto;">
-              Download step-by-step PDF manuals for your role. All user accounts log in with <strong>Username = Email Address</strong> and <strong>Password = Registered Mobile Number</strong>.
-            </p>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-            <!-- Admin Card -->
-            <div class="card" style="padding: 26px 20px; border-top: 4px solid #6254e7; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
-              <div>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
-                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(98,84,231,0.12); color: #6254e7; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
-                    <i class="ph ph-shield-check"></i>
-                  </div>
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Administrator</h3>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">System Operator</span>
-                  </div>
-                </div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
-                  Setup infrastructure, departments, CSV bulk user imports, classwise mentor allocations & annual year resets.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="/docs/pdf/Lumina_Admin_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #6254e7; color:#fff; border-radius:8px; padding:10px;">
-                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
-                </a>
-                <a href="/docs/ADMIN_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
-              </div>
-            </div>
-
-            <!-- HOD Card -->
-            <div class="card" style="padding: 26px 20px; border-top: 4px solid #9333ea; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
-              <div>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
-                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(147,51,234,0.12); color: #9333ea; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
-                    <i class="ph ph-user-gear"></i>
-                  </div>
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Head of Dept (HOD)</h3>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Department Manager</span>
-                  </div>
-                </div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
-                  Monitor mentor workloads, reassign mentees with audit reasons, review audit logs & single-mentor exports.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="/docs/pdf/Lumina_HOD_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #9333ea; color:#fff; border-radius:8px; padding:10px;">
-                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
-                </a>
-                <a href="/docs/HOD_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
-              </div>
-            </div>
-
-            <!-- Mentor Card -->
-            <div class="card" style="padding: 26px 20px; border-top: 4px solid #3b82f6; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
-              <div>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
-                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59,130,246,0.12); color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
-                    <i class="ph ph-chalkboard-teacher"></i>
-                  </div>
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Faculty Mentor</h3>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Faculty Advisor</span>
-                  </div>
-                </div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
-                  Manage mentee cohorts, host WebRTC video calls with waiting room, log session notes & escalate issues.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="/docs/pdf/Lumina_Mentor_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #3b82f6; color:#fff; border-radius:8px; padding:10px;">
-                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
-                </a>
-                <a href="/docs/MENTOR_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
-              </div>
-            </div>
-
-            <!-- Student Card -->
-            <div class="card" style="padding: 26px 20px; border-top: 4px solid #10b981; display: flex; flex-direction: column; justify-content: space-between; background: var(--bg-card);">
-              <div>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
-                  <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16,185,129,0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink:0;">
-                    <i class="ph ph-student"></i>
-                  </div>
-                  <div>
-                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">Student Mentee</h3>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Student Cohort</span>
-                  </div>
-                </div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
-                  View mentor contact card, request 1-on-1 meetings, join video calls, raise issues & complete tasks.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <a href="/docs/pdf/Lumina_Student_Mentee_Guide.pdf" download class="btn btn-sm" style="flex: 1; text-align: center; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; background: #10b981; color:#fff; border-radius:8px; padding:10px;">
-                  <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> PDF Manual
-                </a>
-                <a href="/docs/STUDENT_GUIDE.md" target="_blank" class="btn btn-sm btn-secondary" style="font-weight: 700; text-decoration: none; border-radius:8px; padding:10px 14px;">MD</a>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- Contributors Section -->
-      <section id="contributors-section" style="padding: 60px 20px; background: var(--bg-secondary); border-top: 1px solid var(--border);">
-        <div style="max-width: 1000px; margin: 0 auto; text-align: center;">
-          <div style="margin-bottom: 12px;">
-            <span class="badge" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; background: rgba(92,27,94,0.08); color: var(--primary); border: 1px solid rgba(92,27,94,0.15);">
-              PROJECT TEAM & GUIDANCE
-            </span>
-          </div>
-          <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 32px; color: var(--text-primary);">
-            Contributors
-          </h2>
-
-          <!-- Top Row: Faculty Guide & Team Lead -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 760px; margin: 0 auto 24px;">
-            <!-- Faculty Guidance Card -->
-            <div style="background: linear-gradient(135deg, rgba(194,24,91,0.06), rgba(92,27,94,0.08)); border: 1.5px solid rgba(92,27,94,0.25); border-radius: 16px; padding: 22px; display: flex; align-items: center; justify-content: center; gap: 14px; box-shadow: 0 4px 16px rgba(92,27,94,0.06);">
-              <i class="ph ph-user-circle-gear" style="font-size: 2.4rem; color: var(--primary);"></i>
-              <div style="text-align: left;">
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">GUIDED BY</div>
-                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Dr. Nilesh Thorat</div>
-              </div>
-            </div>
-
-            <!-- Team Lead Card -->
-            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--accent); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
-              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #C2185B, #5C1B5E); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
-                AG
-              </div>
-              <div style="text-align: left;">
-                <h3 style="font-size: 1.15rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Atharva Sameer Gandhi</h3>
-                <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent);">Contributor & Team Lead</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Row: Remaining Team Members -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 760px; margin: 0 auto;">
-            <!-- Member 2 -->
-            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--primary); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
-              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #5C1B5E, #4A154B); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
-                VB
-              </div>
-              <div style="text-align: left;">
-                <h3 style="font-size: 1.1rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Vaibhav Bariyar</h3>
-                <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary);">Contributor</div>
-              </div>
-            </div>
-
-            <!-- Member 3 -->
-            <div class="card" style="padding: 22px; text-align: center; border-top: 4px solid var(--accent-gold); background: var(--bg-card); display: flex; align-items: center; justify-content: center; gap: 14px;">
-              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #E67E22, #D35400); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">
-                SD
-              </div>
-              <div style="text-align: left;">
-                <h3 style="font-size: 1.1rem; font-weight: 800; margin: 0 0 2px; color: var(--text-primary);">Satwik Dhole</h3>
-                <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-gold);">Contributor</div>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       <!-- Special Thanks & Pilot Recognition Section -->
-      <section id="pilot-ack-section" class="landing-ack-section">
-        <div class="landing-ack-card">
-          <div style="margin-bottom: 16px;">
-            <span class="badge badge-accent" style="font-size: 0.85rem; padding: 6px 16px; border-radius: 20px; font-weight: 700; letter-spacing: 0.04em;">
-              TY CSE CORE PILOT RECOGNITION
+      <section id="special-thanks" style="padding:40px 24px 20px 24px;">
+        <div class="pilot-ack-card">
+          <div style="display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:16px;">
+            <img src="/assets/images/mit_adt_logo.png" alt="MIT ADT University Logo" style="height:54px;width:auto;object-fit:contain;" onError="this.style.display='none';">
+            <span class="badge badge-accent" style="font-size:0.85rem;padding:6px 16px;border-radius:20px;font-weight:700;letter-spacing:0.04em;">
+              TY CSE Core Pilot Recognition
             </span>
           </div>
-          <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 16px; color: var(--text-primary);">
-            Special Acknowledgement
+
+          <h2 style="font-size:1.8rem;font-weight:800;margin-bottom:14px;color:var(--text-primary);">
+            Special Thanks &amp; Mentorship Recognition
           </h2>
-          <p style="font-size: 1.1rem; color: var(--text-secondary); line-height: 1.7; max-width: 760px; margin: 0 auto 20px;">
-            Our heartfelt gratitude and special thanks to <strong>Dr. Suwarna Pawar Ma'am</strong>, Head of Department (HOD), CSE Core Department, for granting permission and support to pilot the <strong>Lumina Mentorship Platform</strong> in <strong>TY CSE Core</strong>.
+
+          <p style="font-size:1.02rem;color:var(--text-secondary);max-width:880px;margin:0 auto;line-height:1.7;">
+            We extend our heartfelt gratitude and special recognition to <strong>Dr. Suwarna Pawar Mam</strong>, Head of Department (HOD) of 
+            <strong>CSE Core</strong>, for her visionary leadership, constant guidance, and pioneering initiative in piloting the 
+            Lumina Mentorship Platform for the <strong>TY CSE Core</strong> batch at <strong>MIT-ADT University</strong>. 
+            Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.
           </p>
-          <div style="font-size: 0.9rem; font-weight: 600; color: var(--primary);">
-            CSE Core Department — School of Computer Science & Engineering
+        </div>
+      </section>
+
+      <!-- Dedicated Project Guidance & Contributors Section -->
+      <section id="contributors" style="padding:40px 0 60px 0;">
+        <div class="section-header">
+          <span class="section-tag">Project Credits</span>
+          <h2 class="section-title">Guidance &amp; Contributors</h2>
+          <p class="section-desc">
+            Recognizing the faculty mentorship and development team behind the Lumina Mentorship Platform.
+          </p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1100px;margin:0 auto;padding:0 24px;">
+          
+          <!-- Faculty Guide Card -->
+          <div class="feature-card" style="border-top:4px solid var(--accent);">
+            <div class="feature-icon-wrap" style="background:rgba(108,71,255,0.15);color:var(--accent);">
+              <i class="ph ph-graduation-cap"></i>
+            </div>
+            <span style="font-size:0.75rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
+              Under Guidance Of
+            </span>
+            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Dr. Nilesh Thorat</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Assistant Professor</p>
+            <p class="feature-card-desc">
+              Provided faculty mentorship, project governance, and academic alignment throughout development.
+            </p>
+          </div>
+
+          <!-- Student Team Lead Card -->
+          <div class="feature-card" style="border-top:4px solid #a855f7;">
+            <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.15);color:#a855f7;">
+              <i class="ph ph-crown"></i>
+            </div>
+            <span style="font-size:0.75rem;color:#a855f7;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
+              Team Lead (Student)
+            </span>
+            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Atharva Gandhi</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Lead</p>
+            <p class="feature-card-desc">
+              Lead platform architect and developer overseeing end-to-end system design and deployment.
+            </p>
+          </div>
+
+          <!-- Student Team Member Card -->
+          <div class="feature-card" style="border-top:4px solid #ec4899;">
+            <div class="feature-icon-wrap" style="background:rgba(236,72,153,0.15);color:#ec4899;">
+              <i class="ph ph-user"></i>
+            </div>
+            <span style="font-size:0.75rem;color:#ec4899;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
+              Contributor
+            </span>
+            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Vaibhav Bariyar</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Member</p>
+            <p class="feature-card-desc">
+              Contributor assisting with feature implementations and testing.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Core Features Section -->
+      <section id="features" style="padding:40px 0;">
+        <div class="section-header">
+          <span class="section-tag">Platform Excellence</span>
+          <h2 class="section-title">Built for Modern Institutional Needs</h2>
+          <p class="section-desc">
+            Everything your university needs to run a high-performing mentorship framework from day one.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-git-merge"></i></div>
+            <h3 class="feature-card-title">Smart Capacity Auto-Allocation</h3>
+            <p class="feature-card-desc">
+              Sequentially allocates unassigned students to available faculty mentors based on enrollment numbers and capacity limits (max 20 students per mentor).
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-book-open"></i></div>
+            <h3 class="feature-card-title">Paperless Mentorship Booklet</h3>
+            <p class="feature-card-desc">
+              Digitized booklet tracking Personal Profile, Health Records, Family Details, Academic Marks, and Co-curricular Activities with mandatory 50% completion enforcement.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-warning-circle"></i></div>
+            <h3 class="feature-card-title">Institutional Risk Engine</h3>
+            <p class="feature-card-desc">
+              Automatic early-warning risk evaluation (High, Medium, Low) based on CGPA, attendance thresholds, and booklet filing status.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-video-camera"></i></div>
+            <h3 class="feature-card-title">Real-Time Chat &amp; Video Calls</h3>
+            <p class="feature-card-desc">
+              Integrated 1-on-1 and group video meeting rooms powered by WebRTC signaling, plus real-time instant messaging between mentors and mentees.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-file-csv"></i></div>
+            <h3 class="feature-card-title">Bulk Import &amp; Assignment Sheets</h3>
+            <p class="feature-card-desc">
+              Import hundreds of students/mentors from CSV/Excel in seconds. Automatically parses columns, cleans titles, and forward-fills mentor names.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-broom"></i></div>
+            <h3 class="feature-card-title">Data Cleanup &amp; Standardization</h3>
+            <p class="feature-card-desc">
+              Built-in duplicate record cleaner and department name migration tool (e.g., standardizing CSE-CORE into BTech CSE - Core with 1 click).
+            </p>
           </div>
         </div>
       </section>
 
-      <!-- Footer -->
-      <footer style="background: var(--bg-secondary); padding: 30px 40px; text-align: center; border-top: 1px solid var(--border); margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-        <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">Lumina</div>
-        <p style="color: var(--text-muted); font-size: 0.95rem; margin:0;">&copy; ${new Date().getFullYear()} Lumina Team. All rights reserved.</p>
-        <div style="display: flex; gap: 16px;">
-          <a href="#/login" style="color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; font-weight: 500;">Login</a>
+      <!-- Role-Based Features Section -->
+      <section id="roles" style="padding:40px 0;">
+        <div class="section-header">
+          <span class="section-tag">Tailored Workspaces</span>
+          <h2 class="section-title">Designed for Every Stakeholder</h2>
+          <p class="section-desc">
+            Custom interfaces and permissions tailored specifically for Students, Mentors, HODs, Deans, and Admins.
+          </p>
+        </div>
+
+        <div class="role-tabs-wrap">
+          <div class="role-tabs">
+            <button class="role-tab-btn active" data-role="student">🎓 Student</button>
+            <button class="role-tab-btn" data-role="mentor">👨‍🏫 Mentor / Faculty</button>
+            <button class="role-tab-btn" data-role="hod">🏛 HOD</button>
+            <button class="role-tab-btn" data-role="dean">🎓 Dean</button>
+            <button class="role-tab-btn" data-role="admin">⚙️ Admin</button>
+          </div>
+
+          <div class="role-tab-content" id="role-tab-display">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ Section -->
+      <section id="faq" style="padding:40px 0;">
+        <div class="section-header">
+          <span class="section-tag">Got Questions?</span>
+          <h2 class="section-title">Frequently Asked Questions</h2>
+        </div>
+
+        <div class="faq-wrap">
+          <div class="faq-item active">
+            <div class="faq-question">
+              <span>What is the 50% Booklet Completion requirement?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              To ensure data completeness, students logging into Lumina must fill at least 50% of their Mentorship Booklet (personal, family, academic details) during initial setup.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>How does Auto-Allocation work?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              Auto-allocation sorts unassigned students by enrollment number and matches them to available mentors in their department based on remaining capacity (up to 20 students per mentor).
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>Can HODs and Deans inspect student booklets?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              Yes! HODs, Deans, and Admins have full read access to inspect any student's mentorship booklet, risk level, and meeting history.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>Can we bulk import user lists from Excel/CSV?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              Absoluely. Admins and HODs can upload Excel or CSV sheets containing user profiles or mentor assignments. Duplicate emails and IDs are automatically skipped.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer Banner -->
+      <footer class="landing-footer">
+        <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:32px;margin-bottom:40px;">
+          <div>
+            <div class="brand-logo-wrap" style="margin-bottom:14px;">
+              <img src="/assets/images/mit_adt_logo.png" alt="MIT ADT Logo" style="height:36px;width:auto;object-fit:contain;" onError="this.style.display='none';">
+              <span style="font-weight:800;font-size:1.2rem;color:#fff;">Lumina</span>
+            </div>
+            <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
+              Comprehensive Institutional Mentorship &amp; Analytics Ecosystem. Developed for MIT ADT University &amp; Academic Institutions.
+            </p>
+          </div>
+
+          <div>
+            <h4 style="color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:14px;">Quick Links</h4>
+            <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;display:flex;flex-direction:column;gap:8px;">
+              <li><a href="#/login" style="color:#94a3b8;text-decoration:none;">Portal Login</a></li>
+              <li><a href="#special-thanks" style="color:#94a3b8;text-decoration:none;">TY CSE Core Pilot Recognition</a></li>
+              <li><a href="#contributors" style="color:#94a3b8;text-decoration:none;">Project Guidance &amp; Contributors</a></li>
+              <li><a href="#features" style="color:#94a3b8;text-decoration:none;">Platform Features</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 style="color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:14px;">Institution</h4>
+            <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
+              MIT ADT University, Pune<br>
+              Mentorship Framework &amp; NAAC / NIRF Analytics
+            </p>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;text-align:center;font-size:0.78rem;color:#64748b;">
+          &copy; ${new Date().getFullYear()} Lumina Mentorship Platform. All Rights Reserved. MIT-ADT University.
         </div>
       </footer>
     </div>
   `;
 
-  // Mobile Drawer toggle logic
-  const menuToggle = container.querySelector('#mobile-menu-toggle');
-  const drawer = container.querySelector('#mobile-drawer');
-  const backdrop = container.querySelector('#mobile-drawer-backdrop');
-  const closeBtn = container.querySelector('#mobile-drawer-close');
-
-  const openDrawer = () => {
-    drawer?.classList.add('active');
-    backdrop?.classList.add('active');
+  // ── Role Tab Data ─────────────────────────────────────────────────────────
+  const roleData = {
+    student: {
+      title: '🎓 Student Portal Experience',
+      desc: 'Fill digital mentorship booklets, track CGPA and attendance, request 1-on-1 meetings with mentors, report issues, and join live video sessions.',
+      bullets: [
+        '50% Mandatory Booklet Completion tracker',
+        'Request & Join WebRTC Video Meetings',
+        'Direct Messaging with assigned Mentor',
+        'Track Academic Tasks & Issue Status'
+      ],
+      ctaText: 'Login as Student →',
+      ctaHref: '#/login'
+    },
+    mentor: {
+      title: '👨‍🏫 Mentor & Faculty Hub',
+      desc: 'Manage your assigned mentee quota (up to 20 students), inspect student booklets, schedule meeting slots, log notes, and flag high-risk students.',
+      bullets: [
+        'Real-time Mentee Directory & Capacity counter',
+        'Inspect Student Digital Booklets',
+        'Approve Meeting Requests & Host Video Calls',
+        'Raise & Monitor Student Risk Status'
+      ],
+      ctaText: 'Login as Mentor →',
+      ctaHref: '#/login'
+    },
+    hod: {
+      title: '🏛 HOD Departmental Control',
+      desc: 'Department-wide mentorship governance, auto-allocate unassigned students, inspect risk matrices, generate departmental reports, and re-assign mentors.',
+      bullets: [
+        'Auto-Allocate Unassigned Department Students',
+        'Department High-Risk Matrix & Escalations',
+        'Inspect Student Booklets across Department',
+        'Export Excel / PDF Mentorship Reports'
+      ],
+      ctaText: 'HOD Dashboard →',
+      ctaHref: '#/login'
+    },
+    dean: {
+      title: '🎓 Dean Institution Analytics',
+      desc: 'Institution-level analytics dashboard, department performance comparison, high-risk student overview, and executive accreditation reporting.',
+      bullets: [
+        'Cross-Department Mentorship Analytics',
+        'Institutional Risk & Escalation Overview',
+        'Executive PDF & Excel Report Generator',
+        'Monitor Mentorship Coverage'
+      ],
+      ctaText: 'Dean Portal →',
+      ctaHref: '#/login'
+    },
+    admin: {
+      title: '⚙️ Admin System Operations',
+      desc: 'Complete control over user registration, bulk imports, duplicate data cleaning, department name standardization, and platform configuration.',
+      bullets: [
+        'Bulk CSV/Excel User & Assignment Imports',
+        '1-Click Duplicate Database Record Cleaner',
+        'Department Name Standardization & Class Creator',
+        'Full Role & Permission Management'
+      ],
+      ctaText: 'Admin Operations →',
+      ctaHref: '#/login'
+    }
   };
-  const closeDrawer = () => {
-    drawer?.classList.remove('active');
-    backdrop?.classList.remove('active');
-  };
 
-  menuToggle?.addEventListener('click', openDrawer);
-  closeBtn?.addEventListener('click', closeDrawer);
-  backdrop?.addEventListener('click', closeDrawer);
+  const roleTabDisplay = container.querySelector('#role-tab-display');
 
-  container.querySelector('#drawer-link-caps')?.addEventListener('click', closeDrawer);
-  container.querySelector('#drawer-link-contribs')?.addEventListener('click', closeDrawer);
-  container.querySelector('#drawer-link-pilot')?.addEventListener('click', closeDrawer);
+  function renderRoleTab(roleKey) {
+    const data = roleData[roleKey];
+    if (!data || !roleTabDisplay) return;
 
-  container.querySelector('#mobile-drawer-theme-toggle')?.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    closeDrawer();
+    roleTabDisplay.innerHTML = `
+      <div>
+        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:12px;color:var(--text-primary);">${data.title}</h3>
+        <p style="color:var(--text-secondary);font-size:0.92rem;line-height:1.6;margin-bottom:20px;">${data.desc}</p>
+        <ul style="list-style:none;padding:0;margin:0 0 24px 0;display:flex;flex-direction:column;gap:10px;">
+          ${data.bullets.map(b => `
+            <li style="display:flex;align-items:center;gap:10px;font-size:0.88rem;color:var(--text-primary);font-weight:500;">
+              <span style="color:var(--success);font-weight:800;">✓</span> ${b}
+            </li>
+          `).join('')}
+        </ul>
+        <a href="${user ? '#' + getRoleDashboardPath(user.role) : data.ctaHref}" class="btn-gradient" style="padding:10px 24px;font-size:0.9rem;">
+          ${user ? 'Go to Dashboard →' : data.ctaText}
+        </a>
+      </div>
+      <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.1);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;"></div>
+          <div style="width:12px;height:12px;border-radius:50%;background:#f59e0b;"></div>
+          <div style="width:12px;height:12px;border-radius:50%;background:#22c55e;"></div>
+          <span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;font-family:monospace;">lumina://${roleKey}/workspace</span>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;">
+          <p style="margin:0 0 10px 0;"><strong>Active Role:</strong> <span class="badge badge-accent">${roleKey.toUpperCase()}</span></p>
+          <p style="margin:0 0 10px 0;"><strong>Status:</strong> System Verified &amp; Synced with Firestore</p>
+          <p style="margin:0;"><strong>Feature Access:</strong> Full Workspace Privileges Enabled</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Wire Role Tab buttons
+  container.querySelectorAll('.role-tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      container.querySelectorAll('.role-tab-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      renderRoleTab(e.target.dataset.role);
+    });
   });
 
-  // Trigger initial UI theme update
-  const event = new Event('DOMContentLoaded');
-  document.dispatchEvent(event);
+  // Initial tab render
+  renderRoleTab('student');
+
+  // FAQ Accordion Toggle
+  container.querySelectorAll('.faq-question').forEach(q => {
+    q.addEventListener('click', (e) => {
+      const item = e.currentTarget.parentElement;
+      item.classList.toggle('active');
+    });
+  });
+}
+
+function getRoleDashboardPath(role) {
+  if (!role) return '/login';
+  switch (role.toUpperCase()) {
+    case 'STUDENT':  return '/student/dashboard';
+    case 'FACULTY':
+    case 'MENTOR':   return '/mentor/dashboard';
+    case 'HOD':      return '/hod/dashboard';
+    case 'DEAN':     return '/dean/dashboard';
+    case 'SECTION_HEAD': return '/section/dashboard';
+    case 'ADMIN':    return '/admin/dashboard';
+    default:         return '/student/dashboard';
+  }
 }
