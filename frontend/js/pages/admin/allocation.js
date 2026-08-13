@@ -112,9 +112,15 @@ export async function render(container) {
               Step 1: Select Mentor → Step 2: Select Class → Step 3: Search & Tick Students → Step 4: Allocate (Max 50 per batch)
             </p>
           </div>
-          <span class="badge ${selectedMentor ? 'badge-accent' : 'badge-muted'}" style="font-size:0.8rem;padding:6px 12px;">
-            ${selectedMentor ? `Selected Mentor: ${selectedMentor.name} (${mentorCurrentAssigned} assigned)` : 'No Mentor Selected'}
-          </span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <a href="#/admin/users?assign=true" class="btn btn-accent btn-sm"
+              style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;display:flex;align-items:center;gap:6px;font-weight:600;">
+              🔗 Assign Mentors via Sheet (Excel/CSV) →
+            </a>
+            <span class="badge ${selectedMentor ? 'badge-accent' : 'badge-muted'}" style="font-size:0.8rem;padding:6px 12px;">
+              ${selectedMentor ? `Selected Mentor: ${selectedMentor.name} (${mentorCurrentAssigned} assigned)` : 'No Mentor Selected'}
+            </span>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
