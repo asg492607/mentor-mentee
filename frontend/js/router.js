@@ -1,5 +1,6 @@
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
 import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
+import { openWebIssueModal } from './components/web-issue-modal.js';
 
 const routes = {
   '/landing': './pages/landing.js',
@@ -132,9 +133,27 @@ async function handleRoute() {
     // Strict Role Route Protection
     const role = String(profile.role).toUpperCase();
     const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
+
+    // 🔒 Mandatory 50% Booklet Lock for Students: Block all other pages until 50% filled!
+    if (role === 'STUDENT') {
+      try {
+        const { BookletService } = await import('./services.js');
+        const { showToast } = await import('./components/toast.js');
+        const completionPct = await BookletService.getCompletionPercentage(profile.id || user.uid);
+        if (completionPct < 50 && path !== '/student/booklet') {
+          showToast(`⚠️ Mandatory Action: You must fill at least 50% of your Mentorship Booklet before accessing other pages (${completionPct}% / 50%).`, 'warning');
+          navigateTo('/student/booklet');
+          return;
+        }
+      } catch (err) {
+        console.warn('Booklet completion route check warning:', err);
+      }
+    }
+
     if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
-      if (path.startsWith('/mentor') && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/mentor') && path !== '/mentor/booklet' && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
+      if (path === '/mentor/booklet' && !['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'ADMIN'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/hod') && role !== 'HOD') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/dean') && role !== 'DEAN') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/section') && role !== 'SECTION_HEAD') return navigateTo(getRoleDashboardPath(role));
@@ -236,6 +255,10 @@ document.addEventListener('click', (e) => {
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeToggleUI(newTheme);
+    }
+
+    if (e.target.closest('#global-web-issue-btn')) {
+        openWebIssueModal();
     }
 
     const sidebar = document.querySelector('.sidebar');
