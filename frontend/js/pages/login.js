@@ -36,7 +36,7 @@ export async function render(container) {
         </form>
 
         <div class="text-center mt-6">
-          <p class="text-muted text-sm">Don't have an account? <a href="#/register">Register here</a></p>
+          <p class="text-muted text-sm">Contact Administrator for login credentials.</p>
         </div>
       </div>
 
