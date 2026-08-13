@@ -34,6 +34,7 @@ export async function render(container) {
               <button class="btn btn-secondary btn-sm" id="btn-export-students" title="Export Students CSV (Email & Password/Mobile)">📤 Export Students</button>
               <button class="btn btn-secondary btn-sm" id="btn-export-teachers" title="Export Teachers CSV (Email & Password/Mobile)">📤 Export Teachers</button>
               <button class="btn btn-secondary btn-sm" id="btn-open-bulk-import">📁 Bulk Import</button>
+              <button class="btn btn-accent btn-sm" id="btn-open-assign-mentor" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;">🔗 Assign Mentors</button>
               <button class="btn btn-primary btn-sm" id="btn-add-user">+ Add User</button>
               ` : ''}
             </div>
@@ -622,16 +623,30 @@ export async function render(container) {
   });
 
   // ── Form submit ───────────────────────────────────────────────────────────
+  let _submitting = false; // guard against double-submit
   document.getElementById('admin-add-user-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (_submitting) return; // prevent double-submit
+    _submitting = true;
     const btn = document.getElementById('submit-new-user');
     btn.disabled = true; btn.textContent = 'Creating…';
     try {
       const role = roleSel.value;
+      const emailInput = document.getElementById('new-user-email').value.trim().toLowerCase();
+
+      // Pre-check: does this email already exist in our loaded user list?
+      const alreadyExists = allUsers.some(u => (u.email || '').toLowerCase().trim() === emailInput);
+      if (alreadyExists) {
+        showToast('This email is already registered in the system.', 'error');
+        _submitting = false;
+        btn.disabled = false; btn.textContent = 'Create User';
+        return;
+      }
+
       const data = {
         role,
         name:       document.getElementById('new-user-name').value.trim(),
-        email:      document.getElementById('new-user-email').value.trim(),
+        email:      emailInput,
         password:   document.getElementById('new-user-password').value,
         department: (role === 'DEAN' || role === 'ADMIN')
                       ? null
@@ -643,15 +658,18 @@ export async function render(container) {
         data.mentorId = mentorSel.value || null;
       }
 
-      const { AdminService, FacultyService: FacSvc } = await import('/js/services.js');
-      const newUser = await AdminService.createUser(data);
+      const { AdminService: AdmSvc, FacultyService: FacSvc } = await import('/js/services.js');
+      const newUser = await AdmSvc.createUser(data);
 
-      // Increment mentor's student count if one was chosen
+      // Increment mentor's student count atomically if one was chosen
       if (role === 'STUDENT' && data.mentorId) {
         try {
-          const mentor = await FacSvc.get(data.mentorId);
-          await FacSvc.update(data.mentorId, {
-            assignedStudentCount: (mentor?.assignedStudentCount || 0) + 1
+          // Use Firestore atomic increment to avoid stale-read race conditions
+          const { db: firestoreDb } = await import('/js/firebase-init.js');
+          const { doc: fsDoc, updateDoc: fsUpdate, increment: fsIncrement } =
+            await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+          await fsUpdate(fsDoc(firestoreDb, 'faculty', data.mentorId), {
+            assignedStudentCount: fsIncrement(1)
           });
         } catch (assignErr) {
           console.warn('Mentor count increment failed:', assignErr.message);
@@ -674,6 +692,7 @@ export async function render(container) {
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
+      _submitting = false;
       btn.disabled = false; btn.textContent = 'Create User';
     }
   });
@@ -819,7 +838,9 @@ export async function render(container) {
   }
 
   // Drag and drop setup
-  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', (e) => {
+    if (e.target !== fileInput) fileInput.click();
+  });
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
   dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border)'; });
   dropZone.addEventListener('drop', (e) => {
@@ -1017,24 +1038,51 @@ export async function render(container) {
     // Show Progress Bar
     const progressModalHtml = `
       <div id="bulk-progress-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.6);">
-        <div class="modal" style="max-width:420px;text-align:center;padding:24px;">
+        <div class="modal" style="max-width:420px;text-align:center;padding:28px;">
           <h3 style="margin-bottom:8px;">Importing Users...</h3>
-          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:16px;" id="progress-status-text">Processing (0 / ${validRows.length})...</p>
-          <div class="progress-bar-wrap" style="height:12px;margin-bottom:16px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;">
-            <div class="progress-bar-fill fill-accent" id="progress-bar-fill" style="width:0%;height:100%;background:var(--accent);transition:width 0.2s;"></div>
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:6px;" id="progress-status-text">
+            Starting…
+          </p>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:14px;" id="progress-detail-text">&nbsp;</p>
+          <div style="height:14px;margin-bottom:14px;background:var(--bg-secondary);border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
+            <div id="progress-bar-fill"
+              style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#a855f7);border-radius:7px;transition:width 0.15s ease;"></div>
           </div>
-          <p style="font-size:0.75rem;color:var(--text-muted);">Email = Username | Mobile = Password. Duplicates are skipped automatically.</p>
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-muted);margin-bottom:12px;">
+            <span id="progress-success-label" style="color:var(--success);">✓ 0 created</span>
+            <span id="progress-skip-label"    style="color:var(--warning);">⊘ 0 skipped</span>
+            <span id="progress-fail-label"    style="color:var(--danger);">✗ 0 failed</span>
+          </div>
+          <p style="font-size:0.72rem;color:var(--text-muted);">Email = Username | Mobile = Password</p>
         </div>
       </div>
     `;
     document.body.insertAdjacentHTML('beforeend', progressModalHtml);
-    const progressModal = document.getElementById('bulk-progress-modal');
-    const statusText = document.getElementById('progress-status-text');
-    const barFill = document.getElementById('progress-bar-fill');
+    const progressModal   = document.getElementById('bulk-progress-modal');
+    const statusText      = document.getElementById('progress-status-text');
+    const detailText      = document.getElementById('progress-detail-text');
+    const barFill         = document.getElementById('progress-bar-fill');
+    const successLabel    = document.getElementById('progress-success-label');
+    const skipLabel       = document.getElementById('progress-skip-label');
+    const failLabel       = document.getElementById('progress-fail-label');
 
-    let successCount = 0;
+    // Helper: yield a paint frame so the browser redraws before the next heavy call
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    function updateProgress(processed, total, successCount, duplicateCount, failCount, currentEmail) {
+      const percent = Math.round((processed / total) * 100);
+      if (barFill)      barFill.style.width     = `${percent}%`;
+      if (statusText)   statusText.textContent   = `Processing ${processed} of ${total} (${percent}%)`;
+      if (detailText)   detailText.textContent   = currentEmail ? `↳ ${currentEmail}` : '';
+      if (successLabel) successLabel.textContent = `✓ ${successCount} created`;
+      if (skipLabel)    skipLabel.textContent    = `⊘ ${duplicateCount} skipped`;
+      if (failLabel)    failLabel.textContent    = `✗ ${failCount} failed`;
+    }
+
+    let successCount   = 0;
     let duplicateCount = 0;
-    let failCount = 0;
+    let failCount      = 0;
+    const total        = validRows.length;
 
     const { AdminService } = await import('/js/services.js');
     const existingEmailsInDb = new Set(allUsers.map(u => (u.email || '').toLowerCase().trim()).filter(Boolean));
@@ -1044,49 +1092,76 @@ export async function render(container) {
       const targetRole = selectedBulkRole === 'AUTO' ? row.role : selectedBulkRole;
       const cleanEmail = (row.email || '').toLowerCase().trim();
 
+      // Update + repaint BEFORE doing heavy work so user sees progress immediately
+      updateProgress(i, total, successCount, duplicateCount, failCount, cleanEmail);
+      await frame(); // give browser a repaint frame
+
       if (existingEmailsInDb.has(cleanEmail)) {
-        console.log(`Skipping duplicate account: ${cleanEmail}`);
         duplicateCount++;
+        updateProgress(i + 1, total, successCount, duplicateCount, failCount, cleanEmail);
+        await frame();
         continue;
       }
 
       try {
+        let deptVal = (row.department || '').trim();
+        // Normalize common variants like CSE-CORE / CSE Core to official "BTech CSE - Core"
+        if (/^(CSE-CORE|CSE CORE|BTECH CSE CORE|B\.TECH CSE CORE)$/i.test(deptVal)) {
+          deptVal = 'BTech CSE - Core';
+        }
+
+        const classVal = (row.class || '').trim();
+
         const payload = {
-          role: targetRole,
-          name: row.name,
-          email: row.email,
-          password: row.mobileNumber, // Mobile number as password
-          mobileNumber: row.mobileNumber,
-          department: row.department || null,
+          role:             targetRole,
+          name:             row.name,
+          email:            row.email,
+          password:         row.mobileNumber,
+          mobileNumber:     row.mobileNumber,
+          department:       deptVal || null,
           enrollmentNumber: row.enrollmentNumber,
-          employeeId: row.enrollmentNumber,
-          class: row.class,
-          year: row.year,
-          designation: row.designation
+          employeeId:       row.enrollmentNumber,
+          class:            classVal || null,
+          year:             row.year,
+          designation:      row.designation
         };
 
         const newUser = await AdminService.createUser(payload);
+
+        // Auto-create class if it doesn't exist yet for this department
+        if (classVal && deptVal) {
+          try {
+            const { ClassService } = await import('/js/services.js');
+            const existingClasses = await ClassService.getByDepartment(deptVal);
+            if (!existingClasses.some(c => (c.className || '').toLowerCase() === classVal.toLowerCase())) {
+              await ClassService.create({ department: deptVal, className: classVal });
+            }
+          } catch (cErr) {
+            console.warn('Auto class creation warning during import:', cErr);
+          }
+        }
+
         allUsers.unshift({ ...newUser, isApproved: true, status: 'approved' });
         existingEmailsInDb.add(cleanEmail);
         successCount++;
       } catch (err) {
         console.error(`Failed to import user ${row.email}:`, err);
-        if (err.code === 'auth/email-already-in-use' || String(err.message || '').includes('already in use')) {
+        if (err.code === 'auth/email-already-in-use' || String(err.message || '').includes('already in use') || String(err.message || '').includes('already registered')) {
           duplicateCount++;
         } else {
           failCount++;
         }
       }
 
-      const processed = i + 1;
-      const percent = Math.round((processed / validRows.length) * 100);
-      if (statusText) statusText.textContent = `Processing (${processed} / ${validRows.length})...`;
-      if (barFill) barFill.style.width = `${percent}%`;
-
-      if (processed % 5 === 0) {
-        await new Promise(r => setTimeout(r, 0));
-      }
+      // Update after the call resolves
+      updateProgress(i + 1, total, successCount, duplicateCount, failCount, '');
+      await frame();
     }
+
+    // Final state: show 100%
+    updateProgress(total, total, successCount, duplicateCount, failCount, '');
+    if (statusText) statusText.textContent = 'Done! Finalising…';
+    await frame();
 
     progressModal?.remove();
     bulkModal.style.display = 'none';
@@ -1094,11 +1169,487 @@ export async function render(container) {
     btnExecuteBulk.disabled = false;
     btnExecuteBulk.textContent = 'Import Users';
 
-    const msg = `Bulk Import Finished! ${successCount} accounts created successfully. ${duplicateCount ? duplicateCount + ' duplicates skipped. ' : ''}${failCount ? failCount + ' failed.' : ''}`;
+    const msg = `Bulk Import Finished! ${successCount} account(s) created.${duplicateCount ? ` ${duplicateCount} duplicate(s) skipped.` : ''}${failCount ? ` ${failCount} failed.` : ''}`;
     showToast(msg, successCount > 0 ? 'success' : 'info');
     if (successCount > 0) {
       renderTable();
     }
   });
+
+
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ASSIGN MENTOR FROM SHEET  (completely separate from Bulk Import / Registration)
+  // ════════════════════════════════════════════════════════════════════════
+
+  const assignModalHtml = `
+    <div id="assign-mentor-modal" class="modal-backdrop" style="display:none;z-index:9999;">
+      <div class="modal" style="max-width:900px;width:97%;">
+        <div class="modal-header" style="background:linear-gradient(135deg,#6c47ff22,#a855f722);border-bottom:1px solid #6c47ff44;">
+          <div>
+            <h3 style="margin:0;">🔗 Assign Mentors from Sheet</h3>
+            <p style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">
+              Upload any CSV / Excel file with <strong>Student Name</strong>, <strong>Enrollment No</strong> and <strong>Mentor Name</strong> columns.
+              Students are matched by enrollment number (or name). No new accounts are created.
+            </p>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="close-assign-modal">✕</button>
+        </div>
+        <div class="modal-body" style="padding-top:12px;">
+
+          <!-- Drop Zone -->
+          <div id="assign-drop-zone" style="border:2px dashed #6c47ff88;border-radius:10px;padding:28px 16px;text-align:center;background:var(--bg-primary);margin-bottom:16px;cursor:pointer;transition:border-color 0.2s;">
+            <p style="font-size:1.6rem;margin-bottom:4px;">🔗</p>
+            <p style="font-weight:600;font-size:0.95rem;" id="assign-drop-label">Click or Drag &amp; Drop your sheet here (.csv, .xlsx, .xls)</p>
+            <p style="font-size:0.75rem;color:var(--text-muted);margin:6px 0 0;">
+              Required columns: <code>Name of Student</code> or <code>Student Name</code> &nbsp;·&nbsp;
+              <code>Enrollment Number</code> or <code>Roll No</code> &nbsp;·&nbsp;
+              <code>Mentor Name</code> or <code>Teacher Name</code>
+            </p>
+            <input type="file" id="assign-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+          </div>
+
+          <!-- Stats bar -->
+          <div id="assign-stats-bar" style="display:none;margin-bottom:12px;display:none;gap:10px;flex-wrap:wrap;">
+            <span id="assign-stat-matched"  class="badge badge-success" style="font-size:0.8rem;">0 ready</span>
+            <span id="assign-stat-nostu"    class="badge badge-warning" style="font-size:0.8rem;">0 student not found</span>
+            <span id="assign-stat-nomentor" class="badge badge-warning" style="font-size:0.8rem;">0 mentor not found</span>
+            <span id="assign-stat-already"  class="badge badge-info"    style="font-size:0.8rem;">0 already assigned</span>
+            <span id="assign-stat-total"    class="badge badge-muted"   style="font-size:0.8rem;">0 total rows</span>
+          </div>
+
+          <!-- Preview Table -->
+          <div id="assign-preview-wrap" style="display:none;">
+            <div style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);">
+              <table class="data-table" style="font-size:0.8rem;">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Student Name (Sheet)</th>
+                    <th>Enrollment No</th>
+                    <th>Matched Student</th>
+                    <th>Mentor Name (Sheet)</th>
+                    <th>Matched Mentor</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="assign-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:0.75rem;color:var(--text-muted);">Only students matched by Enrollment No or Name will be updated. Existing assignments are skipped unless you check override.</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="font-size:0.8rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="assign-override-chk"> Override existing mentor assignments
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="cancel-assign-modal">Cancel</button>
+            <button type="button" class="btn btn-sm" id="btn-execute-assign" disabled
+              style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;">🔗 Assign Mentors</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', assignModalHtml);
+
+  // ── Modal open/close ─────────────────────────────────────────────────
+  const assignModal = document.getElementById('assign-mentor-modal');
+  const btnOpenAssign = document.getElementById('btn-open-assign-mentor');
+  const closeAssign = document.getElementById('close-assign-modal');
+  const cancelAssign = document.getElementById('cancel-assign-modal');
+  const assignDropZone = document.getElementById('assign-drop-zone');
+  const assignFileInput = document.getElementById('assign-file-input');
+  const assignDropLabel = document.getElementById('assign-drop-label');
+  const assignPreviewWrap = document.getElementById('assign-preview-wrap');
+  const assignPreviewTbody = document.getElementById('assign-preview-tbody');
+  const assignStatsBar = document.getElementById('assign-stats-bar');
+  const btnExecuteAssign = document.getElementById('btn-execute-assign');
+  const assignOverrideChk = document.getElementById('assign-override-chk');
+
+  let assignRows = []; // parsed + resolved rows
+
+  function resetAssignModal() {
+    assignFileInput.value = '';
+    assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+    assignPreviewWrap.style.display = 'none';
+    assignStatsBar.style.display = 'none';
+    assignPreviewTbody.innerHTML = '';
+    assignRows = [];
+    btnExecuteAssign.disabled = true;
+  }
+
+  if (btnOpenAssign) {
+    btnOpenAssign.addEventListener('click', () => { assignModal.style.display = 'flex'; });
+  }
+  if (window.location.hash.includes('assign=true') || window.location.hash.includes('assign-mentor')) {
+    assignModal.style.display = 'flex';
+  }
+  closeAssign.addEventListener('click', () => { assignModal.style.display = 'none'; resetAssignModal(); });
+  cancelAssign.addEventListener('click', () => { assignModal.style.display = 'none'; resetAssignModal(); });
+
+  assignDropZone.addEventListener('click', (e) => {
+    if (e.target !== assignFileInput) assignFileInput.click();
+  });
+  assignDropZone.addEventListener('dragover', (e) => { e.preventDefault(); assignDropZone.style.borderColor = '#a855f7'; });
+  assignDropZone.addEventListener('dragleave', () => { assignDropZone.style.borderColor = '#6c47ff88'; });
+  assignDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    assignDropZone.style.borderColor = '#6c47ff88';
+    if (e.dataTransfer.files.length) handleAssignFile(e.dataTransfer.files[0]);
+  });
+  assignFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleAssignFile(e.target.files[0]);
+  });
+
+  // ── Normalize column header for assignment sheet ──────────────────────
+  function normalizeAssignHeader(raw) {
+    const h = String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Student name
+    if (['nameofstudent','studentname','name','fullname','stdname','sname'].includes(h)) return 'studentName';
+    // Enrollment / Roll number
+    if (['enrollmentnumber','enrollmentno','enrollment','rollno','rollnumber','rollnum','enroll','regno','registrationno','id','empid'].includes(h)) return 'enrollmentNo';
+    // Mentor / Teacher name
+    if (['mentorname','teachername','facultyname','guidename','assignedmentor','mentor','teacher','faculty','assignedto'].includes(h)) return 'mentorName';
+    // SR
+    if (['sr','srno','sno','serialnumber','no'].includes(h)) return 'sr';
+    return h;
+  }
+
+  // ── Parse file and resolve matches ────────────────────────────────────
+  async function handleAssignFile(file) {
+    if (!file) return;
+    assignDropLabel.textContent = `⏳ Parsing: ${file.name}…`;
+    btnExecuteAssign.disabled = true;
+
+    try {
+      const rowsMatrix = await parseImportFile(file);
+      if (!rowsMatrix || rowsMatrix.length <= 1) {
+        showToast('File is empty or has no data rows.', 'warning');
+        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        return;
+      }
+
+      const rawHeaders = rowsMatrix[0].map(h => String(h || '').trim());
+      const mappedHeaders = rawHeaders.map(h => normalizeAssignHeader(h));
+
+      // Validate required columns exist
+      const hasMentor = mappedHeaders.includes('mentorName');
+      const hasEnroll = mappedHeaders.includes('enrollmentNo');
+      const hasStuName = mappedHeaders.includes('studentName');
+
+      if (!hasMentor) {
+        showToast('Could not find a Mentor Name / Teacher Name column in this file.', 'error');
+        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        return;
+      }
+      if (!hasEnroll && !hasStuName) {
+        showToast('Could not find Student Name or Enrollment Number column in this file.', 'error');
+        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        return;
+      }
+
+      assignDropLabel.textContent = `⏳ Loading student & faculty data…`;
+
+      // Load all students and faculty once
+      const [allStudents, allFaculty] = await Promise.all([
+        StudentService.getAll(),
+        FacultyService.getAll()
+      ]);
+
+      // Build lookup maps
+      // Students: enrollment (lowercase) → student object
+      const studentByEnroll = new Map();
+      // Students: normalized name (lowercase trimmed) → student object (fallback)
+      const studentByName = new Map();
+      allStudents.forEach(s => {
+        const en = (s.enrollmentNumber || '').toLowerCase().trim();
+        if (en) studentByEnroll.set(en, s);
+        const nm = (s.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (nm) studentByName.set(nm, s);
+      });
+
+      // Helper to strip honorifics & extra spaces from names for comparison
+      function cleanPersonName(raw) {
+        if (!raw) return '';
+        return String(raw)
+          .toLowerCase()
+          .replace(/\b(dr|prof|mr|mrs|ms|er|doc|professor|doctor)\b\.?/gi, '')
+          .replace(/[^a-z0-9\s]/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      // Faculty: normalized name → faculty object
+      const facultyByName = new Map();
+      const cleanedFacultyList = [];
+      allFaculty.forEach(f => {
+        const rawNm = (f.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const cleanNm = cleanPersonName(f.name);
+        if (rawNm) facultyByName.set(rawNm, f);
+        if (cleanNm) {
+          facultyByName.set(cleanNm, f);
+          cleanedFacultyList.push({ cleanNm, rawNm, obj: f });
+        }
+      });
+
+      function findMentorMatch(searchName) {
+        if (!searchName) return null;
+        const norm = searchName.toLowerCase().replace(/\s+/g, ' ').trim();
+        const clean = cleanPersonName(searchName);
+
+        // 1. Direct match
+        if (facultyByName.has(norm)) return facultyByName.get(norm);
+        if (clean && facultyByName.has(clean)) return facultyByName.get(clean);
+
+        // 2. Partial substring match
+        for (const item of cleanedFacultyList) {
+          if (clean && item.cleanNm && (item.cleanNm.includes(clean) || clean.includes(item.cleanNm))) {
+            return item.obj;
+          }
+        }
+
+        // 3. Word token overlap match (e.g. "Suresh Kumar" matches "Suresh V. Kumar")
+        if (clean) {
+          const cleanTokens = clean.split(' ').filter(t => t.length > 1);
+          if (cleanTokens.length > 0) {
+            for (const item of cleanedFacultyList) {
+              const facTokens = item.cleanNm.split(' ').filter(t => t.length > 1);
+              const matches = cleanTokens.filter(t => facTokens.includes(t));
+              if (matches.length >= Math.min(2, cleanTokens.length)) {
+                return item.obj;
+              }
+            }
+          }
+        }
+        return null;
+      }
+
+      // Parse rows with Forward-Fill support for Mentor Names
+      assignRows = [];
+      let lastSeenMentorName = '';
+      let lastSeenMentorObj = null;
+
+      for (let i = 1; i < rowsMatrix.length; i++) {
+        const cols = rowsMatrix[i].map(c => String(c !== null && c !== undefined ? c : '').trim());
+        const rowData = {};
+        mappedHeaders.forEach((key, idx) => { rowData[key] = cols[idx] || ''; });
+
+        const rawStudentName = rowData.studentName || '';
+        const rawEnroll = rowData.enrollmentNo || '';
+        let rawMentorName = rowData.mentorName || '';
+
+        // Skip completely empty rows
+        if (!rawStudentName && !rawEnroll && !rawMentorName) continue;
+
+        // FORWARD-FILL: If mentor name is empty on this row but we have a student, reuse last seen mentor name!
+        if (!rawMentorName && (rawStudentName || rawEnroll) && lastSeenMentorName) {
+          rawMentorName = lastSeenMentorName;
+        } else if (rawMentorName) {
+          // Update last seen mentor name whenever a new mentor name is provided
+          lastSeenMentorName = rawMentorName;
+        }
+
+        // Match student: prefer enrollment number
+        let matchedStudent = null;
+        const normEnroll = rawEnroll.toLowerCase().trim();
+        if (normEnroll) matchedStudent = studentByEnroll.get(normEnroll) || null;
+        // Fallback: match by name
+        if (!matchedStudent && rawStudentName) {
+          const normName = cleanPersonName(rawStudentName);
+          if (normName) {
+            matchedStudent = studentByName.get(normName) || null;
+            if (!matchedStudent) {
+              for (const [sNm, sObj] of studentByName.entries()) {
+                if (cleanPersonName(sNm) === normName) {
+                  matchedStudent = sObj;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        // Match mentor using robust resolver
+        let matchedMentor = findMentorMatch(rawMentorName);
+
+        // Determine status
+        let status = 'READY';
+        if (!matchedStudent) status = 'NO_STUDENT';
+        else if (!matchedMentor) status = 'NO_MENTOR';
+        else if (matchedStudent.mentorId && matchedStudent.mentorId === matchedMentor.id) status = 'ALREADY';
+
+        assignRows.push({
+          sr: i,
+          rawStudentName,
+          rawEnroll,
+          rawMentorName,
+          matchedStudent,
+          matchedMentor,
+          status
+        });
+      }
+
+      if (assignRows.length === 0) {
+        showToast('No data rows found in file.', 'warning');
+        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        return;
+      }
+
+      assignDropLabel.textContent = `✅ Loaded: ${file.name} (${assignRows.length} rows)`;
+      renderAssignPreview();
+
+    } catch (err) {
+      console.error('Assign-mentor parse error:', err);
+      showToast(err.message || 'Error parsing file', 'error');
+      assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+    }
+  }
+
+  // ── Render preview table ──────────────────────────────────────────────
+  function renderAssignPreview() {
+    const overrideExisting = assignOverrideChk.checked;
+    assignPreviewTbody.innerHTML = '';
+
+    let countReady = 0, countNoStu = 0, countNoMentor = 0, countAlready = 0;
+
+    assignRows.forEach((row, idx) => {
+      // Re-evaluate ALREADY based on override checkbox
+      let effectiveStatus = row.status;
+      if (row.status === 'ALREADY' || (row.matchedStudent && row.matchedStudent.mentorId && overrideExisting && row.matchedMentor)) {
+        effectiveStatus = overrideExisting && row.matchedStudent && row.matchedMentor ? 'READY' : 'ALREADY';
+      }
+
+      if (effectiveStatus === 'READY') countReady++;
+      else if (effectiveStatus === 'NO_STUDENT') countNoStu++;
+      else if (effectiveStatus === 'NO_MENTOR') countNoMentor++;
+      else if (effectiveStatus === 'ALREADY') countAlready++;
+
+      const statusBadge = {
+        READY:      `<span class="badge badge-success">✅ Ready</span>`,
+        NO_STUDENT: `<span class="badge badge-danger">❌ Student not found</span>`,
+        NO_MENTOR:  `<span class="badge badge-warning">⚠ Mentor not found</span>`,
+        ALREADY:    `<span class="badge badge-info">ℹ Already assigned</span>`
+      }[effectiveStatus] || `<span class="badge badge-muted">?</span>`;
+
+      const stuCell = row.matchedStudent
+        ? `<span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedStudent.name || '—'}</span>
+           <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedStudent.department || ''}</span>`
+        : `<span style="color:var(--danger,#ef4444);">— Not found</span>`;
+
+      const mentorCell = row.matchedMentor
+        ? `<span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedMentor.name || '—'}</span>
+           <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedMentor.department || ''}</span>`
+        : (row.rawMentorName
+            ? `<span style="color:var(--warning,#f59e0b);">⚠ "${row.rawMentorName}"</span>`
+            : `<span style="color:var(--text-muted);">—</span>`);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--text-muted);">${row.sr}</td>
+        <td><strong>${row.rawStudentName || '—'}</strong>
+            ${row.rawEnroll ? `<br><span style="color:var(--text-muted);font-size:0.72rem;">${row.rawEnroll}</span>` : ''}
+        </td>
+        <td style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">${row.rawEnroll || '—'}</td>
+        <td>${stuCell}</td>
+        <td style="font-size:0.8rem;color:var(--text-secondary);">${row.rawMentorName || '—'}</td>
+        <td>${mentorCell}</td>
+        <td>${statusBadge}</td>
+      `;
+      assignPreviewTbody.appendChild(tr);
+    });
+
+    // Update stats bar
+    document.getElementById('assign-stat-matched').textContent  = `${countReady} ready to assign`;
+    document.getElementById('assign-stat-nostu').textContent    = `${countNoStu} student not found`;
+    document.getElementById('assign-stat-nomentor').textContent = `${countNoMentor} mentor not found`;
+    document.getElementById('assign-stat-already').textContent  = `${countAlready} already assigned (skipped)`;
+    document.getElementById('assign-stat-total').textContent    = `${assignRows.length} total rows`;
+
+    assignStatsBar.style.display = 'flex';
+    assignPreviewWrap.style.display = 'block';
+    btnExecuteAssign.disabled = countReady === 0;
+  }
+
+  // Re-render preview when override checkbox changes
+  assignOverrideChk.addEventListener('change', () => {
+    if (assignRows.length > 0) renderAssignPreview();
+  });
+
+  // ── Execute assignment ────────────────────────────────────────────────
+  btnExecuteAssign.addEventListener('click', async () => {
+    const overrideExisting = assignOverrideChk.checked;
+
+    // Collect rows to process
+    const toAssign = assignRows.filter(row => {
+      if (!row.matchedStudent || !row.matchedMentor) return false;
+      if (row.matchedStudent.mentorId === row.matchedMentor.id) return false; // already same mentor
+      if (row.matchedStudent.mentorId && !overrideExisting) return false; // has mentor, no override
+      return true;
+    });
+
+    if (!toAssign.length) {
+      showToast('No assignments to make. Check your file or enable "Override existing".', 'info');
+      return;
+    }
+
+    btnExecuteAssign.disabled = true;
+    btnExecuteAssign.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Assigning…';
+
+    // Progress overlay
+    const progressHtml = `
+      <div id="assign-progress-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.65);">
+        <div class="modal" style="max-width:400px;text-align:center;padding:28px;">
+          <h3 style="margin-bottom:8px;">🔗 Assigning Mentors…</h3>
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:14px;" id="assign-prog-text">Processing (0 / ${toAssign.length})…</p>
+          <div style="height:10px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;margin-bottom:10px;">
+            <div id="assign-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6c47ff,#a855f7);transition:width 0.2s;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', progressHtml);
+    const progText = document.getElementById('assign-prog-text');
+    const progBar  = document.getElementById('assign-prog-bar');
+
+    let successCount = 0, failCount = 0;
+
+    for (let i = 0; i < toAssign.length; i++) {
+      const row = toAssign[i];
+      try {
+        await StudentService.assignMentor(
+          row.matchedStudent.id,
+          row.matchedMentor.id,
+          'BULK_SHEET',
+          'BULK'
+        );
+        // Update local cache so table reflects new assignment
+        const cached = allUsers.find(u => u.id === row.matchedStudent.id);
+        if (cached) cached.mentorId = row.matchedMentor.id;
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to assign mentor for ${row.matchedStudent.name}:`, err);
+        failCount++;
+      }
+
+      const pct = Math.round(((i + 1) / toAssign.length) * 100);
+      if (progText) progText.textContent = `Processing (${i + 1} / ${toAssign.length})…`;
+      if (progBar)  progBar.style.width  = `${pct}%`;
+      if ((i + 1) % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    document.getElementById('assign-progress-modal')?.remove();
+    assignModal.style.display = 'none';
+    resetAssignModal();
+    btnExecuteAssign.disabled = false;
+    btnExecuteAssign.innerHTML = '🔗 Assign Mentors';
+
+    const msg = `Done! ${successCount} mentor assignment${successCount !== 1 ? 's' : ''} made.${failCount ? ` ${failCount} failed.` : ''}`;
+    showToast(msg, successCount > 0 ? 'success' : 'error');
+    if (successCount > 0) renderTable();
+  });
+
 }
 
