@@ -28,36 +28,123 @@ export async function render(container) {
   `;
 
   try {
-    const [students, faculty, depts, issues] = await Promise.all([
+    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { db } = await import('/js/firebase-init.js');
+    const { BookletService } = await import('/js/services.js');
+
+    const [students, faculty, depts, issues, bookletSnap] = await Promise.all([
       StudentService.getAll(),
       FacultyService.getAll(),
       DepartmentService.getAll(),
-      IssueService.getAll()
+      IssueService.getAll(),
+      getDocs(collection(db, 'booklets')).catch(() => ({ docs: [] }))
     ]);
 
-    const unassigned = students.filter(s => !s.mentorId).length;
-    const recent = [...students, ...faculty]
+    // Deduplicate students by email in UI display
+    const uniqueStudentMap = new Map();
+    students.forEach(s => {
+      const key = (s.email || s.enrollmentNumber || s.id).toLowerCase().trim();
+      if (!uniqueStudentMap.has(key)) uniqueStudentMap.set(key, s);
+    });
+    const uniqueStudents = Array.from(uniqueStudentMap.values());
+
+    // Filter faculty into roles — HODs/DEANs/ADMINs are NOT counted as mentors!
+    const mentorsOnly = faculty.filter(f => {
+      const r = (f.role || 'FACULTY').toUpperCase();
+      return r === 'FACULTY' || r === 'MENTOR';
+    });
+    const hodsOnly   = faculty.filter(f => (f.role || '').toUpperCase() === 'HOD');
+    const deansOnly  = faculty.filter(f => (f.role || '').toUpperCase() === 'DEAN');
+    const adminsOnly = faculty.filter(f => (f.role || '').toUpperCase() === 'ADMIN');
+
+    // Count how many students have filled at least 50% of their booklet
+    let filledBookletCount = 0;
+    bookletSnap.docs.forEach(d => {
+      const pct = BookletService.calculateCompletion(d.data());
+      if (pct >= 50) filledBookletCount++;
+    });
+
+    const unassigned = uniqueStudents.filter(s => !s.mentorId).length;
+
+    // Deduplicate recent registrations
+    const uniqueUserMap = new Map();
+    [...students, ...faculty].forEach(u => {
+      const key = (u.email || u.enrollmentNumber || u.employeeId || u.id).toLowerCase().trim();
+      if (!uniqueUserMap.has(key)) uniqueUserMap.set(key, u);
+    });
+
+    const recent = Array.from(uniqueUserMap.values())
       .filter(u => u.createdAt)
       .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 6)
-      .map(u => ({ ...u, role: u.cgpa !== undefined ? 'STUDENT' : 'FACULTY' }));
+      .map(u => ({ ...u, role: u.cgpa !== undefined ? 'STUDENT' : (u.role || 'FACULTY') }));
+    const totalAllUsers = uniqueStudents.length + faculty.length;
 
     const content = document.getElementById('admin-content');
     content.innerHTML = `
       <div class="dashboard-container">
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+        <!-- Main Key Metrics -->
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px;">
         ${[
-          ['Total Students',     students.length, 'var(--info)',   'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z'],
-          ['Total Mentors',      faculty.length,  'var(--accent)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
-          ['Unassigned',         unassigned,      'var(--warning)','M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'],
-          ['Departments',        depts.length,    'var(--success)','M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2z'],
+          ['Total Users (All)',  totalAllUsers,         'linear-gradient(135deg,#6c47ff,#a855f7)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
+          ['Total Students',     uniqueStudents.length, 'var(--info)',   'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z'],
+          ['Total Mentors',      mentorsOnly.length,    'var(--accent)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
+          ['Unassigned',         unassigned,            'var(--warning)','M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'],
+          ['Departments',        depts.length,          'var(--success)','M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2z'],
         ].map(([l,v,c,i]) => `
           <div class="stat-card">
-            <div class="stat-icon" style="background:${c}22;"><svg viewBox="0 0 24 24" style="fill:${c};width:20px;height:20px;"><path d="${i}"/></svg></div>
+            <div class="stat-icon" style="background:${c.includes('gradient') ? '#6c47ff22' : c + '22'};"><svg viewBox="0 0 24 24" style="fill:${c.includes('gradient') ? '#6c47ff' : c};width:20px;height:20px;"><path d="${i}"/></svg></div>
             <div class="stat-label">${l}</div>
-            <div class="stat-value">${v}</div>
+            <div class="stat-value" style="${c.includes('gradient') ? 'background:linear-gradient(135deg,#6c47ff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;' : ''}">${v}</div>
           </div>
         `).join('')}
+      </div>
+
+      <!-- User Breakdown & Booklet Completion Card -->
+      <div class="card" style="padding:20px;margin-bottom:24px;background:var(--bg-secondary);border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <h3 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+              👥 Platform Users &amp; Booklet Status Breakdown
+              <span class="badge badge-accent" style="font-size:0.75rem;padding:4px 10px;font-weight:700;background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;">
+                Grand Total: ${totalAllUsers} Registered Users
+              </span>
+            </h3>
+            <p style="margin:4px 0 0 0;font-size:0.78rem;color:var(--text-muted);">
+              Counts of active accounts by role and student booklet filing status. HODs/Deans are excluded from Mentor count.
+            </p>
+          </div>
+          <a href="#/admin/users" class="btn btn-xs btn-secondary">Manage All Users →</a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+          <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Students</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--info);margin-top:2px;">${uniqueStudents.length}</div>
+            <div style="font-size:0.72rem;color:var(--success);margin-top:4px;font-weight:600;">
+              📑 ${filledBookletCount} filled (≥50%)
+            </div>
+          </div>
+          <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Mentors / Faculty</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-top:2px;">${mentorsOnly.length}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Teaching Faculty</div>
+          </div>
+          <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">HODs</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--warning);margin-top:2px;">${hodsOnly.length}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Dept Heads</div>
+          </div>
+          <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Deans</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--danger);margin-top:2px;">${deansOnly.length}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Academic Deans</div>
+          </div>
+          <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Admins</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--success);margin-top:2px;">${adminsOnly.length}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">System Admin</div>
+          </div>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
@@ -76,9 +163,12 @@ export async function render(container) {
               <button class="btn btn-primary" id="btn-auto-alloc">Auto Allocate</button>
             </div>
             <div class="divider"></div>
+            <a href="#/admin/users?assign=true" class="btn btn-accent" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;font-weight:600;">🔗 Assign Mentors via Sheet (Excel/CSV) →</a>
             <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
             <a href="#/admin/users"       class="btn btn-secondary">Manage Users →</a>
             <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
+            <button id="btn-clean-duplicates-dash" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:var(--warning);border-color:var(--warning)88;">🧹 Clean Duplicate Database Records</button>
+            <a href="#/admin/settings" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:#ef4444;border-color:rgba(239,68,68,0.4);">🐞 Manage Web Issues &amp; Bug Reports (Admin Only) →</a>
             <button id="btn-export-dash-excel" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Export Mentors & Students (Excel)</button>
             <button id="btn-export-dash-pdf" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-pdf" style="font-size:1.1rem;color:var(--danger);"></i> Export Mentors & Students (PDF)</button>
             <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>
@@ -109,6 +199,14 @@ export async function render(container) {
         </div>
       </div>
     `;
+
+    document.getElementById('btn-clean-duplicates-dash')?.addEventListener('click', () => {
+      window.location.hash = '#/admin/settings';
+      setTimeout(() => {
+        const scanBtn = document.getElementById('btn-scan-duplicates');
+        if (scanBtn) scanBtn.click();
+      }, 300);
+    });
 
     document.getElementById('btn-auto-alloc').addEventListener('click', async () => {
       const dept = document.getElementById('auto-dept').value || null;
