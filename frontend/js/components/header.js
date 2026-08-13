@@ -25,6 +25,9 @@ export function createHeader(title, user, notificationCount = 0) {
         </div>
       </div>
       <div class="header-actions">
+        <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="Report a Web Issue or Bug">
+          <i class="ph ph-bug" style="font-size:1.1rem;"></i> Web Issue
+        </button>
         <a href="${guidePdf}" download title="Download Role Operating Manual (PDF)" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
           <i class="ph ph-file-pdf" style="font-size:1.4rem;"></i>
         </a>
