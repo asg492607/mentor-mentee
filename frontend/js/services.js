@@ -104,13 +104,18 @@ export const StudentService = {
 
   async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL') {
     const time = now();
-    await updateDoc(doc(db, 'students', studentId), {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'students', studentId), {
       mentorId,
       allocatedBy,
       allocatedAt: time,
       allocationType,
       updatedAt: time
     });
+    if (mentorId) {
+      batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
+    }
+    await batch.commit();
   },
 
   async reassignMentor(studentId, newMentorId, reassignedBy = 'HOD', reason = 'Reassigned by HOD') {
@@ -189,6 +194,60 @@ export const StudentService = {
       batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
     }
     await batch.commit();
+  }
+};
+
+// ─── BOOKLETS ─────────────────────────────────────────────────────────────────
+
+export const BookletService = {
+  calculateCompletion(data) {
+    if (!data) return 0;
+    const fields = [
+      data.personal?.name,
+      data.personal?.admissionYear,
+      data.personal?.class,
+      data.personal?.email,
+      data.personal?.dob,
+      data.personal?.placeOfBirth,
+      data.personal?.state,
+      data.personal?.nationality,
+      data.personal?.religion,
+      data.personal?.category,
+      data.personal?.fatherName,
+      data.personal?.fatherPhoneM,
+      data.personal?.motherName,
+      data.personal?.motherPhoneM,
+      data.personal?.guardianName,
+      data.personal?.guardianPhone,
+      data.personal?.presentAddress,
+      data.personal?.permanentAddress,
+      data.health?.diet,
+      data.health?.bloodGroup,
+      data.health?.height,
+      data.health?.weight,
+      data.performance?.examPassed,
+      data.performance?.board,
+      data.performance?.passingYear,
+      data.performance?.totalMarks
+    ];
+    let filled = 0;
+    fields.forEach(val => {
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        filled++;
+      }
+    });
+    return Math.round((filled / fields.length) * 100);
+  },
+
+  async getBooklet(studentId) {
+    const snapResult = await getDoc(doc(db, 'booklets', studentId));
+    if (!snapResult.exists()) return null;
+    return snapResult.data();
+  },
+
+  async getCompletionPercentage(studentId) {
+    const booklet = await this.getBooklet(studentId);
+    return this.calculateCompletion(booklet);
   }
 };
 
@@ -637,10 +696,8 @@ export const ClassService = {
 
 export const AllocationService = {
   async assign(studentId, mentorId, mentorName) {
-    // Update student
+    // Update student and increment faculty counter atomically via StudentService
     await StudentService.assignMentor(studentId, mentorId);
-    // Increment faculty counter atomically
-    await updateDoc(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
   },
 
   async batchAssign(studentIds, mentorId) {
@@ -814,11 +871,13 @@ export const StatsService = {
   },
 
   async getDeptStats(department) {
-    const [students, mentors, issues] = await Promise.all([
+    const [students, allFaculty, issues] = await Promise.all([
       StudentService.getByDepartment(department),
       FacultyService.getByDepartment(department),
       IssueService.getByDepartment(department)
     ]);
+    // Only count actual mentors (FACULTY/MENTOR role), not HOD/DEAN/ADMIN etc.
+    const mentors = allFaculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR');
     const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
     return { totalStudents: students.length, totalMentors: mentors.length, highRiskStudents: highRisk, openIssues: issues.filter(i => i.status === 'OPEN').length, resolvedIssues: issues.filter(i => i.status === 'RESOLVED').length, students, mentors, issues };
   },
@@ -878,7 +937,43 @@ export const AdminService = {
   async createUser(data) {
     const role = (data.role || 'STUDENT').toUpperCase();
     const collectionName = role === 'STUDENT' ? 'students' : 'faculty';
-    const email = data.email.trim();
+    const email = (data.email || '').trim().toLowerCase();
+
+    if (!email) throw new Error('Email is required.');
+
+    // ── Pre-check: email & enrollment/employee ID uniqueness in Firestore ──
+    const normEmail = email.toLowerCase().trim();
+    const normEnroll = (data.enrollmentNumber || data.enrollmentNo || data.employeeId || '').toLowerCase().trim();
+
+    const [stuSnap, facSnap] = await Promise.all([
+      getDocs(collection(db, 'students')),
+      getDocs(collection(db, 'faculty'))
+    ]);
+
+    const isDupEmail = stuSnap.docs.some(d => (d.data().email || '').toLowerCase().trim() === normEmail) ||
+                       facSnap.docs.some(d => (d.data().email || '').toLowerCase().trim() === normEmail);
+
+    if (isDupEmail) {
+      const dupErr = new Error('This email is already registered.');
+      dupErr.code = 'auth/email-already-in-use';
+      throw dupErr;
+    }
+
+    if (normEnroll) {
+      const isDupEnroll = stuSnap.docs.some(d => {
+        const e = (d.data().enrollmentNumber || d.data().rollNumber || d.data().employeeId || '').toLowerCase().trim();
+        return e && e === normEnroll;
+      }) || facSnap.docs.some(d => {
+        const e = (d.data().employeeId || d.data().enrollmentNumber || '').toLowerCase().trim();
+        return e && e === normEnroll;
+      });
+
+      if (isDupEnroll) {
+        const dupErr = new Error(`An account with ID "${normEnroll}" already exists.`);
+        dupErr.code = 'auth/id-already-in-use';
+        throw dupErr;
+      }
+    }
     
     let password = String(data.password || data.mobileNumber || '').trim();
     if (password.length < 6) {
@@ -889,21 +984,38 @@ export const AdminService = {
 
     // Try secondary Auth registration
     try {
+      // Safely initialize or reuse the secondary Firebase app
       if (!secondaryApp) {
-        secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        try {
+          secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
+        } catch (appErr) {
+          // 'app/duplicate-app' means it was already initialized — reuse it
+          if (appErr.code === 'app/duplicate-app') {
+            const { getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+            secondaryApp = getApp('SecondaryApp');
+          } else {
+            throw appErr;
+          }
+        }
         secondaryAuth = getAuth(secondaryApp);
       }
 
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       uid = userCredential.user.uid;
-      await signOut(secondaryAuth);
+      // Sign out the secondary session so the primary user stays logged in
+      try { await signOut(secondaryAuth); } catch (_) { /* ignore */ }
     } catch (authErr) {
       if (authErr.code === 'auth/email-already-in-use') {
         const dupErr = new Error('This email is already registered.');
         dupErr.code = 'auth/email-already-in-use';
         throw dupErr;
       }
-      // If rate-limited (too-many-requests) or network throttled, generate a new Firestore doc ID
+      // Only fall back to a Firestore-only doc for rate-limit / network errors.
+      // For all other auth errors (invalid email, weak password, etc.) re-throw.
+      const benignCodes = ['auth/too-many-requests', 'auth/network-request-failed', 'auth/quota-exceeded'];
+      if (!benignCodes.includes(authErr.code)) {
+        throw authErr;
+      }
       console.warn(`Auth API rate-limited/skipped for ${email} (${authErr.code || authErr.message}). Writing profile to Firestore directly.`);
       const newDocRef = doc(collection(db, collectionName));
       uid = newDocRef.id;
@@ -962,3 +1074,41 @@ export const AdminService = {
     return profileData;
   }
 };
+
+// ─── WEB ISSUES ───────────────────────────────────────────────────────────────
+
+export const WebIssueService = {
+  async submitIssue(issueData) {
+    const docRef = await addDoc(collection(db, 'web_issues'), {
+      title: issueData.title || 'Web Issue Report',
+      category: issueData.category || 'General',
+      priority: issueData.priority || 'Medium',
+      description: issueData.description || '',
+      pageUrl: issueData.pageUrl || window.location.hash || '/#/',
+      reporterId: issueData.reporterId || 'anonymous',
+      reporterName: issueData.reporterName || 'Anonymous User',
+      reporterRole: issueData.reporterRole || 'GUEST',
+      reporterEmail: issueData.reporterEmail || '',
+      status: 'OPEN', // OPEN, IN_PROGRESS, RESOLVED
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    return { id: docRef.id, ...issueData };
+  },
+
+  async getAll() {
+    return snaps(await getDocs(query(collection(db, 'web_issues'), orderBy('createdAt', 'desc'))));
+  },
+
+  async updateStatus(issueId, newStatus) {
+    await updateDoc(doc(db, 'web_issues', issueId), {
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async deleteIssue(issueId) {
+    await deleteDoc(doc(db, 'web_issues', issueId));
+  }
+};
+
