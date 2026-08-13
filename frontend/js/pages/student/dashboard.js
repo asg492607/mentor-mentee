@@ -3,7 +3,7 @@ import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, MeetingService, IssueService, TaskService, StatsService } from '/js/services.js';
+import { StudentService, MeetingService, IssueService, TaskService, StatsService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
 
 function fmt(iso) {
@@ -32,11 +32,12 @@ export async function render(container) {
 
   try {
     // Load all data from Firestore directly
-    const [profile, meetings, issues, tasks] = await Promise.all([
+    const [profile, meetings, issues, tasks, bookletCompletionPct] = await Promise.all([
       StudentService.get(user.id),
       MeetingService.getByStudent(user.id),
       IssueService.getByStudent(user.id),
-      TaskService.getByStudent(user.id)
+      TaskService.getByStudent(user.id),
+      BookletService.getCompletionPercentage(user.id)
     ]);
 
     const fullProfile = profile || user;
@@ -62,8 +63,38 @@ export async function render(container) {
     const content = container.querySelector('#dash-content');
     if (!content) return;
 
+    const isBookletIncomplete = bookletCompletionPct < 50;
+
     content.innerHTML = `
       <div class="dashboard-container">
+
+        ${isBookletIncomplete ? `
+        <!-- Mandatory Booklet Alert Banner -->
+        <div class="card" style="padding:18px 22px;margin-bottom:20px;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(239,68,68,0.15));border:1.5px solid var(--warning);border-radius:14px;box-shadow:0 4px 14px rgba(245,158,11,0.12);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="width:44px;height:44px;border-radius:50%;background:rgba(245,158,11,0.2);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--warning);flex-shrink:0;">
+                📑
+              </div>
+              <div>
+                <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--text-primary);">
+                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 50%)
+                </h4>
+                <p style="margin:4px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
+                  First-time setup requirement: You must complete at least <strong>50% of your Mentorship Booklet</strong> to unlock full account features.
+                </p>
+              </div>
+            </div>
+            <a href="#/student/booklet" class="btn btn-warning btn-sm" style="font-weight:700;padding:8px 16px;white-space:nowrap;border-radius:8px;">
+              ✏️ Fill Booklet Now →
+            </a>
+          </div>
+          <div style="height:8px;background:rgba(0,0,0,0.1);border-radius:4px;overflow:hidden;margin-top:14px;">
+            <div style="height:100%;width:${bookletCompletionPct}%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:4px;transition:width 0.3s ease;"></div>
+          </div>
+        </div>
+        ` : ''}
+
         <!-- Quick Actions Bar -->
         <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
           <a href="#/student/meetings" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
@@ -199,8 +230,51 @@ export async function render(container) {
     `;
 
     container.querySelectorAll('.join-btn').forEach(b => {
-      b.addEventListener('click', () => navigateTo(`/meeting-room?id=${b.dataset.id}`));
+      b.addEventListener('click', (e) => navigateTo(`/meeting/${e.target.dataset.id}`));
     });
+
+    // Render Mandatory Booklet Modal Popup if < 50% completed
+    if (isBookletIncomplete) {
+      const modalHtml = `
+        <div id="mandatory-booklet-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);">
+          <div class="modal" style="max-width:500px;width:92%;text-align:center;padding:36px 28px;border-radius:20px;border:1.5px solid var(--warning);box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+            <div style="width:70px;height:70px;border-radius:50%;background:rgba(245,158,11,0.18);display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin:0 auto 16px auto;color:var(--warning);">
+              📑
+            </div>
+            <h2 style="margin:0 0 10px 0;font-size:1.35rem;font-weight:800;letter-spacing:-0.02em;color:var(--text-primary);">
+              Welcome to Lumina!
+            </h2>
+            <p style="color:var(--text-secondary);font-size:0.9rem;line-height:1.55;margin:0 0 22px 0;">
+              As a mandatory requirement for first-time account setup, you must complete <strong>at least 50% of your Mentorship Booklet</strong> before accessing full features.
+            </p>
+
+            <div style="background:var(--bg-secondary);padding:16px;border-radius:12px;margin-bottom:24px;border:1px solid var(--border);">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;margin-bottom:8px;font-weight:700;">
+                <span style="color:var(--text-secondary);">Current Progress</span>
+                <span style="color:var(--warning);font-size:0.95rem;">${bookletCompletionPct}% / 50% Required</span>
+              </div>
+              <div style="height:12px;background:var(--bg-primary);border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
+                <div style="height:100%;width:${bookletCompletionPct}%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:6px;transition:width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <a href="#/student/booklet" class="btn btn-primary btn-block" style="padding:14px;font-size:1rem;font-weight:700;background:linear-gradient(135deg,#6c47ff,#a855f7);border:none;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                ✏️ Complete Mentorship Booklet Now →
+              </a>
+              <button class="btn btn-ghost btn-sm" id="btn-close-mandatory-modal" style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
+                I'll complete it in a moment (Preview Dashboard)
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', modalHtml);
+
+      document.getElementById('btn-close-mandatory-modal')?.addEventListener('click', () => {
+        document.getElementById('mandatory-booklet-modal')?.remove();
+      });
+    }
 
     container.querySelector('#btn-req-meeting')?.addEventListener('click', () => navigateTo('/student/meetings'));
 
