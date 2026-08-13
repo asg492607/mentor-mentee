@@ -113,11 +113,21 @@ service cloud.firestore {
       );
       allow delete: if isSuperAdmin();
       
-      // Lock down signaling to only people allowed to access the meeting
+      // Lock down signaling and controls to only people allowed to access the meeting
       match /signaling/{docId} {
         allow read, write: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == uid() ||
                               get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
-                              (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId);
+                              (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId) ||
+                              isDean() || isSuperAdmin();
+      }
+
+      match /controls/{docId} {
+        allow read: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == uid() ||
+                       get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
+                       (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId) ||
+                       isDean() || isSuperAdmin();
+        allow write: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
+                        isFaculty() || isDean() || isSuperAdmin();
       }
     }
 
@@ -242,26 +252,13 @@ service cloud.firestore {
 
     // ── Booklets Collection ────────────────────────────────────────────────────
     match /booklets/{studentId} {
-      allow read: if isAuth() && (
-        uid() == studentId ||
-        (isFaculty() && get(/databases/$(database)/documents/students/$(studentId)).data.mentorId == uid()) ||
-        isHODForDept(get(/databases/$(database)/documents/students/$(studentId)).data.department) ||
-        isDean() ||
-        isSuperAdmin()
-      );
-      
-      allow create: if isAuth() && (
-        uid() == studentId ||
-        isSuperAdmin()
-      );
-      
-      allow update: if isAuth() && (
-        uid() == studentId ||
-        (isFaculty() && get(/databases/$(database)/documents/students/$(studentId)).data.mentorId == uid()) ||
-        isSuperAdmin()
-      );
-      
-      allow delete: if isSuperAdmin();
+      allow read, write: if isAuth();
+    }
+
+    // ── Web Issues Collection ──────────────────────────────────────────────────
+    match /web_issues/{issueId} {
+      allow read, write: if isAuth();
     }
   }
 }
+
