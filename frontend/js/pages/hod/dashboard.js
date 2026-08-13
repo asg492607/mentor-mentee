@@ -90,7 +90,7 @@ export async function render(container) {
           ${highRiskList.length === 0
             ? '<p style="padding:20px;color:var(--text-muted);">No high-risk students.</p>'
             : `<table class="data-table">
-                <thead><tr><th>Student</th><th>Mentor</th><th>CGPA</th><th>Att.</th><th>Risk</th></tr></thead>
+                <thead><tr><th>Student</th><th>Mentor</th><th>CGPA</th><th>Att.</th><th>Risk</th><th>Action</th></tr></thead>
                 <tbody>
                   ${highRiskList.slice(0,6).map(s => {
                     const mentor = mentors.find(m => m.id === s.mentorId);
@@ -100,6 +100,7 @@ export async function render(container) {
                       <td>${s.cgpa||'—'}</td>
                       <td>${s.attendance||0}%</td>
                       <td>${riskBadge(s.riskLevel)}</td>
+                      <td><a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary">Booklet</a></td>
                     </tr>`;
                   }).join('')}
                 </tbody>
