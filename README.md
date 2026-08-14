@@ -102,3 +102,12 @@ Relying on Firestore for WebRTC signaling (SDP/ICE candidate exchange) is functi
 With 6 different organizational roles (Student, Mentor, Section Head, HOD, Dean, Admin), the risk of visibility leaks and logic bugs increases exponentially.
 *   **Workflow Fragility:** Ensuring that approval logic routes correctly, CSV imports don't create malformed data, and users only see their designated data silos is the highest-risk area for bugs.
 *   **Future Mitigation:** Implement comprehensive End-to-End (E2E) testing specifically focused on role-based dashboard visibility and escalation routing to ensure data never moves to the wrong tier.
+
+---
+
+## 👥 Project Guidance & Contributors
+
+*   **Faculty Guide**: **Dr. Nilesh Thorat** — Assistant Professor (Faculty Mentorship & Project Governance)
+*   **Student Team Lead**: **Atharva Gandhi** — Lead Platform Architect & Developer
+*   **Contributor**: **Vaibhav Bariyar** — Student Team Member (Feature Implementation & Testing)
+*   **Contributor**: **Satwik Dhole** — Student Team Member (Platform Development & Feature Enhancements)

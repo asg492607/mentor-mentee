@@ -562,7 +562,7 @@ export async function render(container) {
             </p>
           </div>
 
-          <!-- Student Team Member Card -->
+          <!-- Student Team Member Card (Vaibhav Bariyar) -->
           <div class="feature-card" style="border-top:4px solid #ec4899;">
             <div class="feature-icon-wrap" style="background:rgba(236,72,153,0.15);color:#ec4899;">
               <i class="ph ph-user"></i>
@@ -574,6 +574,21 @@ export async function render(container) {
             <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Member</p>
             <p class="feature-card-desc">
               Contributor assisting with feature implementations and testing.
+            </p>
+          </div>
+
+          <!-- Student Team Member Card (Satwik Dhole) -->
+          <div class="feature-card" style="border-top:4px solid #3b82f6;">
+            <div class="feature-icon-wrap" style="background:rgba(59,130,246,0.15);color:#3b82f6;">
+              <i class="ph ph-user"></i>
+            </div>
+            <span style="font-size:0.75rem;color:#3b82f6;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
+              Contributor
+            </span>
+            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Satwik Dhole</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Member</p>
+            <p class="feature-card-desc">
+              Contributor assisting with platform development, feature enhancements, and testing.
             </p>
           </div>
 
