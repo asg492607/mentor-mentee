@@ -4,6 +4,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { MeetingService, NotificationService, TaskService } from '/js/services.js';
+import { exportMeetingSessionReport } from '/js/report-export.js';
 
 function statusBadge(s) {
   const cls = {REQUESTED:'badge-warning',APPROVED:'badge-success',ONGOING:'badge-info',REJECTED:'badge-danger',COMPLETED:'badge-muted',CANCELLED:'badge-muted'}[s]||'badge-muted';
@@ -180,61 +181,12 @@ export async function render(container) {
       });
     });
 
-    // Report Download
+    // Report Download (Official MIT-ADT University Report)
     document.querySelectorAll('.report-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const m = meetings.find(x => x.id === btn.dataset.id);
-        if(!m) return;
-        const w = window.open('', '_blank');
-        w.document.write(`
-          <html>
-            <head>
-              <title>Meeting Report - ${m.studentName}</title>
-              <style>
-                body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-                h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 10px; }
-                .header-info { display: grid; grid-template-columns: 1fr 1fr; background: #f9f9fb; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
-                .header-info p { margin: 5px 0; }
-                h3 { margin-top: 30px; color: #444; }
-                .box { border: 1px solid #e1e4e8; padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #fff; }
-                ul { padding-left: 20px; }
-                @media print { body { margin: 0; padding: 20px; } .no-print { display: none; } }
-              </style>
-            </head>
-            <body>
-              <div class="no-print" style="text-align:right; margin-bottom: 20px;">
-                <button onclick="window.print()" style="padding: 8px 16px; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Print / Save PDF</button>
-              </div>
-              <h1>Meeting Report</h1>
-              <div class="header-info">
-                <div>
-                  <p><strong>Student:</strong> ${m.studentName}</p>
-                  <p><strong>Mentor:</strong> ${m.mentorName}</p>
-                </div>
-                <div>
-                  <p><strong>Date:</strong> ${new Date(m.scheduledAt || m.updatedAt).toLocaleString()}</p>
-                  <p><strong>Type:</strong> ${m.type}</p>
-                </div>
-              </div>
-              <p><strong>Description/Topic:</strong> ${m.description}</p>
-              
-              <h3>Discussion Summary</h3>
-              <div class="box">${(m.notes?.summary || 'No summary provided').replace(/\n/g, '<br>')}</div>
-              
-              <h3>Problem Identified</h3>
-              <div class="box">${(m.notes?.problem || 'None').replace(/\n/g, '<br>')}</div>
-              
-              <h3>Advice & Guidance</h3>
-              <div class="box">${(m.notes?.advice || 'None').replace(/\n/g, '<br>')}</div>
-              
-              <h3>Action Items (Tasks)</h3>
-              <div class="box">
-                ${m.notes?.tasks?.length ? `<ul>${m.notes.tasks.map(t => `<li>${t}</li>`).join('')}</ul>` : 'No action items.'}
-              </div>
-            </body>
-          </html>
-        `);
-        w.document.close();
+        if (!m) return;
+        exportMeetingSessionReport(m);
       });
     });
 

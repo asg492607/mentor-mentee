@@ -4,6 +4,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { MeetingService, NotificationService } from '/js/services.js';
+import { exportMeetingSessionReport } from '/js/report-export.js';
 
 const TYPES = ['Academic Issue','Career Guidance','Personal Concern','Internship','Project Guidance','Higher Studies'];
 
@@ -154,7 +155,10 @@ export async function render(container) {
               <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
                 ${(m.status === 'APPROVED' || m.status === 'ONGOING') ? `<button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">Join Meeting</button>` : ''}
                 ${m.status === 'REQUESTED' ? `<button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}">Cancel</button>` : ''}
-                ${m.status === 'COMPLETED' && m.notes ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}">View Notes</button>` : ''}
+                ${m.status === 'COMPLETED' ? `
+                  ${m.notes ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}">View Notes</button>` : ''}
+                  <button class="btn btn-sm btn-primary report-btn" data-id="${m.id}">Download Report</button>
+                ` : ''}
               </div>
             </div>
             ${m.status === 'COMPLETED' && m.notes ? `
@@ -179,6 +183,13 @@ export async function render(container) {
             panel.style.display = isHidden ? 'block' : 'none';
             b.textContent = isHidden ? 'Hide Notes' : 'View Notes';
           }
+        });
+      });
+
+      document.querySelectorAll('.report-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          const m = meetings.find(x => x.id === b.dataset.id);
+          if (m) exportMeetingSessionReport(m);
         });
       });
 
