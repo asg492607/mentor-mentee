@@ -5,6 +5,7 @@ import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { showToast } from '/js/components/toast.js';
 import { MeetingService } from '/js/services.js';
+import { exportMeetingSessionReport } from '/js/report-export.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -1237,266 +1238,29 @@ export async function render(container) {
     }
   });
 
-  // Generate & Print meeting report — Professional B&W layout
+  // Generate & Print meeting report — Uses centralized official MIT-ADT template
   document.getElementById('btn-generate-report')?.addEventListener('click', () => {
-    const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
-    const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0, 10);
-    const time = document.getElementById('rpt-time')?.value || '';
-    const issues = document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.';
-    const actions = document.getElementById('rpt-actions')?.value.trim() || 'No action items.';
-    const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
-    const dept = document.getElementById('rpt-dept')?.value.trim() || 'School of Computing';
-    const preparedBy = meeting.mentorName || user.name || '';
-    const checkedBy = document.getElementById('rpt-checker-name')?.value.trim() || '';
-    const hodName = document.getElementById('rpt-hod-name')?.value.trim() || '';
-
-    // Collect student rows
     const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
       name: row.querySelector('.rpt-sname')?.value.trim() || '',
       enrollment: row.querySelector('.rpt-senroll')?.value.trim() || ''
     })).filter(s => s.name || s.enrollment);
 
-    const formatDate = (d) => {
-      if (!d) return '';
-      const dt = new Date(d + 'T00:00:00');
-      return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    const reportData = {
+      topic: document.getElementById('rpt-topic')?.value.trim() || meeting.type || 'Mentorship Session',
+      date: document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0, 10),
+      time: document.getElementById('rpt-time')?.value || '',
+      students: studentRows,
+      issuesDiscussed: document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.',
+      actionItems: document.getElementById('rpt-actions')?.value.trim() || 'No action items.',
+      remarks: document.getElementById('rpt-remarks')?.value.trim() || '',
+      department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'School of Computing',
+      preparedBy: meeting.mentorName || user.name || '',
+      checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
+      verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
+      hodName: document.getElementById('rpt-hod-name')?.value.trim() || ''
     };
 
-    const totalStudents = studentRows.length;
-
-    // Absolute URL for the header banner image (same origin, works in popup)
-    const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
-
-    // Build student attendance rows for page 2
-    const attendanceRows = studentRows.map((s, i) => `
-          <tr>
-            <td style="text-align:center;">${i + 1}</td>
-            <td>${escapeHtml(s.name)}</td>
-            <td style="text-align:center;">${escapeHtml(s.enrollment)}</td>
-            <td></td>
-          </tr>
-        `).join('');
-
-    const reportWin = window.open('', '_blank', 'width=900,height=1200');
-    if (!reportWin) { showToast('Please allow pop-ups to generate the report', 'warning'); return; }
-
-    reportWin.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Mentorship Session Report - ${topic}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Times New Roman', Times, serif; background: #fff; color: #000; font-size: 11pt; }
-    .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 14mm 18mm 12mm 18mm; }
-    .page-break { page-break-before: always; }
-
-    /* ---- HEADER ---- */
-    .rpt-header { margin-bottom: 0; }
-    .rpt-banner { width: 100%; display: block; border-bottom: 2px solid #888; }
-    .rpt-divider { height: 1.5px; background: #000; margin: 4px 0 12px 0; }
-
-    /* ---- TITLE ---- */
-    .rpt-title { text-align: center; margin-bottom: 12px; }
-    .rpt-title h1 { font-size: 12.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; border: 1.5px solid #000; display: inline-block; padding: 4px 20px; }
-    .rpt-title .sub { font-size: 8.5pt; color: #444; margin-top: 4px; }
-
-    /* ---- INFO TABLE ---- */
-    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10pt; }
-    .info-table td { padding: 5px 8px; vertical-align: top; border: 1px solid #aaa; }
-    .info-table td:first-child { font-weight: 700; width: 32%; background: #f2f2f2; }
-
-    /* ---- SECTIONS ---- */
-    .section { margin-bottom: 10px; }
-    .section-head { border: 1.5px solid #000; border-bottom: none; padding: 4px 8px; font-size: 10pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #f2f2f2; }
-    .section-body { border: 1.5px solid #000; padding: 8px 10px; min-height: 52px; font-size: 10pt; line-height: 1.7; white-space: pre-wrap; }
-
-    /* ---- SIGNATURE BLOCK (4-Column) ---- */
-    .sig-block { margin-top: 22px; border-top: 2px solid #000; padding-top: 12px; }
-    .sig-block-title { text-align: center; font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 18px; }
-    .sig-row { display: flex; justify-content: space-between; gap: 10px; }
-    .sig-col { flex: 1; text-align: center; }
-    .sig-space { height: 44px; border-bottom: 1px solid #000; margin-bottom: 6px; position: relative; }
-    .sig-space::after { content: '(Signature)'; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 6.5pt; color: #777; font-style: italic; }
-    .sig-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .sig-name { font-size: 9pt; font-weight: 700; border-bottom: 1px dotted #555; min-height: 16px; padding-bottom: 2px; display: inline-block; min-width: 80%; }
-    .sig-role { font-size: 7pt; color: #444; margin-top: 3px; }
-
-    /* ---- ATTENDANCE TABLE (page 2) ---- */
-    .att-title { text-align: center; margin-bottom: 12px; margin-top: 4px; }
-    .att-title h2 { font-size: 12.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1.5px solid #000; display: inline-block; padding: 4px 20px; }
-    .att-title .sub { font-size: 8.5pt; color: #444; margin-top: 4px; }
-    .att-meta { font-size: 9.5pt; margin-bottom: 12px; border: 1px solid #aaa; padding: 6px 10px; background: #f9f9f9; }
-    .att-meta span { font-weight: 700; }
-    .att-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-    .att-table th { background: #f2f2f2; border: 1.5px solid #000; padding: 6px 8px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 9pt; letter-spacing: 0.3px; }
-    .att-table th:nth-child(1) { width: 8%; text-align: center; }
-    .att-table th:nth-child(3) { width: 28%; text-align: center; }
-    .att-table th:nth-child(4) { width: 24%; text-align: center; }
-    .att-table td { border: 1px solid #aaa; padding: 6px 8px; vertical-align: middle; }
-    .att-table td:nth-child(1) { text-align: center; }
-    .att-table td:nth-child(3) { text-align: center; }
-    .att-table td:nth-child(4) { text-align: center; }
-    .att-table tr:nth-child(even) td { background: #fafafa; }
-
-    /* ---- FOOTER ---- */
-    .rpt-footer { margin-top: 16px; border-top: 1px solid #aaa; padding-top: 6px; text-align: center; font-size: 7.5pt; color: #666; }
-
-    @media print {
-      .page { padding: 10mm 14mm; }
-      .no-print { display: none !important; }
-      .page-break { page-break-before: always; }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- ===== PAGE 1: Main Report ===== -->
-  <div class="page">
-    <div class="rpt-header">
-      <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
-    </div>
-    <div class="rpt-divider"></div>
-
-    <div class="rpt-title">
-      <h1>Mentorship Session Report</h1>
-      <div class="sub">Official Record of Mentor-Mentee Interaction</div>
-    </div>
-
-    <table class="info-table">
-      <tr><td>Meeting Topic / Agenda</td><td>${escapeHtml(topic)}</td></tr>
-      <tr><td>Date of Meeting</td><td>${escapeHtml(formatDate(date))}</td></tr>
-      <tr><td>Time of Meeting</td><td>${escapeHtml(time)}</td></tr>
-      <tr><td>Department</td><td>${escapeHtml(dept)}</td></tr>
-      <tr><td>Mentor / Faculty</td><td>Prof. ${escapeHtml(preparedBy)}</td></tr>
-      <tr><td>Total Students Present</td><td>${totalStudents} student${totalStudents !== 1 ? 's' : ''} &nbsp;<em style="font-size:8.5pt;color:#555;">(Attendance list on Page 2)</em></td></tr>
-    </table>
-
-    <div class="section">
-      <div class="section-head">Issues Discussed</div>
-      <div class="section-body">${escapeHtml(issues)}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-head">Action Items &amp; Resolutions</div>
-      <div class="section-body">${escapeHtml(actions)}</div>
-    </div>
-
-    ${remarks ? `<div class="section"><div class="section-head">Additional Remarks</div><div class="section-body">${escapeHtml(remarks)}</div></div>` : ''}
-
-    <div class="sig-block">
-      <div class="sig-block-title">Signatures &amp; Authorization</div>
-      <div class="sig-row">
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Prepared By</div>
-          <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
-          <div class="sig-role">Mentor / Faculty</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Checked By</div>
-          <div><span class="sig-name">${checkedBy ? escapeHtml(checkedBy) : 'Prof. _________________'}</span></div>
-          <div class="sig-role">Coordinator / Faculty</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Verify By</div>
-          <div>
-            <div style="font-size:9pt; font-weight:700;">Dr. Nilesh Thale</div>
-            <div style="font-size:9pt; font-weight:700; margin-top:2px;">Dr. Aman Singh</div>
-          </div>
-          <div class="sig-role">Verification Committee</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Approved By (HOD)</div>
-          <div><span class="sig-name">${escapeHtml(hodName || 'Dr. _________________')}</span></div>
-          <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="rpt-footer">This is an official document of MIT Art, Design &amp; Technology University, Pune &bull; Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 1 of 2</div>
-  </div>
-
-  <!-- ===== PAGE 2: Attendance List ===== -->
-  <div class="page page-break">
-    <div class="rpt-header">
-      <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
-    </div>
-    <div class="rpt-divider"></div>
-
-    <div class="att-title">
-      <h2>Student Attendance Sheet</h2>
-      <div class="sub">Annexure to Mentorship Session Report</div>
-    </div>
-
-    <div class="att-meta">
-      <span>Meeting Topic:</span> ${escapeHtml(topic)} &emsp;
-      <span>Date:</span> ${escapeHtml(formatDate(date))} &emsp;
-      <span>Mentor:</span> Prof. ${escapeHtml(preparedBy)}
-    </div>
-
-    <table class="att-table">
-      <thead>
-        <tr>
-          <th>Sr. No.</th>
-          <th>Student Name</th>
-          <th>Enrollment No.</th>
-          <th>Signature</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${attendanceRows || '<tr><td colspan="4" style="text-align:center;padding:20px;color:#777;">No students added</td></tr>'}
-      </tbody>
-    </table>
-
-    <div class="sig-block" style="margin-top:24px;">
-      <div class="sig-block-title">Signatures &amp; Authorization</div>
-      <div class="sig-row">
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Prepared By</div>
-          <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
-          <div class="sig-role">Mentor / Faculty</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Checked By</div>
-          <div><span class="sig-name">${checkedBy ? escapeHtml(checkedBy) : 'Prof. _________________'}</span></div>
-          <div class="sig-role">Coordinator / Faculty</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Verify By</div>
-          <div>
-            <div style="font-size:9pt; font-weight:700;">Dr. Nilesh Thale</div>
-            <div style="font-size:9pt; font-weight:700; margin-top:2px;">Dr. Aman Singh</div>
-          </div>
-          <div class="sig-role">Verification Committee</div>
-        </div>
-        <div class="sig-col">
-          <div class="sig-space"></div>
-          <div class="sig-label">Approved By (HOD)</div>
-          <div><span class="sig-name">${escapeHtml(hodName || 'Dr. _________________')}</span></div>
-          <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="rpt-footer">This is an official document of MIT Art, Design &amp; Technology University, Pune &bull; Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 2 of 2</div>
-  </div>
-
-  <div class="no-print" style="text-align:center; margin: 18px 0; font-family: Arial, sans-serif;">
-    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">🖨️ Print / Save as PDF</button>
-    <button onclick="window.close()" style="margin-left:12px; padding:10px 24px; font-size:14px; background:#888; color:#fff; border:none; border-radius:6px; cursor:pointer;">Close</button>
-  </div>
-</body>
-</html>`);
-    reportWin.document.close();
-    setTimeout(() => reportWin.focus(), 300);
-    showToast('Report generated! Use Print → Save as PDF to download.', 'success');
+    exportMeetingSessionReport({ ...meeting, report: reportData });
   });
 
   // Clean up connections
