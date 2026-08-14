@@ -1,7 +1,7 @@
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StudentService, FacultyService, AdminService } from '/js/services.js';
+import { StudentService, FacultyService, AdminService, DepartmentService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 
@@ -31,6 +31,7 @@ export async function render(container) {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               ${user.role === 'ADMIN' ? `
+              <button class="btn btn-secondary btn-sm" id="btn-open-multi-class-mentors-users" title="View &amp; Export Mentors for Selected Classes">👥 Mentors by Class</button>
               <button class="btn btn-secondary btn-sm" id="btn-export-students" title="Export Students CSV (Email & Password/Mobile)">📤 Export Students</button>
               <button class="btn btn-secondary btn-sm" id="btn-export-teachers" title="Export Teachers CSV (Email & Password/Mobile)">📤 Export Teachers</button>
               <button class="btn btn-secondary btn-sm" id="btn-open-bulk-import">📁 Bulk Import</button>
@@ -216,13 +217,21 @@ export async function render(container) {
     });
   }
 
-  document.getElementById('user-search').addEventListener('input', e => { search = e.target.value.toLowerCase(); renderTable(); });
-  document.querySelectorAll('.role-f').forEach(btn => {
+  const searchInput = container.querySelector('#user-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => { search = e.target.value.toLowerCase(); renderTable(); });
+  }
+  container.querySelectorAll('.role-f').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.role-f').forEach(b => b.className = 'btn btn-sm btn-secondary role-f');
+      container.querySelectorAll('.role-f').forEach(b => b.className = 'btn btn-sm btn-secondary role-f');
       btn.className = 'btn btn-sm btn-primary role-f';
       roleFilter = btn.dataset.r; renderTable();
     });
+  });
+
+  container.querySelector('#btn-open-multi-class-mentors-users')?.addEventListener('click', async () => {
+    const { openMultiClassMentorsModal } = await import('/js/components/multi-class-mentors-modal.js');
+    await openMultiClassMentorsModal();
   });
 
   renderTable();
@@ -341,8 +350,8 @@ export async function render(container) {
             <p style="font-size:0.75rem;color:var(--text-muted);margin:0;">
               Expected columns: <code>Name</code>, <code>Enrollment Number</code>, <code>Email Address</code>, <code>Mobile Number</code>, <code>Department</code>
             </p>
-            <input type="file" id="bulk-file-input" accept=".csv, .xlsx, .xls" style="display:none;">
           </div>
+          <input type="file" id="bulk-file-input" accept=".csv, .xlsx, .xls" style="display:none;">
 
           <!-- Preview Table Area -->
           <div id="bulk-preview-wrap" style="display:none;margin-top:16px;">
@@ -397,14 +406,15 @@ export async function render(container) {
   container.insertAdjacentHTML('beforeend', viewProfileHtml);
 
   const modal = document.getElementById('add-user-modal');
-  if (document.getElementById('btn-add-user')) {
-      document.getElementById('btn-add-user').addEventListener('click', () => modal.style.display = 'flex');
+  const btnAddUser = document.getElementById('btn-add-user');
+  if (btnAddUser && modal) {
+      btnAddUser.addEventListener('click', () => modal.style.display = 'flex');
   }
-  document.getElementById('close-user-modal').addEventListener('click', () => modal.style.display = 'none');
-  document.getElementById('cancel-user-modal').addEventListener('click', () => modal.style.display = 'none');
+  document.getElementById('close-user-modal')?.addEventListener('click', () => { if (modal) modal.style.display = 'none'; });
+  document.getElementById('cancel-user-modal')?.addEventListener('click', () => { if (modal) modal.style.display = 'none'; });
 
   const viewModal = document.getElementById('view-profile-modal');
-  document.getElementById('close-view-profile-modal').addEventListener('click', () => viewModal.style.display = 'none');
+  document.getElementById('close-view-profile-modal')?.addEventListener('click', () => { if (viewModal) viewModal.style.display = 'none'; });
   
   window.openUserProfile = (userId) => {
      const u = allUsers.find(x => x.id === userId);
@@ -528,7 +538,8 @@ export async function render(container) {
       stuFields.style.display = 'grid';
 
       // ── dept change → load classes & mentors ──────────────────────────────
-      deptSel.addEventListener('change', async () => {
+      deptSel?.addEventListener('change', async () => {
+        if (!deptSel || !roleSel || !classSel || !mentorSel) return;
         const dept = deptSel.value;
         const role = roleSel.value;
 
@@ -577,6 +588,7 @@ export async function render(container) {
   })();
 
   function populateAdminDepts(typeStr) {
+    if (!deptSel) return;
     const isSec = typeStr === 'Section';
     if (isSec) {
       deptSel.innerHTML = '<option value="">Select Section</option>' +
@@ -588,7 +600,8 @@ export async function render(container) {
   }
 
   // ── Role change → show/hide student sub-fields ───────────────────────────
-  roleSel.addEventListener('change', () => {
+  roleSel?.addEventListener('change', () => {
+    if (!roleSel || !classSel || !mentorSel || !deptSel || !deptGroup || !stuFields || !deptLabel) return;
     const val = roleSel.value;
 
     // Reset class + mentor whenever role changes
@@ -624,7 +637,7 @@ export async function render(container) {
 
   // ── Form submit ───────────────────────────────────────────────────────────
   let _submitting = false; // guard against double-submit
-  document.getElementById('admin-add-user-form').addEventListener('submit', async (e) => {
+  document.getElementById('admin-add-user-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (_submitting) return; // prevent double-submit
     _submitting = true;
@@ -716,14 +729,14 @@ export async function render(container) {
   let selectedBulkRole = 'STUDENT';
   let parsedRows = [];
 
-  if (btnOpenBulk) {
+  if (btnOpenBulk && bulkModal) {
     btnOpenBulk.addEventListener('click', () => {
       bulkModal.style.display = 'flex';
     });
   }
 
-  closeBulk.addEventListener('click', () => { bulkModal.style.display = 'none'; resetBulkModal(); });
-  cancelBulk.addEventListener('click', () => { bulkModal.style.display = 'none'; resetBulkModal(); });
+  closeBulk?.addEventListener('click', () => { if (bulkModal) bulkModal.style.display = 'none'; resetBulkModal(); });
+  cancelBulk?.addEventListener('click', () => { if (bulkModal) bulkModal.style.display = 'none'; resetBulkModal(); });
 
   document.querySelectorAll('.bulk-role-tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
@@ -838,21 +851,21 @@ export async function render(container) {
   }
 
   // Drag and drop setup
-  dropZone.addEventListener('click', (e) => {
-    if (e.target !== fileInput) fileInput.click();
+  dropZone?.addEventListener('click', () => {
+    fileInput?.click();
   });
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
-  dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border)'; });
-  dropZone.addEventListener('drop', (e) => {
+  dropZone?.addEventListener('dragover', (e) => { e.preventDefault(); if (dropZone) dropZone.style.borderColor = 'var(--accent)'; });
+  dropZone?.addEventListener('dragleave', () => { if (dropZone) dropZone.style.borderColor = 'var(--border)'; });
+  dropZone?.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = 'var(--border)';
+    if (dropZone) dropZone.style.borderColor = 'var(--border)';
     if (e.dataTransfer.files.length) {
-      fileInput.files = e.dataTransfer.files;
+      if (fileInput) fileInput.files = e.dataTransfer.files;
       handleFileSelected(e.dataTransfer.files[0]);
     }
   });
 
-  fileInput.addEventListener('change', (e) => {
+  fileInput?.addEventListener('change', (e) => {
     if (e.target.files.length) {
       handleFileSelected(e.target.files[0]);
     }
@@ -1028,7 +1041,7 @@ export async function render(container) {
     }
   }
 
-  btnExecuteBulk.addEventListener('click', async () => {
+  btnExecuteBulk?.addEventListener('click', async () => {
     const validRows = parsedRows.filter(r => r.status === 'Ready');
     if (!validRows.length) return;
 
@@ -1179,42 +1192,52 @@ export async function render(container) {
 
 
   // ════════════════════════════════════════════════════════════════════════
-  // ASSIGN MENTOR FROM SHEET  (completely separate from Bulk Import / Registration)
+  // ASSIGN MENTOR & AUTO-REGISTER FROM CLASS REGISTER SHEET
   // ════════════════════════════════════════════════════════════════════════
 
   const assignModalHtml = `
     <div id="assign-mentor-modal" class="modal-backdrop" style="display:none;z-index:9999;">
-      <div class="modal" style="max-width:900px;width:97%;">
+      <div class="modal" style="max-width:1050px;width:98%;">
         <div class="modal-header" style="background:linear-gradient(135deg,#6c47ff22,#a855f722);border-bottom:1px solid #6c47ff44;">
           <div>
-            <h3 style="margin:0;">🔗 Assign Mentors from Sheet</h3>
+            <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+              <span>🔗</span> Assign Mentors &amp; Auto-Register from Sheet
+            </h3>
             <p style="font-size:0.8rem;color:var(--text-muted);margin-top:3px;">
-              Upload any CSV / Excel file with <strong>Student Name</strong>, <strong>Enrollment No</strong> and <strong>Mentor Name</strong> columns.
-              Students are matched by enrollment number (or name). No new accounts are created.
+              Upload any Class Register CSV / Excel sheet (.csv, .xlsx, .xls). Unregistered students will be <strong>automatically registered</strong> with their contact, class, father's contact, and specialization, and assigned to their designated mentor.
             </p>
           </div>
           <button class="btn btn-ghost btn-sm" id="close-assign-modal">✕</button>
         </div>
-        <div class="modal-body" style="padding-top:12px;">
+        <div class="modal-body" style="padding-top:14px;max-height:75vh;overflow-y:auto;">
 
           <!-- Drop Zone -->
-          <div id="assign-drop-zone" style="border:2px dashed #6c47ff88;border-radius:10px;padding:28px 16px;text-align:center;background:var(--bg-primary);margin-bottom:16px;cursor:pointer;transition:border-color 0.2s;">
-            <p style="font-size:1.6rem;margin-bottom:4px;">🔗</p>
-            <p style="font-weight:600;font-size:0.95rem;" id="assign-drop-label">Click or Drag &amp; Drop your sheet here (.csv, .xlsx, .xls)</p>
+          <div id="assign-drop-zone" style="border:2px dashed #6c47ff88;border-radius:10px;padding:22px 16px;text-align:center;background:var(--bg-primary);margin-bottom:14px;cursor:pointer;transition:border-color 0.2s;">
+            <p style="font-size:1.6rem;margin-bottom:4px;">📑</p>
+            <p style="font-weight:600;font-size:0.95rem;" id="assign-drop-label">Click or Drag &amp; Drop Class Register sheet here (.csv, .xlsx, .xls)</p>
             <p style="font-size:0.75rem;color:var(--text-muted);margin:6px 0 0;">
-              Required columns: <code>Name of Student</code> or <code>Student Name</code> &nbsp;·&nbsp;
-              <code>Enrollment Number</code> or <code>Roll No</code> &nbsp;·&nbsp;
-              <code>Mentor Name</code> or <code>Teacher Name</code>
+              Recognized columns: <code>Enrollment No</code> &nbsp;·&nbsp; <code>Name of Student</code> &nbsp;·&nbsp; <code>Roll No &amp; Batch</code> &nbsp;·&nbsp; <code>Student Contact</code> &nbsp;·&nbsp; <code>Email</code> &nbsp;·&nbsp; <code>Father's Contact</code> &nbsp;·&nbsp; <code>Specialization</code> &nbsp;·&nbsp; <code>Mentor Name</code>
             </p>
-            <input type="file" id="assign-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+          </div>
+          <input type="file" id="assign-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+
+          <!-- Department Mapping & Confirmation Section -->
+          <div id="assign-dept-section" style="display:none;background:var(--bg-secondary);border:1px solid #6c47ff44;border-radius:8px;padding:14px 16px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <h4 style="margin:0;font-size:0.88rem;display:flex;align-items:center;gap:6px;color:var(--text-primary);">
+                <span>🏛️</span> Department Assignment &amp; Confirmation
+              </h4>
+              <span style="font-size:0.75rem;color:var(--text-muted);">Please verify which system department students should belong to:</span>
+            </div>
+            <div id="assign-dept-mapping-list" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
 
           <!-- Stats bar -->
-          <div id="assign-stats-bar" style="display:none;margin-bottom:12px;display:none;gap:10px;flex-wrap:wrap;">
-            <span id="assign-stat-matched"  class="badge badge-success" style="font-size:0.8rem;">0 ready</span>
-            <span id="assign-stat-nostu"    class="badge badge-warning" style="font-size:0.8rem;">0 student not found</span>
-            <span id="assign-stat-nomentor" class="badge badge-warning" style="font-size:0.8rem;">0 mentor not found</span>
-            <span id="assign-stat-already"  class="badge badge-info"    style="font-size:0.8rem;">0 already assigned</span>
+          <div id="assign-stats-bar" style="display:none;margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center;">
+            <span id="assign-stat-new"      class="badge badge-accent"  style="font-size:0.8rem;background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;border:none;">✨ 0 new to register &amp; assign</span>
+            <span id="assign-stat-matched"  class="badge badge-success" style="font-size:0.8rem;">🔗 0 existing to assign</span>
+            <span id="assign-stat-already"  class="badge badge-info"    style="font-size:0.8rem;">ℹ 0 already assigned</span>
+            <span id="assign-stat-nomentor" class="badge badge-warning" style="font-size:0.8rem;">⚠ 0 mentor not found</span>
             <span id="assign-stat-total"    class="badge badge-muted"   style="font-size:0.8rem;">0 total rows</span>
           </div>
 
@@ -1227,10 +1250,12 @@ export async function render(container) {
                     <th>#</th>
                     <th>Student Name (Sheet)</th>
                     <th>Enrollment No</th>
-                    <th>Matched Student</th>
-                    <th>Mentor Name (Sheet)</th>
+                    <th>Contact &amp; Email</th>
+                    <th>Father's Contact</th>
+                    <th>Batch / Roll</th>
+                    <th>Assigned Dept</th>
                     <th>Matched Mentor</th>
-                    <th>Status</th>
+                    <th>Action Status</th>
                   </tr>
                 </thead>
                 <tbody id="assign-preview-tbody"></tbody>
@@ -1240,14 +1265,14 @@ export async function render(container) {
 
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border);padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="font-size:0.75rem;color:var(--text-muted);">Only students matched by Enrollment No or Name will be updated. Existing assignments are skipped unless you check override.</span>
+          <span style="font-size:0.75rem;color:var(--text-muted);">New students will be auto-created in Firebase with their class register credentials (Username = Email, Password = Mobile/Enrollment).</span>
           <div style="display:flex;gap:8px;align-items:center;">
             <label style="font-size:0.8rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
               <input type="checkbox" id="assign-override-chk"> Override existing mentor assignments
             </label>
             <button type="button" class="btn btn-secondary btn-sm" id="cancel-assign-modal">Cancel</button>
             <button type="button" class="btn btn-sm" id="btn-execute-assign" disabled
-              style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;">🔗 Assign Mentors</button>
+              style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;">🔗 Auto-Register &amp; Assign Mentors</button>
           </div>
         </div>
       </div>
@@ -1255,7 +1280,7 @@ export async function render(container) {
   `;
   container.insertAdjacentHTML('beforeend', assignModalHtml);
 
-  // ── Modal open/close ─────────────────────────────────────────────────
+  // ── Modal elements ───────────────────────────────────────────────────
   const assignModal = document.getElementById('assign-mentor-modal');
   const btnOpenAssign = document.getElementById('btn-open-assign-mentor');
   const closeAssign = document.getElementById('close-assign-modal');
@@ -1263,6 +1288,8 @@ export async function render(container) {
   const assignDropZone = document.getElementById('assign-drop-zone');
   const assignFileInput = document.getElementById('assign-file-input');
   const assignDropLabel = document.getElementById('assign-drop-label');
+  const assignDeptSection = document.getElementById('assign-dept-section');
+  const assignDeptMappingList = document.getElementById('assign-dept-mapping-list');
   const assignPreviewWrap = document.getElementById('assign-preview-wrap');
   const assignPreviewTbody = document.getElementById('assign-preview-tbody');
   const assignStatsBar = document.getElementById('assign-stats-bar');
@@ -1270,49 +1297,72 @@ export async function render(container) {
   const assignOverrideChk = document.getElementById('assign-override-chk');
 
   let assignRows = []; // parsed + resolved rows
+  let sheetSpecializations = []; // distinct specialization strings found in sheet
+  let deptMapping = {}; // { [specName]: targetDeptName }
+  let allSystemDepartments = []; // list of department objects from DB
 
   function resetAssignModal() {
     assignFileInput.value = '';
-    assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+    assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
+    assignDeptSection.style.display = 'none';
+    assignDeptMappingList.innerHTML = '';
     assignPreviewWrap.style.display = 'none';
     assignStatsBar.style.display = 'none';
     assignPreviewTbody.innerHTML = '';
     assignRows = [];
+    sheetSpecializations = [];
+    deptMapping = {};
     btnExecuteAssign.disabled = true;
   }
 
-  if (btnOpenAssign) {
+  if (btnOpenAssign && assignModal) {
     btnOpenAssign.addEventListener('click', () => { assignModal.style.display = 'flex'; });
   }
-  if (window.location.hash.includes('assign=true') || window.location.hash.includes('assign-mentor')) {
+  if ((window.location.hash.includes('assign=true') || window.location.hash.includes('assign-mentor')) && assignModal) {
     assignModal.style.display = 'flex';
   }
-  closeAssign.addEventListener('click', () => { assignModal.style.display = 'none'; resetAssignModal(); });
-  cancelAssign.addEventListener('click', () => { assignModal.style.display = 'none'; resetAssignModal(); });
+  closeAssign?.addEventListener('click', () => { if (assignModal) assignModal.style.display = 'none'; resetAssignModal(); });
+  cancelAssign?.addEventListener('click', () => { if (assignModal) assignModal.style.display = 'none'; resetAssignModal(); });
 
-  assignDropZone.addEventListener('click', (e) => {
-    if (e.target !== assignFileInput) assignFileInput.click();
+  assignDropZone?.addEventListener('click', () => {
+    assignFileInput?.click();
   });
-  assignDropZone.addEventListener('dragover', (e) => { e.preventDefault(); assignDropZone.style.borderColor = '#a855f7'; });
-  assignDropZone.addEventListener('dragleave', () => { assignDropZone.style.borderColor = '#6c47ff88'; });
-  assignDropZone.addEventListener('drop', (e) => {
+  assignDropZone?.addEventListener('dragover', (e) => { e.preventDefault(); if (assignDropZone) assignDropZone.style.borderColor = '#a855f7'; });
+  assignDropZone?.addEventListener('dragleave', () => { if (assignDropZone) assignDropZone.style.borderColor = '#6c47ff88'; });
+  assignDropZone?.addEventListener('drop', (e) => {
     e.preventDefault();
-    assignDropZone.style.borderColor = '#6c47ff88';
+    if (assignDropZone) assignDropZone.style.borderColor = '#6c47ff88';
     if (e.dataTransfer.files.length) handleAssignFile(e.dataTransfer.files[0]);
   });
-  assignFileInput.addEventListener('change', (e) => {
+  assignFileInput?.addEventListener('change', (e) => {
     if (e.target.files.length) handleAssignFile(e.target.files[0]);
   });
 
-  // ── Normalize column header for assignment sheet ──────────────────────
+  // ── Normalize column header for class register & assignment sheets ───
   function normalizeAssignHeader(raw) {
     const h = String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     // Student name
-    if (['nameofstudent','studentname','name','fullname','stdname','sname'].includes(h)) return 'studentName';
-    // Enrollment / Roll number
-    if (['enrollmentnumber','enrollmentno','enrollment','rollno','rollnumber','rollnum','enroll','regno','registrationno','id','empid'].includes(h)) return 'enrollmentNo';
+    if (['nameofstudent','studentname','name','fullname','stdname','sname','student'].includes(h)) return 'studentName';
+    // Enrollment / Roll number / ID
+    if (['enrollmentnumber','enrollmentno','enrollment','enroll','regno','registrationno','id','empid'].includes(h)) return 'enrollmentNo';
+    // Roll no & Batch combined (e.g. "1-A")
+    if (['rollnobatch','rollnoandbatch','rollandbatch','classbatch','rollbatch'].includes(h)) return 'rollNoBatch';
+    // Practical Batch (e.g. "A")
+    if (['practicalbatch','pbatch','pracbatch','labgroup','group'].includes(h)) return 'practicalBatch';
+    // Roll number standalone (e.g. "1")
+    if (['rollno','rollnumber','rollnum','roll'].includes(h)) return 'rollNo';
+    // Batch / Class / Section / Division (e.g. "Batch-A", "Class A")
+    if (['batch','class','section','division','div','sec'].includes(h)) return 'batch';
+    // Student contact / phone
+    if (['studentcontactno','studentcontact','contactno','mobilenumber','mobile','phone','studentphone','phonenumber','studentmobilenumber','studentcontactnumber','contact','studentcontactno'].includes(h)) return 'mobileNumber';
+    // Student Email
+    if (['studentemailid','studentemail','emailaddress','email','mailid','mail','useremail','username','studentmail'].includes(h)) return 'email';
+    // Father's / Parent Contact
+    if (['fatherscontactno','fathercontactno','fathercontact','fatherphone','parentcontact','parentphone','fathercontactnumber','fatherscontact','fatherphonem','parentscontactno','parentcontactno'].includes(h)) return 'fatherContact';
+    // Specialization / Department / Branch / Stream
+    if (['specialization','spec','branch','department','dept','stream','program','course'].includes(h)) return 'specialization';
     // Mentor / Teacher name
-    if (['mentorname','teachername','facultyname','guidename','assignedmentor','mentor','teacher','faculty','assignedto'].includes(h)) return 'mentorName';
+    if (['mentorname','teachername','facultyname','guidename','assignedmentor','mentor','teacher','faculty','assignedto','mentorfacultynumber'].includes(h)) return 'mentorName';
     // SR
     if (['sr','srno','sno','serialnumber','no'].includes(h)) return 'sr';
     return h;
@@ -1328,7 +1378,7 @@ export async function render(container) {
       const rowsMatrix = await parseImportFile(file);
       if (!rowsMatrix || rowsMatrix.length <= 1) {
         showToast('File is empty or has no data rows.', 'warning');
-        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
         return;
       }
 
@@ -1342,22 +1392,32 @@ export async function render(container) {
 
       if (!hasMentor) {
         showToast('Could not find a Mentor Name / Teacher Name column in this file.', 'error');
-        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
         return;
       }
       if (!hasEnroll && !hasStuName) {
         showToast('Could not find Student Name or Enrollment Number column in this file.', 'error');
-        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
         return;
       }
 
-      assignDropLabel.textContent = `⏳ Loading student & faculty data…`;
+      assignDropLabel.textContent = `⏳ Loading student, faculty & department data…`;
 
-      // Load all students and faculty once
-      const [allStudents, allFaculty] = await Promise.all([
+      // Load all students, faculty, and departments
+      const [allStudents, allFaculty, depts] = await Promise.all([
         StudentService.getAll(),
-        FacultyService.getAll()
+        FacultyService.getAll(),
+        DepartmentService.getAll()
       ]);
+
+      allSystemDepartments = depts || [];
+
+      // Extract all unique department names present across system
+      const knownDeptNames = new Set();
+      allSystemDepartments.forEach(d => { if (d.name) knownDeptNames.add(d.name.trim()); });
+      allStudents.forEach(s => { if (s.department) knownDeptNames.add(s.department.trim()); });
+      allFaculty.forEach(f => { if (f.department) knownDeptNames.add(f.department.trim()); });
+      if (!knownDeptNames.size) knownDeptNames.add('Computer Engineering');
 
       // Build lookup maps
       // Students: enrollment (lowercase) → student object
@@ -1430,7 +1490,7 @@ export async function render(container) {
       // Parse rows with Forward-Fill support for Mentor Names
       assignRows = [];
       let lastSeenMentorName = '';
-      let lastSeenMentorObj = null;
+      const rawSpecCounts = new Map(); // spec string -> count of students
 
       for (let i = 1; i < rowsMatrix.length; i++) {
         const cols = rowsMatrix[i].map(c => String(c !== null && c !== undefined ? c : '').trim());
@@ -1440,15 +1500,26 @@ export async function render(container) {
         const rawStudentName = rowData.studentName || '';
         const rawEnroll = rowData.enrollmentNo || '';
         let rawMentorName = rowData.mentorName || '';
+        const rawEmail = rowData.email || '';
+        const rawMobile = rowData.mobileNumber || '';
+        const rawFatherContact = rowData.fatherContact || '';
+        const rawSpec = rowData.specialization || '';
+        const rawBatch = rowData.batch || '';
+        const rawPracticalBatch = rowData.practicalBatch || '';
+        const rawRollNo = rowData.rollNo || '';
+        const rawRollNoBatch = rowData.rollNoBatch || '';
 
         // Skip completely empty rows
         if (!rawStudentName && !rawEnroll && !rawMentorName) continue;
+
+        // Track specialization count
+        const specKey = rawSpec || 'Not Specified';
+        rawSpecCounts.set(specKey, (rawSpecCounts.get(specKey) || 0) + 1);
 
         // FORWARD-FILL: If mentor name is empty on this row but we have a student, reuse last seen mentor name!
         if (!rawMentorName && (rawStudentName || rawEnroll) && lastSeenMentorName) {
           rawMentorName = lastSeenMentorName;
         } else if (rawMentorName) {
-          // Update last seen mentor name whenever a new mentor name is provided
           lastSeenMentorName = rawMentorName;
         }
 
@@ -1476,16 +1547,32 @@ export async function render(container) {
         let matchedMentor = findMentorMatch(rawMentorName);
 
         // Determine status
-        let status = 'READY';
-        if (!matchedStudent) status = 'NO_STUDENT';
-        else if (!matchedMentor) status = 'NO_MENTOR';
-        else if (matchedStudent.mentorId && matchedStudent.mentorId === matchedMentor.id) status = 'ALREADY';
+        let status = 'READY_NEW';
+        if (!matchedMentor) {
+          status = 'NO_MENTOR';
+        } else if (matchedStudent) {
+          if (matchedStudent.mentorId && matchedStudent.mentorId === matchedMentor.id) {
+            status = 'ALREADY';
+          } else {
+            status = 'READY_EXISTING';
+          }
+        } else {
+          status = 'READY_NEW';
+        }
 
         assignRows.push({
           sr: i,
           rawStudentName,
           rawEnroll,
           rawMentorName,
+          rawEmail,
+          rawMobile,
+          rawFatherContact,
+          rawSpec,
+          rawBatch,
+          rawPracticalBatch,
+          rawRollNo,
+          rawRollNoBatch,
           matchedStudent,
           matchedMentor,
           status
@@ -1494,18 +1581,132 @@ export async function render(container) {
 
       if (assignRows.length === 0) {
         showToast('No data rows found in file.', 'warning');
-        assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+        assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
         return;
       }
 
-      assignDropLabel.textContent = `✅ Loaded: ${file.name} (${assignRows.length} rows)`;
+      // Build department mapping configuration
+      sheetSpecializations = Array.from(rawSpecCounts.keys());
+      deptMapping = {};
+
+      const existingDeptList = Array.from(knownDeptNames);
+
+      sheetSpecializations.forEach(spec => {
+        if (spec === 'Not Specified') {
+          // If not specified, default to first available department or mentor's department
+          deptMapping[spec] = existingDeptList[0] || 'Computer Engineering';
+          return;
+        }
+
+        // Check if there is an exact or close match in existing departments
+        const cleanSpec = spec.toLowerCase().replace(/[^a-z0-9]/g, '');
+        let bestMatch = null;
+
+        for (const deptName of existingDeptList) {
+          const cleanDept = deptName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (cleanDept === cleanSpec || cleanDept.includes(cleanSpec) || cleanSpec.includes(cleanDept)) {
+            bestMatch = deptName;
+            break;
+          }
+        }
+
+        // Also check if CSE/Computer specialization maps to Computer Engineering / CS
+        if (!bestMatch) {
+          if (cleanSpec.includes('cse') || cleanSpec.includes('comp') || cleanSpec.includes('cs')) {
+            bestMatch = existingDeptList.find(d => /comp|cse|it/i.test(d));
+          } else if (cleanSpec.includes('mech')) {
+            bestMatch = existingDeptList.find(d => /mech/i.test(d));
+          } else if (cleanSpec.includes('civil')) {
+            bestMatch = existingDeptList.find(d => /civil/i.test(d));
+          } else if (cleanSpec.includes('elect')) {
+            bestMatch = existingDeptList.find(d => /elect/i.test(d));
+          }
+        }
+
+        deptMapping[spec] = bestMatch || spec; // If no match, default to the specialization itself
+      });
+
+      renderDeptMappingUI(rawSpecCounts, existingDeptList);
+      assignDropLabel.textContent = `✅ Loaded: ${file.name} (${assignRows.length} students)`;
       renderAssignPreview();
 
     } catch (err) {
       console.error('Assign-mentor parse error:', err);
       showToast(err.message || 'Error parsing file', 'error');
-      assignDropLabel.textContent = 'Click or Drag & Drop your sheet here (.csv, .xlsx, .xls)';
+      assignDropLabel.textContent = 'Click or Drag & Drop Class Register sheet here (.csv, .xlsx, .xls)';
     }
+  }
+
+  // ── Render Department Mapping Card ────────────────────────────────────
+  function renderDeptMappingUI(specCounts, existingDeptList) {
+    assignDeptMappingList.innerHTML = '';
+
+    sheetSpecializations.forEach(spec => {
+      const count = specCounts.get(spec) || 0;
+      const currentSelected = deptMapping[spec] || spec;
+
+      const isUnspecified = spec === 'Not Specified';
+      const specLabel = isUnspecified ? 'Students without Specialization' : spec;
+
+      // Build options list
+      let optionsHtml = '';
+
+      // 1. Existing system departments
+      existingDeptList.forEach(deptName => {
+        const isSelected = currentSelected === deptName;
+        optionsHtml += `<option value="${deptName}" ${isSelected ? 'selected' : ''}>🏛️ ${deptName}</option>`;
+      });
+
+      // 2. Option to inherit each student's mentor's department
+      optionsHtml += `<option value="USE_MENTOR_DEPT" ${currentSelected === 'USE_MENTOR_DEPT' ? 'selected' : ''}>👤 Inherit Mentor's Department</option>`;
+
+      // 3. Option to create as new department if spec is not already in existingDeptList
+      if (!isUnspecified && !existingDeptList.includes(spec)) {
+        const isSelected = currentSelected === spec;
+        optionsHtml += `<option value="__NEW__:${spec}" ${isSelected ? 'selected' : ''}>➕ Create as new department: "${spec}"</option>`;
+      }
+
+      const rowDiv = document.createElement('div');
+      rowDiv.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-primary);padding:10px 14px;border-radius:6px;border:1px solid var(--border);flex-wrap:wrap;';
+      rowDiv.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-weight:600;font-size:0.875rem;color:var(--text-primary);">${specLabel}</span>
+          <span class="badge badge-accent" style="font-size:0.75rem;">${count} student${count !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:0.78rem;color:var(--text-muted);font-weight:500;">Assign to Department:</label>
+          <select class="form-select assign-dept-select" data-spec="${encodeURIComponent(spec)}" style="font-size:0.82rem;padding:5px 10px;min-width:240px;border-color:#6c47ff88;">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+      assignDeptMappingList.appendChild(rowDiv);
+    });
+
+    // Wire up change events
+    assignDeptMappingList.querySelectorAll('.assign-dept-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const targetSpec = decodeURIComponent(e.target.dataset.spec);
+        let val = e.target.value;
+        if (val.startsWith('__NEW__:')) {
+          val = val.replace('__NEW__:', '');
+        }
+        deptMapping[targetSpec] = val;
+        renderAssignPreview();
+      });
+    });
+
+    assignDeptSection.style.display = 'block';
+  }
+
+  // ── Helper to resolve effective target department for a row ───────────
+  function getRowTargetDepartment(row) {
+    const specKey = row.rawSpec || 'Not Specified';
+    const mapped = deptMapping[specKey];
+    if (mapped === 'USE_MENTOR_DEPT') {
+      return row.matchedMentor?.department || row.rawSpec || 'General';
+    }
+    return mapped || row.rawSpec || row.matchedMentor?.department || 'General';
   }
 
   // ── Render preview table ──────────────────────────────────────────────
@@ -1513,48 +1714,78 @@ export async function render(container) {
     const overrideExisting = assignOverrideChk.checked;
     assignPreviewTbody.innerHTML = '';
 
-    let countReady = 0, countNoStu = 0, countNoMentor = 0, countAlready = 0;
+    let countNew = 0, countExisting = 0, countAlready = 0, countNoMentor = 0;
 
     assignRows.forEach((row, idx) => {
-      // Re-evaluate ALREADY based on override checkbox
+      const targetDept = getRowTargetDepartment(row);
+
+      // Determine effective status
       let effectiveStatus = row.status;
-      if (row.status === 'ALREADY' || (row.matchedStudent && row.matchedStudent.mentorId && overrideExisting && row.matchedMentor)) {
-        effectiveStatus = overrideExisting && row.matchedStudent && row.matchedMentor ? 'READY' : 'ALREADY';
+      if (row.status === 'ALREADY' && overrideExisting && row.matchedMentor) {
+        effectiveStatus = 'READY_EXISTING';
       }
 
-      if (effectiveStatus === 'READY') countReady++;
-      else if (effectiveStatus === 'NO_STUDENT') countNoStu++;
-      else if (effectiveStatus === 'NO_MENTOR') countNoMentor++;
+      if (effectiveStatus === 'READY_NEW') countNew++;
+      else if (effectiveStatus === 'READY_EXISTING') countExisting++;
       else if (effectiveStatus === 'ALREADY') countAlready++;
+      else if (effectiveStatus === 'NO_MENTOR') countNoMentor++;
 
       const statusBadge = {
-        READY:      `<span class="badge badge-success">✅ Ready</span>`,
-        NO_STUDENT: `<span class="badge badge-danger">❌ Student not found</span>`,
-        NO_MENTOR:  `<span class="badge badge-warning">⚠ Mentor not found</span>`,
-        ALREADY:    `<span class="badge badge-info">ℹ Already assigned</span>`
+        READY_NEW:      `<span class="badge" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;border:none;">✨ Auto-Register &amp; Assign</span>`,
+        READY_EXISTING: `<span class="badge badge-success">🔗 Assign Existing</span>`,
+        ALREADY:        `<span class="badge badge-info">ℹ Already Assigned (Skip)</span>`,
+        NO_MENTOR:      `<span class="badge badge-warning">⚠ Mentor Not Found</span>`
       }[effectiveStatus] || `<span class="badge badge-muted">?</span>`;
 
-      const stuCell = row.matchedStudent
-        ? `<span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedStudent.name || '—'}</span>
-           <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedStudent.department || ''}</span>`
-        : `<span style="color:var(--danger,#ef4444);">— Not found</span>`;
+      // Student contact info
+      const contactInfo = `
+        <div style="font-size:0.75rem;">
+          ${row.rawMobile ? `<span title="Student Mobile">📱 ${row.rawMobile}</span><br>` : ''}
+          ${row.rawEmail ? `<span style="color:var(--text-muted);" title="Student Email">✉ ${row.rawEmail}</span>` : '<span style="color:var(--text-muted);font-style:italic;">Email will be auto-generated</span>'}
+        </div>
+      `;
 
+      // Batch / Roll info
+      const batchInfo = [
+        row.rawBatch ? `Batch: ${row.rawBatch}` : '',
+        row.rawPracticalBatch ? `Prac: ${row.rawPracticalBatch}` : '',
+        row.rawRollNo ? `Roll: ${row.rawRollNo}` : '',
+        row.rawRollNoBatch ? `(${row.rawRollNoBatch})` : ''
+      ].filter(Boolean).join(' · ') || '—';
+
+      // Department badge with difference indicator if mentor dept is different
+      const mentorDept = row.matchedMentor?.department || '';
+      const isDeptDiff = mentorDept && targetDept && mentorDept.toLowerCase() !== targetDept.toLowerCase();
+
+      const deptCell = `
+        <div>
+          <span class="badge badge-secondary" style="font-weight:600;font-size:0.75rem;">🏛️ ${targetDept}</span>
+          ${isDeptDiff ? `<br><span style="color:var(--warning,#f59e0b);font-size:0.7rem;" title="Mentor belongs to ${mentorDept}">⚠ Mentor in ${mentorDept}</span>` : ''}
+        </div>
+      `;
+
+      // Mentor info
       const mentorCell = row.matchedMentor
-        ? `<span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedMentor.name || '—'}</span>
-           <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedMentor.department || ''}</span>`
+        ? `<div>
+             <span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedMentor.name || '—'}</span>
+             <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedMentor.department || ''}</span>
+           </div>`
         : (row.rawMentorName
-            ? `<span style="color:var(--warning,#f59e0b);">⚠ "${row.rawMentorName}"</span>`
+            ? `<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">⚠ "${row.rawMentorName}" (Not found)</span>`
             : `<span style="color:var(--text-muted);">—</span>`);
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td style="color:var(--text-muted);">${row.sr}</td>
-        <td><strong>${row.rawStudentName || '—'}</strong>
-            ${row.rawEnroll ? `<br><span style="color:var(--text-muted);font-size:0.72rem;">${row.rawEnroll}</span>` : ''}
+        <td>
+          <strong>${row.rawStudentName || '—'}</strong>
+          ${row.matchedStudent ? `<span class="badge badge-info" style="font-size:0.65rem;margin-left:4px;">Existing</span>` : `<span class="badge badge-accent" style="font-size:0.65rem;margin-left:4px;">New</span>`}
         </td>
         <td style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">${row.rawEnroll || '—'}</td>
-        <td>${stuCell}</td>
-        <td style="font-size:0.8rem;color:var(--text-secondary);">${row.rawMentorName || '—'}</td>
+        <td>${contactInfo}</td>
+        <td style="font-size:0.78rem;">${row.rawFatherContact ? `👨 <strong>${row.rawFatherContact}</strong>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+        <td style="font-size:0.75rem;color:var(--text-secondary);">${batchInfo}</td>
+        <td>${deptCell}</td>
         <td>${mentorCell}</td>
         <td>${statusBadge}</td>
       `;
@@ -1562,93 +1793,209 @@ export async function render(container) {
     });
 
     // Update stats bar
-    document.getElementById('assign-stat-matched').textContent  = `${countReady} ready to assign`;
-    document.getElementById('assign-stat-nostu').textContent    = `${countNoStu} student not found`;
-    document.getElementById('assign-stat-nomentor').textContent = `${countNoMentor} mentor not found`;
-    document.getElementById('assign-stat-already').textContent  = `${countAlready} already assigned (skipped)`;
-    document.getElementById('assign-stat-total').textContent    = `${assignRows.length} total rows`;
+    const statNewEl = document.getElementById('assign-stat-new');
+    const statMatchedEl = document.getElementById('assign-stat-matched');
+    const statAlreadyEl = document.getElementById('assign-stat-already');
+    const statNoMentorEl = document.getElementById('assign-stat-nomentor');
+    const statTotalEl = document.getElementById('assign-stat-total');
+
+    if (statNewEl) statNewEl.textContent = `✨ ${countNew} new to register & assign`;
+    if (statMatchedEl) statMatchedEl.textContent = `🔗 ${countExisting} existing to assign`;
+    if (statAlreadyEl) statAlreadyEl.textContent = `ℹ ${countAlready} already assigned`;
+    if (statNoMentorEl) statNoMentorEl.textContent = `⚠ ${countNoMentor} mentor not found`;
+    if (statTotalEl) statTotalEl.textContent = `${assignRows.length} total rows`;
 
     assignStatsBar.style.display = 'flex';
     assignPreviewWrap.style.display = 'block';
-    btnExecuteAssign.disabled = countReady === 0;
+
+    const totalToProcess = countNew + countExisting;
+    btnExecuteAssign.disabled = totalToProcess === 0;
   }
 
   // Re-render preview when override checkbox changes
-  assignOverrideChk.addEventListener('change', () => {
+  assignOverrideChk?.addEventListener('change', () => {
     if (assignRows.length > 0) renderAssignPreview();
   });
 
-  // ── Execute assignment ────────────────────────────────────────────────
-  btnExecuteAssign.addEventListener('click', async () => {
+  // ── Execute assignment & auto-registration ────────────────────────────
+  btnExecuteAssign?.addEventListener('click', async () => {
     const overrideExisting = assignOverrideChk.checked;
 
     // Collect rows to process
-    const toAssign = assignRows.filter(row => {
-      if (!row.matchedStudent || !row.matchedMentor) return false;
-      if (row.matchedStudent.mentorId === row.matchedMentor.id) return false; // already same mentor
-      if (row.matchedStudent.mentorId && !overrideExisting) return false; // has mentor, no override
-      return true;
+    const toProcess = assignRows.filter(row => {
+      if (!row.matchedMentor) return false;
+      if (row.status === 'READY_NEW') return true;
+      if (row.status === 'READY_EXISTING') return true;
+      if (row.status === 'ALREADY' && overrideExisting) return true;
+      return false;
     });
 
-    if (!toAssign.length) {
-      showToast('No assignments to make. Check your file or enable "Override existing".', 'info');
+    if (!toProcess.length) {
+      showToast('No valid students to register or assign.', 'info');
       return;
     }
 
     btnExecuteAssign.disabled = true;
-    btnExecuteAssign.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Assigning…';
+    btnExecuteAssign.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Processing…';
 
-    // Progress overlay
+    // Show Progress Modal
     const progressHtml = `
-      <div id="assign-progress-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.65);">
-        <div class="modal" style="max-width:400px;text-align:center;padding:28px;">
-          <h3 style="margin-bottom:8px;">🔗 Assigning Mentors…</h3>
-          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:14px;" id="assign-prog-text">Processing (0 / ${toAssign.length})…</p>
-          <div style="height:10px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;margin-bottom:10px;">
-            <div id="assign-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6c47ff,#a855f7);transition:width 0.2s;"></div>
+      <div id="assign-progress-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.7);">
+        <div class="modal" style="max-width:440px;text-align:center;padding:28px;">
+          <h3 style="margin-bottom:6px;">🔗 Processing Class Register…</h3>
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:4px;" id="assign-prog-text">Starting…</p>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:14px;" id="assign-prog-detail">&nbsp;</p>
+          <div style="height:12px;background:var(--bg-secondary);border-radius:6px;overflow:hidden;margin-bottom:12px;">
+            <div id="assign-prog-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6c47ff,#a855f7);transition:width 0.15s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);">
+            <span id="assign-prog-new-cnt" style="color:var(--accent);">✨ 0 registered</span>
+            <span id="assign-prog-exist-cnt" style="color:var(--success);">🔗 0 assigned</span>
+            <span id="assign-prog-fail-cnt" style="color:var(--danger);">✗ 0 failed</span>
           </div>
         </div>
       </div>
     `;
     document.body.insertAdjacentHTML('beforeend', progressHtml);
     const progText = document.getElementById('assign-prog-text');
-    const progBar  = document.getElementById('assign-prog-bar');
+    const progDetail = document.getElementById('assign-prog-detail');
+    const progBar = document.getElementById('assign-prog-bar');
+    const progNewCnt = document.getElementById('assign-prog-new-cnt');
+    const progExistCnt = document.getElementById('assign-prog-exist-cnt');
+    const progFailCnt = document.getElementById('assign-prog-fail-cnt');
 
-    let successCount = 0, failCount = 0;
+    let newRegisteredCount = 0;
+    let existingAssignedCount = 0;
+    let failCount = 0;
 
-    for (let i = 0; i < toAssign.length; i++) {
-      const row = toAssign[i];
+    // Check if any mapped departments need to be created in Firestore
+    const existingDeptNames = new Set(allSystemDepartments.map(d => (d.name || '').toLowerCase().trim()));
+    for (const spec of sheetSpecializations) {
+      const targetDept = deptMapping[spec];
+      if (targetDept && targetDept !== 'USE_MENTOR_DEPT' && !existingDeptNames.has(targetDept.toLowerCase().trim())) {
+        try {
+          await DepartmentService.create({
+            name: targetDept,
+            code: targetDept.replace(/[^A-Z0-9]/gi, '').slice(0, 6).toUpperCase(),
+            type: 'Academic',
+            hodName: ''
+          });
+          existingDeptNames.add(targetDept.toLowerCase().trim());
+        } catch (dErr) {
+          console.warn('Could not create department doc:', dErr);
+        }
+      }
+    }
+
+    const { AdminService, StudentService } = await import('/js/services.js');
+
+    for (let i = 0; i < toProcess.length; i++) {
+      const row = toProcess[i];
+      const targetDept = getRowTargetDepartment(row);
+      const studentName = row.rawStudentName || row.rawEnroll || 'Student';
+
+      const pct = Math.round(((i + 1) / toProcess.length) * 100);
+      if (progText) progText.textContent = `Processing ${i + 1} of ${toProcess.length} (${pct}%)`;
+      if (progDetail) progDetail.textContent = `↳ ${studentName} → ${row.matchedMentor.name}`;
+      if (progBar) progBar.style.width = `${pct}%`;
+
       try {
-        await StudentService.assignMentor(
-          row.matchedStudent.id,
-          row.matchedMentor.id,
-          'BULK_SHEET',
-          'BULK'
-        );
-        // Update local cache so table reflects new assignment
-        const cached = allUsers.find(u => u.id === row.matchedStudent.id);
-        if (cached) cached.mentorId = row.matchedMentor.id;
-        successCount++;
+        if (row.matchedStudent) {
+          // EXISTING STUDENT: Assign or reassign mentor
+          if (row.matchedStudent.mentorId && row.matchedStudent.mentorId !== row.matchedMentor.id) {
+            await StudentService.reassignMentor(
+              row.matchedStudent.id,
+              row.matchedMentor.id,
+              'Admin (Class Register Import)',
+              'Reassigned via Class Register Import'
+            );
+          } else {
+            await StudentService.assignMentor(
+              row.matchedStudent.id,
+              row.matchedMentor.id,
+              'Admin (Class Register Import)',
+              'BULK_SHEET'
+            );
+          }
+
+          // Also update department if student had none
+          if (!row.matchedStudent.department && targetDept) {
+            try {
+              await StudentService.update(row.matchedStudent.id, { department: targetDept });
+            } catch (_) {}
+          }
+
+          // Update local cache
+          const cached = allUsers.find(u => u.id === row.matchedStudent.id);
+          if (cached) {
+            cached.mentorId = row.matchedMentor.id;
+            if (targetDept && !cached.department) cached.department = targetDept;
+          }
+
+          existingAssignedCount++;
+          if (progExistCnt) progExistCnt.textContent = `🔗 ${existingAssignedCount} assigned`;
+
+        } else {
+          // NEW STUDENT: Auto-register student with all class register details + assign mentor
+          let cleanEmail = (row.rawEmail || '').toLowerCase().trim();
+          if (!cleanEmail || !cleanEmail.includes('@')) {
+            const cleanEnroll = (row.rawEnroll || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            cleanEmail = cleanEnroll ? `${cleanEnroll}@university.edu` : `student.${Date.now()}.${i}@university.edu`;
+          }
+
+          let cleanMobile = (row.rawMobile || '').replace(/[^0-9]/g, '').trim();
+          if (!cleanMobile) cleanMobile = '9876543210';
+          const pass = cleanMobile.length >= 6 ? cleanMobile : ((row.rawEnroll || '123456').padEnd(6, '0'));
+
+          const newProfile = await AdminService.createUser({
+            role: 'STUDENT',
+            name: row.rawStudentName || row.rawEnroll,
+            email: cleanEmail,
+            mobileNumber: cleanMobile,
+            password: pass,
+            enrollmentNumber: row.rawEnroll,
+            department: targetDept,
+            specialization: row.rawSpec || targetDept,
+            class: row.rawBatch || row.rawPracticalBatch || row.rawRollNoBatch || '',
+            rollNumber: row.rawRollNo || '',
+            batch: row.rawBatch || '',
+            practicalBatch: row.rawPracticalBatch || '',
+            fatherContact: row.rawFatherContact || '',
+            mentorId: row.matchedMentor.id,
+            allocatedBy: 'Admin (Class Register Import)',
+            allocationType: 'BULK_SHEET'
+          });
+
+          if (newProfile) {
+            allUsers.unshift({ ...newProfile, role: 'STUDENT' });
+          }
+
+          newRegisteredCount++;
+          if (progNewCnt) progNewCnt.textContent = `✨ ${newRegisteredCount} registered`;
+        }
+
       } catch (err) {
-        console.error(`Failed to assign mentor for ${row.matchedStudent.name}:`, err);
+        console.error(`Failed for student "${studentName}":`, err);
         failCount++;
+        if (progFailCnt) progFailCnt.textContent = `✗ ${failCount} failed`;
       }
 
-      const pct = Math.round(((i + 1) / toAssign.length) * 100);
-      if (progText) progText.textContent = `Processing (${i + 1} / ${toAssign.length})…`;
-      if (progBar)  progBar.style.width  = `${pct}%`;
-      if ((i + 1) % 5 === 0) await new Promise(r => setTimeout(r, 0));
+      if ((i + 1) % 4 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
     document.getElementById('assign-progress-modal')?.remove();
     assignModal.style.display = 'none';
     resetAssignModal();
     btnExecuteAssign.disabled = false;
-    btnExecuteAssign.innerHTML = '🔗 Assign Mentors';
+    btnExecuteAssign.innerHTML = '🔗 Auto-Register &amp; Assign Mentors';
 
-    const msg = `Done! ${successCount} mentor assignment${successCount !== 1 ? 's' : ''} made.${failCount ? ` ${failCount} failed.` : ''}`;
-    showToast(msg, successCount > 0 ? 'success' : 'error');
-    if (successCount > 0) renderTable();
+    const totalSuccess = newRegisteredCount + existingAssignedCount;
+    const msg = `Done! ${newRegisteredCount} new students registered & assigned, ${existingAssignedCount} existing students updated.${failCount ? ` (${failCount} failed)` : ''}`;
+    showToast(msg, totalSuccess > 0 ? 'success' : 'error');
+
+    if (totalSuccess > 0) {
+      renderTable();
+    }
   });
 
 }

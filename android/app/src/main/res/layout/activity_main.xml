@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <!-- Swipe Refresh Layout to pull down to refresh like native apps -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Main WebView -->
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="visible" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- Top Linear Loading Progress Bar -->
+    <ProgressBar
+        android:id="@+id/topProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_alignParentTop="true"
+        android:max="100"
+        android:progressBackgroundTint="#334155"
+        android:progressTint="@color/primary"
+        android:visibility="gone" />
+
+    <!-- Splash / First Load Overlay with MIT Logo -->
+    <LinearLayout
+        android:id="@+id/layoutSplash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_dark"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="visible">
+
+        <ImageView
+            android:layout_width="220dp"
+            android:layout_height="110dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="MIT-ADT University"
+            android:src="@drawable/mit_adt_logo" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Lumina Mentorship"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="MIT Art, Design &amp; Technology University, Pune"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <ProgressBar
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="32dp"
+            android:indeterminateTint="@color/primary" />
+
+    </LinearLayout>
+
+    <!-- CUSTOM NATIVE "PLEASE CONNECT TO INTERNET" OVERLAY -->
+    <LinearLayout
+        android:id="@+id/layoutNoInternet"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background_dark"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <!-- MIT-ADT Logo -->
+        <ImageView
+            android:layout_width="200dp"
+            android:layout_height="90dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="MIT-ADT Logo"
+            android:src="@drawable/mit_adt_logo" />
+
+        <!-- Status Icon / Card -->
+        <FrameLayout
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginTop="28dp"
+            android:background="@drawable/bg_icon_circle">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:contentDescription="No Connection"
+                android:src="@android:drawable/ic_dialog_alert"
+                app:tint="@color/accent" />
+        </FrameLayout>
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/no_internet_title"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:maxWidth="280dp"
+            android:text="@string/no_internet_subtitle"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <!-- Try Again Native Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRetry"
+            android:layout_width="220dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="28dp"
+            android:backgroundTint="@color/primary"
+            android:text="@string/btn_try_again"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:cornerRadius="12dp" />
+
+        <!-- Auto Reconnect Indicator -->
+        <TextView
+            android:id="@+id/tvAutoReconnectStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="🔄 Auto-reconnects when connection is restored"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+</RelativeLayout>

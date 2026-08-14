@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -8,9 +9,11 @@ from reportlab.platypus import (
 )
 from reportlab.pdfgen import canvas
 
-# Ensure pdf output directory exists
+# Ensure pdf output directories exist
 pdf_dir = os.path.join(os.path.dirname(__file__), 'pdf')
+frontend_pdf_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend', 'docs', 'pdf')
 os.makedirs(pdf_dir, exist_ok=True)
+os.makedirs(frontend_pdf_dir, exist_ok=True)
 
 class NumberedCanvas(canvas.Canvas):
     """
@@ -417,4 +420,9 @@ if __name__ == '__main__':
             workflow_steps=data['workflow'],
             detailed_sections=data['sections']
         )
-    print("All PDFs successfully generated!")
+        # Also copy to frontend/docs/pdf/
+        filename = os.path.basename(data['output'])
+        dest_path = os.path.join(frontend_pdf_dir, filename)
+        shutil.copyfile(data['output'], dest_path)
+        print(f"[OK] Synced PDF to frontend: {dest_path}")
+    print("All PDFs successfully generated and synced to frontend!")

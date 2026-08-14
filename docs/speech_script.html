@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presentation & Demo Speech Script - Mentor Mentee Platform</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #eff6ff;
+      --primary-accent: #2563eb;
+      --guide-color: #047857;
+      --guide-bg: #ecfdf5;
+      --atharva-color: #4338ca;
+      --atharva-bg: #eef2ff;
+      --cue-color: #b45309;
+      --cue-bg: #fffbeb;
+      --text: #1f2937;
+      --text-muted: #4b5563;
+      --border: #e5e7eb;
+      --card-bg: #ffffff;
+      --bg: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 30px 20px;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      padding: 40px 48px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+      border: 1px solid var(--border);
+    }
+
+    .header {
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .header-title h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .header-title p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .print-btn {
+      background: var(--primary-accent);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .print-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      background: var(--primary-light);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 1px solid #dbeafe;
+    }
+
+    .meta-item {
+      font-size: 13px;
+    }
+
+    .meta-item strong {
+      display: block;
+      color: var(--primary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .section {
+      margin-bottom: 36px;
+      page-break-inside: avoid;
+    }
+
+    .speaker-card {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .speaker-card.guide {
+      border-color: #a7f3d0;
+    }
+
+    .speaker-card.atharva {
+      border-color: #c7d2fe;
+    }
+
+    .speaker-header {
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .speaker-card.guide .speaker-header {
+      background: var(--guide-bg);
+      color: var(--guide-color);
+      border-bottom: 1px solid #a7f3d0;
+    }
+
+    .speaker-card.atharva .speaker-header {
+      background: var(--atharva-bg);
+      color: var(--atharva-color);
+      border-bottom: 1px solid #c7d2fe;
+    }
+
+    .speaker-body {
+      padding: 20px;
+      background: #ffffff;
+    }
+
+    .dialogue {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+
+    .dialogue p {
+      margin-bottom: 12px;
+    }
+
+    .dialogue p:last-child {
+      margin-bottom: 0;
+    }
+
+    .cue {
+      background: var(--cue-bg);
+      border-left: 4px solid var(--cue-color);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: #92400e;
+      margin: 14px 0;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cue::before {
+      content: "🎬 [ACTION / SCREEN CUE]:";
+      font-weight: 700;
+    }
+
+    .tip-box {
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 24px;
+      border: 1px dashed #cbd5e1;
+      font-size: 13.5px;
+      color: #334155;
+    }
+
+    .tip-box h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .feature-points {
+      list-style-type: none;
+      padding-left: 0;
+      margin: 10px 0;
+    }
+
+    .feature-points li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .feature-points li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary-accent);
+      font-weight: 800;
+    }
+
+    .timing-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.06);
+    }
+
+    /* Print Optimizations */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+        color: #000;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .print-btn {
+        display: none !important;
+      }
+      .speaker-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+      }
+      .meta-grid {
+        background: #f8fafc !important;
+        border: 1px solid #ccc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .speaker-header {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .cue {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <div class="header">
+      <div class="header-title">
+        <h1>🎙️ Mentor-Mentee Platform Presentation Script</h1>
+        <p>Institutional Orientation & Live Demo Script for Mentors and Students</p>
+      </div>
+      <button class="print-btn" onclick="window.print()">🖨️ Export / Print PDF</button>
+    </div>
+
+    <!-- Metadata Card -->
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Guide & Opening Speaker</strong>
+        Dr. Nilesh Thorat
+      </div>
+      <div class="meta-item">
+        <strong>Presenter & Demo Lead</strong>
+        Atharva Gandhi
+      </div>
+      <div class="meta-item">
+        <strong>Target Audience</strong>
+        Faculty Mentors & Students
+      </div>
+      <div class="meta-item">
+        <strong>Estimated Duration</strong>
+        7 - 9 Minutes Total
+      </div>
+    </div>
+
+    <!-- ACT 1: Guide Sir Introduction -->
+    <div class="section">
+      <h2 style="font-size: 18px; color: var(--primary); margin-bottom: 12px;">Part 1: Welcome & Vision by Guide Sir</h2>
+      
+      <div class="speaker-card guide">
+        <div class="speaker-header">
+          <span>Dr. Nilesh Thorat (Project Guide)</span>
+          <span class="timing-badge">⏱️ 1.5 - 2 Minutes</span>
+        </div>
+        <div class="speaker-body">
+          <div class="cue">Guide sir steps up to the podium, welcomes all faculty colleagues and students.</div>
+          
+          <div class="dialogue">
+            <p><strong>"Respected colleagues, faculty mentors, and dear students, a very warm good afternoon to everyone present here."</strong></p>
+            
+            <p>"Mentorship has always been the backbone of academic and personal growth in our institution. However, as our departments grow, tracking student progress, managing physical mentorship booklets, scheduling regular one-on-one sessions, and resolving student grievances in time has become a difficult and fragmented process."</p>
+
+            <p>"To bridge this gap and bring complete transparency and ease, we have developed a unified, next-generation <strong>Digital Mentor-Mentee Platform</strong>."</p>
+
+            <p>"This platform replaces manual paperwork with a centralized digital workspace. It empowers mentors with 360-degree student insights and gives students a direct, structured channel to seek guidance, log meetings, and escalate issues seamlessly."</p>
+
+            <p>"To walk you through the platform and demonstrate how both mentors and students can make the best use of it, I now invite our project lead, <strong>Atharva Gandhi</strong>, to take over and demonstrate the live platform. Atharva, please proceed."</p>
+          </div>
+
+          <div class="cue">Guide hands over microphone/screen to Atharva Gandhi with a warm nod.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACT 2: Atharva Gandhi's Demo & Walkthrough -->
+    <div class="section">
+      <h2 style="font-size: 18px; color: var(--primary); margin-bottom: 12px;">Part 2: Live Demo & Feature Walkthrough</h2>
+
+      <div class="speaker-card atharva">
+        <div class="speaker-header">
+          <span>Atharva Gandhi (Presenter / Demo Lead)</span>
+          <span class="timing-badge">⏱️ 4 - 5 Minutes</span>
+        </div>
+        <div class="speaker-body">
+          
+          <div class="dialogue">
+            <p><strong>"Thank you very much, Dr. Nilesh Thorat Sir, for setting the stage."</strong></p>
+            <p><strong>"A very good afternoon, respected faculty mentors, professors, and my fellow students."</strong></p>
+            <p>"Today, I am thrilled to present our <strong>Mentor-Mentee Digital Ecosystem</strong> — built with simplicity, speed, and real-time connectivity at its core."</p>
+            <p>"Let me break this down into two perspectives: <strong>What’s in it for Students</strong> and <strong>What’s in it for our Mentors</strong>."</p>
+          </div>
+
+          <!-- Section A: Student Perspective -->
+          <div class="cue">Open Student Dashboard on projector/screen.</div>
+
+          <div class="dialogue">
+            <h4 style="color: var(--atharva-color); margin-top: 10px; margin-bottom: 6px;">1. For Our Students:</h4>
+            <p>"First, as a student, logging in gives you instant access to your <strong>Digital Mentorship Booklet</strong>."</p>
+            <ul class="feature-points">
+              <li><strong>No more lost physical booklets:</strong> Academic performance, semester goals, and personal milestones are saved securely in the cloud.</li>
+              <li><strong>1-Click Meeting Requests:</strong> Students can request personal or academic counseling sessions directly without chasing faculty across cabins.</li>
+              <li><strong>Grievance & Issue Escalation:</strong> If a student faces an academic or administrative issue, they can log a ticket that routes directly to their mentor with complete status tracking.</li>
+            </ul>
+          </div>
+
+          <!-- Section B: Mentor Perspective -->
+          <div class="cue">Switch screen to Faculty / Mentor Dashboard view.</div>
+
+          <div class="dialogue">
+            <h4 style="color: var(--atharva-color); margin-top: 14px; margin-bottom: 6px;">2. For Our Respected Mentors (Faculty):</h4>
+            <p>"Now, looking at the Mentor Dashboard — we designed this specifically to minimize faculty workload while maximizing mentorship impact:"</p>
+            <ul class="feature-points">
+              <li><strong>Unified Mentee Cohort:</strong> View all assigned students in a clean list with quick contact, attendance history, and past remarks.</li>
+              <li><strong>Built-in Serverless Meeting Rooms:</strong> You don't need third-party links. Mentors can launch HD video meetings with waiting rooms, host controls, and 1-click screen & audio recording for compliance.</li>
+              <li><strong>Multi-Tier Escalation Matrix:</strong> If an issue requires department intervention, mentors can escalate tickets with one click to the Section Head, HOD, or Dean with a complete audit trail.</li>
+              <li><strong>Automatic Load Balancing:</strong> Department-level automated allocation ensures fair and balanced mentee distribution per faculty member.</li>
+            </ul>
+          </div>
+
+          <div class="cue">Show quick 10-second transition of scheduling a meeting or resolving a sample issue ticket.</div>
+
+          <div class="dialogue">
+            <p>"In short, this platform eliminates administrative overhead, ensures no student's issue goes unresolved, and strengthens the mentor-mentee relationship with timely, transparent communication."</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ACT 3: Closing & Q&A -->
+    <div class="section">
+      <h2 style="font-size: 18px; color: var(--primary); margin-bottom: 12px;">Part 3: Conclusion & Open Q&A</h2>
+
+      <div class="speaker-card guide">
+        <div class="speaker-header">
+          <span>Dr. Nilesh Thorat & Atharva Gandhi (Joint Closing)</span>
+          <span class="timing-badge">⏱️ 1 - 2 Minutes</span>
+        </div>
+        <div class="speaker-body">
+          <div class="dialogue">
+            <p><strong>Atharva Gandhi:</strong><br>
+            "We are rolling this out to make mentorship smooth and frictionless for every faculty member and student. Thank you for your time. Sir, back to you for the final remarks and Q&A."</p>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 14px 0;">
+
+            <p><strong>Dr. Nilesh Thorat:</strong><br>
+            "Thank you, Atharva, for that clear demonstration. To all our faculty mentors, our departmental team is ready to support you with onboarding. We now open the floor for any questions, suggestions, or feedback from both mentors and students. Thank you!"</p>
+          </div>
+          <div class="cue">Open floor for questions from faculty members and students.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presentation Tips Card -->
+    <div class="tip-box">
+      <h4>💡 Pro-Tips for Delivering this Presentation</h4>
+      <ul style="padding-left: 20px; font-size: 13px; line-height: 1.6;">
+        <li><strong>Pacing:</strong> Speak at a calm, confident pace (~130 words/minute). Pause for 2 seconds when switching dashboard screens.</li>
+        <li><strong>Eye Contact:</strong> Divide eye contact between the front-row faculty mentors and student peers.</li>
+        <li><strong>Backup:</strong> Keep the demo tabs (Student Dashboard, Mentor Dashboard, and Meeting Room) pre-opened in separate browser windows to avoid login loading delays.</li>
+      </ul>
+    </div>
+
+  </div>
+
+</body>
+</html>

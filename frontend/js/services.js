@@ -298,31 +298,40 @@ export const MeetingService = {
   },
 
   async getByStudent(studentId) {
-    // Also fetch group meetings where studentId === 'GROUP' or similar. 
-    // Wait, simpler: A group meeting is just a meeting where mentor scheduled it for all their students.
-    // Let's query by studentId, but also query group meetings by mentorId where isGroup is true.
-    // Actually, Firestore doesn't support OR queries easily without 'in'. 
-    // Let's fetch where studentId == studentId AND a separate query for isGroup == true where we know the student's mentor.
-    // It's cleaner to just let the mentor create N individual meeting records, one for each student, OR we can fetch group meetings.
-    // Since Firebase V10 supports 'or' queries, we can use it! Wait, we don't have 'or' imported.
-    // Let's just fetch all meetings where studentId == studentId, and separately fetch group meetings for their mentor.
-    const q1 = query(collection(db, 'meetings'), where('studentId', '==', studentId));
-    const [myMeetings, mentorProfile] = await Promise.all([
-      getDocs(q1).then(snaps),
-      getDoc(doc(db, 'students', studentId)).then(snap)
-    ]);
-    
-    let allMeetings = myMeetings;
-    if (mentorProfile && mentorProfile.mentorId) {
-      const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('studentId', '==', 'ALL'), where('isGroup', '==', true));
-      const groupMeetings = await getDocs(q2).then(snaps);
-      // Merge and deduplicate by ID just in case
-      const seen = new Set(allMeetings.map(m => m.id));
-      for (const gm of groupMeetings) {
-        if (!seen.has(gm.id)) allMeetings.push(gm);
+    try {
+      const q1 = query(collection(db, 'meetings'), where('studentId', '==', studentId));
+      let myMeetings = [];
+      let mentorProfile = null;
+      try {
+        const [mRes, sRes] = await Promise.all([
+          getDocs(q1).then(snaps),
+          getDoc(doc(db, 'students', studentId)).then(snap)
+        ]);
+        myMeetings = mRes;
+        mentorProfile = sRes;
+      } catch (err1) {
+        console.warn('Could not fetch student individual meetings:', err1);
+        myMeetings = snaps(await getDocs(q1));
       }
+      
+      let allMeetings = myMeetings || [];
+      if (mentorProfile && mentorProfile.mentorId) {
+        try {
+          const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('studentId', '==', 'ALL'), where('isGroup', '==', true));
+          const groupMeetings = await getDocs(q2).then(snaps);
+          const seen = new Set(allMeetings.map(m => m.id));
+          for (const gm of groupMeetings) {
+            if (!seen.has(gm.id)) allMeetings.push(gm);
+          }
+        } catch (grpErr) {
+          console.warn('Could not fetch group meetings:', grpErr);
+        }
+      }
+      return allMeetings.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } catch (e) {
+      console.warn('MeetingService.getByStudent overall fallback:', e);
+      return [];
     }
-    return allMeetings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   },
 
   async getByMentor(mentorId) {
@@ -1042,6 +1051,18 @@ export const AdminService = {
       profileData.isApproved = true;
       if (data.class) profileData.class = data.class;
       if (data.year) profileData.year = data.year;
+      if (data.specialization) profileData.specialization = data.specialization;
+      if (data.fatherContact || data.parentContact || data.fatherPhoneM) {
+        profileData.fatherContact = data.fatherContact || data.parentContact || data.fatherPhoneM;
+      }
+      if (data.rollNumber || data.rollNo) profileData.rollNumber = data.rollNumber || data.rollNo;
+      if (data.batch) profileData.batch = data.batch;
+      if (data.practicalBatch) profileData.practicalBatch = data.practicalBatch;
+      if (data.mentorId) {
+        profileData.allocatedBy = data.allocatedBy || 'Admin';
+        profileData.allocatedAt = new Date().toISOString();
+        profileData.allocationType = data.allocationType || 'MANUAL';
+      }
     } else if (role === 'SECTION_HEAD') {
       profileData.employeeId = data.employeeId || data.enrollmentNumber || null;
       profileData.designation = data.designation || 'Section Head';
@@ -1070,6 +1091,39 @@ export const AdminService = {
 
     // Admin has global write access, so this will succeed on the primary db
     await setDoc(doc(db, collectionName, uid), profileData);
+
+    // If student was created with an assigned mentor, increment the mentor's count
+    if (role === 'STUDENT' && profileData.mentorId) {
+      try {
+        await updateDoc(doc(db, 'faculty', profileData.mentorId), { assignedStudentCount: increment(1) });
+      } catch (fErr) {
+        console.warn('Could not increment faculty count:', fErr);
+      }
+    }
+
+    // Initialize/prefill booklet document for student
+    if (role === 'STUDENT') {
+      const fatherContactVal = data.fatherContact || data.parentContact || data.fatherPhoneM || '';
+      try {
+        await setDoc(doc(db, 'booklets', uid), {
+          personal: {
+            name: data.name || '',
+            email: email,
+            class: data.class || data.batch || '',
+            enrollmentNumber: profileData.enrollmentNumber || '',
+            fatherPhoneM: fatherContactVal,
+            studentPhone: data.mobileNumber || data.phone || data.mobile || ''
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (bErr) {
+        console.warn('Could not prefill booklet doc:', bErr);
+      }
+      CacheManager.invalidate('students');
+    } else {
+      CacheManager.invalidate('faculty');
+    }
     
     return profileData;
   }

@@ -164,6 +164,7 @@ export async function render(container) {
             </div>
             <div class="divider"></div>
             <a href="#/admin/users?assign=true" class="btn btn-accent" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;font-weight:600;">🔗 Assign Mentors via Sheet (Excel/CSV) →</a>
+            <button id="btn-dash-open-multi-class-mentors" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;background:rgba(108,71,255,0.08);border-color:var(--accent);color:var(--accent);font-weight:600;"><i class="ph ph-users-three" style="font-size:1.1rem;color:var(--accent);"></i> 👥 Multi-Class Mentors Directory &amp; Report →</button>
             <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
             <a href="#/admin/users"       class="btn btn-secondary">Manage Users →</a>
             <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
@@ -199,6 +200,11 @@ export async function render(container) {
         </div>
       </div>
     `;
+
+    document.getElementById('btn-dash-open-multi-class-mentors')?.addEventListener('click', async () => {
+      const { openMultiClassMentorsModal } = await import('/js/components/multi-class-mentors-modal.js');
+      await openMultiClassMentorsModal();
+    });
 
     document.getElementById('btn-clean-duplicates-dash')?.addEventListener('click', () => {
       window.location.hash = '#/admin/settings';

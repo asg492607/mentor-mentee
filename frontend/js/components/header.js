@@ -4,14 +4,15 @@ export function createHeader(title, user, notificationCount = 0) {
 
   const role = (user?.role || 'STUDENT').toUpperCase();
   const pdfMap = {
-    'ADMIN': '/docs/pdf/Lumina_Admin_Guide.pdf',
-    'HOD': '/docs/pdf/Lumina_HOD_Guide.pdf',
-    'DEAN': '/docs/pdf/Lumina_HOD_Guide.pdf',
-    'MENTOR': '/docs/pdf/Lumina_Mentor_Guide.pdf',
-    'FACULTY': '/docs/pdf/Lumina_Mentor_Guide.pdf',
-    'STUDENT': '/docs/pdf/Lumina_Student_Mentee_Guide.pdf'
+    'ADMIN': 'docs/pdf/Lumina_Admin_Guide.pdf',
+    'HOD': 'docs/pdf/Lumina_HOD_Guide.pdf',
+    'DEAN': 'docs/pdf/Lumina_HOD_Guide.pdf',
+    'MENTOR': 'docs/pdf/Lumina_Mentor_Guide.pdf',
+    'FACULTY': 'docs/pdf/Lumina_Mentor_Guide.pdf',
+    'STUDENT': 'docs/pdf/Lumina_Student_Mentee_Guide.pdf'
   };
-  const guidePdf = pdfMap[role] || '/docs/pdf/Lumina_Student_Mentee_Guide.pdf';
+  const guidePdf = pdfMap[role] || 'docs/pdf/Lumina_Student_Mentee_Guide.pdf';
+  const pdfFileName = guidePdf.split('/').pop();
 
   return `
     <header class="header">
@@ -28,7 +29,7 @@ export function createHeader(title, user, notificationCount = 0) {
         <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="Report a Web Issue or Bug">
           <i class="ph ph-bug" style="font-size:1.1rem;"></i> Web Issue
         </button>
-        <a href="${guidePdf}" download title="Download Role Operating Manual (PDF)" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+        <a href="${guidePdf}" download="${pdfFileName}" target="_blank" title="Download Role Operating Manual (PDF)" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
           <i class="ph ph-file-pdf" style="font-size:1.4rem;"></i>
         </a>
         <button id="start-tour-btn" class="header-icon-btn" type="button" aria-label="Take a tour" title="Take a tour" style="background: rgba(99, 102, 241, 0.1); color: var(--accent);">

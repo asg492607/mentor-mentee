@@ -31,13 +31,13 @@ export async function render(container) {
   `;
 
   try {
-    // Load all data from Firestore directly
+    // Load all data from Firestore directly with fallbacks
     const [profile, meetings, issues, tasks, bookletCompletionPct] = await Promise.all([
-      StudentService.get(user.id),
-      MeetingService.getByStudent(user.id),
-      IssueService.getByStudent(user.id),
-      TaskService.getByStudent(user.id),
-      BookletService.getCompletionPercentage(user.id)
+      StudentService.get(user.id).catch(e => { console.warn('StudentService.get fallback:', e); return null; }),
+      MeetingService.getByStudent(user.id).catch(e => { console.warn('MeetingService fallback:', e); return []; }),
+      IssueService.getByStudent(user.id).catch(e => { console.warn('IssueService fallback:', e); return []; }),
+      TaskService.getByStudent(user.id).catch(e => { console.warn('TaskService fallback:', e); return []; }),
+      BookletService.getCompletionPercentage(user.id).catch(e => { console.warn('BookletService fallback:', e); return 0; })
     ]);
 
     const fullProfile = profile || user;
@@ -48,15 +48,19 @@ export async function render(container) {
     // Update risk if needed
     const risk = StatsService.computeRisk(fullProfile);
 
-    const upcomingMeetings = meetings.filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
-    const pendingTasks     = tasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
-    const openIssues       = issues.filter(i => i.status === 'OPEN');
+    const upcomingMeetings = (meetings || []).filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
+    const pendingTasks     = (tasks || []).filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
+    const openIssues       = (issues || []).filter(i => i.status === 'OPEN');
 
     // Load mentor info if assigned
     let mentor = null;
     if (fullProfile.mentorId) {
-      const { FacultyService } = await import('/js/services.js');
-      mentor = await FacultyService.get(fullProfile.mentorId);
+      try {
+        const { FacultyService } = await import('/js/services.js');
+        mentor = await FacultyService.get(fullProfile.mentorId);
+      } catch (mErr) {
+        console.warn('Could not load mentor info:', mErr);
+      }
     }
 
     const initials = (mentor?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();

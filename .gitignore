@@ -44,3 +44,11 @@ build/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Android
+.gradle/
+**/build/
+android/local.properties
+android/.idea/
+android/.gradle/
+*.iml

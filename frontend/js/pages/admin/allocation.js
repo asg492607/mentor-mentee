@@ -3,6 +3,8 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, FacultyService, AllocationService } from '/js/services.js';
+import { getMentorsForSelectedClasses, exportMultiClassMentorsReport } from '/js/report-export.js';
+import { openMultiClassMentorsModal } from '/js/components/multi-class-mentors-modal.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -34,6 +36,11 @@ export async function render(container) {
   let allocFilterClass = '';
   let allocPage = 1;
   const allocPageSize = 20;
+
+  // Multi-Class Selected Mentors state
+  let multiClassSelected = new Set();
+  let multiClassSearchQuery = '';
+  let multiClassDrilldownMentorId = null;
 
   async function loadData() {
     const [unassigned, allMentors, fullStudentList] = await Promise.all([
@@ -84,6 +91,10 @@ export async function render(container) {
     allClasses = [...new Set(allStudents.map(s => s.class).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
     );
+
+    if (multiClassSelected.size === 0 && allClasses.length > 0) {
+      allClasses.forEach(c => multiClassSelected.add(c));
+    }
   }
 
   try {
@@ -274,6 +285,81 @@ export async function render(container) {
         </div>
       </div>
 
+      <!-- MULTI-CLASS SELECTED MENTORS DIRECTORY SECTION -->
+      <div class="card" style="padding:24px;margin-bottom:24px;border:1px solid var(--border);">
+        <div class="card-header" style="padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h3 style="margin:0;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+              👥 Multi-Class Selected Mentors Directory &amp; Details
+            </h3>
+            <p style="margin:4px 0 0 0;font-size:0.85rem;color:var(--text-secondary);">
+              Select multiple classes to filter and view mentor names with contact details, department, designation, and mentees count.
+            </p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" id="btn-open-multi-class-modal-alloc" style="display:flex;align-items:center;gap:6px;">
+              ↗️ Fullscreen View
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-multi-export-excel-alloc" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-xls" style="font-size:1rem;color:var(--success);"></i> Export Excel
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-multi-export-pdf-alloc" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-pdf" style="font-size:1rem;color:var(--danger);"></i> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Class Selection Filters -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-weight:700;font-size:0.875rem;">Selected Classes:</span>
+              <span class="badge badge-accent" id="multi-class-badge-count" style="font-size:0.75rem;">
+                ${multiClassSelected.size} of ${allClasses.length} Classes
+              </span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-xs btn-secondary" id="btn-alloc-multi-all">Select All</button>
+              <button class="btn btn-xs btn-secondary" id="btn-alloc-multi-clear">Clear</button>
+              <button class="btn btn-xs btn-secondary" id="btn-alloc-multi-ty">TY Classes</button>
+              <button class="btn btn-xs btn-secondary" id="btn-alloc-multi-sy">SY Classes</button>
+              <button class="btn btn-xs btn-secondary" id="btn-alloc-multi-fy">FY Classes</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;max-height:90px;overflow-y:auto;padding:4px;" id="multi-class-checkboxes-container">
+            ${allClasses.map(c => {
+              const isSel = multiClassSelected.has(c);
+              const sCount = allStudents.filter(s => s.class === c).length;
+              return `
+                <label style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:0.8rem;cursor:pointer;user-select:none;border:1px solid ${isSel ? 'var(--accent)' : 'var(--border)'};background:${isSel ? 'var(--accent-light)' : 'transparent'};color:${isSel ? 'var(--accent)' : 'var(--text-secondary)'};">
+                  <input type="checkbox" class="alloc-multi-class-cb" data-class="${c}" ${isSel ? 'checked' : ''} style="cursor:pointer;width:14px;height:14px;">
+                  <span>Class ${c}</span>
+                  <span style="font-size:0.7rem;opacity:0.75;">(${sCount})</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Mentors Table Header & Search -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <div id="multi-mentors-counter-text" style="font-size:0.875rem;font-weight:600;">
+            <!-- Dynamically updated -->
+          </div>
+          <input type="text" id="alloc-multi-mentor-search" class="form-input" placeholder="🔍 Search mentor name, email, department..." value="${multiClassSearchQuery}" style="padding:6px 12px;font-size:0.825rem;width:260px;background:var(--bg-primary);">
+        </div>
+
+        <!-- Mentors Table Wrap -->
+        <div id="multi-class-mentors-table-wrap" style="max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg-primary);margin-bottom:16px;">
+          <!-- Dynamically rendered by renderMultiClassMentorsTable -->
+        </div>
+
+        <!-- Drilldown Mentee Details Panel -->
+        <div id="alloc-drilldown-panel" style="display:none;background:var(--bg-secondary);border:2px solid var(--accent);border-radius:10px;padding:16px;margin-top:14px;">
+          <!-- Dynamically rendered when a mentor is clicked -->
+        </div>
+      </div>
+
       <!-- CURRENT ALLOCATIONS TABLE -->
       <div class="card">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
@@ -300,6 +386,7 @@ export async function render(container) {
     `;
 
     renderClasswiseTableRows();
+    renderMultiClassMentorsTable();
     renderAllocationsTable();
     attachEventListeners();
   }
@@ -640,7 +727,293 @@ export async function render(container) {
       const { exportSingleMentorReport } = await import('/js/report-export.js');
       await exportSingleMentorReport(mId, 'pdf');
     });
+
+    // Multi-Class Mentors Directory Listeners
+    container.querySelector('#btn-open-multi-class-modal-alloc')?.addEventListener('click', () => {
+      openMultiClassMentorsModal(Array.from(multiClassSelected));
+    });
+
+    container.querySelector('#btn-multi-export-excel-alloc')?.addEventListener('click', async () => {
+      const selected = Array.from(multiClassSelected);
+      if (selected.length === 0) return showToast('Please select at least one class first', 'warning');
+      await exportMultiClassMentorsReport(selected, 'excel', { allMentors: mentors, allStudents });
+    });
+
+    container.querySelector('#btn-multi-export-pdf-alloc')?.addEventListener('click', async () => {
+      const selected = Array.from(multiClassSelected);
+      if (selected.length === 0) return showToast('Please select at least one class first', 'warning');
+      await exportMultiClassMentorsReport(selected, 'pdf', { allMentors: mentors, allStudents });
+    });
+
+    container.querySelectorAll('.alloc-multi-class-cb').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const cls = e.target.dataset.class;
+        if (e.target.checked) {
+          multiClassSelected.add(cls);
+        } else {
+          multiClassSelected.delete(cls);
+        }
+        multiClassDrilldownMentorId = null;
+        updateMultiClassBadgeCount();
+        renderMultiClassMentorsTable();
+      });
+    });
+
+    container.querySelector('#btn-alloc-multi-all')?.addEventListener('click', () => {
+      allClasses.forEach(c => multiClassSelected.add(c));
+      multiClassDrilldownMentorId = null;
+      syncMultiClassCheckboxes();
+      renderMultiClassMentorsTable();
+    });
+
+    container.querySelector('#btn-alloc-multi-clear')?.addEventListener('click', () => {
+      multiClassSelected.clear();
+      multiClassDrilldownMentorId = null;
+      syncMultiClassCheckboxes();
+      renderMultiClassMentorsTable();
+    });
+
+    container.querySelector('#btn-alloc-multi-ty')?.addEventListener('click', () => {
+      multiClassSelected.clear();
+      allClasses.filter(c => c.toUpperCase().includes('TY')).forEach(c => multiClassSelected.add(c));
+      multiClassDrilldownMentorId = null;
+      syncMultiClassCheckboxes();
+      renderMultiClassMentorsTable();
+    });
+
+    container.querySelector('#btn-alloc-multi-sy')?.addEventListener('click', () => {
+      multiClassSelected.clear();
+      allClasses.filter(c => c.toUpperCase().includes('SY')).forEach(c => multiClassSelected.add(c));
+      multiClassDrilldownMentorId = null;
+      syncMultiClassCheckboxes();
+      renderMultiClassMentorsTable();
+    });
+
+    container.querySelector('#btn-alloc-multi-fy')?.addEventListener('click', () => {
+      multiClassSelected.clear();
+      allClasses.filter(c => c.toUpperCase().includes('FY')).forEach(c => multiClassSelected.add(c));
+      multiClassDrilldownMentorId = null;
+      syncMultiClassCheckboxes();
+      renderMultiClassMentorsTable();
+    });
+
+    const multiMentorSearch = container.querySelector('#alloc-multi-mentor-search');
+    if (multiMentorSearch) {
+      multiMentorSearch.addEventListener('input', (e) => {
+        multiClassSearchQuery = e.target.value;
+        renderMultiClassMentorsTable();
+      });
+    }
+  }
+
+  function syncMultiClassCheckboxes() {
+    container.querySelectorAll('.alloc-multi-class-cb').forEach(cb => {
+      const cls = cb.dataset.class;
+      const isChecked = multiClassSelected.has(cls);
+      cb.checked = isChecked;
+      const label = cb.closest('label');
+      if (label) {
+        label.style.border = `1px solid ${isChecked ? 'var(--accent)' : 'var(--border)'}`;
+        label.style.background = isChecked ? 'var(--accent-light)' : 'transparent';
+        label.style.color = isChecked ? 'var(--accent)' : 'var(--text-secondary)';
+      }
+    });
+    updateMultiClassBadgeCount();
+  }
+
+  function updateMultiClassBadgeCount() {
+    const badge = container.querySelector('#multi-class-badge-count');
+    if (badge) {
+      badge.textContent = `${multiClassSelected.size} of ${allClasses.length} Classes`;
+    }
+  }
+
+  function renderMultiClassMentorsTable() {
+    const tableWrap = container.querySelector('#multi-class-mentors-table-wrap');
+    const counterText = container.querySelector('#multi-mentors-counter-text');
+    const drilldownPanel = container.querySelector('#alloc-drilldown-panel');
+    if (!tableWrap) return;
+
+    const selectedClassesArray = Array.from(multiClassSelected);
+    const { mentorsList } = getMentorsForSelectedClasses(selectedClassesArray, mentors, allStudents);
+
+    let filtered = mentorsList;
+    if (multiClassSearchQuery) {
+      const q = multiClassSearchQuery.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.name.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q) ||
+        m.phone.toLowerCase().includes(q) ||
+        m.employeeId.toLowerCase().includes(q)
+      );
+    }
+
+    const totalMenteesInSelection = filtered.reduce((acc, m) => acc + m.selectedMenteesCount, 0);
+
+    if (counterText) {
+      counterText.innerHTML = `
+        <span>Showing <strong>${filtered.length} Mentors</strong></span>
+        <span style="color:var(--text-muted);margin:0 6px;">&bull;</span>
+        <span style="color:var(--success);font-weight:700;">${totalMenteesInSelection} Mentees in Selected Classes</span>
+      `;
+    }
+
+    if (filtered.length === 0) {
+      tableWrap.innerHTML = `
+        <div style="padding:36px;text-align:center;color:var(--text-muted);">
+          <p style="font-size:1.05rem;font-weight:600;margin-bottom:4px;">🔍 No mentors found for the selected classes</p>
+          <p style="font-size:0.8rem;margin:0;">Select classes above or adjust your search filter to view matching mentors.</p>
+        </div>
+      `;
+    } else {
+      tableWrap.innerHTML = `
+        <table class="data-table" style="font-size:0.825rem;width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="position:sticky;top:0;background:var(--bg-secondary);z-index:2;">
+              <th style="width:36px;text-align:center;">#</th>
+              <th>Mentor Profile</th>
+              <th>Contact Details</th>
+              <th>Department &amp; Designation</th>
+              <th>Assigned Classes Breakdown</th>
+              <th style="text-align:center;">Selected Mentees</th>
+              <th style="text-align:center;">Total Mentees</th>
+              <th style="text-align:center;width:120px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((m, idx) => `
+              <tr style="${multiClassDrilldownMentorId === m.id ? 'background:var(--accent-light);' : ''}">
+                <td style="text-align:center;color:var(--text-muted);">${idx + 1}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="avatar avatar-sm" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;font-weight:700;">
+                      ${(m.name || '?')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div style="font-weight:600;color:var(--text-primary);">${m.name}</div>
+                      ${m.employeeId && m.employeeId !== '—' ? `<div style="font-size:0.72rem;color:var(--text-muted);">ID: ${m.employeeId}</div>` : ''}
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div style="font-size:0.8rem;">${m.email}</div>
+                  <div style="font-size:0.75rem;color:var(--text-muted);">${m.phone}</div>
+                </td>
+                <td>
+                  <div style="font-weight:600;font-size:0.8rem;">${m.department}</div>
+                  <div style="font-size:0.72rem;color:var(--text-muted);">${m.designation}</div>
+                </td>
+                <td>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                    ${m.classesBreakdownList.map(c => `
+                      <span class="badge" style="font-size:0.72rem;padding:2px 6px;border-radius:4px;background:rgba(108,71,255,0.12);color:var(--accent);border:1px solid rgba(108,71,255,0.25);">
+                        ${c.className} <strong>(${c.count})</strong>
+                      </span>
+                    `).join('')}
+                  </div>
+                </td>
+                <td style="text-align:center;">
+                  <span class="badge badge-accent" style="font-weight:700;font-size:0.85rem;padding:4px 10px;background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;">
+                    ${m.selectedMenteesCount}
+                  </span>
+                </td>
+                <td style="text-align:center;color:var(--text-secondary);font-weight:600;">
+                  ${m.totalPlatformMentees}
+                </td>
+                <td style="text-align:center;">
+                  <button class="btn btn-xs ${multiClassDrilldownMentorId === m.id ? 'btn-primary' : 'btn-secondary'} btn-alloc-drilldown-mentee" data-mentor-id="${m.id}" style="padding:4px 8px;font-size:0.75rem;">
+                    ${multiClassDrilldownMentorId === m.id ? '✓ Viewing' : '👁️ View Mentees'}
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Attach drilldown click handlers
+      tableWrap.querySelectorAll('.btn-alloc-drilldown-mentee').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const mId = e.currentTarget.dataset.mentorId;
+          if (multiClassDrilldownMentorId === mId) {
+            multiClassDrilldownMentorId = null;
+          } else {
+            multiClassDrilldownMentorId = mId;
+          }
+          renderMultiClassMentorsTable();
+          if (multiClassDrilldownMentorId) {
+            const panel = container.querySelector('#alloc-drilldown-panel');
+            if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        });
+      });
+    }
+
+    // Render Drilldown Panel
+    if (drilldownPanel) {
+      if (multiClassDrilldownMentorId) {
+        const targetMentor = mentorsList.find(m => m.id === multiClassDrilldownMentorId);
+        if (targetMentor) {
+          drilldownPanel.style.display = 'block';
+          drilldownPanel.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="font-weight:700;font-size:0.95rem;">
+                  👤 Assigned Mentees for <span style="color:var(--accent);">${targetMentor.name}</span> in Selected Classes
+                </div>
+                <span class="badge badge-accent" style="font-size:0.75rem;padding:3px 8px;">
+                  ${targetMentor.mentees.length} Students
+                </span>
+              </div>
+              <button id="btn-close-alloc-drilldown" class="btn btn-xs btn-secondary" style="padding:2px 8px;">✕ Close Mentee View</button>
+            </div>
+
+            <div style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg-primary);">
+              <table class="data-table" style="font-size:0.8rem;width:100%;">
+                <thead>
+                  <tr style="position:sticky;top:0;background:var(--bg-secondary);">
+                    <th style="width:30px;">#</th>
+                    <th>Class</th>
+                    <th>Student Name</th>
+                    <th>Enrollment No</th>
+                    <th>Email</th>
+                    <th>Student Contact</th>
+                    <th>Father's Contact</th>
+                    <th>Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${targetMentor.mentees.map((s, sIdx) => `
+                    <tr>
+                      <td>${sIdx + 1}</td>
+                      <td><span class="badge badge-accent" style="font-size:0.72rem;">Class ${s.class || 'Unassigned'}</span></td>
+                      <td style="font-weight:600;">${s.name || '—'}</td>
+                      <td>${s.enrollmentNumber || '—'}</td>
+                      <td>${s.email || '—'}</td>
+                      <td>${s.mobileNumber || s.phone || s.studentPhone || '—'}</td>
+                      <td>${s.fatherContact || s.parentContact || s.fatherPhoneM || '—'}</td>
+                      <td style="color:var(--text-muted);">${s.department || '—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+
+          drilldownPanel.querySelector('#btn-close-alloc-drilldown')?.addEventListener('click', () => {
+            multiClassDrilldownMentorId = null;
+            renderMultiClassMentorsTable();
+          });
+        } else {
+          drilldownPanel.style.display = 'none';
+        }
+      } else {
+        drilldownPanel.style.display = 'none';
+      }
+    }
   }
 
   buildUI();
 }
+
