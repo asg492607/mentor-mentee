@@ -925,45 +925,44 @@ export function exportMeetingSessionReport(meeting) {
     }
 
     /* ---- HEADER ---- */
-    .rpt-header { width: 100%; text-align: center; margin-bottom: 4px; }
-    .rpt-banner { width: 100%; max-height: 80px; object-fit: contain; display: block; margin: 0 auto; }
-    .rpt-divider { height: 1.5px; background: #334155; margin: 6px 0 10px 0; }
+    .rpt-header { width: 100%; margin-bottom: 12px; }
+    .rpt-banner { width: 100%; height: auto; display: block; border-bottom: 2px solid #1e293b; }
 
     /* ---- TITLE ---- */
-    .rpt-title { text-align: center; margin-bottom: 10px; }
-    .rpt-title h1 { font-size: 12pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; border: 1.5px solid #0f172a; display: inline-block; padding: 3px 18px; background: #f8fafc; }
-    .rpt-title .sub { font-size: 8pt; color: #475569; margin-top: 3px; font-style: italic; }
+    .rpt-title { text-align: center; margin-bottom: 12px; }
+    .rpt-title h1 { font-size: 12.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; border: 1.5px solid #0f172a; display: inline-block; padding: 4px 22px; background: #f8fafc; }
+    .rpt-title .sub { font-size: 8.5pt; color: #475569; margin-top: 4px; font-style: italic; }
 
     /* ---- INFO TABLE ---- */
-    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9.5pt; }
-    .info-table td { padding: 4px 8px; vertical-align: middle; border: 1px solid #94a3b8; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 9.5pt; }
+    .info-table td { padding: 5px 8px; vertical-align: middle; border: 1px solid #94a3b8; }
     .info-table td:first-child { font-weight: 700; width: 28%; background: #f1f5f9; color: #1e293b; }
 
     /* ---- SECTIONS ---- */
-    .section { margin-bottom: 8px; }
-    .section-head { border: 1px solid #334155; border-bottom: none; padding: 3px 8px; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; background: #f1f5f9; color: #0f172a; }
-    .section-body { border: 1px solid #334155; padding: 6px 8px; min-height: 38px; font-size: 9.5pt; line-height: 1.4; white-space: pre-wrap; background: #ffffff; }
+    .section { margin-bottom: 10px; }
+    .section-head { border: 1px solid #334155; border-bottom: none; padding: 4px 8px; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; background: #f1f5f9; color: #0f172a; }
+    .section-body { border: 1px solid #334155; padding: 6px 8px; min-height: 40px; font-size: 9.5pt; line-height: 1.45; white-space: pre-wrap; background: #ffffff; }
 
     /* ---- SIGNATURE BLOCK (4-Column) ---- */
-    .sig-block { margin-top: 10px; border-top: 1.5px solid #334155; padding-top: 8px; }
-    .sig-block-title { text-align: center; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; color: #0f172a; }
+    .sig-block { margin-top: 14px; border-top: 1.5px solid #334155; padding-top: 10px; }
+    .sig-block-title { text-align: center; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; color: #0f172a; }
     .sig-row { display: flex; justify-content: space-between; gap: 8px; }
     .sig-col { flex: 1; text-align: center; }
-    .sig-space { height: 32px; border-bottom: 1px solid #0f172a; margin-bottom: 4px; position: relative; }
+    .sig-space { height: 36px; border-bottom: 1px solid #0f172a; margin-bottom: 4px; position: relative; }
     .sig-space::after { content: '(Signature)'; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); font-size: 6pt; color: #64748b; font-style: italic; }
     .sig-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
     .sig-name { font-size: 8pt; font-weight: 700; border-bottom: 1px dotted #64748b; min-height: 14px; padding-bottom: 1px; display: inline-block; width: 92%; }
     .sig-role { font-size: 6.5pt; color: #475569; margin-top: 2px; }
 
     /* ---- ATTENDANCE TABLE (page 2) ---- */
-    .att-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
-    .att-table th { background: #f1f5f9; border: 1px solid #334155; padding: 5px 8px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 8pt; letter-spacing: 0.3px; }
+    .att-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 10px; }
+    .att-table th { background: #f1f5f9; border: 1px solid #334155; padding: 6px 8px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 8pt; letter-spacing: 0.3px; }
     .att-table th:nth-child(1) { width: 8%; text-align: center; }
     .att-table th:nth-child(3) { width: 28%; text-align: center; }
     .att-table th:nth-child(4) { width: 24%; text-align: center; }
 
     /* ---- FOOTER ---- */
-    .rpt-footer { margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 4px; text-align: center; font-size: 7pt; color: #64748b; }
+    .rpt-footer { margin-top: 12px; border-top: 1px solid #cbd5e1; padding-top: 4px; text-align: center; font-size: 7pt; color: #64748b; }
 
     .action-bar { position: fixed; top: 16px; right: 20px; display: flex; gap: 10px; z-index: 1000; }
     .btn-print { background: #4f46e5; color: #ffffff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(79,70,229,0.3); font-size: 13px; font-family: system-ui, sans-serif; }
@@ -988,7 +987,6 @@ export function exportMeetingSessionReport(meeting) {
       <div class="rpt-header">
         <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
       </div>
-      <div class="rpt-divider"></div>
 
       <div class="rpt-title">
         <h1>Mentorship Session Report</h1>
@@ -1059,7 +1057,6 @@ export function exportMeetingSessionReport(meeting) {
       <div class="rpt-header">
         <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
       </div>
-      <div class="rpt-divider"></div>
 
       <div class="rpt-title">
         <h1>Student Attendance Sheet</h1>
