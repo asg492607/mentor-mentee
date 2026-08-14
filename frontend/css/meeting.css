@@ -1416,3 +1416,63 @@ input:checked + .switch-slider:before {
   box-shadow: 0 6px 20px var(--meet-accent-glow);
 }
 
+/* ---- Student Row Builder ---- */
+.rpt-students-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.rpt-student-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rpt-student-row .report-input {
+  margin: 0;
+}
+
+.btn-rpt-remove {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.btn-rpt-remove:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.btn-rpt-add-student {
+  background: transparent;
+  border: 1px dashed rgba(99, 102, 241, 0.4);
+  color: var(--meet-accent);
+  border-radius: var(--meet-radius-sm);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+  margin-top: 2px;
+}
+
+.btn-rpt-add-student:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--meet-accent);
+}
+
+
