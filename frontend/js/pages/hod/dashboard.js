@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { StatsService, IssueService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
+import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -200,6 +201,44 @@ export async function render(container) {
             </table>`
         }
       </div>
+
+      <!-- ===== HOD Reports & Downloads Section ===== -->
+      <div class="card" style="margin-top:20px;padding:0;overflow:hidden;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(108,71,255,0.07),rgba(168,85,247,0.04));">
+          <div>
+            <h3 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+              📊 Reports &amp; Downloads
+              <span class="badge badge-accent" style="font-size:0.68rem;padding:2px 7px;">Export Center</span>
+            </h3>
+            <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Generate mentor reports for ${dept || 'your department'}</p>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button id="btn-hod-dash-excel" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-xls" style="font-size:1rem;color:var(--success);"></i> Master Excel
+            </button>
+            <button id="btn-hod-dash-pdf" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-pdf" style="font-size:1rem;color:var(--danger);"></i> Master PDF
+            </button>
+            <a href="#/hod/reports" class="btn btn-sm btn-primary" style="display:flex;align-items:center;gap:6px;font-weight:600;">
+              <i class="ph ph-chart-bar"></i> Full Reports →
+            </a>
+          </div>
+        </div>
+        <div style="padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:0.84rem;font-weight:600;color:var(--text-secondary);white-space:nowrap;">Quick Download for Mentor:</label>
+          <select id="hod-dash-mentor-select" class="form-select" style="flex:1;min-width:200px;padding:7px 12px;font-size:0.84rem;">
+            <option value="">-- Select a Faculty Mentor --</option>
+            ${mentorStats.map(m => `<option value="${m.id}">${m.name} (${m.studentCount} students)</option>`).join('')}
+          </select>
+          <button id="btn-hod-single-excel" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-xls" style="color:var(--success);"></i> Excel
+          </button>
+          <button id="btn-hod-single-pdf" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-pdf" style="color:var(--danger);"></i> PDF
+          </button>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -216,6 +255,24 @@ export async function render(container) {
           btn.disabled = false; btn.textContent = 'Approve';
         }
       });
+    });
+
+    // HOD Dashboard Report Buttons
+    container.querySelector('#btn-hod-dash-excel')?.addEventListener('click', async () => {
+      await exportMentorStudentReport('excel');
+    });
+    container.querySelector('#btn-hod-dash-pdf')?.addEventListener('click', async () => {
+      await exportMentorStudentReport('pdf');
+    });
+    container.querySelector('#btn-hod-single-excel')?.addEventListener('click', async () => {
+      const mId = container.querySelector('#hod-dash-mentor-select')?.value;
+      if (!mId) return showToast('Please select a mentor first', 'warning');
+      await exportSingleMentorReport(mId, 'excel');
+    });
+    container.querySelector('#btn-hod-single-pdf')?.addEventListener('click', async () => {
+      const mId = container.querySelector('#hod-dash-mentor-select')?.value;
+      if (!mId) return showToast('Please select a mentor first', 'warning');
+      await exportSingleMentorReport(mId, 'pdf');
     });
 
     // --- Bulk CSV Upload Logic ---

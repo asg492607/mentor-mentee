@@ -104,8 +104,8 @@ export async function render(container) {
         <div class="card" style="margin-bottom:24px;">
           <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div>
-              <h3 style="font-size:0.95rem; font-weight:700; margin:0;">📊 Mentor Workload & Capacity Summary</h3>
-              <p style="font-size:0.8rem; color:var(--text-secondary); margin:2px 0 0;">Real-time allocation capacity tracking across all faculty mentors</p>
+              <h3 style="font-size:0.95rem; font-weight:700; margin:0;">📊 Mentor Workload, Capacity & Individual Reports</h3>
+              <p style="font-size:0.8rem; color:var(--text-secondary); margin:2px 0 0;">Real-time allocation + one-click per-mentor report download</p>
             </div>
             <span class="badge badge-info" style="font-size:0.8rem;">${mentors.length} Faculty Mentors</span>
           </div>
@@ -116,16 +116,18 @@ export async function render(container) {
                 <table class="data-table" style="width:100%;">
                   <thead>
                     <tr>
+                      <th style="padding:12px;">#</th>
                       <th style="padding:12px;">Faculty Mentor</th>
                       <th style="padding:12px;">Designation</th>
-                      <th style="padding:12px; text-align:center;">Total Assigned Mentees</th>
+                      <th style="padding:12px; text-align:center;">Assigned Mentees</th>
                       <th style="padding:12px; text-align:center;">Capacity (Max)</th>
-                      <th style="padding:12px; text-align:center;">Remaining Capacity</th>
-                      <th style="padding:12px;">Capacity Load</th>
+                      <th style="padding:12px; text-align:center;">Remaining</th>
+                      <th style="padding:12px;">Load Bar</th>
+                      <th style="padding:12px; text-align:center;">Download Report</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${mentors.map(m => {
+                    ${mentors.map((m, idx) => {
                       const assignedCount = students.filter(s => s.mentorId === m.id).length;
                       const maxCapacity = m.maxStudents || 20;
                       const remaining = Math.max(0, maxCapacity - assignedCount);
@@ -134,21 +136,32 @@ export async function render(container) {
 
                       return `
                         <tr>
+                          <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${idx + 1}</td>
                           <td style="padding:12px; font-weight:600; color:var(--text-primary);">${m.name}</td>
                           <td style="padding:12px; color:var(--text-secondary); font-size:0.85rem;">${m.designation || 'Faculty'}</td>
                           <td style="padding:12px; text-align:center;"><span class="badge badge-accent" style="font-weight:700;">${assignedCount}</span></td>
                           <td style="padding:12px; text-align:center; font-weight:600;">${maxCapacity}</td>
                           <td style="padding:12px; text-align:center;">
                             <span class="badge ${remaining === 0 ? 'badge-danger' : remaining <= 3 ? 'badge-warning' : 'badge-success'}" style="font-weight:700;">
-                              ${remaining} available
+                              ${remaining} slots
                             </span>
                           </td>
-                          <td style="padding:12px; width:200px;">
+                          <td style="padding:12px; width:160px;">
                             <div style="display:flex; align-items:center; gap:8px;">
                               <div style="flex:1; height:8px; background:var(--bg-tertiary); border-radius:4px; overflow:hidden;">
                                 <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:4px;"></div>
                               </div>
                               <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted); width:36px;">${pct}%</span>
+                            </div>
+                          </td>
+                          <td style="padding:12px; text-align:center;">
+                            <div style="display:flex;gap:6px;justify-content:center;">
+                              <button class="btn btn-xs btn-secondary btn-mentor-dl-excel" data-mentor-id="${m.id}" data-mentor-name="${m.name}" title="Download Excel report for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                                <i class="ph ph-file-xls" style="color:var(--success);"></i> XLS
+                              </button>
+                              <button class="btn btn-xs btn-secondary btn-mentor-dl-pdf" data-mentor-id="${m.id}" data-mentor-name="${m.name}" title="Download PDF report for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                                <i class="ph ph-file-pdf" style="color:var(--danger);"></i> PDF
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -380,7 +393,7 @@ export async function render(container) {
       await exportMentorStudentReport('pdf');
     });
 
-    // Single Mentor Report Listeners
+    // Single Mentor Report Listeners (dropdown)
     container.querySelector('#btn-single-mentor-excel')?.addEventListener('click', async () => {
       const mId = container.querySelector('#single-mentor-select')?.value;
       if (!mId) return showToast('Please select a Mentor Name from the dropdown first', 'warning');
@@ -391,6 +404,19 @@ export async function render(container) {
       const mId = container.querySelector('#single-mentor-select')?.value;
       if (!mId) return showToast('Please select a Mentor Name from the dropdown first', 'warning');
       await exportSingleMentorReport(mId, 'pdf');
+    });
+
+    // Per-mentor row download buttons (in workload table)
+    content.addEventListener('click', async (e) => {
+      const excelBtn = e.target.closest('.btn-mentor-dl-excel');
+      const pdfBtn   = e.target.closest('.btn-mentor-dl-pdf');
+      if (excelBtn) {
+        const mId = excelBtn.dataset.mentorId;
+        if (mId) await exportSingleMentorReport(mId, 'excel');
+      } else if (pdfBtn) {
+        const mId = pdfBtn.dataset.mentorId;
+        if (mId) await exportSingleMentorReport(mId, 'pdf');
+      }
     });
 
   } catch (err) {

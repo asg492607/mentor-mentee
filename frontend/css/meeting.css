@@ -356,7 +356,7 @@
 
 /* ---------- Floating Side Panel ---------- */
 .meeting-side-panel {
-  width: 380px;
+  width: 400px;
   flex-shrink: 0;
   background: rgba(11, 17, 32, 0.95);
   backdrop-filter: blur(24px);
@@ -388,20 +388,33 @@
 
 .side-panel-tabs {
   display: flex;
-  padding: 12px 16px;
-  gap: 6px;
+  padding: 8px 10px;
+  gap: 4px;
   border-bottom: 1px solid var(--meet-glass-border);
   background: rgba(8, 12, 20, 0.5);
   flex-shrink: 0;
   overflow-x: auto;
+  flex-wrap: wrap;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+}
+
+.side-panel-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.side-panel-tabs::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.4);
+  border-radius: 99px;
 }
 
 .side-panel-tab {
-  flex: 1;
-  padding: 8px 12px;
+  flex: 0 0 auto;
+  min-width: 60px;
+  padding: 6px 10px;
   text-align: center;
   color: var(--meet-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   background: transparent;
@@ -412,7 +425,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
+  letter-spacing: 0.01em;
 }
 
 .side-panel-tab:hover {

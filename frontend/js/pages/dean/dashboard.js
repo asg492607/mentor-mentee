@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StatsService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
+import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -177,6 +178,35 @@ export async function render(container) {
           </tbody>
         </table>
       </div>
+
+      <!-- ===== Dean Reports & Downloads Section ===== -->
+      <div class="card" style="margin-top:20px;padding:0;overflow:hidden;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(108,71,255,0.07),rgba(168,85,247,0.04));">
+          <div>
+            <h3 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+              📊 Institution Reports
+              <span class="badge badge-accent" style="font-size:0.68rem;padding:2px 7px;">Export Center</span>
+            </h3>
+            <p style="margin:3px 0 0;font-size:0.78rem;color:var(--text-muted);">Download institution-wide mentor allocation reports</p>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button id="btn-dean-dash-excel" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-xls" style="font-size:1rem;color:var(--success);"></i> Master Excel
+            </button>
+            <button id="btn-dean-dash-pdf" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;">
+              <i class="ph ph-file-pdf" style="font-size:1rem;color:var(--danger);"></i> Master PDF
+            </button>
+            <a href="#/dean/reports" class="btn btn-sm btn-primary" style="display:flex;align-items:center;gap:6px;font-weight:600;">
+              <i class="ph ph-chart-bar"></i> Full Reports →
+            </a>
+          </div>
+        </div>
+        <div style="padding:14px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <i class="ph ph-lightbulb" style="color:var(--accent);"></i>
+          <span style="font-size:0.8rem;color:var(--text-muted);">Master reports include all departments — classwise allocation list, mentor summary, and class-wise breakdown sheets. For per-mentor reports, visit <a href="#/dean/reports" style="color:var(--accent);font-weight:600;">Full Reports</a>.</span>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -193,6 +223,14 @@ export async function render(container) {
           btn.disabled = false; btn.textContent = 'Approve';
         }
       });
+    });
+
+    // Dean Dashboard Report Buttons
+    container.querySelector('#btn-dean-dash-excel')?.addEventListener('click', async () => {
+      await exportMentorStudentReport('excel');
+    });
+    container.querySelector('#btn-dean-dash-pdf')?.addEventListener('click', async () => {
+      await exportMentorStudentReport('pdf');
     });
 
     if (window.Chart && students.length) {

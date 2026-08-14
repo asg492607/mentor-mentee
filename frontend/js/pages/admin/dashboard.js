@@ -170,8 +170,6 @@ export async function render(container) {
             <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
             <button id="btn-clean-duplicates-dash" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:var(--warning);border-color:var(--warning)88;">🧹 Clean Duplicate Database Records</button>
             <a href="#/admin/settings" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:#ef4444;border-color:rgba(239,68,68,0.4);">🐞 Manage Web Issues &amp; Bug Reports (Admin Only) →</a>
-            <button id="btn-export-dash-excel" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Export Mentors & Students (Excel)</button>
-            <button id="btn-export-dash-pdf" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;"><i class="ph ph-file-pdf" style="font-size:1.1rem;color:var(--danger);"></i> Export Mentors & Students (PDF)</button>
             <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>
           </div>
         </div>
@@ -199,7 +197,98 @@ export async function render(container) {
           }
         </div>
       </div>
+
+      <!-- ===== Reports & Downloads Section ===== -->
+      <div class="card" style="margin-top:24px;padding:0;overflow:hidden;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(108,71,255,0.08),rgba(168,85,247,0.05));">
+          <div>
+            <h3 style="margin:0;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+              📊 Reports &amp; Downloads
+              <span class="badge badge-accent" style="font-size:0.7rem;padding:3px 8px;background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;">Export Center</span>
+            </h3>
+            <p style="margin:4px 0 0;font-size:0.78rem;color:var(--text-muted);">Generate and download official reports in PDF or Excel format</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--border);">
+
+          <!-- Mentor-Student Allocation Report -->
+          <div style="padding:20px 24px;border-right:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#10b981;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.875rem;font-weight:700;">Mentor-Student Allocation</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Full classwise allocation list</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button id="btn-rpt-alloc-excel" class="btn btn-sm btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                <i class="ph ph-file-xls" style="color:#10b981;font-size:1rem;"></i> Excel
+              </button>
+              <button id="btn-rpt-alloc-pdf" class="btn btn-sm btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                <i class="ph ph-file-pdf" style="color:#ef4444;font-size:1rem;"></i> PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- Student Booklet Report -->
+          <div style="padding:20px 24px;border-right:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#3b82f6;"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.875rem;font-weight:700;">Student Booklet Report</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Booklet completion &amp; academic data</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button id="btn-rpt-booklet-excel" class="btn btn-sm btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                <i class="ph ph-file-xls" style="color:#10b981;font-size:1rem;"></i> Excel
+              </button>
+              <button id="btn-rpt-booklet-pdf" class="btn btn-sm btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                <i class="ph ph-file-pdf" style="color:#ef4444;font-size:1rem;"></i> PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- CSV Template Download -->
+          <div style="padding:20px 24px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#f59e0b;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.875rem;font-weight:700;">CSV Templates</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);">Bulk registration import templates</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-direction:column;">
+              <button id="btn-rpt-csv-students" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                ⬇️ Student Registration CSV
+              </button>
+              <button id="btn-rpt-csv-faculty" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:0.78rem;">
+                ⬇️ Faculty Registration CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Status Bar -->
+        <div style="padding:12px 24px;background:rgba(0,0,0,0.04);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:0.75rem;color:var(--text-muted);">💡 Tip: Excel reports include multiple sheets — allocation list, per-mentor breakdowns, and summary statistics.</span>
+          <button id="btn-export-dash-excel" class="btn btn-xs btn-secondary" style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-xls" style="font-size:1rem;color:var(--success);"></i> Quick Export Excel
+          </button>
+          <button id="btn-export-dash-pdf" class="btn btn-xs btn-secondary" style="display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-file-pdf" style="font-size:1rem;color:var(--danger);"></i> Quick Export PDF
+          </button>
+        </div>
+      </div>
     `;
+
 
     document.getElementById('btn-dash-open-multi-class-mentors')?.addEventListener('click', async () => {
       const { openMultiClassMentorsModal } = await import('/js/components/multi-class-mentors-modal.js');
@@ -247,6 +336,64 @@ export async function render(container) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    });
+
+    // ===== New Reports & Downloads Section Listeners =====
+
+    // Allocation Report: Excel
+    document.getElementById('btn-rpt-alloc-excel')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('excel');
+    });
+
+    // Allocation Report: PDF
+    document.getElementById('btn-rpt-alloc-pdf')?.addEventListener('click', async () => {
+      const { exportMentorStudentReport } = await import('/js/report-export.js');
+      await exportMentorStudentReport('pdf');
+    });
+
+    // Booklet Report: Excel
+    document.getElementById('btn-rpt-booklet-excel')?.addEventListener('click', async () => {
+      showToast('Preparing booklet report (Excel)...', 'info');
+      try {
+        const { exportMentorStudentReport } = await import('/js/report-export.js');
+        await exportMentorStudentReport('excel');
+      } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+    });
+
+    // Booklet Report: PDF
+    document.getElementById('btn-rpt-booklet-pdf')?.addEventListener('click', async () => {
+      showToast('Preparing booklet report (PDF)...', 'info');
+      try {
+        const { exportMentorStudentReport } = await import('/js/report-export.js');
+        await exportMentorStudentReport('pdf');
+      } catch (e) { showToast('Failed: ' + e.message, 'error'); }
+    });
+
+    // Student CSV template download
+    document.getElementById('btn-rpt-csv-students')?.addEventListener('click', () => {
+      const csv = "role,name,email,password,department,class,enrollmentNumber\n" +
+        "STUDENT,John Doe,john.doe@university.edu,pass123,Computer Science,TY-A,EN2024001\n" +
+        "STUDENT,Jane Smith,jane.smith@university.edu,pass123,Computer Science,TY-B,EN2024002\n";
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Student_Registration_Template.csv';
+      a.click();
+      showToast('Student CSV template downloaded!', 'success');
+    });
+
+    // Faculty CSV template download
+    document.getElementById('btn-rpt-csv-faculty')?.addEventListener('click', () => {
+      const csv = "role,name,email,password,department,employeeId,designation\n" +
+        "FACULTY,Dr. A. Sharma,a.sharma@university.edu,pass123,Computer Science,EMP001,Associate Professor\n" +
+        "HOD,Dr. B. Patel,b.patel@university.edu,pass123,Computer Science,EMP002,Head of Department\n";
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Faculty_Registration_Template.csv';
+      a.click();
+      showToast('Faculty CSV template downloaded!', 'success');
     });
 
   } catch (err) {

@@ -21,7 +21,16 @@ export async function render(container) {
   }
 
   const meeting = await MeetingService.get(meetingId);
-  const hasAccess = [meeting?.studentId, meeting?.mentorId].includes(user.id) || meeting?.studentId === 'ALL';
+
+  // Faculty / Admin / HOD / Dean roles are always treated as the host,
+  // even if their userId is not stored as mentorId.
+  const FACULTY_ROLES = ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'];
+  const userRoleUpper = String(user?.role || '').toUpperCase();
+  const isFacultyRole = FACULTY_ROLES.includes(userRoleUpper);
+
+  const hasAccess = isFacultyRole ||
+    [meeting?.studentId, meeting?.mentorId].includes(user.id) ||
+    meeting?.studentId === 'ALL';
 
   if (!meeting || !hasAccess) {
     showToast('You do not have access to this meeting', 'error');
@@ -34,7 +43,8 @@ export async function render(container) {
     return;
   }
 
-  const isMentor = (meeting?.mentorId === user.id) || ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
+  // isMentor = host/faculty role OR the user is explicitly listed as the mentor for this meeting
+  const isMentor = isFacultyRole || (meeting?.mentorId === user.id);
 
   container.innerHTML = `
       <div class="meeting-room-layout">
@@ -71,8 +81,12 @@ export async function render(container) {
             <!-- Pre-join Screen -->
             <div class="meeting-join" id="join-screen">
               <div class="meeting-join-card">
-                <h2>Ready to join?</h2>
-                <p>Meeting with <strong>${escapeHtml(meeting.mentorName || 'Mentor')}</strong></p>
+                ${isMentor
+                  ? `<h2>🎓 Start Your Meeting</h2>
+                     <p>You are the <strong>Host</strong> for this session. Students will be admitted once you start.</p>`
+                  : `<h2>Ready to join?</h2>
+                     <p>Meeting with <strong>${escapeHtml(meeting.mentorName || 'Mentor')}</strong></p>`
+                }
                 
                 <div class="preview-video-container">
                   <video id="preview-video" autoplay playsinline muted></video>
@@ -87,7 +101,7 @@ export async function render(container) {
                 </div>
 
                 <button class="btn-join-main" id="btn-join-meeting">
-                  <span>Enter Meeting Room</span>
+                  <span>${isMentor ? '🚀 Start Meeting as Host' : 'Enter Meeting Room'}</span>
                   <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M10 17l5-5-5-5v10z"/></svg>
                 </button>
               </div>
@@ -1545,8 +1559,11 @@ export async function render(container) {
   // Enter meeting room on join click
   document.getElementById('btn-join-meeting').onclick = () => {
     document.getElementById('join-screen')?.remove();
+    // Only show the waiting room screen for non-mentor users (students)
+    // Mentors/Faculty are the host and should NEVER see the waiting room
     const waiting = document.getElementById('meeting-waiting');
-    if (waiting && !isMentor) waiting.hidden = false;
+    if (waiting) waiting.hidden = true; // Always hide first
+    if (waiting && !isMentor) waiting.hidden = false; // Then show only for students
     init();
   };
 }
