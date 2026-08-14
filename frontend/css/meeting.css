@@ -1288,8 +1288,9 @@ input:checked + .switch-slider:before {
 }
 
 .report-sig-row {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
 .report-sig-box {

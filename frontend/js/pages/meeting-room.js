@@ -1,4 +1,4 @@
-﻿import { createSignaling } from '/js/webrtc/signaling.js';
+import { createSignaling } from '/js/webrtc/signaling.js';
 import { createPeerConnection } from '/js/webrtc/peer.js';
 import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare } from '/js/webrtc/media.js';
 import { getUserProfile } from '/js/auth.js';
@@ -7,36 +7,36 @@ import { showToast } from '/js/components/toast.js';
 import { MeetingService } from '/js/services.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 }[char]));
 
 export async function render(container) {
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
-    const meetingId = params.get('id');
-    const user = getUserProfile();
-    if (!meetingId || !user) {
-        showToast('Invalid meeting link', 'error');
-        navigateTo('/');
-        return;
-    }
+  const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const meetingId = params.get('id');
+  const user = getUserProfile();
+  if (!meetingId || !user) {
+    showToast('Invalid meeting link', 'error');
+    navigateTo('/');
+    return;
+  }
 
-    const meeting = await MeetingService.get(meetingId);
-    const hasAccess = [meeting?.studentId, meeting?.mentorId].includes(user.id) || meeting?.studentId === 'ALL';
+  const meeting = await MeetingService.get(meetingId);
+  const hasAccess = [meeting?.studentId, meeting?.mentorId].includes(user.id) || meeting?.studentId === 'ALL';
 
-    if (!meeting || !hasAccess) {
-        showToast('You do not have access to this meeting', 'error');
-        navigateTo('/');
-        return;
-    }
-    if (!['APPROVED', 'ONGOING'].includes(meeting.status)) {
-        showToast('This meeting is not ready to join', 'warning');
-        navigateTo('/');
-        return;
-    }
+  if (!meeting || !hasAccess) {
+    showToast('You do not have access to this meeting', 'error');
+    navigateTo('/');
+    return;
+  }
+  if (!['APPROVED', 'ONGOING'].includes(meeting.status)) {
+    showToast('This meeting is not ready to join', 'warning');
+    navigateTo('/');
+    return;
+  }
 
-    const isMentor = (meeting?.mentorId === user.id) || ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
+  const isMentor = (meeting?.mentorId === user.id) || ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
 
-    container.innerHTML = `
+  container.innerHTML = `
       <div class="meeting-room-layout">
         <!-- Top Bar -->
         <header class="meeting-topbar">
@@ -238,79 +238,87 @@ export async function render(container) {
               <div id="panel-report" hidden>
                 <div class="report-form-scroll">
 
-                  <div class="report-section-title">Ã°Å¸â€œâ€¹ Meeting Report Generation</div>
+                  <div class="report-section-title">📋 Meeting Report Generation</div>
                   <p class="report-section-desc">Fill in the details below to generate an official mentorship session report.</p>
 
                   <!-- Meeting Info -->
                   <div class="report-field-group">
-                    <label class="report-label">Ã°Å¸â€œÅ’ Meeting Topic / Agenda</label>
+                    <label class="report-label">📌 Meeting Topic / Agenda</label>
                     <input id="rpt-topic" class="report-input" type="text" placeholder="e.g. Academic Progress Review, Career Guidance..." value="${escapeHtml(meeting.type || '')}">
                   </div>
 
                   <div class="report-field-row">
                     <div class="report-field-group">
-                      <label class="report-label">Ã°Å¸â€œâ€¦ Meeting Date</label>
-                      <input id="rpt-date" class="report-input" type="date" value="${new Date(meeting.scheduledAt || Date.now()).toISOString().slice(0,10)}">
+                      <label class="report-label">📅 Meeting Date</label>
+                      <input id="rpt-date" class="report-input" type="date" value="${new Date(meeting.scheduledAt || Date.now()).toISOString().slice(0, 10)}">
                     </div>
                     <div class="report-field-group">
-                      <label class="report-label">Ã°Å¸â€¢Â Meeting Time</label>
-                      <input id="rpt-time" class="report-input" type="time" value="${new Date(meeting.scheduledAt || Date.now()).toTimeString().slice(0,5)}">
+                      <label class="report-label">🕐 Meeting Time</label>
+                      <input id="rpt-time" class="report-input" type="time" value="${new Date(meeting.scheduledAt || Date.now()).toTimeString().slice(0, 5)}">
                     </div>
                   </div>
 
-
                   <div class="report-field-group">
-                    <label class="report-label">Ã°Å¸â€˜Â¥ Students Present</label>
+                    <label class="report-label">👥 Students Present</label>
                     <div id="rpt-students-list" class="rpt-students-list">
                       <div class="rpt-student-row">
                         <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
                         <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
-                        <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">Ã¢Å“â€¢</button>
+                        <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
                       </div>
                     </div>
                     <button class="btn-rpt-add-student" id="btn-add-student" type="button">+ Add Student</button>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">Ã¢Å¡Â Ã¯Â¸Â Issues Discussed</label>
+                    <label class="report-label">⚠️ Issues Discussed</label>
                     <textarea id="rpt-issues" class="report-textarea" rows="4" placeholder="Summarize problems, challenges, or concerns raised during the meeting...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">Ã¢Å“â€¦ Action Items & Resolutions</label>
+                    <label class="report-label">✅ Action Items & Resolutions</label>
                     <textarea id="rpt-actions" class="report-textarea" rows="4" placeholder="List follow-up tasks, solutions agreed upon, or next steps..."></textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">Ã°Å¸â€œÂ Additional Remarks</label>
+                    <label class="report-label">📝 Additional Remarks</label>
                     <textarea id="rpt-remarks" class="report-textarea" rows="3" placeholder="Any other observations, feedback, or remarks for the record..."></textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">Ã°Å¸ÂÂ¢ Department</label>
+                    <label class="report-label">🏢 Department</label>
                     <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. School of Computing" value="${escapeHtml(meeting.department || 'School of Computing')}">
                   </div>
 
                   <!-- Signature Section -->
                   <div class="report-sig-section">
-                    <div class="report-sig-title">Ã¢Å“ÂÃ¯Â¸Â Signature Block</div>
+                    <div class="report-sig-title">✍️ Signature Block</div>
 
                     <div class="report-sig-row">
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
                         <div class="report-sig-name">Prepared By</div>
-                        <div class="report-sig-person" id="rpt-prepared-name">${escapeHtml(meeting.mentorName || user.name || 'Mentor Name')}</div>
+                        <div class="report-sig-person" id="rpt-prepared-name">Prof. ${escapeHtml(meeting.mentorName || user.name || 'Mentor Name')}</div>
                         <div class="report-sig-role">Mentor / Faculty</div>
                       </div>
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
-                        <div class="report-sig-name">Validated By</div>
-                        <input id="rpt-validator-name" class="report-sig-input" type="text" placeholder="Enter Validator Name">
-                        <div class="report-sig-role">Section Head / Coordinator</div>
+                        <div class="report-sig-name">Checked By</div>
+                        <input id="rpt-checker-name" class="report-sig-input" type="text" placeholder="Prof. (Leave empty)">
+                        <div class="report-sig-role">Coordinator / Faculty</div>
                       </div>
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
-                        <div class="report-sig-name">Verified By</div>
+                        <div class="report-sig-name">Verify By</div>
+                        <div class="report-sig-person" style="font-size:0.68rem; line-height:1.25;">
+                          <div>Dr. Nilesh Thale</div>
+                          <div>Dr. Aman Singh</div>
+                        </div>
+                        <div class="report-sig-role">Verification Committee</div>
+                      </div>
+                      <div class="report-sig-box">
+                        <div class="report-sig-line"></div>
+                        <div class="report-sig-name">Approved By</div>
                         <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name">
                         <div class="report-sig-role">Head of Department</div>
                       </div>
@@ -318,8 +326,8 @@ export async function render(container) {
                   </div>
 
                   <div class="report-actions">
-                    <button class="btn-report-save" id="btn-save-report">Ã°Å¸â€™Â¾ Save Report</button>
-                    <button class="btn-report-generate" id="btn-generate-report">Ã°Å¸â€“Â¨Ã¯Â¸Â Generate & Print</button>
+                    <button class="btn-report-save" id="btn-save-report">💾 Save Report</button>
+                    <button class="btn-report-generate" id="btn-generate-report">🖨️ Generate & Print</button>
                   </div>
 
                 </div>
@@ -406,156 +414,156 @@ export async function render(container) {
         </div>
       </div>`;
 
-    const peers = new Map();
-    const signaling = createSignaling(meetingId, user, isMentor);
-    const timerText = document.getElementById('meeting-timer-text');
-    const participantChip = document.getElementById('participant-count-chip');
-    const grid = document.getElementById('video-grid');
-    let localStream;
-    let screenStream;
-    let elapsed = 0;
-    let timer = null;
-    let cleaned = false;
-    let activeRoomSettings = {
-        micLocked: false,
-        cameraLocked: false,
-        chatLocked: false,
-        screenLocked: false,
-        roomLocked: false
-    };
+  const peers = new Map();
+  const signaling = createSignaling(meetingId, user, isMentor);
+  const timerText = document.getElementById('meeting-timer-text');
+  const participantChip = document.getElementById('participant-count-chip');
+  const grid = document.getElementById('video-grid');
+  let localStream;
+  let screenStream;
+  let elapsed = 0;
+  let timer = null;
+  let cleaned = false;
+  let activeRoomSettings = {
+    micLocked: false,
+    cameraLocked: false,
+    chatLocked: false,
+    screenLocked: false,
+    roomLocked: false
+  };
 
-    let participants = [];
-    let waitingList = [];
+  let participants = [];
+  let waitingList = [];
 
-    // Helper: update tile layout classes
-    function updateGridClass() {
-        const count = grid.querySelectorAll('.video-tile').length;
-        if (count <= 1) grid.className = 'video-grid grid-1';
-        else if (count === 2) grid.className = 'video-grid grid-2';
-        else if (count === 3) grid.className = 'video-grid grid-3';
-        else if (count === 4) grid.className = 'video-grid grid-4';
-        else grid.className = 'video-grid grid-multi';
+  // Helper: update tile layout classes
+  function updateGridClass() {
+    const count = grid.querySelectorAll('.video-tile').length;
+    if (count <= 1) grid.className = 'video-grid grid-1';
+    else if (count === 2) grid.className = 'video-grid grid-2';
+    else if (count === 3) grid.className = 'video-grid grid-3';
+    else if (count === 4) grid.className = 'video-grid grid-4';
+    else grid.className = 'video-grid grid-multi';
 
-        if (participantChip) {
-            participantChip.textContent = `Ã°Å¸â€˜Â¥ ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
-        }
+    if (participantChip) {
+      participantChip.textContent = `Ã°Å¸â€˜Â¥ ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
     }
+  }
 
-    function addVideo(id, name, stream, isLocal = false, isTileHost = false) {
-        container.querySelector('#meeting-waiting')?.remove();
-        let tile = container.querySelector(`[data-peer="${id}"]`);
-        let video;
-        let avatar;
+  function addVideo(id, name, stream, isLocal = false, isTileHost = false) {
+    container.querySelector('#meeting-waiting')?.remove();
+    let tile = container.querySelector(`[data-peer="${id}"]`);
+    let video;
+    let avatar;
 
-        if (!tile) {
-            tile = document.createElement('div');
-            tile.className = 'video-tile';
-            tile.dataset.peer = id;
+    if (!tile) {
+      tile = document.createElement('div');
+      tile.className = 'video-tile';
+      tile.dataset.peer = id;
 
-            video = document.createElement('video');
-            video.autoplay = true;
-            video.playsInline = true;
-            video.muted = isLocal; // Always mute local playback to prevent echo
+      video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = isLocal; // Always mute local playback to prevent echo
 
-            avatar = document.createElement('div');
-            avatar.className = 'tile-avatar';
-            avatar.innerHTML = `<div class="tile-avatar-circle">${escapeHtml((name || '?')[0].toUpperCase())}</div>`;
-            avatar.style.display = 'none';
+      avatar = document.createElement('div');
+      avatar.className = 'tile-avatar';
+      avatar.innerHTML = `<div class="tile-avatar-circle">${escapeHtml((name || '?')[0].toUpperCase())}</div>`;
+      avatar.style.display = 'none';
 
-            const labelBar = document.createElement('div');
-            labelBar.className = 'tile-label-bar';
-            labelBar.innerHTML = `
+      const labelBar = document.createElement('div');
+      labelBar.className = 'tile-label-bar';
+      labelBar.innerHTML = `
                 <span class="tile-label">${escapeHtml(name)}</span>
                 ${isTileHost ? '<span class="tile-role-pill host">Host</span>' : ''}
                 ${isLocal ? '<span class="tile-role-pill">You</span>' : ''}
             `;
 
-            const statusIcons = document.createElement('div');
-            statusIcons.className = 'tile-status-icons';
-            statusIcons.id = `status-icons-${id}`;
+      const statusIcons = document.createElement('div');
+      statusIcons.className = 'tile-status-icons';
+      statusIcons.id = `status-icons-${id}`;
 
-            tile.append(video, avatar, labelBar, statusIcons);
-            grid.append(tile);
-        } else {
-            video = tile.querySelector('video');
-            avatar = tile.querySelector('.tile-avatar');
-        }
-
-        if (video.srcObject !== stream) {
-            video.srcObject = stream;
-        }
-
-        video.play().catch(err => console.warn(`[Video] Play error for ${id}:`, err));
-
-        // Listen to track enablement
-        if (stream && stream.getVideoTracks) {
-            const vTrack = stream.getVideoTracks()[0];
-            if (vTrack) {
-                const checkVideo = () => {
-                    const enabled = vTrack.enabled && !vTrack.muted;
-                    tile.classList.toggle('video-off', !enabled);
-                    if (avatar) avatar.style.display = enabled ? 'none' : 'flex';
-                };
-                vTrack.onmute = checkVideo;
-                vTrack.onunmute = checkVideo;
-                checkVideo();
-            }
-        }
-
-        updateGridClass();
+      tile.append(video, avatar, labelBar, statusIcons);
+      grid.append(tile);
+    } else {
+      video = tile.querySelector('video');
+      avatar = tile.querySelector('.tile-avatar');
     }
 
-    function createPeer(id, name, offer) {
-        if (peers.has(id)) return peers.get(id);
-        const peer = createPeerConnection(signaling, localStream, id);
-        peer.onTrack(stream => {
-            const isPeerHost = participants.find(p => p.id === id)?.isHost;
-            addVideo(id, name || 'Participant', stream, false, isPeerHost);
-        });
-        peers.set(id, peer);
-
-        peer.pc.addEventListener('iceconnectionstatechange', () => {
-            if (peer.pc.iceConnectionState === 'failed' || peer.pc.iceConnectionState === 'disconnected') {
-                if (peer.pc.restartIce) {
-                    peer.pc.restartIce();
-                    peer.createOffer().catch(handleError);
-                }
-            }
-        });
-
-        if (offer) peer.createOffer().catch(handleError);
-        return peer;
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
     }
 
-    function appendMessage(sender, text, own = false) {
-        const emptyState = container.querySelector('.chat-empty-state');
-        if (emptyState) emptyState.remove();
+    video.play().catch(err => console.warn(`[Video] Play error for ${id}:`, err));
 
-        const row = document.createElement('div');
-        row.className = `chat-message${own ? ' own' : ''}`;
+    // Listen to track enablement
+    if (stream && stream.getVideoTracks) {
+      const vTrack = stream.getVideoTracks()[0];
+      if (vTrack) {
+        const checkVideo = () => {
+          const enabled = vTrack.enabled && !vTrack.muted;
+          tile.classList.toggle('video-off', !enabled);
+          if (avatar) avatar.style.display = enabled ? 'none' : 'flex';
+        };
+        vTrack.onmute = checkVideo;
+        vTrack.onunmute = checkVideo;
+        checkVideo();
+      }
+    }
 
-        const senderLabel = document.createElement('span');
-        senderLabel.className = 'chat-sender';
-        senderLabel.textContent = own ? 'You' : sender;
+    updateGridClass();
+  }
 
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble';
-        bubble.textContent = text;
+  function createPeer(id, name, offer) {
+    if (peers.has(id)) return peers.get(id);
+    const peer = createPeerConnection(signaling, localStream, id);
+    peer.onTrack(stream => {
+      const isPeerHost = participants.find(p => p.id === id)?.isHost;
+      addVideo(id, name || 'Participant', stream, false, isPeerHost);
+    });
+    peers.set(id, peer);
 
-        row.append(senderLabel, bubble);
-        const chatBox = container.querySelector('#chat-messages');
-        if (chatBox) {
-            chatBox.append(row);
-            chatBox.scrollTop = chatBox.scrollHeight;
+    peer.pc.addEventListener('iceconnectionstatechange', () => {
+      if (peer.pc.iceConnectionState === 'failed' || peer.pc.iceConnectionState === 'disconnected') {
+        if (peer.pc.restartIce) {
+          peer.pc.restartIce();
+          peer.createOffer().catch(handleError);
         }
+      }
+    });
+
+    if (offer) peer.createOffer().catch(handleError);
+    return peer;
+  }
+
+  function appendMessage(sender, text, own = false) {
+    const emptyState = container.querySelector('.chat-empty-state');
+    if (emptyState) emptyState.remove();
+
+    const row = document.createElement('div');
+    row.className = `chat-message${own ? ' own' : ''}`;
+
+    const senderLabel = document.createElement('span');
+    senderLabel.className = 'chat-sender';
+    senderLabel.textContent = own ? 'You' : sender;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = text;
+
+    row.append(senderLabel, bubble);
+    const chatBox = container.querySelector('#chat-messages');
+    if (chatBox) {
+      chatBox.append(row);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
+  }
 
-    function renderRoster(participants = [], waitingList = []) {
-        let html = '';
+  function renderRoster(participants = [], waitingList = []) {
+    let html = '';
 
-        // Waiting room section for host
-        if (isMentor && waitingList.length > 0) {
-            html += `<div class="waiting-room-card">
+    // Waiting room section for host
+    if (isMentor && waitingList.length > 0) {
+      html += `<div class="waiting-room-card">
                 <div class="waiting-room-header">
                     <span class="waiting-room-title">Ã¢ÂÂ³ WAITING ROOM (${waitingList.length})</span>
                     <div style="display:flex;gap:4px;">
@@ -577,13 +585,13 @@ export async function render(container) {
                     </div>
                 `).join('')}
             </div>`;
-        }
+    }
 
-        html += `<div style="font-size:0.75rem;font-weight:700;color:var(--meet-text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">In Meeting (${participants.length})</div>`;
-        html += participants.map(person => {
-            const isSelf = person.id === signaling.selfId;
-            const personIsHost = person.isHost || (person.name === meeting.mentorName);
-            return `
+    html += `<div style="font-size:0.75rem;font-weight:700;color:var(--meet-text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">In Meeting (${participants.length})</div>`;
+    html += participants.map(person => {
+      const isSelf = person.id === signaling.selfId;
+      const personIsHost = person.isHost || (person.name === meeting.mentorName);
+      return `
             <div class="participant-item">
                 <div class="participant-avatar-badge">${escapeHtml((person.name || '?')[0].toUpperCase())}</div>
                 <div class="participant-info">
@@ -599,652 +607,653 @@ export async function render(container) {
                 ` : ''}
             </div>
             `;
-        }).join('');
+    }).join('');
 
-        const panel = container.querySelector('#panel-participants');
-        if (panel) panel.innerHTML = html;
+    const panel = container.querySelector('#panel-participants');
+    if (panel) panel.innerHTML = html;
+  }
+
+  const handleControlAction = async (id, action) => {
+    const success = await signaling.sendControl(id, action);
+    if (!success) showToast('Failed to broadcast control command', 'error');
+  };
+
+  window.admitUser = (id) => handleControlAction(id, 'admit');
+  window.denyUser = (id) => handleControlAction(id, 'deny');
+  window.removeUser = (id) => {
+    if (confirm("Are you sure you want to remove this participant?")) {
+      handleControlAction(id, 'remove');
+    }
+  };
+  window.muteMic = (id) => {
+    handleControlAction(id, 'mute-mic');
+    showToast('Mute signal sent to participant', 'info');
+  };
+  window.stopCam = (id) => {
+    handleControlAction(id, 'disable-cam');
+    showToast('Stop video signal sent to participant', 'info');
+  };
+  window.admitAll = () => waitingList.forEach(p => handleControlAction(p.id, 'admit'));
+  window.denyAll = () => waitingList.forEach(p => handleControlAction(p.id, 'deny'));
+
+  function handleError(error) {
+    console.error(error);
+    if (timerText) timerText.textContent = error.message || 'Connection error';
+    showToast(error.message || 'Meeting connection failed', 'error');
+  }
+
+  // Apply Student Lock Enforcement based on real-time roomSettings
+  function applyStudentLocks(settings) {
+    if (isMentor) return; // Hosts are never restricted
+
+    // 1. Microphone Lock
+    const btnMic = document.getElementById('btn-mic');
+    const labelMic = document.getElementById('label-mic');
+    if (btnMic) {
+      if (settings.micLocked) {
+        // If microphone is currently active, turn it off immediately
+        if (localStream && localStream.getAudioTracks()[0]?.enabled) {
+          toggleMic(localStream);
+          btnMic.classList.add('active');
+        }
+        btnMic.disabled = true;
+        if (labelMic) labelMic.textContent = 'Mic (Locked)';
+        btnMic.title = 'Microphone is locked by the host';
+      } else {
+        btnMic.disabled = false;
+        if (labelMic) labelMic.textContent = 'Mic';
+        btnMic.title = 'Toggle Microphone';
+      }
     }
 
-    const handleControlAction = async (id, action) => {
-        const success = await signaling.sendControl(id, action);
-        if (!success) showToast('Failed to broadcast control command', 'error');
-    };
-
-    window.admitUser = (id) => handleControlAction(id, 'admit');
-    window.denyUser = (id) => handleControlAction(id, 'deny');
-    window.removeUser = (id) => {
-        if (confirm("Are you sure you want to remove this participant?")) {
-            handleControlAction(id, 'remove');
+    // 2. Camera Lock
+    const btnCam = document.getElementById('btn-cam');
+    const labelCam = document.getElementById('label-cam');
+    if (btnCam) {
+      if (settings.cameraLocked) {
+        // If camera is currently active, disable it immediately
+        if (localStream && localStream.getVideoTracks()[0]?.enabled) {
+          toggleCamera(localStream);
+          btnCam.classList.add('active');
+          const localTile = container.querySelector('[data-peer="local"]');
+          if (localTile) {
+            localTile.classList.add('video-off');
+            const localAvatar = localTile.querySelector('.tile-avatar');
+            if (localAvatar) localAvatar.style.display = 'flex';
+          }
         }
-    };
-    window.muteMic = (id) => {
-        handleControlAction(id, 'mute-mic');
-        showToast('Mute signal sent to participant', 'info');
-    };
-    window.stopCam = (id) => {
-        handleControlAction(id, 'disable-cam');
-        showToast('Stop video signal sent to participant', 'info');
-    };
-    window.admitAll = () => waitingList.forEach(p => handleControlAction(p.id, 'admit'));
-    window.denyAll = () => waitingList.forEach(p => handleControlAction(p.id, 'deny'));
-
-    function handleError(error) {
-        console.error(error);
-        if (timerText) timerText.textContent = error.message || 'Connection error';
-        showToast(error.message || 'Meeting connection failed', 'error');
+        btnCam.disabled = true;
+        if (labelCam) labelCam.textContent = 'Cam (Locked)';
+        btnCam.title = 'Camera is locked by the host';
+      } else {
+        btnCam.disabled = false;
+        if (labelCam) labelCam.textContent = 'Camera';
+        btnCam.title = 'Toggle Camera';
+      }
     }
 
-    // Apply Student Lock Enforcement based on real-time roomSettings
-    function applyStudentLocks(settings) {
-        if (isMentor) return; // Hosts are never restricted
-
-        // 1. Microphone Lock
-        const btnMic = document.getElementById('btn-mic');
-        const labelMic = document.getElementById('label-mic');
-        if (btnMic) {
-            if (settings.micLocked) {
-                // If microphone is currently active, turn it off immediately
-                if (localStream && localStream.getAudioTracks()[0]?.enabled) {
-                    toggleMic(localStream);
-                    btnMic.classList.add('active');
-                }
-                btnMic.disabled = true;
-                if (labelMic) labelMic.textContent = 'Mic (Locked)';
-                btnMic.title = 'Microphone is locked by the host';
-            } else {
-                btnMic.disabled = false;
-                if (labelMic) labelMic.textContent = 'Mic';
-                btnMic.title = 'Toggle Microphone';
-            }
-        }
-
-        // 2. Camera Lock
-        const btnCam = document.getElementById('btn-cam');
-        const labelCam = document.getElementById('label-cam');
-        if (btnCam) {
-            if (settings.cameraLocked) {
-                // If camera is currently active, disable it immediately
-                if (localStream && localStream.getVideoTracks()[0]?.enabled) {
-                    toggleCamera(localStream);
-                    btnCam.classList.add('active');
-                    const localTile = container.querySelector('[data-peer="local"]');
-                    if (localTile) {
-                        localTile.classList.add('video-off');
-                        const localAvatar = localTile.querySelector('.tile-avatar');
-                        if (localAvatar) localAvatar.style.display = 'flex';
-                    }
-                }
-                btnCam.disabled = true;
-                if (labelCam) labelCam.textContent = 'Cam (Locked)';
-                btnCam.title = 'Camera is locked by the host';
-            } else {
-                btnCam.disabled = false;
-                if (labelCam) labelCam.textContent = 'Camera';
-                btnCam.title = 'Toggle Camera';
-            }
-        }
-
-        // 3. Chat Lock
-        const chatInput = document.getElementById('chat-input');
-        const chatSend = document.getElementById('btn-chat-send');
-        const chatLockBanner = document.getElementById('chat-locked-notice');
-        if (chatInput) {
-            if (settings.chatLocked) {
-                chatInput.disabled = true;
-                chatInput.placeholder = 'Chat has been locked by the host';
-                if (chatSend) chatSend.disabled = true;
-                if (chatLockBanner) chatLockBanner.hidden = false;
-            } else {
-                chatInput.disabled = false;
-                chatInput.placeholder = 'Type a message to everyone...';
-                if (chatSend) chatSend.disabled = false;
-                if (chatLockBanner) chatLockBanner.hidden = true;
-            }
-        }
-
-        // 4. Screen Sharing Lock
-        const btnScreen = document.getElementById('btn-screen');
-        if (btnScreen) {
-            if (settings.screenLocked) {
-                if (screenStream) {
-                    document.getElementById('btn-screen').click(); // Stop screen share
-                }
-                btnScreen.disabled = true;
-                btnScreen.title = 'Screen sharing is locked by the host';
-            } else {
-                btnScreen.disabled = false;
-                btnScreen.title = 'Share Screen';
-            }
-        }
+    // 3. Chat Lock
+    const chatInput = document.getElementById('chat-input');
+    const chatSend = document.getElementById('btn-chat-send');
+    const chatLockBanner = document.getElementById('chat-locked-notice');
+    if (chatInput) {
+      if (settings.chatLocked) {
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Chat has been locked by the host';
+        if (chatSend) chatSend.disabled = true;
+        if (chatLockBanner) chatLockBanner.hidden = false;
+      } else {
+        chatInput.disabled = false;
+        chatInput.placeholder = 'Type a message to everyone...';
+        if (chatSend) chatSend.disabled = false;
+        if (chatLockBanner) chatLockBanner.hidden = true;
+      }
     }
 
-    async function init() {
-        try {
-            if (!localStream) localStream = await getLocalStream();
-            addVideo('local', `${user.name} (You)`, localStream, true, isMentor);
-
-            signaling.onMessage('joined', message => {
-                signaling.selfId = message.id;
-                participants = [{ id: message.id, name: user.name, isHost: isMentor }, ...message.peers];
-                renderRoster(participants, waitingList);
-                message.peers.forEach(person => {
-                    createPeer(person.id, person.name, true);
-                });
-            });
-
-            signaling.onMessage('peer-joined', message => {
-                participants = participants.filter(p => p.id !== message.id);
-                participants.push({ id: message.id, name: message.name, isHost: message.isHost });
-                renderRoster(participants, waitingList);
-                createPeer(message.id, message.name, false);
-                showToast(`${message.name} joined the meeting`, 'info');
-            });
-
-            signaling.onMessage('signal', message => {
-                createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError);
-            });
-
-            signaling.onMessage('peer-left', message => {
-                participants = participants.filter(p => p.id !== message.id);
-                renderRoster(participants, waitingList);
-                peers.get(message.id)?.close();
-                peers.delete(message.id);
-                const tile = container.querySelector(`[data-peer="${message.id}"]`);
-                if (tile) tile.remove();
-                updateGridClass();
-                showToast('A participant left the meeting', 'info');
-            });
-
-            signaling.onMessage('chat', message => appendMessage(message.name, message.text));
-
-            // Host only: Listen to waiting room events
-            signaling.onMessage('guest-waiting', message => {
-                if (!waitingList.find(p => p.id === message.id)) {
-                    waitingList.push({ id: message.id, name: message.name });
-                    renderRoster(participants, waitingList);
-                    showToast(`${message.name} is in the waiting room`, 'info');
-
-                    // Auto-open side drawer to Participants tab
-                    const sidePanel = document.getElementById('meeting-side-panel');
-                    if (sidePanel) sidePanel.classList.remove('hidden');
-                    const peopleTab = document.querySelector('.side-panel-tab[data-panel="participants"]');
-                    if (peopleTab) peopleTab.click();
-
-                    // Play pleasant chime
-                    try {
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-                        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-                        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                        osc.start(audioCtx.currentTime);
-                        osc.stop(audioCtx.currentTime + 0.4);
-                    } catch (e) { }
-                }
-            });
-
-            signaling.onMessage('guest-left-waiting', message => {
-                waitingList = waitingList.filter(p => p.id !== message.id);
-                renderRoster(participants, waitingList);
-            });
-
-            // Guest only: Waiting room & Kicked events
-            signaling.onMessage('waiting', () => {
-                if (timerText) timerText.textContent = 'In Waiting Room';
-            });
-
-            signaling.onMessage('kicked', (payload) => {
-                showToast(payload.reason === 'deny' ? 'The host denied your request to join' : 'You were removed from the meeting by the host', 'error');
-                setTimeout(() => document.getElementById('btn-end').click(), 1500);
-            });
-
-            // Handle direct remote commands from Host (e.g. Mute All, Disable All Cameras, Individual Mute)
-            signaling.onMessage('remote-control', payload => {
-                if (isMentor) return; // Do not apply to host
-
-                if (payload.action === 'mute-mic' || payload.action === 'mute-all-mic') {
-                    if (localStream?.getAudioTracks()[0]?.enabled) {
-                        toggleMic(localStream);
-                        document.getElementById('btn-mic')?.classList.add('active');
-                    }
-                    showToast(payload.action === 'mute-all-mic' ? 'Host muted all student microphones' : 'Host muted your microphone', 'warning');
-                } else if (payload.action === 'disable-cam' || payload.action === 'disable-all-cam') {
-                    if (localStream?.getVideoTracks()[0]?.enabled) {
-                        toggleCamera(localStream);
-                        document.getElementById('btn-cam')?.classList.add('active');
-                        const localTile = container.querySelector('[data-peer="local"]');
-                        if (localTile) {
-                            localTile.classList.add('video-off');
-                            const localAvatar = localTile.querySelector('.tile-avatar');
-                            if (localAvatar) localAvatar.style.display = 'flex';
-                        }
-                    }
-                    showToast(payload.action === 'disable-all-cam' ? 'Host turned off all student cameras' : 'Host turned off your camera', 'warning');
-                }
-            });
-
-            // Real-time Room Settings Sync
-            signaling.onMessage('room-settings', settings => {
-                const prevSettings = { ...activeRoomSettings };
-                activeRoomSettings = { ...activeRoomSettings, ...settings };
-
-                if (isMentor) {
-                    // Sync Host toggles
-                    const micToggle = document.getElementById('toggle-host-mic-lock');
-                    const camToggle = document.getElementById('toggle-host-cam-lock');
-                    const chatToggle = document.getElementById('toggle-host-chat-lock');
-                    const screenToggle = document.getElementById('toggle-host-screen-lock');
-                    const roomToggle = document.getElementById('toggle-host-room-lock');
-
-                    if (micToggle && settings.micLocked !== undefined) micToggle.checked = settings.micLocked;
-                    if (camToggle && settings.cameraLocked !== undefined) camToggle.checked = settings.cameraLocked;
-                    if (chatToggle && settings.chatLocked !== undefined) chatToggle.checked = settings.chatLocked;
-                    if (screenToggle && settings.screenLocked !== undefined) screenToggle.checked = settings.screenLocked;
-                    if (roomToggle && settings.roomLocked !== undefined) roomToggle.checked = settings.roomLocked;
-                } else {
-                    // Student notifications when host changes lock settings
-                    if (prevSettings.micLocked !== undefined && prevSettings.micLocked !== settings.micLocked) {
-                        showToast(settings.micLocked ? 'Ã°Å¸â€â€™ Host has locked all student microphones' : 'Ã°Å¸â€â€œ Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
-                    }
-                    if (prevSettings.cameraLocked !== undefined && prevSettings.cameraLocked !== settings.cameraLocked) {
-                        showToast(settings.cameraLocked ? 'Ã°Å¸â€â€™ Host has locked all student cameras' : 'Ã°Å¸â€â€œ Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
-                    }
-                    if (prevSettings.chatLocked !== undefined && prevSettings.chatLocked !== settings.chatLocked) {
-                        showToast(settings.chatLocked ? 'Ã°Å¸â€â€™ Host has locked the chat' : 'Ã°Å¸â€â€œ Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
-                    }
-
-                    applyStudentLocks(settings);
-                }
-            });
-
-            // Host Control Center Event Listeners
-            if (isMentor) {
-                // One-click Broadcast: Mute All Students
-                document.getElementById('btn-host-mute-all')?.addEventListener('click', async () => {
-                    await handleControlAction('ALL', 'mute-all-mic');
-                    showToast('Broadcasted Mute All command to all students', 'info');
-                });
-
-                // One-click Broadcast: Turn Off All Cameras
-                document.getElementById('btn-host-disable-cams')?.addEventListener('click', async () => {
-                    await handleControlAction('ALL', 'disable-all-cam');
-                    showToast('Broadcasted Turn Off Cameras command to all students', 'info');
-                });
-
-                // Toggle: Block All Voices (Mic Lock)
-                document.getElementById('toggle-host-mic-lock')?.addEventListener('change', async (e) => {
-                    const isLocked = e.target.checked;
-                    await signaling.updateRoomSettings({ micLocked: isLocked });
-                    if (isLocked) {
-                        await handleControlAction('ALL', 'mute-all-mic');
-                    }
-                    showToast(isLocked ? 'Student microphones locked' : 'Student microphones unlocked ("on")', 'info');
-                });
-
-                // Toggle: Block All Videos (Camera Lock)
-                document.getElementById('toggle-host-cam-lock')?.addEventListener('change', async (e) => {
-                    const isLocked = e.target.checked;
-                    await signaling.updateRoomSettings({ cameraLocked: isLocked });
-                    if (isLocked) {
-                        await handleControlAction('ALL', 'disable-all-cam');
-                    }
-                    showToast(isLocked ? 'Student cameras locked' : 'Student cameras unlocked ("on")', 'info');
-                });
-
-                // Toggle: Block Student Chat (Chat Lock)
-                document.getElementById('toggle-host-chat-lock')?.addEventListener('change', async (e) => {
-                    const isLocked = e.target.checked;
-                    await signaling.updateRoomSettings({ chatLocked: isLocked });
-                    showToast(isLocked ? 'Student chat locked' : 'Student chat unlocked ("on")', 'info');
-                });
-
-                // Toggle: Block Screen Sharing
-                document.getElementById('toggle-host-screen-lock')?.addEventListener('change', async (e) => {
-                    const isLocked = e.target.checked;
-                    await signaling.updateRoomSettings({ screenLocked: isLocked });
-                    showToast(isLocked ? 'Screen sharing locked for students' : 'Screen sharing unlocked', 'info');
-                });
-
-                // Toggle: Lock Meeting Room
-                document.getElementById('toggle-host-room-lock')?.addEventListener('change', async (e) => {
-                    const isLocked = e.target.checked;
-                    await signaling.updateRoomSettings({ roomLocked: isLocked });
-                    showToast(isLocked ? 'Meeting room is locked to new attendees' : 'Meeting room is unlocked', 'info');
-                });
-            }
-
-            signaling.onMessage('connect', () => {
-                if (timerText) timerText.textContent = '00:00';
-                if (timer) clearInterval(timer);
-                timer = setInterval(() => {
-                    elapsed += 1;
-                    const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
-                    const seconds = String(elapsed % 60).padStart(2, '0');
-                    if (timerText) timerText.textContent = `${minutes}:${seconds}`;
-                }, 1000);
-            });
-
-            signaling.onMessage('error', handleError);
-            await signaling.connect();
-
-            if (isMentor) {
-                await MeetingService.update(meetingId, {
-                    status: 'ONGOING',
-                    startedAt: meeting.startedAt || new Date().toISOString()
-                });
-            }
-        } catch (error) {
-            handleError(error);
+    // 4. Screen Sharing Lock
+    const btnScreen = document.getElementById('btn-screen');
+    if (btnScreen) {
+      if (settings.screenLocked) {
+        if (screenStream) {
+          document.getElementById('btn-screen').click(); // Stop screen share
         }
+        btnScreen.disabled = true;
+        btnScreen.title = 'Screen sharing is locked by the host';
+      } else {
+        btnScreen.disabled = false;
+        btnScreen.title = 'Share Screen';
+      }
     }
+  }
 
-    // Media Control Buttons in Bottom Bar
-    document.getElementById('btn-mic').onclick = event => {
-        if (!isMentor && activeRoomSettings.micLocked) {
-            showToast('Microphone is locked by the meeting host', 'warning');
-            return;
-        }
-        if (localStream) {
-            const isEnabled = toggleMic(localStream);
-            event.currentTarget.classList.toggle('active', !isEnabled);
-        }
-    };
+  async function init() {
+    try {
+      if (!localStream) localStream = await getLocalStream();
+      addVideo('local', `${user.name} (You)`, localStream, true, isMentor);
 
-    document.getElementById('btn-cam').onclick = event => {
-        if (!isMentor && activeRoomSettings.cameraLocked) {
-            showToast('Camera is locked by the meeting host', 'warning');
-            return;
+      signaling.onMessage('joined', message => {
+        signaling.selfId = message.id;
+        participants = [{ id: message.id, name: user.name, isHost: isMentor }, ...message.peers];
+        renderRoster(participants, waitingList);
+        message.peers.forEach(person => {
+          createPeer(person.id, person.name, true);
+        });
+      });
+
+      signaling.onMessage('peer-joined', message => {
+        participants = participants.filter(p => p.id !== message.id);
+        participants.push({ id: message.id, name: message.name, isHost: message.isHost });
+        renderRoster(participants, waitingList);
+        createPeer(message.id, message.name, false);
+        showToast(`${message.name} joined the meeting`, 'info');
+      });
+
+      signaling.onMessage('signal', message => {
+        createPeer(message.from, message.name, false).handleSignal(message.signal).catch(handleError);
+      });
+
+      signaling.onMessage('peer-left', message => {
+        participants = participants.filter(p => p.id !== message.id);
+        renderRoster(participants, waitingList);
+        peers.get(message.id)?.close();
+        peers.delete(message.id);
+        const tile = container.querySelector(`[data-peer="${message.id}"]`);
+        if (tile) tile.remove();
+        updateGridClass();
+        showToast('A participant left the meeting', 'info');
+      });
+
+      signaling.onMessage('chat', message => appendMessage(message.name, message.text));
+
+      // Host only: Listen to waiting room events
+      signaling.onMessage('guest-waiting', message => {
+        if (!waitingList.find(p => p.id === message.id)) {
+          waitingList.push({ id: message.id, name: message.name });
+          renderRoster(participants, waitingList);
+          showToast(`${message.name} is in the waiting room`, 'info');
+
+          // Auto-open side drawer to Participants tab
+          const sidePanel = document.getElementById('meeting-side-panel');
+          if (sidePanel) sidePanel.classList.remove('hidden');
+          const peopleTab = document.querySelector('.side-panel-tab[data-panel="participants"]');
+          if (peopleTab) peopleTab.click();
+
+          // Play pleasant chime
+          try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.4);
+          } catch (e) { }
         }
-        if (localStream) {
-            const isEnabled = toggleCamera(localStream);
-            event.currentTarget.classList.toggle('active', !isEnabled);
+      });
+
+      signaling.onMessage('guest-left-waiting', message => {
+        waitingList = waitingList.filter(p => p.id !== message.id);
+        renderRoster(participants, waitingList);
+      });
+
+      // Guest only: Waiting room & Kicked events
+      signaling.onMessage('waiting', () => {
+        if (timerText) timerText.textContent = 'In Waiting Room';
+      });
+
+      signaling.onMessage('kicked', (payload) => {
+        showToast(payload.reason === 'deny' ? 'The host denied your request to join' : 'You were removed from the meeting by the host', 'error');
+        setTimeout(() => document.getElementById('btn-end').click(), 1500);
+      });
+
+      // Handle direct remote commands from Host (e.g. Mute All, Disable All Cameras, Individual Mute)
+      signaling.onMessage('remote-control', payload => {
+        if (isMentor) return; // Do not apply to host
+
+        if (payload.action === 'mute-mic' || payload.action === 'mute-all-mic') {
+          if (localStream?.getAudioTracks()[0]?.enabled) {
+            toggleMic(localStream);
+            document.getElementById('btn-mic')?.classList.add('active');
+          }
+          showToast(payload.action === 'mute-all-mic' ? 'Host muted all student microphones' : 'Host muted your microphone', 'warning');
+        } else if (payload.action === 'disable-cam' || payload.action === 'disable-all-cam') {
+          if (localStream?.getVideoTracks()[0]?.enabled) {
+            toggleCamera(localStream);
+            document.getElementById('btn-cam')?.classList.add('active');
             const localTile = container.querySelector('[data-peer="local"]');
             if (localTile) {
-                localTile.classList.toggle('video-off', !isEnabled);
-                const localAvatar = localTile.querySelector('.tile-avatar');
-                if (localAvatar) localAvatar.style.display = isEnabled ? 'none' : 'flex';
+              localTile.classList.add('video-off');
+              const localAvatar = localTile.querySelector('.tile-avatar');
+              if (localAvatar) localAvatar.style.display = 'flex';
             }
+          }
+          showToast(payload.action === 'disable-all-cam' ? 'Host turned off all student cameras' : 'Host turned off your camera', 'warning');
         }
-    };
+      });
 
-    document.getElementById('btn-screen').onclick = async event => {
-        if (!isMentor && activeRoomSettings.screenLocked) {
-            showToast('Screen sharing is locked by the meeting host', 'warning');
-            return;
+      // Real-time Room Settings Sync
+      signaling.onMessage('room-settings', settings => {
+        const prevSettings = { ...activeRoomSettings };
+        activeRoomSettings = { ...activeRoomSettings, ...settings };
+
+        if (isMentor) {
+          // Sync Host toggles
+          const micToggle = document.getElementById('toggle-host-mic-lock');
+          const camToggle = document.getElementById('toggle-host-cam-lock');
+          const chatToggle = document.getElementById('toggle-host-chat-lock');
+          const screenToggle = document.getElementById('toggle-host-screen-lock');
+          const roomToggle = document.getElementById('toggle-host-room-lock');
+
+          if (micToggle && settings.micLocked !== undefined) micToggle.checked = settings.micLocked;
+          if (camToggle && settings.cameraLocked !== undefined) camToggle.checked = settings.cameraLocked;
+          if (chatToggle && settings.chatLocked !== undefined) chatToggle.checked = settings.chatLocked;
+          if (screenToggle && settings.screenLocked !== undefined) screenToggle.checked = settings.screenLocked;
+          if (roomToggle && settings.roomLocked !== undefined) roomToggle.checked = settings.roomLocked;
+        } else {
+          // Student notifications when host changes lock settings
+          if (prevSettings.micLocked !== undefined && prevSettings.micLocked !== settings.micLocked) {
+            showToast(settings.micLocked ? 'Ã°Å¸â€â€™ Host has locked all student microphones' : 'Ã°Å¸â€â€œ Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
+          }
+          if (prevSettings.cameraLocked !== undefined && prevSettings.cameraLocked !== settings.cameraLocked) {
+            showToast(settings.cameraLocked ? 'Ã°Å¸â€â€™ Host has locked all student cameras' : 'Ã°Å¸â€â€œ Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
+          }
+          if (prevSettings.chatLocked !== undefined && prevSettings.chatLocked !== settings.chatLocked) {
+            showToast(settings.chatLocked ? 'Ã°Å¸â€â€™ Host has locked the chat' : 'Ã°Å¸â€â€œ Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
+          }
+
+          applyStudentLocks(settings);
         }
+      });
+
+      // Host Control Center Event Listeners
+      if (isMentor) {
+        // One-click Broadcast: Mute All Students
+        document.getElementById('btn-host-mute-all')?.addEventListener('click', async () => {
+          await handleControlAction('ALL', 'mute-all-mic');
+          showToast('Broadcasted Mute All command to all students', 'info');
+        });
+
+        // One-click Broadcast: Turn Off All Cameras
+        document.getElementById('btn-host-disable-cams')?.addEventListener('click', async () => {
+          await handleControlAction('ALL', 'disable-all-cam');
+          showToast('Broadcasted Turn Off Cameras command to all students', 'info');
+        });
+
+        // Toggle: Block All Voices (Mic Lock)
+        document.getElementById('toggle-host-mic-lock')?.addEventListener('change', async (e) => {
+          const isLocked = e.target.checked;
+          await signaling.updateRoomSettings({ micLocked: isLocked });
+          if (isLocked) {
+            await handleControlAction('ALL', 'mute-all-mic');
+          }
+          showToast(isLocked ? 'Student microphones locked' : 'Student microphones unlocked ("on")', 'info');
+        });
+
+        // Toggle: Block All Videos (Camera Lock)
+        document.getElementById('toggle-host-cam-lock')?.addEventListener('change', async (e) => {
+          const isLocked = e.target.checked;
+          await signaling.updateRoomSettings({ cameraLocked: isLocked });
+          if (isLocked) {
+            await handleControlAction('ALL', 'disable-all-cam');
+          }
+          showToast(isLocked ? 'Student cameras locked' : 'Student cameras unlocked ("on")', 'info');
+        });
+
+        // Toggle: Block Student Chat (Chat Lock)
+        document.getElementById('toggle-host-chat-lock')?.addEventListener('change', async (e) => {
+          const isLocked = e.target.checked;
+          await signaling.updateRoomSettings({ chatLocked: isLocked });
+          showToast(isLocked ? 'Student chat locked' : 'Student chat unlocked ("on")', 'info');
+        });
+
+        // Toggle: Block Screen Sharing
+        document.getElementById('toggle-host-screen-lock')?.addEventListener('change', async (e) => {
+          const isLocked = e.target.checked;
+          await signaling.updateRoomSettings({ screenLocked: isLocked });
+          showToast(isLocked ? 'Screen sharing locked for students' : 'Screen sharing unlocked', 'info');
+        });
+
+        // Toggle: Lock Meeting Room
+        document.getElementById('toggle-host-room-lock')?.addEventListener('change', async (e) => {
+          const isLocked = e.target.checked;
+          await signaling.updateRoomSettings({ roomLocked: isLocked });
+          showToast(isLocked ? 'Meeting room is locked to new attendees' : 'Meeting room is unlocked', 'info');
+        });
+      }
+
+      signaling.onMessage('connect', () => {
+        if (timerText) timerText.textContent = '00:00';
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => {
+          elapsed += 1;
+          const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+          const seconds = String(elapsed % 60).padStart(2, '0');
+          if (timerText) timerText.textContent = `${minutes}:${seconds}`;
+        }, 1000);
+      });
+
+      signaling.onMessage('error', handleError);
+      await signaling.connect();
+
+      if (isMentor) {
+        await MeetingService.update(meetingId, {
+          status: 'ONGOING',
+          startedAt: meeting.startedAt || new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  // Media Control Buttons in Bottom Bar
+  document.getElementById('btn-mic').onclick = event => {
+    if (!isMentor && activeRoomSettings.micLocked) {
+      showToast('Microphone is locked by the meeting host', 'warning');
+      return;
+    }
+    if (localStream) {
+      const isEnabled = toggleMic(localStream);
+      event.currentTarget.classList.toggle('active', !isEnabled);
+    }
+  };
+
+  document.getElementById('btn-cam').onclick = event => {
+    if (!isMentor && activeRoomSettings.cameraLocked) {
+      showToast('Camera is locked by the meeting host', 'warning');
+      return;
+    }
+    if (localStream) {
+      const isEnabled = toggleCamera(localStream);
+      event.currentTarget.classList.toggle('active', !isEnabled);
+      const localTile = container.querySelector('[data-peer="local"]');
+      if (localTile) {
+        localTile.classList.toggle('video-off', !isEnabled);
+        const localAvatar = localTile.querySelector('.tile-avatar');
+        if (localAvatar) localAvatar.style.display = isEnabled ? 'none' : 'flex';
+      }
+    }
+  };
+
+  document.getElementById('btn-screen').onclick = async event => {
+    if (!isMentor && activeRoomSettings.screenLocked) {
+      showToast('Screen sharing is locked by the meeting host', 'warning');
+      return;
+    }
+    try {
+      if (screenStream) {
+        stopScreenShare(screenStream);
+        screenStream = null;
+        const camera = localStream?.getVideoTracks()[0] || null;
+        await Promise.all([...peers.values()].map(peer => peer.replaceVideoTrack(camera)));
+        addVideo('local', `${user.name} (You)`, localStream, true, isMentor);
+        event.currentTarget.classList.remove('active');
+        return;
+      }
+      screenStream = await shareScreen();
+      const track = screenStream.getVideoTracks()[0];
+      await Promise.all([...peers.values()].map(peer => peer.replaceVideoTrack(track)));
+      addVideo('local', `${user.name} (Screen)`, screenStream, true, isMentor);
+      event.currentTarget.classList.add('active');
+      track.onended = () => document.getElementById('btn-screen').click();
+    } catch (error) {
+      showToast('Screen sharing cancelled', 'warning');
+    }
+  };
+
+  // Recording Logic (Host Mentor Only)
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let recordStream = null;
+  const btnRecord = document.getElementById('btn-record');
+  if (btnRecord) {
+    btnRecord.onclick = async () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        btnRecord.classList.remove('active');
+        const label = document.getElementById('label-record');
+        if (label) label.textContent = 'Record';
+        return;
+      }
+
+      try {
+        recordStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'browser' },
+          audio: true
+        });
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const dest = audioCtx.createMediaStreamDestination();
+        if (recordStream.getAudioTracks().length > 0) {
+          audioCtx.createMediaStreamSource(new MediaStream([recordStream.getAudioTracks()[0]])).connect(dest);
+        }
+        if (localStream && localStream.getAudioTracks().length > 0) {
+          audioCtx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]])).connect(dest);
+        }
+        const mixedStream = new MediaStream([
+          ...recordStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks()
+        ]);
+
+        const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 };
         try {
-            if (screenStream) {
-                stopScreenShare(screenStream);
-                screenStream = null;
-                const camera = localStream?.getVideoTracks()[0] || null;
-                await Promise.all([...peers.values()].map(peer => peer.replaceVideoTrack(camera)));
-                addVideo('local', `${user.name} (You)`, localStream, true, isMentor);
-                event.currentTarget.classList.remove('active');
-                return;
-            }
-            screenStream = await shareScreen();
-            const track = screenStream.getVideoTracks()[0];
-            await Promise.all([...peers.values()].map(peer => peer.replaceVideoTrack(track)));
-            addVideo('local', `${user.name} (Screen)`, screenStream, true, isMentor);
-            event.currentTarget.classList.add('active');
-            track.onended = () => document.getElementById('btn-screen').click();
-        } catch (error) {
-            showToast('Screen sharing cancelled', 'warning');
+          mediaRecorder = new MediaRecorder(mixedStream, options);
+        } catch (e) {
+          mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 2500000 });
         }
-    };
 
-    // Recording Logic (Host Mentor Only)
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let recordStream = null;
-    const btnRecord = document.getElementById('btn-record');
-    if (btnRecord) {
-        btnRecord.onclick = async () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-                btnRecord.classList.remove('active');
-                const label = document.getElementById('label-record');
-                if (label) label.textContent = 'Record';
-                return;
-            }
-
-            try {
-                recordStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { displaySurface: 'browser' },
-                    audio: true
-                });
-
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const dest = audioCtx.createMediaStreamDestination();
-                if (recordStream.getAudioTracks().length > 0) {
-                    audioCtx.createMediaStreamSource(new MediaStream([recordStream.getAudioTracks()[0]])).connect(dest);
-                }
-                if (localStream && localStream.getAudioTracks().length > 0) {
-                    audioCtx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]])).connect(dest);
-                }
-                const mixedStream = new MediaStream([
-                    ...recordStream.getVideoTracks(),
-                    ...dest.stream.getAudioTracks()
-                ]);
-
-                const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 };
-                try {
-                    mediaRecorder = new MediaRecorder(mixedStream, options);
-                } catch (e) {
-                    mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 2500000 });
-                }
-
-                recordedChunks = [];
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    document.body.appendChild(a);
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `meeting_recording_${new Date().toISOString().slice(0, 10)}.webm`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    recordStream.getTracks().forEach(t => t.stop());
-
-                    btnRecord.classList.remove('active');
-                    const label = document.getElementById('label-record');
-                    if (label) label.textContent = 'Record';
-                    showToast('Recording downloaded locally', 'success');
-                };
-
-                recordStream.getVideoTracks()[0].onended = () => {
-                    if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-                };
-
-                mediaRecorder.start(1000);
-                btnRecord.classList.add('active');
-                const label = document.getElementById('label-record');
-                if (label) label.textContent = 'Stop';
-                showToast('Recording started', 'info');
-            } catch (err) {
-                console.error(err);
-                showToast('Recording cancelled', 'warning');
-            }
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = e => {
+          if (e.data.size > 0) recordedChunks.push(e.data);
         };
-    }
 
-    // Side Panel Toggle & Tabs
-    const sidePanel = document.getElementById('meeting-side-panel');
-    const sidePanelTitle = document.getElementById('side-panel-title');
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          document.body.appendChild(a);
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `meeting_recording_${new Date().toISOString().slice(0, 10)}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          recordStream.getTracks().forEach(t => t.stop());
 
-    function openPanelTab(panelName) {
-        if (!sidePanel) return;
-        sidePanel.classList.remove('hidden');
-        document.querySelectorAll('.side-panel-tab').forEach(item => {
-            item.classList.toggle('active', item.dataset.panel === panelName);
-        });
-        ['chat', 'participants', 'controls', 'notes', 'report'].forEach(name => {
-            const panel = document.getElementById(`panel-${name}`);
-            if (panel) panel.hidden = panelName !== name;
-        });
-        const chatForm = document.getElementById('chat-form');
-        if (chatForm) chatForm.hidden = panelName !== 'chat';
+          btnRecord.classList.remove('active');
+          const label = document.getElementById('label-record');
+          if (label) label.textContent = 'Record';
+          showToast('Recording downloaded locally', 'success');
+        };
 
-        if (sidePanelTitle) {
-            const titles = { chat: 'Meeting Chat', participants: 'People in Call', controls: 'Host Control Center', notes: 'Session Notes', report: 'Report Generation' };
-            sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
-        }
-    }
+        recordStream.getVideoTracks()[0].onended = () => {
+          if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        };
 
-    document.getElementById('btn-toggle-chat')?.addEventListener('click', () => {
-        if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'chat') {
-            sidePanel.classList.add('hidden');
-        } else {
-            openPanelTab('chat');
-        }
-    });
-
-    document.getElementById('btn-toggle-people')?.addEventListener('click', () => {
-        if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'participants') {
-            sidePanel.classList.add('hidden');
-        } else {
-            openPanelTab('participants');
-        }
-    });
-
-    document.getElementById('btn-toggle-controls')?.addEventListener('click', () => {
-        if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'controls') {
-            sidePanel.classList.add('hidden');
-        } else {
-            openPanelTab('controls');
-        }
-    });
-
-    document.getElementById('btn-close-side-panel')?.addEventListener('click', () => {
-        sidePanel.classList.add('hidden');
-    });
-
-    document.querySelectorAll('.side-panel-tab').forEach(button => {
-        button.onclick = () => openPanelTab(button.dataset.panel);
-    });
-
-    // Chat form submission
-    document.getElementById('chat-form').onsubmit = event => {
-        event.preventDefault();
-        if (!isMentor && activeRoomSettings.chatLocked) {
-            showToast('Chat is currently locked by the host', 'warning');
-            return;
-        }
-        const input = document.getElementById('chat-input');
-        const text = input.value.trim();
-        if (text && signaling.sendChat(text)) {
-            appendMessage('You', text, true);
-            input.value = '';
-        }
+        mediaRecorder.start(1000);
+        btnRecord.classList.add('active');
+        const label = document.getElementById('label-record');
+        if (label) label.textContent = 'Stop';
+        showToast('Recording started', 'info');
+      } catch (err) {
+        console.error(err);
+        showToast('Recording cancelled', 'warning');
+      }
     };
+  }
 
-    // Copy invite link
-    document.getElementById('copy-room-link').onclick = async () => {
-        try {
-            await navigator.clipboard.writeText(location.href);
-            showToast('Meeting invite link copied to clipboard', 'success');
-        } catch (e) {
-            showToast('Failed to copy link', 'error');
-        }
-    };
+  // Side Panel Toggle & Tabs
+  const sidePanel = document.getElementById('meeting-side-panel');
+  const sidePanelTitle = document.getElementById('side-panel-title');
 
-    // Save session notes
-    document.getElementById('save-meeting-notes')?.addEventListener('click', async () => {
-        try {
-            const summary = document.getElementById('meeting-notes').value.trim();
-            await MeetingService.update(meetingId, { notes: { ...(meeting.notes || {}), summary } });
-            showToast('Session notes saved securely', 'success');
-        } catch (e) {
-            showToast('Failed to save notes: ' + e.message, 'error');
-        }
+  function openPanelTab(panelName) {
+    if (!sidePanel) return;
+    sidePanel.classList.remove('hidden');
+    document.querySelectorAll('.side-panel-tab').forEach(item => {
+      item.classList.toggle('active', item.dataset.panel === panelName);
     });
+    ['chat', 'participants', 'controls', 'notes', 'report'].forEach(name => {
+      const panel = document.getElementById(`panel-${name}`);
+      if (panel) panel.hidden = panelName !== name;
+    });
+    const chatForm = document.getElementById('chat-form');
+    if (chatForm) chatForm.hidden = panelName !== 'chat';
 
-    // Add student row button
-    document.getElementById('btn-add-student')?.addEventListener('click', () => {
-        const list = document.getElementById('rpt-students-list');
-        if (!list) return;
-        const row = document.createElement('div');
-        row.className = 'rpt-student-row';
-        row.innerHTML = `
+    if (sidePanelTitle) {
+      const titles = { chat: 'Meeting Chat', participants: 'People in Call', controls: 'Host Control Center', notes: 'Session Notes', report: 'Report Generation' };
+      sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
+    }
+  }
+
+  document.getElementById('btn-toggle-chat')?.addEventListener('click', () => {
+    if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'chat') {
+      sidePanel.classList.add('hidden');
+    } else {
+      openPanelTab('chat');
+    }
+  });
+
+  document.getElementById('btn-toggle-people')?.addEventListener('click', () => {
+    if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'participants') {
+      sidePanel.classList.add('hidden');
+    } else {
+      openPanelTab('participants');
+    }
+  });
+
+  document.getElementById('btn-toggle-controls')?.addEventListener('click', () => {
+    if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'controls') {
+      sidePanel.classList.add('hidden');
+    } else {
+      openPanelTab('controls');
+    }
+  });
+
+  document.getElementById('btn-close-side-panel')?.addEventListener('click', () => {
+    sidePanel.classList.add('hidden');
+  });
+
+  document.querySelectorAll('.side-panel-tab').forEach(button => {
+    button.onclick = () => openPanelTab(button.dataset.panel);
+  });
+
+  // Chat form submission
+  document.getElementById('chat-form').onsubmit = event => {
+    event.preventDefault();
+    if (!isMentor && activeRoomSettings.chatLocked) {
+      showToast('Chat is currently locked by the host', 'warning');
+      return;
+    }
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (text && signaling.sendChat(text)) {
+      appendMessage('You', text, true);
+      input.value = '';
+    }
+  };
+
+  // Copy invite link
+  document.getElementById('copy-room-link').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      showToast('Meeting invite link copied to clipboard', 'success');
+    } catch (e) {
+      showToast('Failed to copy link', 'error');
+    }
+  };
+
+  // Save session notes
+  document.getElementById('save-meeting-notes')?.addEventListener('click', async () => {
+    try {
+      const summary = document.getElementById('meeting-notes').value.trim();
+      await MeetingService.update(meetingId, { notes: { ...(meeting.notes || {}), summary } });
+      showToast('Session notes saved securely', 'success');
+    } catch (e) {
+      showToast('Failed to save notes: ' + e.message, 'error');
+    }
+  });
+
+  // Add student row button
+  document.getElementById('btn-add-student')?.addEventListener('click', () => {
+    const list = document.getElementById('rpt-students-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.className = 'rpt-student-row';
+    row.innerHTML = `
             <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
             <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
-            <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">Ã¢Å“â€¢</button>
+            <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
         `;
-        list.appendChild(row);
-    });
+    list.appendChild(row);
+  });
 
-    // Save meeting report
-    document.getElementById('btn-save-report')?.addEventListener('click', async () => {
-        try {
-            const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
-                name: row.querySelector('.rpt-sname')?.value.trim(),
-                enrollment: row.querySelector('.rpt-senroll')?.value.trim()
-            })).filter(s => s.name || s.enrollment);
+  // Save meeting report
+  document.getElementById('btn-save-report')?.addEventListener('click', async () => {
+    try {
+      const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
+        name: row.querySelector('.rpt-sname')?.value.trim(),
+        enrollment: row.querySelector('.rpt-senroll')?.value.trim()
+      })).filter(s => s.name || s.enrollment);
 
-            const reportData = {
-                topic: document.getElementById('rpt-topic')?.value.trim(),
-                date: document.getElementById('rpt-date')?.value,
-                time: document.getElementById('rpt-time')?.value,
-                students: studentRows,
-                issuesDiscussed: document.getElementById('rpt-issues')?.value.trim(),
-                actionItems: document.getElementById('rpt-actions')?.value.trim(),
-                remarks: document.getElementById('rpt-remarks')?.value.trim(),
-                department: document.getElementById('rpt-dept')?.value.trim(),
-                preparedBy: meeting.mentorName || user.name,
-                validatedBy: document.getElementById('rpt-validator-name')?.value.trim(),
-                hodName: document.getElementById('rpt-hod-name')?.value.trim(),
-                savedAt: new Date().toISOString()
-            };
-            await MeetingService.update(meetingId, { report: reportData });
-            showToast('Report data saved successfully!', 'success');
-        } catch (e) {
-            showToast('Failed to save report: ' + e.message, 'error');
-        }
-    });
+      const reportData = {
+        topic: document.getElementById('rpt-topic')?.value.trim(),
+        date: document.getElementById('rpt-date')?.value,
+        time: document.getElementById('rpt-time')?.value,
+        students: studentRows,
+        issuesDiscussed: document.getElementById('rpt-issues')?.value.trim(),
+        actionItems: document.getElementById('rpt-actions')?.value.trim(),
+        remarks: document.getElementById('rpt-remarks')?.value.trim(),
+        department: document.getElementById('rpt-dept')?.value.trim(),
+        preparedBy: meeting.mentorName || user.name,
+        checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
+        verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
+        hodName: document.getElementById('rpt-hod-name')?.value.trim() || '',
+        savedAt: new Date().toISOString()
+      };
+      await MeetingService.update(meetingId, { report: reportData });
+      showToast('Report data saved successfully!', 'success');
+    } catch (e) {
+      showToast('Failed to save report: ' + e.message, 'error');
+    }
+  });
 
-    // Generate & Print meeting report Ã¢â‚¬â€ Professional B&W layout
-    document.getElementById('btn-generate-report')?.addEventListener('click', () => {
-        const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
-        const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0,10);
-        const time = document.getElementById('rpt-time')?.value || '';
-        const issues = document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.';
-        const actions = document.getElementById('rpt-actions')?.value.trim() || 'No action items.';
-        const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
-        const dept = document.getElementById('rpt-dept')?.value.trim() || 'School of Computing';
-        const preparedBy = meeting.mentorName || user.name || '';
-        const validatedBy = document.getElementById('rpt-validator-name')?.value.trim() || '';
-        const hodName = document.getElementById('rpt-hod-name')?.value.trim() || '';
+  // Generate & Print meeting report — Professional B&W layout
+  document.getElementById('btn-generate-report')?.addEventListener('click', () => {
+    const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
+    const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0, 10);
+    const time = document.getElementById('rpt-time')?.value || '';
+    const issues = document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.';
+    const actions = document.getElementById('rpt-actions')?.value.trim() || 'No action items.';
+    const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
+    const dept = document.getElementById('rpt-dept')?.value.trim() || 'School of Computing';
+    const preparedBy = meeting.mentorName || user.name || '';
+    const checkedBy = document.getElementById('rpt-checker-name')?.value.trim() || '';
+    const hodName = document.getElementById('rpt-hod-name')?.value.trim() || '';
 
-        // Collect student rows
-        const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
-            name: row.querySelector('.rpt-sname')?.value.trim() || '',
-            enrollment: row.querySelector('.rpt-senroll')?.value.trim() || ''
-        })).filter(s => s.name || s.enrollment);
+    // Collect student rows
+    const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
+      name: row.querySelector('.rpt-sname')?.value.trim() || '',
+      enrollment: row.querySelector('.rpt-senroll')?.value.trim() || ''
+    })).filter(s => s.name || s.enrollment);
 
-        const formatDate = (d) => {
-            if (!d) return '';
-            const dt = new Date(d + 'T00:00:00');
-            return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-        };
+    const formatDate = (d) => {
+      if (!d) return '';
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    };
 
-        const totalStudents = studentRows.length;
+    const totalStudents = studentRows.length;
 
-        // Absolute URL for the header banner image (same origin, works in popup)
-        const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
+    // Absolute URL for the header banner image (same origin, works in popup)
+    const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
 
-        // Build student attendance rows for page 2
-        const attendanceRows = studentRows.map((s, i) => `
+    // Build student attendance rows for page 2
+    const attendanceRows = studentRows.map((s, i) => `
           <tr>
             <td style="text-align:center;">${i + 1}</td>
             <td>${escapeHtml(s.name)}</td>
@@ -1253,18 +1262,18 @@ export async function render(container) {
           </tr>
         `).join('');
 
-        const reportWin = window.open('', '_blank', 'width=900,height=1200');
-        if (!reportWin) { showToast('Please allow pop-ups to generate the report', 'warning'); return; }
+    const reportWin = window.open('', '_blank', 'width=900,height=1200');
+    if (!reportWin) { showToast('Please allow pop-ups to generate the report', 'warning'); return; }
 
-        reportWin.document.write(`<!DOCTYPE html>
+    reportWin.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Mentorship Session Report - ${topic}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Times New Roman', Times, serif; background: #fff; color: #000; font-size: 11.5pt; }
-    .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 16mm 20mm 14mm 20mm; }
+    body { font-family: 'Times New Roman', Times, serif; background: #fff; color: #000; font-size: 11pt; }
+    .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 14mm 18mm 12mm 18mm; }
     .page-break { page-break-before: always; }
 
     /* ---- HEADER ---- */
@@ -1273,50 +1282,50 @@ export async function render(container) {
     .rpt-divider { height: 1.5px; background: #000; margin: 4px 0 12px 0; }
 
     /* ---- TITLE ---- */
-    .rpt-title { text-align: center; margin-bottom: 14px; }
-    .rpt-title h1 { font-size: 13pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; border: 1.5px solid #000; display: inline-block; padding: 5px 22px; }
-    .rpt-title .sub { font-size: 9pt; color: #444; margin-top: 5px; }
+    .rpt-title { text-align: center; margin-bottom: 12px; }
+    .rpt-title h1 { font-size: 12.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; border: 1.5px solid #000; display: inline-block; padding: 4px 20px; }
+    .rpt-title .sub { font-size: 8.5pt; color: #444; margin-top: 4px; }
 
     /* ---- INFO TABLE ---- */
-    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5pt; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10pt; }
     .info-table td { padding: 5px 8px; vertical-align: top; border: 1px solid #aaa; }
-    .info-table td:first-child { font-weight: 700; width: 34%; background: #f2f2f2; }
+    .info-table td:first-child { font-weight: 700; width: 32%; background: #f2f2f2; }
 
     /* ---- SECTIONS ---- */
-    .section { margin-bottom: 12px; }
-    .section-head { border: 1.5px solid #000; border-bottom: none; padding: 5px 10px; font-size: 10.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #f2f2f2; }
-    .section-body { border: 1.5px solid #000; padding: 10px 12px; min-height: 58px; font-size: 10.5pt; line-height: 1.75; white-space: pre-wrap; }
+    .section { margin-bottom: 10px; }
+    .section-head { border: 1.5px solid #000; border-bottom: none; padding: 4px 8px; font-size: 10pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #f2f2f2; }
+    .section-body { border: 1.5px solid #000; padding: 8px 10px; min-height: 52px; font-size: 10pt; line-height: 1.7; white-space: pre-wrap; }
 
-    /* ---- SIGNATURE BLOCK ---- */
-    .sig-block { margin-top: 28px; border-top: 2px solid #000; padding-top: 14px; }
-    .sig-block-title { text-align: center; font-size: 10pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 22px; }
-    .sig-row { display: flex; justify-content: space-between; gap: 20px; }
+    /* ---- SIGNATURE BLOCK (4-Column) ---- */
+    .sig-block { margin-top: 22px; border-top: 2px solid #000; padding-top: 12px; }
+    .sig-block-title { text-align: center; font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 18px; }
+    .sig-row { display: flex; justify-content: space-between; gap: 10px; }
     .sig-col { flex: 1; text-align: center; }
-    .sig-space { height: 52px; border-bottom: 1px solid #000; margin-bottom: 6px; position: relative; }
-    .sig-space::after { content: '(Signature)'; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 7pt; color: #777; font-style: italic; }
-    .sig-label { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .sig-name { font-size: 10.5pt; font-weight: 700; border-bottom: 1px dotted #555; min-height: 18px; padding-bottom: 2px; display: inline-block; min-width: 80%; }
-    .sig-role { font-size: 8pt; color: #444; margin-top: 4px; }
+    .sig-space { height: 44px; border-bottom: 1px solid #000; margin-bottom: 6px; position: relative; }
+    .sig-space::after { content: '(Signature)'; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 6.5pt; color: #777; font-style: italic; }
+    .sig-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+    .sig-name { font-size: 9pt; font-weight: 700; border-bottom: 1px dotted #555; min-height: 16px; padding-bottom: 2px; display: inline-block; min-width: 80%; }
+    .sig-role { font-size: 7pt; color: #444; margin-top: 3px; }
 
     /* ---- ATTENDANCE TABLE (page 2) ---- */
-    .att-title { text-align: center; margin-bottom: 14px; margin-top: 4px; }
-    .att-title h2 { font-size: 13pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1.5px solid #000; display: inline-block; padding: 5px 22px; }
-    .att-title .sub { font-size: 9pt; color: #444; margin-top: 5px; }
-    .att-meta { font-size: 10pt; margin-bottom: 12px; border: 1px solid #aaa; padding: 7px 10px; background: #f9f9f9; }
+    .att-title { text-align: center; margin-bottom: 12px; margin-top: 4px; }
+    .att-title h2 { font-size: 12.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1.5px solid #000; display: inline-block; padding: 4px 20px; }
+    .att-title .sub { font-size: 8.5pt; color: #444; margin-top: 4px; }
+    .att-meta { font-size: 9.5pt; margin-bottom: 12px; border: 1px solid #aaa; padding: 6px 10px; background: #f9f9f9; }
     .att-meta span { font-weight: 700; }
-    .att-table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
-    .att-table th { background: #f2f2f2; border: 1.5px solid #000; padding: 7px 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 9.5pt; letter-spacing: 0.3px; }
+    .att-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    .att-table th { background: #f2f2f2; border: 1.5px solid #000; padding: 6px 8px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 9pt; letter-spacing: 0.3px; }
     .att-table th:nth-child(1) { width: 8%; text-align: center; }
     .att-table th:nth-child(3) { width: 28%; text-align: center; }
     .att-table th:nth-child(4) { width: 24%; text-align: center; }
-    .att-table td { border: 1px solid #aaa; padding: 7px 10px; vertical-align: middle; }
+    .att-table td { border: 1px solid #aaa; padding: 6px 8px; vertical-align: middle; }
     .att-table td:nth-child(1) { text-align: center; }
     .att-table td:nth-child(3) { text-align: center; }
     .att-table td:nth-child(4) { text-align: center; }
     .att-table tr:nth-child(even) td { background: #fafafa; }
 
     /* ---- FOOTER ---- */
-    .rpt-footer { margin-top: 18px; border-top: 1px solid #aaa; padding-top: 7px; text-align: center; font-size: 7.5pt; color: #666; }
+    .rpt-footer { margin-top: 16px; border-top: 1px solid #aaa; padding-top: 6px; text-align: center; font-size: 7.5pt; color: #666; }
 
     @media print {
       .page { padding: 10mm 14mm; }
@@ -1344,7 +1353,7 @@ export async function render(container) {
       <tr><td>Date of Meeting</td><td>${escapeHtml(formatDate(date))}</td></tr>
       <tr><td>Time of Meeting</td><td>${escapeHtml(time)}</td></tr>
       <tr><td>Department</td><td>${escapeHtml(dept)}</td></tr>
-      <tr><td>Mentor / Faculty</td><td>${escapeHtml(preparedBy)}</td></tr>
+      <tr><td>Mentor / Faculty</td><td>Prof. ${escapeHtml(preparedBy)}</td></tr>
       <tr><td>Total Students Present</td><td>${totalStudents} student${totalStudents !== 1 ? 's' : ''} &nbsp;<em style="font-size:8.5pt;color:#555;">(Attendance list on Page 2)</em></td></tr>
     </table>
 
@@ -1366,19 +1375,28 @@ export async function render(container) {
         <div class="sig-col">
           <div class="sig-space"></div>
           <div class="sig-label">Prepared By</div>
-          <div><span class="sig-name">${escapeHtml(preparedBy)}</span></div>
+          <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
           <div class="sig-role">Mentor / Faculty</div>
         </div>
         <div class="sig-col">
           <div class="sig-space"></div>
-          <div class="sig-label">Validated By</div>
-          <div><span class="sig-name">${escapeHtml(validatedBy)}</span></div>
-          <div class="sig-role">Section Head / Coordinator</div>
+          <div class="sig-label">Checked By</div>
+          <div><span class="sig-name">${checkedBy ? escapeHtml(checkedBy) : 'Prof. _________________'}</span></div>
+          <div class="sig-role">Coordinator / Faculty</div>
         </div>
         <div class="sig-col">
           <div class="sig-space"></div>
-          <div class="sig-label">Verified By (HOD)</div>
-          <div><span class="sig-name">${escapeHtml(hodName)}</span></div>
+          <div class="sig-label">Verify By</div>
+          <div>
+            <div style="font-size:9pt; font-weight:700;">Dr. Nilesh Thale</div>
+            <div style="font-size:9pt; font-weight:700; margin-top:2px;">Dr. Aman Singh</div>
+          </div>
+          <div class="sig-role">Verification Committee</div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-space"></div>
+          <div class="sig-label">Approved By (HOD)</div>
+          <div><span class="sig-name">${escapeHtml(hodName || 'Dr. _________________')}</span></div>
           <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
         </div>
       </div>
@@ -1402,7 +1420,7 @@ export async function render(container) {
     <div class="att-meta">
       <span>Meeting Topic:</span> ${escapeHtml(topic)} &emsp;
       <span>Date:</span> ${escapeHtml(formatDate(date))} &emsp;
-      <span>Mentor:</span> ${escapeHtml(preparedBy)}
+      <span>Mentor:</span> Prof. ${escapeHtml(preparedBy)}
     </div>
 
     <table class="att-table">
@@ -1419,25 +1437,34 @@ export async function render(container) {
       </tbody>
     </table>
 
-    <div class="sig-block" style="margin-top:30px;">
+    <div class="sig-block" style="margin-top:24px;">
       <div class="sig-block-title">Signatures &amp; Authorization</div>
       <div class="sig-row">
         <div class="sig-col">
           <div class="sig-space"></div>
           <div class="sig-label">Prepared By</div>
-          <div><span class="sig-name">${escapeHtml(preparedBy)}</span></div>
+          <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
           <div class="sig-role">Mentor / Faculty</div>
         </div>
         <div class="sig-col">
           <div class="sig-space"></div>
-          <div class="sig-label">Validated By</div>
-          <div><span class="sig-name">${escapeHtml(validatedBy)}</span></div>
-          <div class="sig-role">Section Head / Coordinator</div>
+          <div class="sig-label">Checked By</div>
+          <div><span class="sig-name">${checkedBy ? escapeHtml(checkedBy) : 'Prof. _________________'}</span></div>
+          <div class="sig-role">Coordinator / Faculty</div>
         </div>
         <div class="sig-col">
           <div class="sig-space"></div>
-          <div class="sig-label">Verified By (HOD)</div>
-          <div><span class="sig-name">${escapeHtml(hodName)}</span></div>
+          <div class="sig-label">Verify By</div>
+          <div>
+            <div style="font-size:9pt; font-weight:700;">Dr. Nilesh Thale</div>
+            <div style="font-size:9pt; font-weight:700; margin-top:2px;">Dr. Aman Singh</div>
+          </div>
+          <div class="sig-role">Verification Committee</div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-space"></div>
+          <div class="sig-label">Approved By (HOD)</div>
+          <div><span class="sig-name">${escapeHtml(hodName || 'Dr. _________________')}</span></div>
           <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
         </div>
       </div>
@@ -1447,79 +1474,79 @@ export async function render(container) {
   </div>
 
   <div class="no-print" style="text-align:center; margin: 18px 0; font-family: Arial, sans-serif;">
-    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Ã°Å¸â€“Â¨Ã¯Â¸Â Print / Save as PDF</button>
+    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">🖨️ Print / Save as PDF</button>
     <button onclick="window.close()" style="margin-left:12px; padding:10px 24px; font-size:14px; background:#888; color:#fff; border:none; border-radius:6px; cursor:pointer;">Close</button>
   </div>
 </body>
 </html>`);
-        reportWin.document.close();
-        setTimeout(() => reportWin.focus(), 300);
-        showToast('Report generated! Use Print Ã¢â€ â€™ Save as PDF to download.', 'success');
-    });
+    reportWin.document.close();
+    setTimeout(() => reportWin.focus(), 300);
+    showToast('Report generated! Use Print → Save as PDF to download.', 'success');
+  });
 
-    // Clean up connections
-    async function cleanup() {
-        if (cleaned) return;
-        cleaned = true;
-        clearInterval(timer);
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-        localStream?.getTracks().forEach(track => track.stop());
-        stopScreenShare(screenStream);
-        peers.forEach(peer => peer.close());
-        signaling.disconnect();
+  // Clean up connections
+  async function cleanup() {
+    if (cleaned) return;
+    cleaned = true;
+    clearInterval(timer);
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
     }
+    localStream?.getTracks().forEach(track => track.stop());
+    stopScreenShare(screenStream);
+    peers.forEach(peer => peer.close());
+    signaling.disconnect();
+  }
 
-    // Leave / End Call button
-    document.getElementById('btn-end').onclick = async () => {
-        if (isMentor) {
-            const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\nÃ¢â‚¬Â¢ Click OK to End for Everyone\nÃ¢â‚¬Â¢ Click Cancel to Leave without ending for others");
-            if (endForAll) {
-                try {
-                    await MeetingService.update(meetingId, {
-                        status: 'COMPLETED',
-                        endedAt: new Date().toISOString()
-                    });
-                } catch (e) {
-                    console.warn('Meeting status sync warning:', e);
-                }
-            }
+  // Leave / End Call button
+  document.getElementById('btn-end').onclick = async () => {
+    if (isMentor) {
+      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\nÃ¢â‚¬Â¢ Click OK to End for Everyone\nÃ¢â‚¬Â¢ Click Cancel to Leave without ending for others");
+      if (endForAll) {
+        try {
+          await MeetingService.update(meetingId, {
+            status: 'COMPLETED',
+            endedAt: new Date().toISOString()
+          });
+        } catch (e) {
+          console.warn('Meeting status sync warning:', e);
         }
-        await cleanup();
-        navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
+      }
+    }
+    await cleanup();
+    navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
+  };
+
+  window.addEventListener('hashchange', cleanup, { once: true });
+
+  // Pre-join camera and mic preview
+  try {
+    localStream = await getLocalStream();
+    const previewVideo = document.getElementById('preview-video');
+    if (previewVideo) previewVideo.srcObject = localStream;
+
+    document.getElementById('preview-mic').onclick = event => {
+      const isEnabled = toggleMic(localStream);
+      event.currentTarget.classList.toggle('muted', !isEnabled);
+      const mainMic = document.getElementById('btn-mic');
+      if (mainMic) mainMic.classList.toggle('active', !isEnabled);
     };
 
-    window.addEventListener('hashchange', cleanup, { once: true });
-
-    // Pre-join camera and mic preview
-    try {
-        localStream = await getLocalStream();
-        const previewVideo = document.getElementById('preview-video');
-        if (previewVideo) previewVideo.srcObject = localStream;
-
-        document.getElementById('preview-mic').onclick = event => {
-            const isEnabled = toggleMic(localStream);
-            event.currentTarget.classList.toggle('muted', !isEnabled);
-            const mainMic = document.getElementById('btn-mic');
-            if (mainMic) mainMic.classList.toggle('active', !isEnabled);
-        };
-
-        document.getElementById('preview-cam').onclick = event => {
-            const isEnabled = toggleCamera(localStream);
-            event.currentTarget.classList.toggle('muted', !isEnabled);
-            const mainCam = document.getElementById('btn-cam');
-            if (mainCam) mainCam.classList.toggle('active', !isEnabled);
-        };
-    } catch (e) {
-        console.warn('Could not initialize preview:', e);
-    }
-
-    // Enter meeting room on join click
-    document.getElementById('btn-join-meeting').onclick = () => {
-        document.getElementById('join-screen')?.remove();
-        const waiting = document.getElementById('meeting-waiting');
-        if (waiting && !isMentor) waiting.hidden = false;
-        init();
+    document.getElementById('preview-cam').onclick = event => {
+      const isEnabled = toggleCamera(localStream);
+      event.currentTarget.classList.toggle('muted', !isEnabled);
+      const mainCam = document.getElementById('btn-cam');
+      if (mainCam) mainCam.classList.toggle('active', !isEnabled);
     };
+  } catch (e) {
+    console.warn('Could not initialize preview:', e);
+  }
+
+  // Enter meeting room on join click
+  document.getElementById('btn-join-meeting').onclick = () => {
+    document.getElementById('join-screen')?.remove();
+    const waiting = document.getElementById('meeting-waiting');
+    if (waiting && !isMentor) waiting.hidden = false;
+    init();
+  };
 }
