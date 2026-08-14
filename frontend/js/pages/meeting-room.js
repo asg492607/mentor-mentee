@@ -127,6 +127,9 @@ export async function render(container) {
               </button>
               <button class="side-panel-tab" data-panel="notes">
                 <span>📝 Notes</span>
+              </button>
+              <button class="side-panel-tab" data-panel="report">
+                <span>📋 Report</span>
               </button>` : ''}
             </div>
 
@@ -227,6 +230,90 @@ export async function render(container) {
                   <p style="font-size:0.75rem; color:var(--meet-text-muted); margin-bottom:8px;">Notes saved here are synchronized with the mentorship dossier.</p>
                   <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Enter session notes, action items, or feedback for the mentee...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   <button class="btn-join-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
+                </div>
+              </div>` : ''}
+
+              <!-- Report Generation Panel (Mentor Only) -->
+              ${isMentor ? `
+              <div id="panel-report" hidden>
+                <div class="report-form-scroll">
+
+                  <div class="report-section-title">📋 Meeting Report Generation</div>
+                  <p class="report-section-desc">Fill in the details below to generate an official mentorship session report.</p>
+
+                  <!-- Meeting Info -->
+                  <div class="report-field-group">
+                    <label class="report-label">📌 Meeting Topic / Agenda</label>
+                    <input id="rpt-topic" class="report-input" type="text" placeholder="e.g. Academic Progress Review, Career Guidance..." value="${escapeHtml(meeting.type || '')}">
+                  </div>
+
+                  <div class="report-field-row">
+                    <div class="report-field-group">
+                      <label class="report-label">📅 Meeting Date</label>
+                      <input id="rpt-date" class="report-input" type="date" value="${new Date(meeting.scheduledAt || Date.now()).toISOString().slice(0,10)}">
+                    </div>
+                    <div class="report-field-group">
+                      <label class="report-label">🕐 Meeting Time</label>
+                      <input id="rpt-time" class="report-input" type="time" value="${new Date(meeting.scheduledAt || Date.now()).toTimeString().slice(0,5)}">
+                    </div>
+                  </div>
+
+                  <div class="report-field-group">
+                    <label class="report-label">👥 Students Present</label>
+                    <textarea id="rpt-students" class="report-textarea" rows="3" placeholder="List names of students who attended the session..."></textarea>
+                  </div>
+
+                  <div class="report-field-group">
+                    <label class="report-label">⚠️ Issues Discussed</label>
+                    <textarea id="rpt-issues" class="report-textarea" rows="4" placeholder="Summarize problems, challenges, or concerns raised during the meeting...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
+                  </div>
+
+                  <div class="report-field-group">
+                    <label class="report-label">✅ Action Items & Resolutions</label>
+                    <textarea id="rpt-actions" class="report-textarea" rows="4" placeholder="List follow-up tasks, solutions agreed upon, or next steps..."></textarea>
+                  </div>
+
+                  <div class="report-field-group">
+                    <label class="report-label">📝 Additional Remarks</label>
+                    <textarea id="rpt-remarks" class="report-textarea" rows="3" placeholder="Any other observations, feedback, or remarks for the record..."></textarea>
+                  </div>
+
+                  <div class="report-field-group">
+                    <label class="report-label">🏢 Department</label>
+                    <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. School of Computing" value="${escapeHtml(meeting.department || 'School of Computing')}">
+                  </div>
+
+                  <!-- Signature Section -->
+                  <div class="report-sig-section">
+                    <div class="report-sig-title">✍️ Signature Block</div>
+
+                    <div class="report-sig-row">
+                      <div class="report-sig-box">
+                        <div class="report-sig-line"></div>
+                        <div class="report-sig-name">Prepared By</div>
+                        <div class="report-sig-person" id="rpt-prepared-name">${escapeHtml(meeting.mentorName || user.name || 'Mentor Name')}</div>
+                        <div class="report-sig-role">Mentor / Faculty</div>
+                      </div>
+                      <div class="report-sig-box">
+                        <div class="report-sig-line"></div>
+                        <div class="report-sig-name">Validated By</div>
+                        <input id="rpt-validator-name" class="report-sig-input" type="text" placeholder="Enter Validator Name">
+                        <div class="report-sig-role">Section Head / Coordinator</div>
+                      </div>
+                      <div class="report-sig-box">
+                        <div class="report-sig-line"></div>
+                        <div class="report-sig-name">Verified By</div>
+                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name">
+                        <div class="report-sig-role">Head of Department</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="report-actions">
+                    <button class="btn-report-save" id="btn-save-report">💾 Save Report</button>
+                    <button class="btn-report-generate" id="btn-generate-report">🖨️ Generate & Print</button>
+                  </div>
+
                 </div>
               </div>` : ''}
             </div>
@@ -994,7 +1081,7 @@ export async function render(container) {
         document.querySelectorAll('.side-panel-tab').forEach(item => {
             item.classList.toggle('active', item.dataset.panel === panelName);
         });
-        ['chat', 'participants', 'controls', 'notes'].forEach(name => {
+        ['chat', 'participants', 'controls', 'notes', 'report'].forEach(name => {
             const panel = document.getElementById(`panel-${name}`);
             if (panel) panel.hidden = panelName !== name;
         });
@@ -1002,7 +1089,7 @@ export async function render(container) {
         if (chatForm) chatForm.hidden = panelName !== 'chat';
 
         if (sidePanelTitle) {
-            const titles = { chat: 'Meeting Chat', participants: 'People in Call', controls: 'Host Control Center', notes: 'Session Notes' };
+            const titles = { chat: 'Meeting Chat', participants: 'People in Call', controls: 'Host Control Center', notes: 'Session Notes', report: 'Report Generation' };
             sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
         }
     }
@@ -1073,6 +1160,217 @@ export async function render(container) {
         } catch (e) {
             showToast('Failed to save notes: ' + e.message, 'error');
         }
+    });
+
+    // Save meeting report
+    document.getElementById('btn-save-report')?.addEventListener('click', async () => {
+        try {
+            const reportData = {
+                topic: document.getElementById('rpt-topic')?.value.trim(),
+                date: document.getElementById('rpt-date')?.value,
+                time: document.getElementById('rpt-time')?.value,
+                studentsPresent: document.getElementById('rpt-students')?.value.trim(),
+                issuesDiscussed: document.getElementById('rpt-issues')?.value.trim(),
+                actionItems: document.getElementById('rpt-actions')?.value.trim(),
+                remarks: document.getElementById('rpt-remarks')?.value.trim(),
+                department: document.getElementById('rpt-dept')?.value.trim(),
+                preparedBy: meeting.mentorName || user.name,
+                validatedBy: document.getElementById('rpt-validator-name')?.value.trim(),
+                hodName: document.getElementById('rpt-hod-name')?.value.trim(),
+                savedAt: new Date().toISOString()
+            };
+            await MeetingService.update(meetingId, { report: reportData });
+            showToast('Report data saved successfully!', 'success');
+        } catch (e) {
+            showToast('Failed to save report: ' + e.message, 'error');
+        }
+    });
+
+    // Generate & Print meeting report
+    document.getElementById('btn-generate-report')?.addEventListener('click', () => {
+        const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
+        const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0,10);
+        const time = document.getElementById('rpt-time')?.value || '';
+        const students = document.getElementById('rpt-students')?.value.trim() || 'N/A';
+        const issues = document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.';
+        const actions = document.getElementById('rpt-actions')?.value.trim() || 'No action items.';
+        const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
+        const dept = document.getElementById('rpt-dept')?.value.trim() || 'School of Computing';
+        const preparedBy = meeting.mentorName || user.name || '';
+        const validatedBy = document.getElementById('rpt-validator-name')?.value.trim() || '';
+        const hodName = document.getElementById('rpt-hod-name')?.value.trim() || '';
+
+        const formatDate = (d) => {
+            if (!d) return '';
+            const dt = new Date(d);
+            return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+        };
+
+        const reportWin = window.open('', '_blank', 'width=900,height=1200');
+        if (!reportWin) { showToast('Please allow pop-ups to generate the report', 'warning'); return; }
+
+        reportWin.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mentorship Meeting Report - ${topic}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Times New Roman', Times, serif; background: #fff; color: #1a1a1a; font-size: 12pt; padding: 0; }
+    .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm 14mm 20mm; }
+    /* ---- HEADER ---- */
+    .rpt-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #1a237e; padding-bottom: 12px; margin-bottom: 6px; }
+    .rpt-header-left { display: flex; align-items: center; gap: 14px; }
+    .rpt-naac-badge { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #c8961d, #f0c040); display: flex; align-items: center; justify-content: center; flex-direction: column; border: 3px solid #8b6914; }
+    .rpt-naac-badge .naac-a { font-size: 22pt; font-weight: 900; color: #fff; font-family: serif; line-height: 1; }
+    .rpt-naac-badge .naac-label { font-size: 6pt; color: #fff; font-weight: 700; letter-spacing: 1px; }
+    .rpt-header-text { text-align: center; }
+    .rpt-header-text .univ-name { font-size: 14pt; font-weight: 700; color: #1a237e; }
+    .rpt-header-text .univ-sub { font-size: 7.5pt; color: #444; margin-top: 1px; }
+    .rpt-header-text .school-name { font-size: 16pt; font-weight: 800; color: #1a237e; margin-top: 3px; }
+    .rpt-header-right { text-align: right; }
+    .rpt-header-right .mit-adt-logo { font-size: 13pt; font-weight: 900; color: #1a237e; letter-spacing: 1px; }
+    .rpt-header-right .mit-adt-univ { font-size: 8pt; font-weight: 700; color: #1a237e; }
+    .rpt-header-right .mit-adt-city { font-size: 7.5pt; color: #666; }
+    .rpt-header-right .mit-adt-tag { font-size: 6.5pt; color: #888; font-style: italic; }
+    .rpt-divider { height: 2px; background: linear-gradient(to right, #1a237e, #42a5f5, #1a237e); margin: 4px 0 14px 0; }
+
+    /* ---- REPORT TITLE ---- */
+    .rpt-doc-title { text-align: center; margin-bottom: 14px; }
+    .rpt-doc-title h1 { font-size: 14pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 1px; border: 2px solid #1a237e; display: inline-block; padding: 5px 24px; }
+    .rpt-doc-title .sub { font-size: 9.5pt; color: #555; margin-top: 4px; }
+
+    /* ---- INFO TABLE ---- */
+    .rpt-info-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    .rpt-info-table td { padding: 5px 8px; font-size: 10.5pt; vertical-align: top; }
+    .rpt-info-table td:first-child { font-weight: 700; white-space: nowrap; width: 32%; color: #1a237e; border-right: 1px solid #ccc; }
+    .rpt-info-table tr { border-bottom: 1px solid #e0e0e0; }
+    .rpt-info-table tr:last-child { border-bottom: none; }
+
+    /* ---- SECTIONS ---- */
+    .rpt-section { margin-bottom: 14px; }
+    .rpt-section-head { background: #1a237e; color: #fff; padding: 5px 10px; font-size: 10.5pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 0; }
+    .rpt-section-body { border: 1px solid #1a237e; border-top: none; padding: 10px 12px; min-height: 60px; font-size: 10.5pt; line-height: 1.7; white-space: pre-wrap; background: #fdfdff; }
+
+    /* ---- SIGNATURE BLOCK ---- */
+    .rpt-sig-block { margin-top: 24px; border-top: 2px solid #1a237e; padding-top: 16px; }
+    .rpt-sig-block .sig-title { font-size: 10pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; text-align: center; }
+    .rpt-sig-row { display: flex; justify-content: space-between; gap: 24px; margin-top: 8px; }
+    .rpt-sig-col { flex: 1; text-align: center; }
+    .rpt-sig-space { height: 52px; border-bottom: 1.5px solid #333; margin-bottom: 6px; position: relative; }
+    .rpt-sig-space::after { content: 'Signature'; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 7pt; color: #aaa; font-style: italic; }
+    .rpt-sig-label { font-size: 8pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .rpt-sig-person { font-size: 10.5pt; font-weight: 700; color: #111; border-bottom: 1px dotted #999; padding-bottom: 2px; min-height: 18px; }
+    .rpt-sig-role { font-size: 8pt; color: #555; margin-top: 3px; }
+
+    /* ---- FOOTER ---- */
+    .rpt-footer { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; text-align: center; font-size: 7.5pt; color: #888; }
+
+    @media print {
+      body { padding: 0; }
+      .page { padding: 10mm 14mm 10mm 14mm; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- University Header -->
+    <div class="rpt-header">
+      <div class="rpt-header-left">
+        <div class="rpt-naac-badge">
+          <div class="naac-a">A</div>
+          <div class="naac-label">NAAC</div>
+        </div>
+        <div class="rpt-header-text">
+          <div class="univ-name">MIT Art, Design &amp; Technology University, Pune</div>
+          <div class="univ-sub">(Established by Govt. of Maharashtra by MIT ADT University ACT No. XXXIX of 2015)</div>
+          <div class="school-name">${escapeHtml(dept)}</div>
+        </div>
+      </div>
+      <div class="rpt-header-right">
+        <div class="mit-adt-logo">MIT-ADT</div>
+        <div class="mit-adt-univ">UNIVERSITY</div>
+        <div class="mit-adt-city">PUNE, INDIA</div>
+        <div class="mit-adt-tag">A Leap Towards World Class Education</div>
+      </div>
+    </div>
+    <div class="rpt-divider"></div>
+
+    <!-- Report Title -->
+    <div class="rpt-doc-title">
+      <h1>Mentorship Session Report</h1>
+      <div class="sub">Official Record of Mentor-Mentee Interaction</div>
+    </div>
+
+    <!-- Meeting Info Table -->
+    <table class="rpt-info-table">
+      <tr><td>Meeting Topic / Agenda</td><td>${escapeHtml(topic)}</td></tr>
+      <tr><td>Date of Meeting</td><td>${escapeHtml(formatDate(date))}</td></tr>
+      <tr><td>Time of Meeting</td><td>${escapeHtml(time)}</td></tr>
+      <tr><td>Department</td><td>${escapeHtml(dept)}</td></tr>
+      <tr><td>Mentor / Faculty</td><td>${escapeHtml(preparedBy)}</td></tr>
+      <tr><td>Students Present</td><td>${escapeHtml(students)}</td></tr>
+    </table>
+
+    <!-- Issues Discussed -->
+    <div class="rpt-section">
+      <div class="rpt-section-head">Issues Discussed</div>
+      <div class="rpt-section-body">${escapeHtml(issues)}</div>
+    </div>
+
+    <!-- Action Items -->
+    <div class="rpt-section">
+      <div class="rpt-section-head">Action Items &amp; Resolutions</div>
+      <div class="rpt-section-body">${escapeHtml(actions)}</div>
+    </div>
+
+    ${remarks ? `
+    <div class="rpt-section">
+      <div class="rpt-section-head">Additional Remarks</div>
+      <div class="rpt-section-body">${escapeHtml(remarks)}</div>
+    </div>` : ''}
+
+    <!-- Signature Block -->
+    <div class="rpt-sig-block">
+      <div class="sig-title">Signatures &amp; Authorization</div>
+      <div class="rpt-sig-row">
+        <div class="rpt-sig-col">
+          <div class="rpt-sig-space"></div>
+          <div class="rpt-sig-label">Prepared By</div>
+          <div class="rpt-sig-person">${escapeHtml(preparedBy)}</div>
+          <div class="rpt-sig-role">Mentor / Faculty</div>
+        </div>
+        <div class="rpt-sig-col">
+          <div class="rpt-sig-space"></div>
+          <div class="rpt-sig-label">Validated By</div>
+          <div class="rpt-sig-person">${escapeHtml(validatedBy)}</div>
+          <div class="rpt-sig-role">Section Head / Coordinator</div>
+        </div>
+        <div class="rpt-sig-col">
+          <div class="rpt-sig-space"></div>
+          <div class="rpt-sig-label">Verified By (HOD)</div>
+          <div class="rpt-sig-person">${escapeHtml(hodName)}</div>
+          <div class="rpt-sig-role">Head of Department, ${escapeHtml(dept)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="rpt-footer">
+      This report is an official document of MIT Art, Design &amp; Technology University, Pune. Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}.
+    </div>
+  </div>
+
+  <div class="no-print" style="text-align:center; margin: 18px 0;">
+    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#1a237e; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">🖨️ Print / Save as PDF</button>
+    <button onclick="window.close()" style="margin-left:12px; padding:10px 24px; font-size:14px; background:#888; color:#fff; border:none; border-radius:8px; cursor:pointer;">Close</button>
+  </div>
+</body>
+</html>`);
+        reportWin.document.close();
+        setTimeout(() => reportWin.focus(), 300);
+        showToast('Report generated! Use Print → Save as PDF to download.', 'success');
     });
 
     // Clean up connections

@@ -1154,3 +1154,265 @@ input:checked + .switch-slider:before {
     height: 42px;
   }
 }
+
+/* ============================================================
+   Report Generation Panel — Official Mentorship Report Form
+   ============================================================ */
+
+#panel-report {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.report-form-scroll {
+  overflow-y: auto;
+  padding: 14px 14px 80px 14px;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--meet-surface-elevated) transparent;
+}
+
+.report-form-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.report-form-scroll::-webkit-scrollbar-thumb {
+  background: var(--meet-surface-elevated);
+  border-radius: 4px;
+}
+
+.report-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--meet-text);
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.report-section-desc {
+  font-size: 0.72rem;
+  color: var(--meet-text-muted);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+/* Field groups */
+.report-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.report-field-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.report-field-row .report-field-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.report-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--meet-text-secondary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.report-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--meet-glass-border);
+  border-radius: var(--meet-radius-sm);
+  color: var(--meet-text);
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.report-input:focus {
+  border-color: var(--meet-accent);
+  box-shadow: 0 0 0 3px var(--meet-accent-glow);
+}
+
+.report-input[type="date"],
+.report-input[type="time"] {
+  color-scheme: dark;
+}
+
+.report-textarea {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--meet-glass-border);
+  border-radius: var(--meet-radius-sm);
+  color: var(--meet-text);
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  outline: none;
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.5;
+}
+
+.report-textarea:focus {
+  border-color: var(--meet-accent);
+  box-shadow: 0 0 0 3px var(--meet-accent-glow);
+}
+
+/* ---- Signature Section (in panel) ---- */
+.report-sig-section {
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--meet-radius-md);
+  padding: 14px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+.report-sig-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--meet-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.report-sig-row {
+  display: flex;
+  gap: 10px;
+}
+
+.report-sig-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--meet-glass-border);
+  border-radius: var(--meet-radius-sm);
+  padding: 10px 6px 8px 6px;
+}
+
+.report-sig-line {
+  width: 100%;
+  height: 32px;
+  border-bottom: 1.5px dashed rgba(255,255,255,0.2);
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.report-sig-line::after {
+  content: 'Sign';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: var(--meet-text-muted);
+  font-style: italic;
+}
+
+.report-sig-name {
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: var(--meet-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.report-sig-person {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--meet-text);
+  text-align: center;
+  word-break: break-word;
+}
+
+.report-sig-role {
+  font-size: 0.65rem;
+  color: var(--meet-text-muted);
+  text-align: center;
+}
+
+.report-sig-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--meet-glass-border);
+  border-radius: 4px;
+  color: var(--meet-text);
+  font-size: 0.72rem;
+  padding: 4px 6px;
+  outline: none;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s;
+}
+
+.report-sig-input::placeholder {
+  color: var(--meet-text-muted);
+  font-size: 0.68rem;
+}
+
+.report-sig-input:focus {
+  border-color: var(--meet-accent);
+}
+
+/* ---- Action Buttons ---- */
+.report-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn-report-save {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--meet-emerald);
+  border-radius: var(--meet-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-report-save:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: var(--meet-emerald);
+  transform: translateY(-1px);
+}
+
+.btn-report-generate {
+  flex: 1.3;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, var(--meet-accent), #4338ca);
+  border: none;
+  color: #fff;
+  border-radius: var(--meet-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 14px var(--meet-accent-glow);
+}
+
+.btn-report-generate:hover {
+  background: linear-gradient(135deg, #4f46e5, #3730a3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--meet-accent-glow);
+}
+
