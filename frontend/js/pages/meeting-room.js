@@ -1,4 +1,4 @@
-import { createSignaling } from '/js/webrtc/signaling.js';
+﻿import { createSignaling } from '/js/webrtc/signaling.js';
 import { createPeerConnection } from '/js/webrtc/peer.js';
 import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare } from '/js/webrtc/media.js';
 import { getUserProfile } from '/js/auth.js';
@@ -44,15 +44,15 @@ export async function render(container) {
             <div class="meeting-title-wrap">
               <div class="meeting-title">
                 ${escapeHtml(meeting.type || '1-on-1 Mentorship Session')}
-                ${isMentor ? '<span class="meeting-host-badge">👑 Host</span>' : ''}
+                ${isMentor ? '<span class="meeting-host-badge">Ã°Å¸â€˜â€˜ Host</span>' : ''}
               </div>
               <div class="meeting-status-chips">
                 <span class="meeting-timer" id="meeting-status">
                   <span class="meeting-live-dot"></span>
                   <span id="meeting-timer-text">Connecting...</span>
                 </span>
-                <span class="meeting-security-chip">🔒 E2E Encrypted</span>
-                <span class="meeting-security-chip" id="participant-count-chip">👥 1 Participant</span>
+                <span class="meeting-security-chip">Ã°Å¸â€â€™ E2E Encrypted</span>
+                <span class="meeting-security-chip" id="participant-count-chip">Ã°Å¸â€˜Â¥ 1 Participant</span>
               </div>
             </div>
           </div>
@@ -111,25 +111,25 @@ export async function render(container) {
           <aside class="meeting-side-panel hidden" id="meeting-side-panel">
             <div class="side-panel-header">
               <div class="side-panel-title" id="side-panel-title">Chat</div>
-              <button class="btn-meet-secondary" id="btn-close-side-panel" style="padding: 4px 8px; border-radius: 50%;">✕</button>
+              <button class="btn-meet-secondary" id="btn-close-side-panel" style="padding: 4px 8px; border-radius: 50%;">Ã¢Å“â€¢</button>
             </div>
             
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">
-                <span>💬 Chat</span>
+                <span>Ã°Å¸â€™Â¬ Chat</span>
               </button>
               <button class="side-panel-tab" data-panel="participants">
-                <span>👥 People</span>
+                <span>Ã°Å¸â€˜Â¥ People</span>
               </button>
               ${isMentor ? `
               <button class="side-panel-tab" data-panel="controls">
-                <span>🛡️ Controls</span>
+                <span>Ã°Å¸â€ºÂ¡Ã¯Â¸Â Controls</span>
               </button>
               <button class="side-panel-tab" data-panel="notes">
-                <span>📝 Notes</span>
+                <span>Ã°Å¸â€œÂ Notes</span>
               </button>
               <button class="side-panel-tab" data-panel="report">
-                <span>📋 Report</span>
+                <span>Ã°Å¸â€œâ€¹ Report</span>
               </button>` : ''}
             </div>
 
@@ -140,7 +140,7 @@ export async function render(container) {
                   <div class="chat-empty-state">No messages yet. Send a message to start the conversation!</div>
                 </div>
                 <div id="chat-locked-notice" class="chat-locked-banner" hidden>
-                  🔒 Chat is locked by the meeting host
+                  Ã°Å¸â€â€™ Chat is locked by the meeting host
                 </div>
               </div>
 
@@ -151,19 +151,19 @@ export async function render(container) {
               ${isMentor ? `
               <div id="panel-controls" class="host-controls-panel" hidden>
                 <div class="host-section-card">
-                  <div class="host-section-title">⚡ Instant Broadcast Actions</div>
+                  <div class="host-section-title">Ã¢Å¡Â¡ Instant Broadcast Actions</div>
                   <div class="host-quick-actions">
                     <button class="btn-host-action mute-btn" id="btn-host-mute-all" title="Mute all student microphones immediately">
-                      🔇 Mute All Students
+                      Ã°Å¸â€â€¡ Mute All Students
                     </button>
                     <button class="btn-host-action" id="btn-host-disable-cams" title="Turn off all student video cameras immediately">
-                      📷 Turn Off All Cams
+                      Ã°Å¸â€œÂ· Turn Off All Cams
                     </button>
                   </div>
                 </div>
 
                 <div class="host-section-card">
-                  <div class="host-section-title">🛡️ Student Permission Locks</div>
+                  <div class="host-section-title">Ã°Å¸â€ºÂ¡Ã¯Â¸Â Student Permission Locks</div>
                   
                   <div class="host-toggle-row">
                     <div class="host-toggle-info">
@@ -226,7 +226,7 @@ export async function render(container) {
               ${isMentor ? `
               <div id="panel-notes" hidden>
                 <div class="host-section-card">
-                  <div class="host-section-title">📝 Confidential Meeting Notes</div>
+                  <div class="host-section-title">Ã°Å¸â€œÂ Confidential Meeting Notes</div>
                   <p style="font-size:0.75rem; color:var(--meet-text-muted); margin-bottom:8px;">Notes saved here are synchronized with the mentorship dossier.</p>
                   <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Enter session notes, action items, or feedback for the mentee...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   <button class="btn-join-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
@@ -238,62 +238,62 @@ export async function render(container) {
               <div id="panel-report" hidden>
                 <div class="report-form-scroll">
 
-                  <div class="report-section-title">📋 Meeting Report Generation</div>
+                  <div class="report-section-title">Ã°Å¸â€œâ€¹ Meeting Report Generation</div>
                   <p class="report-section-desc">Fill in the details below to generate an official mentorship session report.</p>
 
                   <!-- Meeting Info -->
                   <div class="report-field-group">
-                    <label class="report-label">📌 Meeting Topic / Agenda</label>
+                    <label class="report-label">Ã°Å¸â€œÅ’ Meeting Topic / Agenda</label>
                     <input id="rpt-topic" class="report-input" type="text" placeholder="e.g. Academic Progress Review, Career Guidance..." value="${escapeHtml(meeting.type || '')}">
                   </div>
 
                   <div class="report-field-row">
                     <div class="report-field-group">
-                      <label class="report-label">📅 Meeting Date</label>
+                      <label class="report-label">Ã°Å¸â€œâ€¦ Meeting Date</label>
                       <input id="rpt-date" class="report-input" type="date" value="${new Date(meeting.scheduledAt || Date.now()).toISOString().slice(0,10)}">
                     </div>
                     <div class="report-field-group">
-                      <label class="report-label">🕐 Meeting Time</label>
+                      <label class="report-label">Ã°Å¸â€¢Â Meeting Time</label>
                       <input id="rpt-time" class="report-input" type="time" value="${new Date(meeting.scheduledAt || Date.now()).toTimeString().slice(0,5)}">
                     </div>
                   </div>
 
 
                   <div class="report-field-group">
-                    <label class="report-label">👥 Students Present</label>
+                    <label class="report-label">Ã°Å¸â€˜Â¥ Students Present</label>
                     <div id="rpt-students-list" class="rpt-students-list">
                       <div class="rpt-student-row">
                         <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
                         <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
-                        <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
+                        <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">Ã¢Å“â€¢</button>
                       </div>
                     </div>
                     <button class="btn-rpt-add-student" id="btn-add-student" type="button">+ Add Student</button>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">⚠️ Issues Discussed</label>
+                    <label class="report-label">Ã¢Å¡Â Ã¯Â¸Â Issues Discussed</label>
                     <textarea id="rpt-issues" class="report-textarea" rows="4" placeholder="Summarize problems, challenges, or concerns raised during the meeting...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">✅ Action Items & Resolutions</label>
+                    <label class="report-label">Ã¢Å“â€¦ Action Items & Resolutions</label>
                     <textarea id="rpt-actions" class="report-textarea" rows="4" placeholder="List follow-up tasks, solutions agreed upon, or next steps..."></textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">📝 Additional Remarks</label>
+                    <label class="report-label">Ã°Å¸â€œÂ Additional Remarks</label>
                     <textarea id="rpt-remarks" class="report-textarea" rows="3" placeholder="Any other observations, feedback, or remarks for the record..."></textarea>
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">🏢 Department</label>
+                    <label class="report-label">Ã°Å¸ÂÂ¢ Department</label>
                     <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. School of Computing" value="${escapeHtml(meeting.department || 'School of Computing')}">
                   </div>
 
                   <!-- Signature Section -->
                   <div class="report-sig-section">
-                    <div class="report-sig-title">✍️ Signature Block</div>
+                    <div class="report-sig-title">Ã¢Å“ÂÃ¯Â¸Â Signature Block</div>
 
                     <div class="report-sig-row">
                       <div class="report-sig-box">
@@ -318,8 +318,8 @@ export async function render(container) {
                   </div>
 
                   <div class="report-actions">
-                    <button class="btn-report-save" id="btn-save-report">💾 Save Report</button>
-                    <button class="btn-report-generate" id="btn-generate-report">🖨️ Generate & Print</button>
+                    <button class="btn-report-save" id="btn-save-report">Ã°Å¸â€™Â¾ Save Report</button>
+                    <button class="btn-report-generate" id="btn-generate-report">Ã°Å¸â€“Â¨Ã¯Â¸Â Generate & Print</button>
                   </div>
 
                 </div>
@@ -437,7 +437,7 @@ export async function render(container) {
         else grid.className = 'video-grid grid-multi';
 
         if (participantChip) {
-            participantChip.textContent = `👥 ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
+            participantChip.textContent = `Ã°Å¸â€˜Â¥ ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
         }
     }
 
@@ -557,7 +557,7 @@ export async function render(container) {
         if (isMentor && waitingList.length > 0) {
             html += `<div class="waiting-room-card">
                 <div class="waiting-room-header">
-                    <span class="waiting-room-title">⏳ WAITING ROOM (${waitingList.length})</span>
+                    <span class="waiting-room-title">Ã¢ÂÂ³ WAITING ROOM (${waitingList.length})</span>
                     <div style="display:flex;gap:4px;">
                         <button class="btn-meet-secondary" style="padding:3px 8px;font-size:0.75rem;" onclick="window.admitAll()">Admit All</button>
                         <button class="btn-meet-secondary" style="padding:3px 8px;font-size:0.75rem;" onclick="window.denyAll()">Deny All</button>
@@ -571,8 +571,8 @@ export async function render(container) {
                             <span class="participant-sub">Waiting to join</span>
                         </div>
                         <div class="participant-actions">
-                            <button class="btn-part-action" style="background:#10b98122;color:#10b981;border-color:#10b98144;" onclick="window.admitUser('${person.id}')" title="Admit">✓</button>
-                            <button class="btn-part-action danger" onclick="window.denyUser('${person.id}')" title="Deny">✕</button>
+                            <button class="btn-part-action" style="background:#10b98122;color:#10b981;border-color:#10b98144;" onclick="window.admitUser('${person.id}')" title="Admit">Ã¢Å“â€œ</button>
+                            <button class="btn-part-action danger" onclick="window.denyUser('${person.id}')" title="Deny">Ã¢Å“â€¢</button>
                         </div>
                     </div>
                 `).join('')}
@@ -588,13 +588,13 @@ export async function render(container) {
                 <div class="participant-avatar-badge">${escapeHtml((person.name || '?')[0].toUpperCase())}</div>
                 <div class="participant-info">
                     <span class="participant-name">${escapeHtml(person.name)} ${isSelf ? '<span style="color:#818cf8;font-size:0.75rem;">(You)</span>' : ''}</span>
-                    <span class="participant-sub">${personIsHost ? '👑 Meeting Host' : 'Student Participant'}</span>
+                    <span class="participant-sub">${personIsHost ? 'Ã°Å¸â€˜â€˜ Meeting Host' : 'Student Participant'}</span>
                 </div>
                 ${isMentor && !isSelf ? `
                     <div class="participant-actions">
-                        <button class="btn-part-action" onclick="window.muteMic('${person.id}')" title="Mute Participant Microphone">🔇</button>
-                        <button class="btn-part-action" onclick="window.stopCam('${person.id}')" title="Stop Participant Video">📷❌</button>
-                        <button class="btn-part-action danger" onclick="window.removeUser('${person.id}')" title="Remove from Call">🚫</button>
+                        <button class="btn-part-action" onclick="window.muteMic('${person.id}')" title="Mute Participant Microphone">Ã°Å¸â€â€¡</button>
+                        <button class="btn-part-action" onclick="window.stopCam('${person.id}')" title="Stop Participant Video">Ã°Å¸â€œÂ·Ã¢ÂÅ’</button>
+                        <button class="btn-part-action danger" onclick="window.removeUser('${person.id}')" title="Remove from Call">Ã°Å¸Å¡Â«</button>
                     </div>
                 ` : ''}
             </div>
@@ -850,13 +850,13 @@ export async function render(container) {
                 } else {
                     // Student notifications when host changes lock settings
                     if (prevSettings.micLocked !== undefined && prevSettings.micLocked !== settings.micLocked) {
-                        showToast(settings.micLocked ? '🔒 Host has locked all student microphones' : '🔓 Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
+                        showToast(settings.micLocked ? 'Ã°Å¸â€â€™ Host has locked all student microphones' : 'Ã°Å¸â€â€œ Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
                     }
                     if (prevSettings.cameraLocked !== undefined && prevSettings.cameraLocked !== settings.cameraLocked) {
-                        showToast(settings.cameraLocked ? '🔒 Host has locked all student cameras' : '🔓 Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
+                        showToast(settings.cameraLocked ? 'Ã°Å¸â€â€™ Host has locked all student cameras' : 'Ã°Å¸â€â€œ Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
                     }
                     if (prevSettings.chatLocked !== undefined && prevSettings.chatLocked !== settings.chatLocked) {
-                        showToast(settings.chatLocked ? '🔒 Host has locked the chat' : '🔓 Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
+                        showToast(settings.chatLocked ? 'Ã°Å¸â€â€™ Host has locked the chat' : 'Ã°Å¸â€â€œ Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
                     }
 
                     applyStudentLocks(settings);
@@ -1179,7 +1179,7 @@ export async function render(container) {
         row.innerHTML = `
             <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
             <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
-            <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
+            <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">Ã¢Å“â€¢</button>
         `;
         list.appendChild(row);
     });
@@ -1213,7 +1213,7 @@ export async function render(container) {
         }
     });
 
-    // Generate & Print meeting report — Professional B&W layout
+    // Generate & Print meeting report Ã¢â‚¬â€ Professional B&W layout
     document.getElementById('btn-generate-report')?.addEventListener('click', () => {
         const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
         const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0,10);
@@ -1240,8 +1240,8 @@ export async function render(container) {
 
         const totalStudents = studentRows.length;
 
-        // Absolute URL for the logo (same origin, works in popup)
-        const logoUrl = window.location.origin + '/assets/images/mit_adt_logo.png';
+        // Absolute URL for the header banner image (same origin, works in popup)
+        const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
 
         // Build student attendance rows for page 2
         const attendanceRows = studentRows.map((s, i) => `
@@ -1268,9 +1268,8 @@ export async function render(container) {
     .page-break { page-break-before: always; }
 
     /* ---- HEADER ---- */
-    .rpt-header { text-align: center; border-bottom: 2.5px solid #000; padding-bottom: 10px; margin-bottom: 5px; }
-    .rpt-logo { height: 72px; max-width: 480px; object-fit: contain; display: block; margin: 0 auto; }
-    .rpt-dept { font-size: 14pt; font-weight: 900; color: #000; margin-top: 5px; letter-spacing: 0.3px; }
+    .rpt-header { margin-bottom: 0; }
+    .rpt-banner { width: 100%; display: block; border-bottom: 2px solid #888; }
     .rpt-divider { height: 1.5px; background: #000; margin: 4px 0 12px 0; }
 
     /* ---- TITLE ---- */
@@ -1331,8 +1330,7 @@ export async function render(container) {
   <!-- ===== PAGE 1: Main Report ===== -->
   <div class="page">
     <div class="rpt-header">
-      <img src="${logoUrl}" alt="MIT-ADT University" class="rpt-logo">
-      <div class="rpt-dept">${escapeHtml(dept)}</div>
+      <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
     </div>
     <div class="rpt-divider"></div>
 
@@ -1392,8 +1390,7 @@ export async function render(container) {
   <!-- ===== PAGE 2: Attendance List ===== -->
   <div class="page page-break">
     <div class="rpt-header">
-      <img src="${logoUrl}" alt="MIT-ADT University" class="rpt-logo">
-      <div class="rpt-dept">${escapeHtml(dept)}</div>
+      <img src="${bannerUrl}" alt="MIT-ADT University Header" class="rpt-banner">
     </div>
     <div class="rpt-divider"></div>
 
@@ -1450,198 +1447,14 @@ export async function render(container) {
   </div>
 
   <div class="no-print" style="text-align:center; margin: 18px 0; font-family: Arial, sans-serif;">
-    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">🖨️ Print / Save as PDF</button>
+    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#111; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Ã°Å¸â€“Â¨Ã¯Â¸Â Print / Save as PDF</button>
     <button onclick="window.close()" style="margin-left:12px; padding:10px 24px; font-size:14px; background:#888; color:#fff; border:none; border-radius:6px; cursor:pointer;">Close</button>
   </div>
 </body>
 </html>`);
         reportWin.document.close();
         setTimeout(() => reportWin.focus(), 300);
-        showToast('Report generated! Use Print → Save as PDF to download.', 'success');
-    });
-        const topic = document.getElementById('rpt-topic')?.value.trim() || 'Mentorship Session';
-        const date = document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0,10);
-        const time = document.getElementById('rpt-time')?.value || '';
-        const students = document.getElementById('rpt-students')?.value.trim() || 'N/A';
-        const issues = document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.';
-        const actions = document.getElementById('rpt-actions')?.value.trim() || 'No action items.';
-        const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
-        const dept = document.getElementById('rpt-dept')?.value.trim() || 'School of Computing';
-        const preparedBy = meeting.mentorName || user.name || '';
-        const validatedBy = document.getElementById('rpt-validator-name')?.value.trim() || '';
-        const hodName = document.getElementById('rpt-hod-name')?.value.trim() || '';
-
-        const formatDate = (d) => {
-            if (!d) return '';
-            const dt = new Date(d);
-            return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-        };
-
-        const reportWin = window.open('', '_blank', 'width=900,height=1200');
-        if (!reportWin) { showToast('Please allow pop-ups to generate the report', 'warning'); return; }
-
-        reportWin.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Mentorship Meeting Report - ${topic}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Times New Roman', Times, serif; background: #fff; color: #1a1a1a; font-size: 12pt; padding: 0; }
-    .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm 14mm 20mm; }
-    /* ---- HEADER ---- */
-    .rpt-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #1a237e; padding-bottom: 12px; margin-bottom: 6px; }
-    .rpt-header-left { display: flex; align-items: center; gap: 14px; }
-    .rpt-naac-badge { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #c8961d, #f0c040); display: flex; align-items: center; justify-content: center; flex-direction: column; border: 3px solid #8b6914; }
-    .rpt-naac-badge .naac-a { font-size: 22pt; font-weight: 900; color: #fff; font-family: serif; line-height: 1; }
-    .rpt-naac-badge .naac-label { font-size: 6pt; color: #fff; font-weight: 700; letter-spacing: 1px; }
-    .rpt-header-text { text-align: center; }
-    .rpt-header-text .univ-name { font-size: 14pt; font-weight: 700; color: #1a237e; }
-    .rpt-header-text .univ-sub { font-size: 7.5pt; color: #444; margin-top: 1px; }
-    .rpt-header-text .school-name { font-size: 16pt; font-weight: 800; color: #1a237e; margin-top: 3px; }
-    .rpt-header-right { text-align: right; }
-    .rpt-header-right .mit-adt-logo { font-size: 13pt; font-weight: 900; color: #1a237e; letter-spacing: 1px; }
-    .rpt-header-right .mit-adt-univ { font-size: 8pt; font-weight: 700; color: #1a237e; }
-    .rpt-header-right .mit-adt-city { font-size: 7.5pt; color: #666; }
-    .rpt-header-right .mit-adt-tag { font-size: 6.5pt; color: #888; font-style: italic; }
-    .rpt-divider { height: 2px; background: linear-gradient(to right, #1a237e, #42a5f5, #1a237e); margin: 4px 0 14px 0; }
-
-    /* ---- REPORT TITLE ---- */
-    .rpt-doc-title { text-align: center; margin-bottom: 14px; }
-    .rpt-doc-title h1 { font-size: 14pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 1px; border: 2px solid #1a237e; display: inline-block; padding: 5px 24px; }
-    .rpt-doc-title .sub { font-size: 9.5pt; color: #555; margin-top: 4px; }
-
-    /* ---- INFO TABLE ---- */
-    .rpt-info-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-    .rpt-info-table td { padding: 5px 8px; font-size: 10.5pt; vertical-align: top; }
-    .rpt-info-table td:first-child { font-weight: 700; white-space: nowrap; width: 32%; color: #1a237e; border-right: 1px solid #ccc; }
-    .rpt-info-table tr { border-bottom: 1px solid #e0e0e0; }
-    .rpt-info-table tr:last-child { border-bottom: none; }
-
-    /* ---- SECTIONS ---- */
-    .rpt-section { margin-bottom: 14px; }
-    .rpt-section-head { background: #1a237e; color: #fff; padding: 5px 10px; font-size: 10.5pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 0; }
-    .rpt-section-body { border: 1px solid #1a237e; border-top: none; padding: 10px 12px; min-height: 60px; font-size: 10.5pt; line-height: 1.7; white-space: pre-wrap; background: #fdfdff; }
-
-    /* ---- SIGNATURE BLOCK ---- */
-    .rpt-sig-block { margin-top: 24px; border-top: 2px solid #1a237e; padding-top: 16px; }
-    .rpt-sig-block .sig-title { font-size: 10pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; text-align: center; }
-    .rpt-sig-row { display: flex; justify-content: space-between; gap: 24px; margin-top: 8px; }
-    .rpt-sig-col { flex: 1; text-align: center; }
-    .rpt-sig-space { height: 52px; border-bottom: 1.5px solid #333; margin-bottom: 6px; position: relative; }
-    .rpt-sig-space::after { content: 'Signature'; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 7pt; color: #aaa; font-style: italic; }
-    .rpt-sig-label { font-size: 8pt; font-weight: 700; color: #1a237e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-    .rpt-sig-person { font-size: 10.5pt; font-weight: 700; color: #111; border-bottom: 1px dotted #999; padding-bottom: 2px; min-height: 18px; }
-    .rpt-sig-role { font-size: 8pt; color: #555; margin-top: 3px; }
-
-    /* ---- FOOTER ---- */
-    .rpt-footer { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; text-align: center; font-size: 7.5pt; color: #888; }
-
-    @media print {
-      body { padding: 0; }
-      .page { padding: 10mm 14mm 10mm 14mm; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <!-- University Header -->
-    <div class="rpt-header">
-      <div class="rpt-header-left">
-        <div class="rpt-naac-badge">
-          <div class="naac-a">A</div>
-          <div class="naac-label">NAAC</div>
-        </div>
-        <div class="rpt-header-text">
-          <div class="univ-name">MIT Art, Design &amp; Technology University, Pune</div>
-          <div class="univ-sub">(Established by Govt. of Maharashtra by MIT ADT University ACT No. XXXIX of 2015)</div>
-          <div class="school-name">${escapeHtml(dept)}</div>
-        </div>
-      </div>
-      <div class="rpt-header-right">
-        <div class="mit-adt-logo">MIT-ADT</div>
-        <div class="mit-adt-univ">UNIVERSITY</div>
-        <div class="mit-adt-city">PUNE, INDIA</div>
-        <div class="mit-adt-tag">A Leap Towards World Class Education</div>
-      </div>
-    </div>
-    <div class="rpt-divider"></div>
-
-    <!-- Report Title -->
-    <div class="rpt-doc-title">
-      <h1>Mentorship Session Report</h1>
-      <div class="sub">Official Record of Mentor-Mentee Interaction</div>
-    </div>
-
-    <!-- Meeting Info Table -->
-    <table class="rpt-info-table">
-      <tr><td>Meeting Topic / Agenda</td><td>${escapeHtml(topic)}</td></tr>
-      <tr><td>Date of Meeting</td><td>${escapeHtml(formatDate(date))}</td></tr>
-      <tr><td>Time of Meeting</td><td>${escapeHtml(time)}</td></tr>
-      <tr><td>Department</td><td>${escapeHtml(dept)}</td></tr>
-      <tr><td>Mentor / Faculty</td><td>${escapeHtml(preparedBy)}</td></tr>
-      <tr><td>Students Present</td><td>${escapeHtml(students)}</td></tr>
-    </table>
-
-    <!-- Issues Discussed -->
-    <div class="rpt-section">
-      <div class="rpt-section-head">Issues Discussed</div>
-      <div class="rpt-section-body">${escapeHtml(issues)}</div>
-    </div>
-
-    <!-- Action Items -->
-    <div class="rpt-section">
-      <div class="rpt-section-head">Action Items &amp; Resolutions</div>
-      <div class="rpt-section-body">${escapeHtml(actions)}</div>
-    </div>
-
-    ${remarks ? `
-    <div class="rpt-section">
-      <div class="rpt-section-head">Additional Remarks</div>
-      <div class="rpt-section-body">${escapeHtml(remarks)}</div>
-    </div>` : ''}
-
-    <!-- Signature Block -->
-    <div class="rpt-sig-block">
-      <div class="sig-title">Signatures &amp; Authorization</div>
-      <div class="rpt-sig-row">
-        <div class="rpt-sig-col">
-          <div class="rpt-sig-space"></div>
-          <div class="rpt-sig-label">Prepared By</div>
-          <div class="rpt-sig-person">${escapeHtml(preparedBy)}</div>
-          <div class="rpt-sig-role">Mentor / Faculty</div>
-        </div>
-        <div class="rpt-sig-col">
-          <div class="rpt-sig-space"></div>
-          <div class="rpt-sig-label">Validated By</div>
-          <div class="rpt-sig-person">${escapeHtml(validatedBy)}</div>
-          <div class="rpt-sig-role">Section Head / Coordinator</div>
-        </div>
-        <div class="rpt-sig-col">
-          <div class="rpt-sig-space"></div>
-          <div class="rpt-sig-label">Verified By (HOD)</div>
-          <div class="rpt-sig-person">${escapeHtml(hodName)}</div>
-          <div class="rpt-sig-role">Head of Department, ${escapeHtml(dept)}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="rpt-footer">
-      This report is an official document of MIT Art, Design &amp; Technology University, Pune. Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}.
-    </div>
-  </div>
-
-  <div class="no-print" style="text-align:center; margin: 18px 0;">
-    <button onclick="window.print()" style="padding:10px 32px; font-size:14px; background:#1a237e; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">🖨️ Print / Save as PDF</button>
-    <button onclick="window.close()" style="margin-left:12px; padding:10px 24px; font-size:14px; background:#888; color:#fff; border:none; border-radius:8px; cursor:pointer;">Close</button>
-  </div>
-</body>
-</html>`);
-        reportWin.document.close();
-        setTimeout(() => reportWin.focus(), 300);
-        showToast('Report generated! Use Print → Save as PDF to download.', 'success');
+        showToast('Report generated! Use Print Ã¢â€ â€™ Save as PDF to download.', 'success');
     });
 
     // Clean up connections
@@ -1661,7 +1474,7 @@ export async function render(container) {
     // Leave / End Call button
     document.getElementById('btn-end').onclick = async () => {
         if (isMentor) {
-            const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
+            const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\nÃ¢â‚¬Â¢ Click OK to End for Everyone\nÃ¢â‚¬Â¢ Click Cancel to Leave without ending for others");
             if (endForAll) {
                 try {
                     await MeetingService.update(meetingId, {
