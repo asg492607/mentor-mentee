@@ -54,15 +54,15 @@ export async function render(container) {
             <div class="meeting-title-wrap">
               <div class="meeting-title">
                 ${escapeHtml(meeting.type || '1-on-1 Mentorship Session')}
-                ${isMentor ? '<span class="meeting-host-badge">Ã°Å¸â€˜â€˜ Host</span>' : ''}
+                ${isMentor ? '<span class="meeting-host-badge">👑 Host</span>' : ''}
               </div>
               <div class="meeting-status-chips">
                 <span class="meeting-timer" id="meeting-status">
                   <span class="meeting-live-dot"></span>
                   <span id="meeting-timer-text">Connecting...</span>
                 </span>
-                <span class="meeting-security-chip">Ã°Å¸â€â€™ E2E Encrypted</span>
-                <span class="meeting-security-chip" id="participant-count-chip">Ã°Å¸â€˜Â¥ 1 Participant</span>
+                <span class="meeting-security-chip">🔒 E2E Encrypted</span>
+                <span class="meeting-security-chip" id="participant-count-chip">👥 1 Participant</span>
               </div>
             </div>
           </div>
@@ -107,8 +107,9 @@ export async function render(container) {
               </div>
             </div>
 
-            <!-- Waiting Room Screen for Students -->
-            <div class="meeting-waiting" id="meeting-waiting" hidden>
+            <!-- Waiting Room Screen for Students Only -->
+            ${!isMentor ? `
+            <div class="meeting-waiting hidden" id="meeting-waiting" style="display:none !important;">
               <div class="meeting-waiting-card">
                 <div class="pulse-ring-wrap">
                   <div class="pulse-ring-circle"></div>
@@ -118,32 +119,32 @@ export async function render(container) {
                 <h2>Waiting for Host to Admit You</h2>
                 <p>The mentor will let you in shortly. Your camera and microphone will connect automatically upon entry.</p>
               </div>
-            </div>
+            </div>` : ''}
           </section>
 
           <!-- Side Drawer Panel -->
           <aside class="meeting-side-panel hidden" id="meeting-side-panel">
             <div class="side-panel-header">
               <div class="side-panel-title" id="side-panel-title">Chat</div>
-              <button class="btn-meet-secondary" id="btn-close-side-panel" style="padding: 4px 8px; border-radius: 50%;">Ã¢Å“â€¢</button>
+              <button class="btn-meet-secondary" id="btn-close-side-panel" style="padding: 4px 8px; border-radius: 50%;">✕</button>
             </div>
             
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">
-                <span>Ã°Å¸â€™Â¬ Chat</span>
+                <span>💬 Chat</span>
               </button>
               <button class="side-panel-tab" data-panel="participants">
-                <span>Ã°Å¸â€˜Â¥ People</span>
+                <span>👥 People</span>
               </button>
               ${isMentor ? `
               <button class="side-panel-tab" data-panel="controls">
-                <span>Ã°Å¸â€ºÂ¡Ã¯Â¸Â Controls</span>
+                <span>🛡️ Controls</span>
               </button>
               <button class="side-panel-tab" data-panel="notes">
-                <span>Ã°Å¸â€œÂ Notes</span>
+                <span>📝 Notes</span>
               </button>
               <button class="side-panel-tab" data-panel="report">
-                <span>Ã°Å¸â€œâ€¹ Report</span>
+                <span>📋 Report</span>
               </button>` : ''}
             </div>
 
@@ -154,7 +155,7 @@ export async function render(container) {
                   <div class="chat-empty-state">No messages yet. Send a message to start the conversation!</div>
                 </div>
                 <div id="chat-locked-notice" class="chat-locked-banner" hidden>
-                  Ã°Å¸â€â€™ Chat is locked by the meeting host
+                  🔒 Chat is locked by the meeting host
                 </div>
               </div>
 
@@ -165,19 +166,19 @@ export async function render(container) {
               ${isMentor ? `
               <div id="panel-controls" class="host-controls-panel" hidden>
                 <div class="host-section-card">
-                  <div class="host-section-title">Ã¢Å¡Â¡ Instant Broadcast Actions</div>
+                  <div class="host-section-title">⚡ Instant Broadcast Actions</div>
                   <div class="host-quick-actions">
                     <button class="btn-host-action mute-btn" id="btn-host-mute-all" title="Mute all student microphones immediately">
-                      Ã°Å¸â€â€¡ Mute All Students
+                      🔇 Mute All Students
                     </button>
                     <button class="btn-host-action" id="btn-host-disable-cams" title="Turn off all student video cameras immediately">
-                      Ã°Å¸â€œÂ· Turn Off All Cams
+                      📷 Turn Off All Cams
                     </button>
                   </div>
                 </div>
 
                 <div class="host-section-card">
-                  <div class="host-section-title">Ã°Å¸â€ºÂ¡Ã¯Â¸Â Student Permission Locks</div>
+                  <div class="host-section-title">🛡️ Student Permission Locks</div>
                   
                   <div class="host-toggle-row">
                     <div class="host-toggle-info">
@@ -240,10 +241,13 @@ export async function render(container) {
               ${isMentor ? `
               <div id="panel-notes" hidden>
                 <div class="host-section-card">
-                  <div class="host-section-title">Ã°Å¸â€œÂ Confidential Meeting Notes</div>
+                  <div class="host-section-title">📝 Confidential Meeting Notes</div>
                   <p style="font-size:0.75rem; color:var(--meet-text-muted); margin-bottom:8px;">Notes saved here are synchronized with the mentorship dossier.</p>
                   <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Enter session notes, action items, or feedback for the mentee...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   <button class="btn-join-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
+                </div>
+              </div>` : ''}
+-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
                 </div>
               </div>` : ''}
 
@@ -459,7 +463,7 @@ export async function render(container) {
     else grid.className = 'video-grid grid-multi';
 
     if (participantChip) {
-      participantChip.textContent = `Ã°Å¸â€˜Â¥ ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
+      participantChip.textContent = `👥 ${Math.max(1, count)} Participant${count > 1 ? 's' : ''}`;
     }
   }
 
@@ -872,13 +876,13 @@ export async function render(container) {
         } else {
           // Student notifications when host changes lock settings
           if (prevSettings.micLocked !== undefined && prevSettings.micLocked !== settings.micLocked) {
-            showToast(settings.micLocked ? 'Ã°Å¸â€â€™ Host has locked all student microphones' : 'Ã°Å¸â€â€œ Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
+            showToast(settings.micLocked ? '🔒 Host has locked all student microphones' : '🔓 Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
           }
           if (prevSettings.cameraLocked !== undefined && prevSettings.cameraLocked !== settings.cameraLocked) {
-            showToast(settings.cameraLocked ? 'Ã°Å¸â€â€™ Host has locked all student cameras' : 'Ã°Å¸â€â€œ Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
+            showToast(settings.cameraLocked ? '🔒 Host has locked all student cameras' : '🔓 Host has unlocked student cameras. You may turn on your camera.', settings.cameraLocked ? 'warning' : 'info');
           }
           if (prevSettings.chatLocked !== undefined && prevSettings.chatLocked !== settings.chatLocked) {
-            showToast(settings.chatLocked ? 'Ã°Å¸â€â€™ Host has locked the chat' : 'Ã°Å¸â€â€œ Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
+            showToast(settings.chatLocked ? '🔒 Host has locked the chat' : '🔓 Host has unlocked the chat', settings.chatLocked ? 'warning' : 'info');
           }
 
           applyStudentLocks(settings);
@@ -1515,7 +1519,7 @@ export async function render(container) {
   // Leave / End Call button
   document.getElementById('btn-end').onclick = async () => {
     if (isMentor) {
-      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\nÃ¢â‚¬Â¢ Click OK to End for Everyone\nÃ¢â‚¬Â¢ Click Cancel to Leave without ending for others");
+      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
       if (endForAll) {
         try {
           await MeetingService.update(meetingId, {
@@ -1559,11 +1563,15 @@ export async function render(container) {
   // Enter meeting room on join click
   document.getElementById('btn-join-meeting').onclick = () => {
     document.getElementById('join-screen')?.remove();
-    // Only show the waiting room screen for non-mentor users (students)
-    // Mentors/Faculty are the host and should NEVER see the waiting room
-    const waiting = document.getElementById('meeting-waiting');
-    if (waiting) waiting.hidden = true; // Always hide first
-    if (waiting && !isMentor) waiting.hidden = false; // Then show only for students
+    if (isMentor) {
+      document.getElementById('meeting-waiting')?.remove();
+    } else {
+      const waiting = document.getElementById('meeting-waiting');
+      if (waiting) {
+        waiting.classList.remove('hidden');
+        waiting.style.removeProperty('display');
+      }
+    }
     init();
   };
 }

@@ -1000,6 +1000,14 @@ input:checked + .switch-slider:before {
   padding: 24px;
 }
 
+.meeting-join.hidden,
+.meeting-waiting.hidden,
+.meeting-join[hidden],
+.meeting-waiting[hidden],
+[hidden] {
+  display: none !important;
+}
+
 .meeting-join-card, .meeting-waiting-card {
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(28px);
