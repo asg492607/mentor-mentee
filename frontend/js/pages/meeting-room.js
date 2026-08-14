@@ -247,9 +247,6 @@ export async function render(container) {
                   <button class="btn-join-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
                 </div>
               </div>` : ''}
--main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
-                </div>
-              </div>` : ''}
 
               <!-- Report Generation Panel (Mentor Only) -->
               ${isMentor ? `

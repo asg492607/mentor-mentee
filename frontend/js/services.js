@@ -504,12 +504,17 @@ export const NotificationService = {
     let targetEmail = userEmail;
     if (!targetEmail && userId) {
       try {
-        const userSnap = await getDoc(doc(db, 'users', userId));
-        if (userSnap.exists()) {
-          targetEmail = userSnap.data().email;
+        const studentSnap = await getDoc(doc(db, 'students', userId)).catch(() => null);
+        if (studentSnap && studentSnap.exists()) {
+          targetEmail = studentSnap.data()?.email;
+        } else {
+          const facultySnap = await getDoc(doc(db, 'faculty', userId)).catch(() => null);
+          if (facultySnap && facultySnap.exists()) {
+            targetEmail = facultySnap.data()?.email;
+          }
         }
       } catch (e) {
-        console.warn('Could not fetch user email for notification dispatch:', e);
+        // email lookup is optional
       }
     }
 
