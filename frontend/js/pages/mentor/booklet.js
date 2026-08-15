@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/f
 import { showToast } from '../../components/toast.js';
 import { createSidebar } from '../../components/sidebar.js';
 import { createHeader } from '../../components/header.js';
+import { BookletService } from '../../services.js';
 
 export async function render(container) {
     const user = getUserProfile();
@@ -34,6 +35,7 @@ export async function render(container) {
         showToast('Error loading booklet', 'error');
     }
 
+    const completionPct = BookletService.calculateCompletion(bookletData);
     const safe = (val) => val || '';
     const safeCheck = (val, expected) => val === expected ? 'checked' : '';
 
@@ -48,6 +50,28 @@ export async function render(container) {
                         <button class="btn btn-secondary btn-sm" onclick="window.history.back()">
                             <i class="ph ph-arrow-left"></i> Back to Students
                         </button>
+                    </div>
+
+                    <!-- Booklet Progress Header Banner -->
+                    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:var(--bg-secondary);border:1px solid ${completionPct < 75 ? 'var(--warning)' : 'var(--success)'};border-radius:12px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+                        <div>
+                          <h4 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                            ${completionPct < 75 ? '⚠️ Mentee Booklet Incomplete (Min. 75% Required)' : '✅ Mentee Booklet Verified (75%+ Completed)'}
+                          </h4>
+                          <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
+                            ${completionPct < 75
+                              ? `Mentee has filled ${completionPct}% across all sections. Student must reach at least 75% for full portal compliance.`
+                              : `Student has achieved ${completionPct}% whole-booklet completion, satisfying institutional requirements.`}
+                          </p>
+                        </div>
+                        <span class="badge ${completionPct < 75 ? 'badge-warning' : 'badge-success'}" id="mentor-booklet-pct-badge" style="font-size:0.85rem;padding:6px 12px;font-weight:700;">
+                          ${completionPct}% Completed ${completionPct < 75 ? '(Below 75%)' : '(Compliant)'}
+                        </span>
+                      </div>
+                      <div style="height:10px;background:var(--bg-primary);border-radius:5px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">
+                        <div style="height:100%;width:${completionPct}%;background:${completionPct < 75 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)'};transition:width 0.3s ease;"></div>
+                      </div>
                     </div>
                     
                     <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
