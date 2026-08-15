@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StatsService, MeetingService, NotificationService } from '/js/services.js';
+import { StatsService, MeetingService, NotificationService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
 
 function riskBadge(r) {
@@ -10,12 +10,13 @@ function riskBadge(r) {
   return `<span class="badge ${cls}">${r || 'N/A'}</span>`;
 }
 
-function renderStats(totalStudents, pendingRequests, highRisk, completedMeetings) {
+function renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets = 0) {
   return [
     { label: 'My Students', value: totalStudents, color: 'var(--info)', icon: 'ph-users' },
     { label: 'Pending Requests', value: pendingRequests, color: 'var(--warning)', icon: 'ph-calendar-plus' },
     { label: 'High Risk', value: highRisk, color: 'var(--danger)', icon: 'ph-warning-circle' },
-    { label: 'Completed Meetings', value: completedMeetings, color: 'var(--success)', icon: 'ph-calendar-check' },
+    { label: 'Completed Meets', value: completedMeetings, color: 'var(--success)', icon: 'ph-calendar-check' },
+    { label: 'Booklets (≥75%)', value: `${compliantBooklets}/${totalStudents}`, color: 'var(--accent)', icon: 'ph-book-open' },
   ].map(c => `
     <div class="stat-card">
       <div class="stat-icon" style="background:${c.color}22; color:${c.color}; font-size:1.5rem; display:flex; align-items:center; justify-content:center;">
@@ -147,6 +148,7 @@ export async function render(container) {
     const pendingRequests = data.pendingRequests ?? meetings.filter(m => m.status === 'REQUESTED').length;
     const highRisk = data.highRiskStudents ?? students.filter(s => s.riskLevel === 'HIGH').length;
     const completedMeetings = data.completedMeetings ?? meetings.filter(m => m.status === 'COMPLETED').length;
+    const compliantBooklets = students.filter(s => BookletService.calculateCompletion(s.booklet) >= 75).length;
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
     const dash = container.querySelector('#mentor-dash');
     if (!dash) return;
@@ -169,8 +171,8 @@ export async function render(container) {
           </a>
         </div>
 
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
-          ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings)}
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
+          ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets)}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">

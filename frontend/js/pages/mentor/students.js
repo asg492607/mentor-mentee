@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, StatsService } from '/js/services.js';
+import { StudentService, StatsService, BookletService, NotificationService } from '/js/services.js';
 import { db } from '/js/firebase-init.js';
 import { doc, getDoc, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
@@ -52,9 +52,16 @@ export async function render(container) {
       StudentService.getUnassigned(user.department)
     ]);
     
-    students = assigned.map(s => {
-      if (!s.riskLevel) return { ...s, ...StatsService.computeRisk(s) };
-      return s;
+    // Concurrently fetch booklet completion for all assigned students
+    const booklets = await Promise.all(
+      assigned.map(s => BookletService.getBooklet(s.id).catch(() => null))
+    );
+
+    students = assigned.map((s, idx) => {
+      const bData = booklets[idx];
+      const bookletPct = BookletService.calculateCompletion(bData);
+      const withRisk = !s.riskLevel ? { ...s, ...StatsService.computeRisk(s) } : s;
+      return { ...withRisk, bookletPct };
     });
 
     // Only show unapproved students in the pending queue
@@ -106,7 +113,7 @@ export async function render(container) {
       assignedHtml = `<div class="card">
         <div class="card-header"><h3>My Assigned Students</h3></div>
       <table class="data-table">
-        <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Risk</th><th></th></tr></thead>
+        <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Booklet (75% Min)</th><th>Risk</th><th>Actions</th></tr></thead>
         <tbody>
           ${list.map(s => `
             <tr>
@@ -130,10 +137,19 @@ export async function render(container) {
                   <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendance||0}%</span>
                 </div>
               </td>
-              <td>${riskBadge(s.riskLevel)}</td>
               <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;max-width:60px;" class="progress-bar-wrap">
+                    <div class="progress-bar-fill ${(s.bookletPct||0)<75?'fill-warning':'fill-success'}" style="width:${s.bookletPct||0}%"></div>
+                  </div>
+                  <span style="font-size:0.78rem;font-weight:700;color:${(s.bookletPct||0)<75?'var(--warning)':'var(--success)'};">${s.bookletPct||0}%</span>
+                </div>
+              </td>
+              <td>${riskBadge(s.riskLevel)}</td>
+              <td style="white-space:nowrap;">
                   <button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button>
                   <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary" style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-book-open"></i> Booklet</a>
+                  ${(s.bookletPct||0) < 75 ? `<button class="btn btn-xs btn-secondary btn-remind-booklet" data-id="${s.id}" data-name="${s.name || 'Student'}" title="Send Reminder to Fill Booklet" style="color:var(--warning);border-color:var(--warning);margin-left:4px;"><i class="ph ph-bell"></i> Remind</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -175,6 +191,33 @@ export async function render(container) {
           panel.style.display = 'none';
         });
         panel.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    document.querySelectorAll('.btn-remind-booklet').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const sid = btn.dataset.id;
+        const sname = btn.dataset.name;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        try {
+          await NotificationService.create({
+            userId: sid,
+            type: 'REMINDER',
+            title: '⚠️ Mentorship Booklet Incomplete',
+            message: `Please complete at least 75% of your Mentorship Booklet as requested by your mentor Prof. ${user.name}.`,
+            relatedId: sid
+          });
+          showToast(`Reminder sent to ${sname} successfully!`, 'success');
+          btn.innerHTML = '✓ Sent';
+          btn.style.color = 'var(--success)';
+          btn.style.borderColor = 'var(--success)';
+        } catch (err) {
+          showToast('Failed to send reminder: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ph ph-bell"></i> Remind';
+        }
       });
     });
 
