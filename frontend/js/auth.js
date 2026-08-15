@@ -197,6 +197,12 @@ export function getUserProfile() {
   return cachedUserProfile;
 }
 
+export async function updateUserProfileData(updates) {
+  if (!cachedUserProfile) return null;
+  cachedUserProfile = { ...cachedUserProfile, ...updates };
+  return cachedUserProfile;
+}
+
 // Helper to fetch profile if logged in but page refreshed
 export async function fetchUserProfile() {
   const user = auth.currentUser;

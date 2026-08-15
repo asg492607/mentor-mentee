@@ -261,6 +261,58 @@ document.addEventListener('click', (e) => {
         openWebIssueModal();
     }
 
+    if (e.target.closest('#global-header-profile-btn')) {
+        const user = getUserProfile();
+        if (user) {
+            const role = (user.role || 'STUDENT').toUpperCase();
+            if (role === 'STUDENT') {
+                navigateTo('/student/profile');
+            } else {
+                import('./components/profile-modal.js')
+                    .then(m => m.openProfileModal())
+                    .catch(err => console.error('Error opening profile modal:', err));
+            }
+        }
+    }
+
+    if (e.target.closest('#start-tour-btn')) {
+        e.preventDefault();
+        import('./components/tour.js').then(({ startTour }) => {
+            const user = getUserProfile();
+            const path = getCurrentRoute();
+            const role = (user?.role || 'STUDENT').toUpperCase();
+
+            let tourSteps = [
+                { selector: '.sidebar', title: 'Navigation Sidebar', desc: 'Use this sidebar to access your dashboard, student rosters, meetings, booklet, issues, and reports.', position: 'right' },
+                { selector: '.header-actions', title: 'Action Bar', desc: 'Access web bug reporting, role guide PDF, interactive tours, dark/light theme, and live notifications.', position: 'bottom' },
+                { selector: '.page-content, .main-content', title: 'Workspace View', desc: 'Manage your active records, schedule sessions, view metrics, and track student outcomes.', position: 'top' }
+            ];
+
+            if (path.includes('/mentor/dashboard') || (role === 'MENTOR' && path === '/mentor/dashboard')) {
+                tourSteps = [
+                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to view all your students, schedule meetings, and resolve issues.', position: 'right' },
+                    { selector: '.kpi-grid, .grid-4, .stat-card', title: 'Key Performance Indicators', desc: 'Track your assigned student count, pending meeting requests, high-risk flags, and completed sessions.', position: 'bottom' },
+                    { selector: '.card-table, .data-table, .card', title: 'Assigned Mentees', desc: 'Monitor mentee CGPA, attendance, booklet completion, and risk levels.', position: 'top' },
+                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Switch theme, download the Mentor Operating Manual, or report web issues.', position: 'bottom' }
+                ];
+            } else if (path.includes('/student/dashboard')) {
+                tourSteps = [
+                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to access your profile, book meetings, raise issues, and track tasks.', position: 'right' },
+                    { selector: '.kpi-grid, .grid-4, .stat-card', title: 'Overview Metrics', desc: 'Keep track of your active tasks, attendance, and meeting schedule.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Quick Actions', desc: 'Switch themes, download your Student Mentee Guide PDF, or report issues.', position: 'bottom' }
+                ];
+            } else if (path.includes('/meetings')) {
+                tourSteps = [
+                    { selector: '#btn-schedule-meeting, .page-content', title: 'Schedule & Manage Meetings', desc: 'Schedule mentorship meetings, approve pending requests, and enter meeting notes.', position: 'bottom' },
+                    { selector: '#tab-bar', title: 'Meeting Filters', desc: 'Filter your meetings by Pending, Approved, Completed, or All.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Action Bar', desc: 'Access your user guide, switch color themes, and view alerts.', position: 'bottom' }
+                ];
+            }
+
+            startTour(`page_tour_${path.replace(/[^a-zA-Z0-9]/g, '_')}`, tourSteps, true);
+        }).catch(err => console.warn('Could not start tour:', err));
+    }
+
     const sidebar = document.querySelector('.sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const menuButton = document.getElementById('sidebar-toggle');
