@@ -291,20 +291,38 @@ document.addEventListener('click', (e) => {
             if (path.includes('/mentor/dashboard') || (role === 'MENTOR' && path === '/mentor/dashboard')) {
                 tourSteps = [
                     { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to view all your students, schedule meetings, and resolve issues.', position: 'right' },
-                    { selector: '.kpi-grid, .grid-4, .stat-card', title: 'Key Performance Indicators', desc: 'Track your assigned student count, pending meeting requests, high-risk flags, and completed sessions.', position: 'bottom' },
-                    { selector: '.card-table, .data-table, .card', title: 'Assigned Mentees', desc: 'Monitor mentee CGPA, attendance, booklet completion, and risk levels.', position: 'top' },
+                    { selector: '.stats-grid, .stat-card', title: 'Key Performance Indicators', desc: 'Track your assigned student count, pending meeting requests, high-risk flags, and completed sessions.', position: 'bottom' },
+                    { selector: '.card, .data-table', title: 'Assigned Mentees', desc: 'Monitor mentee CGPA, attendance, booklet completion, and risk levels.', position: 'top' },
                     { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Switch theme, download the Mentor Operating Manual, or report web issues.', position: 'bottom' }
                 ];
             } else if (path.includes('/student/dashboard')) {
                 tourSteps = [
-                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to access your profile, book meetings, raise issues, and track tasks.', position: 'right' },
-                    { selector: '.kpi-grid, .grid-4, .stat-card', title: 'Overview Metrics', desc: 'Keep track of your active tasks, attendance, and meeting schedule.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Quick Actions', desc: 'Switch themes, download your Student Mentee Guide PDF, or report issues.', position: 'bottom' }
+                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to access your profile, booklet, book meetings, and raise grievances.', position: 'right' },
+                    { selector: '.stats-grid, .stat-card', title: 'Overview Metrics', desc: 'Keep track of upcoming meetings, pending action tasks, open grievances, and CGPA.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Quick Actions', desc: 'Switch themes, download your Student Mentee Guide PDF, or report web issues.', position: 'bottom' }
+                ];
+            } else if (path.includes('/hod/dashboard')) {
+                tourSteps = [
+                    { selector: '.sidebar', title: 'HOD Department Controls', desc: 'Oversee department faculty allocations, high-risk students, grievances, and mentorship reports.', position: 'right' },
+                    { selector: '.stats-grid, .stat-card', title: 'Department Analytics', desc: 'Monitor total students, active mentors, open issues, and resolved cases.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the HOD Operations Manual, theme toggle, and live department alerts.', position: 'bottom' }
+                ];
+            } else if (path.includes('/dean/dashboard')) {
+                tourSteps = [
+                    { selector: '.sidebar', title: 'Dean Leadership Overview', desc: 'Monitor university-wide mentoring coverage, risk distributions, and institutional reports.', position: 'right' },
+                    { selector: '.stats-grid, .stat-card', title: 'Institutional KPIs', desc: 'Track university-wide student rosters, total faculty, active departments, and high-risk totals.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the Dean Operations Guide, dark/light theme, and platform notifications.', position: 'bottom' }
+                ];
+            } else if (path.includes('/admin/dashboard') || path.includes('/admin/users')) {
+                tourSteps = [
+                    { selector: '.sidebar', title: 'Admin Controls', desc: 'Manage system users, departments, classes, automated allocations, and audits.', position: 'right' },
+                    { selector: '.stats-grid, .stat-card', title: 'Platform Health Metrics', desc: 'View global student registrations, faculty allocations, and database status.', position: 'bottom' },
+                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the Administrator Operations Manual, color themes, and system alerts.', position: 'bottom' }
                 ];
             } else if (path.includes('/meetings')) {
                 tourSteps = [
                     { selector: '#btn-schedule-meeting, .page-content', title: 'Schedule & Manage Meetings', desc: 'Schedule mentorship meetings, approve pending requests, and enter meeting notes.', position: 'bottom' },
-                    { selector: '#tab-bar', title: 'Meeting Filters', desc: 'Filter your meetings by Pending, Approved, Completed, or All.', position: 'bottom' },
+                    { selector: '.tabs-nav, #tab-bar', title: 'Meeting Filters', desc: 'Filter your meetings by Pending, Approved, Completed, or All.', position: 'bottom' },
                     { selector: '.header-actions', title: 'Action Bar', desc: 'Access your user guide, switch color themes, and view alerts.', position: 'bottom' }
                 ];
             }

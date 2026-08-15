@@ -29,9 +29,18 @@ export async function render(container) {
   try {
     const dept = user.department;
     const data = await StatsService.getDeptStats(dept);
-    const { totalStudents, totalMentors, highRiskStudents, openIssues, resolvedIssues, students, mentors, issues } = data;
+    const { 
+      totalStudents = 0, 
+      totalMentors = 0, 
+      highRiskStudents = 0, 
+      openIssues = 0, 
+      resolvedIssues = 0, 
+      students = [], 
+      mentors = [], 
+      issues = [] 
+    } = data || {};
 
-    const highRiskList = students
+    const highRiskList = (students || [])
       .filter(s => s.riskLevel === 'HIGH')
       .sort((a,b) => (b.riskScore||0) - (a.riskScore||0));
 

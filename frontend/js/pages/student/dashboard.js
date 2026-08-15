@@ -197,7 +197,7 @@ export async function render(container) {
                 : upcomingMeetings.slice(0,3).map(m => `
                   <div class="list-item" style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                      <p style="font-weight:600;font-size:0.875rem;margin:0 0 2px;">${m.type}</p>
+                      <p style="font-weight:600;font-size:0.875rem;margin:0 0 2px;">${m.topic || m.type || m.description || 'Mentorship Session'}</p>
                       <p style="color:var(--text-muted);font-size:0.78rem;margin:0;">${fmt(m.scheduledAt)}</p>
                     </div>
                     <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}" style="border-radius:16px; padding:4px 14px; font-weight:600;">Join Call</button>
