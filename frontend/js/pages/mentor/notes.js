@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, TaskService } from '/js/services.js';
+import { StudentService, TaskService, NotificationService } from '/js/services.js';
 
 function statusCls(s) { return {PENDING:'badge-warning',IN_PROGRESS:'badge-info',COMPLETED:'badge-success',OVERDUE:'badge-danger'}[s]||'badge-muted'; }
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
@@ -85,8 +85,19 @@ export async function render(container) {
         mentorId: user.id, mentorName: user.name,
         description, dueDate, category
       });
+
+      if (studentId) {
+        await NotificationService.create({
+          userId: studentId,
+          type: 'TASK_ASSIGNED',
+          title: '📋 New Action Item Assigned',
+          message: `Prof. ${user.name} assigned an action item: ${description}`,
+          relatedId: id
+        });
+      }
+
       items.push({ id, studentId, studentName: student?.name || '', description, dueDate, category, status:'PENDING', progress:0 });
-      showToast('Action item assigned!', 'success');
+      showToast('Action item assigned and notified to student!', 'success');
       document.getElementById('ai-desc').value = '';
       renderList();
     } catch (err) {
