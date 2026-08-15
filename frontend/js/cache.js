@@ -60,6 +60,23 @@ class MemoryCacheManager {
     }
   }
 
+  invalidatePrefix(prefix) {
+    for (const key of this.memoryStore.keys()) {
+      if (key.startsWith(prefix)) {
+        this.memoryStore.delete(key);
+      }
+    }
+    try {
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith(`lumina_cache_${prefix}`)) {
+          sessionStorage.removeItem(k);
+        }
+      });
+    } catch (e) {
+      console.warn('SessionStorage prefix removal error:', e);
+    }
+  }
+
   clear() {
     this.memoryStore.clear();
     try {

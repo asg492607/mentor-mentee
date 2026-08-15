@@ -56,16 +56,28 @@ export const SettingsService = {
 
 // ─── STUDENTS ─────────────────────────────────────────────────────────────────
 
+// ─── STUDENTS ─────────────────────────────────────────────────────────────────
+
 export const StudentService = {
   async get(uid) {
-    return snap(await getDoc(doc(db, 'students', uid)));
+    const cacheKey = `student_${uid}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snap(await getDoc(doc(db, 'students', uid)));
+    if (res) CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async getAll(limitCount = null) {
     if (limitCount && typeof limitCount === 'number') {
       return snaps(await getDocs(query(collection(db, 'students'), limit(limitCount))));
     }
-    return snaps(await getDocs(collection(db, 'students')));
+    const cacheKey = 'students_all';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snaps(await getDocs(collection(db, 'students')));
+    CacheManager.set(cacheKey, res, 3 * 60 * 1000);
+    return res;
   },
 
   async getPaginated(lastDocSnapshot = null, pageSize = 50) {
@@ -85,11 +97,23 @@ export const StudentService = {
   },
 
   async getByMentor(mentorId) {
-    return snaps(await getDocs(query(collection(db, 'students'), where('mentorId', '==', mentorId))));
+    if (!mentorId) return [];
+    const cacheKey = `students_mentor_${mentorId}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snaps(await getDocs(query(collection(db, 'students'), where('mentorId', '==', mentorId))));
+    CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async getByDepartment(dept) {
-    return snaps(await getDocs(query(collection(db, 'students'), where('department', '==', dept))));
+    if (!dept) return [];
+    const cacheKey = `students_dept_${dept}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snaps(await getDocs(query(collection(db, 'students'), where('department', '==', dept))));
+    CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async getUnassigned(dept = null) {
@@ -100,6 +124,8 @@ export const StudentService = {
 
   async update(uid, data) {
     await updateDoc(doc(db, 'students', uid), { ...data, updatedAt: now() });
+    CacheManager.invalidate(`student_${uid}`);
+    CacheManager.invalidatePrefix('students_');
   },
 
   async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL') {
@@ -116,6 +142,9 @@ export const StudentService = {
       batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
     }
     await batch.commit();
+    CacheManager.invalidate(`student_${studentId}`);
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
   },
 
   async reassignMentor(studentId, newMentorId, reassignedBy = 'HOD', reason = 'Reassigned by HOD') {
@@ -165,11 +194,16 @@ export const StudentService = {
     }
 
     await batch.commit();
+    CacheManager.invalidate(`student_${studentId}`);
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
     return historyEntry;
   },
 
   async approve(uid) {
     await updateDoc(doc(db, 'students', uid), { status: 'approved', isApproved: true, updatedAt: now() });
+    CacheManager.invalidate(`student_${uid}`);
+    CacheManager.invalidatePrefix('students_');
   },
 
   async unassignMentor(studentId) {
@@ -182,6 +216,9 @@ export const StudentService = {
       batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
     }
     await batch.commit();
+    CacheManager.invalidate(`student_${studentId}`);
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
   },
 
   async deleteStudent(studentId) {
@@ -194,6 +231,9 @@ export const StudentService = {
       batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
     }
     await batch.commit();
+    CacheManager.invalidate(`student_${studentId}`);
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
   }
 };
 
@@ -256,19 +296,37 @@ export const BookletService = {
 
 export const FacultyService = {
   async get(uid) {
-    return snap(await getDoc(doc(db, 'faculty', uid)));
+    const cacheKey = `faculty_${uid}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snap(await getDoc(doc(db, 'faculty', uid)));
+    if (res) CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async getAll() {
-    return snaps(await getDocs(collection(db, 'faculty')));
+    const cacheKey = 'faculty_all';
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snaps(await getDocs(collection(db, 'faculty')));
+    CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async getByDepartment(dept) {
-    return snaps(await getDocs(query(collection(db, 'faculty'), where('department', '==', dept))));
+    if (!dept) return [];
+    const cacheKey = `faculty_dept_${dept}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+    const res = snaps(await getDocs(query(collection(db, 'faculty'), where('department', '==', dept))));
+    CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+    return res;
   },
 
   async update(uid, data) {
     await updateDoc(doc(db, 'faculty', uid), { ...data, updatedAt: now() });
+    CacheManager.invalidate(`faculty_${uid}`);
+    CacheManager.invalidatePrefix('faculty_');
   },
 
   async getPendingApprovals() {
@@ -277,6 +335,8 @@ export const FacultyService = {
 
   async approve(uid) {
     await updateDoc(doc(db, 'faculty', uid), { status: 'approved', isApproved: true, updatedAt: now() });
+    CacheManager.invalidate(`faculty_${uid}`);
+    CacheManager.invalidatePrefix('faculty_');
   }
 };
 
@@ -722,6 +782,8 @@ export const AllocationService = {
     });
     batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(studentIds.length) });
     await batch.commit();
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
   },
 
   async autoAllocate(department = null, onProgress = null) {
@@ -776,9 +838,12 @@ export const AllocationService = {
         currentBatch = writeBatch(db);
         batchCount = 0;
         mentorIncrements = {};
+        await new Promise(r => setTimeout(r, 0));
       }
     }
 
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
     return results;
   },
 
@@ -808,6 +873,7 @@ export const AllocationService = {
         if (onProgress) onProgress(processed, assignedStudents.length);
         currentBatch = writeBatch(db);
         batchCount = 0;
+        await new Promise(r => setTimeout(r, 0));
       }
     }
 
@@ -821,9 +887,12 @@ export const AllocationService = {
         await facultyBatch.commit();
         facultyBatch = writeBatch(db);
         fCount = 0;
+        await new Promise(r => setTimeout(r, 0));
       }
     }
 
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
     return assignedStudents.length;
   }
 };
@@ -833,55 +902,68 @@ export const AllocationService = {
 export const StatsService = {
   // Compute risk level based on academic data
   computeRisk(student) {
+    if (!student) return { riskScore: 0, riskLevel: 'LOW', factors: [] };
+
     let score = 0;
+    const factors = [];
+
+    // CGPA (0 - 40 pts)
     const cgpa = parseFloat(student.cgpa) || 0;
-    const att  = parseFloat(student.attendance) || 100;
-    if (cgpa < 5.0) score += 40;
-    else if (cgpa < 6.0) score += 25;
-    else if (cgpa < 7.0) score += 10;
-    if (att < 60)  score += 40;
-    else if (att < 75) score += 25;
-    else if (att < 85) score += 10;
-    const level = score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW';
-    return { riskScore: score, riskLevel: level };
+    if (cgpa > 0) {
+      if (cgpa < 5.0) { score += 40; factors.push('Critical CGPA (< 5.0)'); }
+      else if (cgpa < 6.0) { score += 30; factors.push('Low CGPA (< 6.0)'); }
+      else if (cgpa < 7.0) { score += 15; factors.push('Moderate CGPA (< 7.0)'); }
+    }
+
+    // Attendance (0 - 40 pts)
+    const attendance = parseFloat(student.attendance) || 0;
+    if (attendance > 0 || student.attendance !== undefined) {
+      if (attendance < 60) { score += 40; factors.push('Critical Attendance (< 60%)'); }
+      else if (attendance < 75) { score += 25; factors.push('Low Attendance (< 75%)'); }
+      else if (attendance < 85) { score += 10; factors.push('Moderate Attendance (< 85%)'); }
+    }
+
+    // Active Issues (0 - 20 pts)
+    const openIssues = parseInt(student.openIssuesCount) || 0;
+    if (openIssues >= 3) { score += 20; factors.push('Multiple Open Issues (3+)'); }
+    else if (openIssues > 0) { score += 10; factors.push('Open Grievance / Issues'); }
+
+    // Risk Level Mapping
+    let riskLevel = 'LOW';
+    if (score >= 60) riskLevel = 'HIGH';
+    else if (score >= 30) riskLevel = 'MEDIUM';
+
+    return { riskScore: Math.min(100, score), riskLevel, factors };
   },
 
   async getMentorStats(mentorId) {
-    const results = await Promise.allSettled([
+    const cacheKey = `mentor_stats_${mentorId}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) return cached;
+
+    const [students, meetings, issues] = await Promise.all([
       StudentService.getByMentor(mentorId),
       MeetingService.getByMentor(mentorId),
-      IssueService.getByMentor(mentorId),
-      TaskService.getByMentor(mentorId)
+      IssueService.getByMentor(mentorId)
     ]);
-    const students = results[0].status === 'fulfilled' ? results[0].value : [];
-    const meetings = results[1].status === 'fulfilled' ? results[1].value : [];
-    const issues = results[2].status === 'fulfilled' ? results[2].value : [];
-    const tasks = results[3].status === 'fulfilled' ? results[3].value : [];
 
-    // Fetch booklets for these students
-    const booklets = [];
-    if (students.length > 0) {
-      const bookletPromises = students.map(s => getDoc(doc(db, 'booklets', s.id)));
-      const bookletResults = await Promise.allSettled(bookletPromises);
-      const bookletSnaps = bookletResults.filter(r => r.status === 'fulfilled').map(r => r.value);
-      bookletSnaps.forEach(snap => {
-        if (snap.exists()) {
-           booklets.push({ id: snap.id, ...snap.data() });
-        }
-      });
-    }
+    const totalStudents = students.length;
+    const highRiskStudents = students.filter(s => s.riskLevel === 'HIGH').length;
+    const openIssues = issues.filter(i => i.status === 'OPEN').length;
+    const completedMeetings = meetings.filter(m => m.status === 'COMPLETED').length;
 
-    // Attach booklet data to student objects
-    const enrichedStudents = students.map(s => {
-      const b = booklets.find(bk => bk.id === s.id);
-      return { ...s, booklet: b || null };
-    });
+    const stats = {
+      totalStudents,
+      highRiskStudents,
+      openIssues,
+      completedMeetings,
+      students,
+      meetings,
+      issues
+    };
 
-    const highRisk = enrichedStudents.filter(s => s.riskLevel === 'HIGH').length;
-    const pending  = meetings.filter(m => m.status === 'REQUESTED').length;
-    const open     = issues.filter(i => i.status === 'OPEN').length;
-    const done     = meetings.filter(m => m.status === 'COMPLETED').length;
-    return { totalStudents: enrichedStudents.length, highRiskStudents: highRisk, pendingRequests: pending, openIssues: open, completedMeetings: done, students: enrichedStudents, meetings, issues, tasks };
+    CacheManager.set(cacheKey, stats, 2 * 60 * 1000);
+    return stats;
   },
 
   async getDeptStats(department) {
@@ -955,34 +1037,28 @@ export const AdminService = {
 
     if (!email) throw new Error('Email is required.');
 
-    // ── Pre-check: email & enrollment/employee ID uniqueness in Firestore ──
+    // ── Pre-check: targeted O(1) reads for 20k scalability ──
     const normEmail = email.toLowerCase().trim();
     const normEnroll = (data.enrollmentNumber || data.enrollmentNo || data.employeeId || '').toLowerCase().trim();
 
-    const [stuSnap, facSnap] = await Promise.all([
-      getDocs(collection(db, 'students')),
-      getDocs(collection(db, 'faculty'))
+    const [stuEmailSnap, facEmailSnap] = await Promise.all([
+      getDocs(query(collection(db, 'students'), where('email', '==', normEmail), limit(1))),
+      getDocs(query(collection(db, 'faculty'), where('email', '==', normEmail), limit(1)))
     ]);
 
-    const isDupEmail = stuSnap.docs.some(d => (d.data().email || '').toLowerCase().trim() === normEmail) ||
-                       facSnap.docs.some(d => (d.data().email || '').toLowerCase().trim() === normEmail);
-
-    if (isDupEmail) {
+    if (!stuEmailSnap.empty || !facEmailSnap.empty) {
       const dupErr = new Error('This email is already registered.');
       dupErr.code = 'auth/email-already-in-use';
       throw dupErr;
     }
 
     if (normEnroll) {
-      const isDupEnroll = stuSnap.docs.some(d => {
-        const e = (d.data().enrollmentNumber || d.data().rollNumber || d.data().employeeId || '').toLowerCase().trim();
-        return e && e === normEnroll;
-      }) || facSnap.docs.some(d => {
-        const e = (d.data().employeeId || d.data().enrollmentNumber || '').toLowerCase().trim();
-        return e && e === normEnroll;
-      });
+      const [stuEnrollSnap, facEnrollSnap] = await Promise.all([
+        getDocs(query(collection(db, 'students'), where('enrollmentNumber', '==', normEnroll), limit(1))),
+        getDocs(query(collection(db, 'faculty'), where('employeeId', '==', normEnroll), limit(1)))
+      ]);
 
-      if (isDupEnroll) {
+      if (!stuEnrollSnap.empty || !facEnrollSnap.empty) {
         const dupErr = new Error(`An account with ID "${normEnroll}" already exists.`);
         dupErr.code = 'auth/id-already-in-use';
         throw dupErr;
@@ -1125,9 +1201,9 @@ export const AdminService = {
       } catch (bErr) {
         console.warn('Could not prefill booklet doc:', bErr);
       }
-      CacheManager.invalidate('students');
+      CacheManager.invalidatePrefix('students_');
     } else {
-      CacheManager.invalidate('faculty');
+      CacheManager.invalidatePrefix('faculty_');
     }
     
     return profileData;

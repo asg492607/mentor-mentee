@@ -199,7 +199,14 @@ export async function render(container) {
     });
   }
 
-  document.getElementById('s-search').addEventListener('input', e => { search = e.target.value.toLowerCase(); render_table(); });
+  let searchTimeout = null;
+  document.getElementById('s-search')?.addEventListener('input', e => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      search = e.target.value.toLowerCase().trim();
+      render_table();
+    }, 150);
+  });
   document.querySelectorAll('.rf').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.rf').forEach(b => b.className = 'btn btn-sm btn-secondary rf');

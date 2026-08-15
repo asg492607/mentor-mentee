@@ -55,6 +55,8 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                         myPresenceRef = doc(sigRef, `presence_${selfId}`);
                         setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: user?.id || null, name: user?.name || 'Participant', isHost: true }).then(() => {
                             connected = true;
+                            if (pruneInterval) clearInterval(pruneInterval);
+                            pruneInterval = setInterval(pruneStaleSignals, 45000);
                             emit('joined', { id: selfId, peers });
                             emit('connect');
                         }).catch(err => emit('error', new Error('Failed to join: ' + err.message)));
@@ -146,11 +148,25 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         };
     }
 
+    let pruneInterval = null;
+
+    async function pruneStaleSignals() {
+        if (!isHost || !connected) return;
+        try {
+            const sigRef = collection(db, 'meetings', meetingId, 'signaling');
+            const cutoffTime = Date.now() - (60 * 1000); // 1 minute cutoff
+            const oldSignals = await getDocs(query(sigRef, where('createdAt', '<', cutoffTime)));
+            oldSignals.forEach(d => deleteDoc(d.ref).catch(() => {}));
+        } catch (e) {
+            // Non-critical background cleanup
+        }
+    }
+
     async function sendSignal(to, signal) {
         if (!connected) return false;
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
-                type: 'signal', from: selfId, to, name: user?.name, signal
+                type: 'signal', from: selfId, to, name: user?.name, signal, createdAt: Date.now()
             });
             return true;
         } catch(e) { return false; }
@@ -160,7 +176,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         if (!connected) return false;
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
-                type: 'chat', from: selfId, name: user?.name, text
+                type: 'chat', from: selfId, name: user?.name, text, createdAt: Date.now()
             });
             return true;
         } catch(e) { return false; }
@@ -169,7 +185,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
-                type: 'control', from: selfId, to, action
+                type: 'control', from: selfId, to, action, createdAt: Date.now()
             });
             return true;
         } catch(e) {
@@ -193,6 +209,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
     async function disconnect() {
         if (intentionalClose) return;
         intentionalClose = true;
+        if (pruneInterval) clearInterval(pruneInterval);
         unsubscribes.forEach(unsub => unsub());
         if (myPresenceRef) {
             await deleteDoc(myPresenceRef).catch(()=>{});
