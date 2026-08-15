@@ -303,7 +303,7 @@ export async function render(container) {
 
                   <div class="report-field-group">
                     <label class="report-label">🏢 Department</label>
-                    <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. School of Computing" value="${escapeHtml(meeting.department || 'School of Computing')}">
+                    <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. Department of Computer Science & Engineering (Core)" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
                   </div>
 
                   <!-- Signature Section -->
@@ -335,8 +335,8 @@ export async function render(container) {
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
                         <div class="report-sig-name">Approved By</div>
-                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name">
-                        <div class="report-sig-role">Head of Department</div>
+                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name" value="Dr. Suwarna Pawar">
+                        <div class="report-sig-role">Head of Department (CSE Core)</div>
                       </div>
                     </div>
                   </div>
@@ -427,6 +427,58 @@ export async function render(container) {
               <span class="control-btn-label">${isMentor ? 'End' : 'Leave'}</span>
             </button>
           </footer>
+        </div>
+
+        <!-- Recording Options Modal (Host Only) -->
+        <div id="recording-modal" class="modal-backdrop" style="display:none;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);position:fixed;inset:0;justify-content:center;align-items:center;">
+          <div class="modal" style="max-width:520px;width:90%;background:var(--bg-card,#1e293b);border-radius:14px;border:1px solid var(--border,#334155);color:white;padding:24px;box-shadow:0 12px 36px rgba(0,0,0,0.4);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;">
+              <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px;font-weight:700;">
+                <span style="color:#ef4444;font-size:1.3rem;">⏺️</span> Meeting Recording Mode
+              </h3>
+              <button class="btn btn-ghost btn-sm" id="close-record-modal" style="color:#94a3b8;background:none;border:none;font-size:1.2rem;cursor:pointer;">✕</button>
+            </div>
+
+            <p style="font-size:0.875rem;color:#94a3b8;margin-bottom:20px;line-height:1.4;">
+              Select your recording destination for this mentorship session:
+            </p>
+
+            <!-- Option 1: On-Device Recording -->
+            <div class="card" style="padding:16px;background:rgba(255,255,255,0.04);border:1.5px solid #3b82f6;border-radius:10px;margin-bottom:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#60a5fa;">
+                  💻 1. On-Device Recording
+                </div>
+                <span class="badge" style="background:#22c55e;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">ACTIVE / READY</span>
+              </div>
+              <p style="font-size:0.82rem;color:#cbd5e1;margin-bottom:12px;line-height:1.4;">
+                Records high-definition audio &amp; video in your browser. When stopped, saves the video file directly to your device downloads folder.
+              </p>
+              <button class="btn btn-primary btn-sm" id="btn-start-device-rec" style="width:100%;font-weight:700;padding:9px;">
+                ▶️ Start On-Device Recording
+              </button>
+            </div>
+
+            <!-- Option 2: Cloud Recording -->
+            <div class="card" style="padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.1);border-radius:10px;opacity:0.75;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#94a3b8;">
+                  ☁️ 2. Cloud Recording (Server)
+                </div>
+                <span class="badge" style="background:#64748b;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">DISABLED (OFF)</span>
+              </div>
+              <p style="font-size:0.82rem;color:#94a3b8;margin-bottom:8px;line-height:1.4;">
+                Institutional cloud server recording with automatic video archive.
+              </p>
+              <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;font-size:0.78rem;color:#f59e0b;">
+                <span>🔒</span> Cloud recording is kept <strong>OFF</strong> by administrative policy till further activation instructions.
+              </div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+              <button class="btn btn-secondary btn-sm" id="cancel-record-modal" style="padding:7px 16px;">Cancel</button>
+            </div>
+          </div>
         </div>
       </div>`;
 
@@ -1023,20 +1075,37 @@ export async function render(container) {
     }
   };
 
-  // Recording Logic (Host Mentor Only)
+  // Recording Logic (Host Mentor Only: 2 Types - On-Device & Cloud)
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordStream = null;
+  let recInterval = null;
+  let recSeconds = 0;
+
   const btnRecord = document.getElementById('btn-record');
-  if (btnRecord) {
-    btnRecord.onclick = async () => {
+  const recordModal = document.getElementById('recording-modal');
+  const closeRecModal = document.getElementById('close-record-modal');
+  const cancelRecModal = document.getElementById('cancel-record-modal');
+  const btnStartDeviceRec = document.getElementById('btn-start-device-rec');
+
+  if (btnRecord && recordModal) {
+    // Open recording options modal
+    btnRecord.onclick = () => {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        btnRecord.classList.remove('active');
-        const label = document.getElementById('label-record');
-        if (label) label.textContent = 'Record';
+        if (confirm('Stop On-Device Recording and save the video file?')) {
+          mediaRecorder.stop();
+        }
         return;
       }
+      recordModal.style.display = 'flex';
+    };
+
+    closeRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
+    cancelRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
+
+    // Option 1: Start On-Device Recording
+    btnStartDeviceRec?.addEventListener('click', async () => {
+      recordModal.style.display = 'none';
 
       try {
         recordStream = await navigator.mediaDevices.getDisplayMedia({
@@ -1070,13 +1139,15 @@ export async function render(container) {
         };
 
         mediaRecorder.onstop = () => {
+          clearInterval(recInterval);
           const blob = new Blob(recordedChunks, { type: 'video/webm' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           document.body.appendChild(a);
           a.style.display = 'none';
           a.href = url;
-          a.download = `meeting_recording_${new Date().toISOString().slice(0, 10)}.webm`;
+          const cleanTopic = (meeting.type || meeting.description || 'Mentorship_Session').replace(/[^a-zA-Z0-9_-]/g, '_');
+          a.download = `${cleanTopic}_${new Date().toISOString().slice(0, 10)}.webm`;
           a.click();
           URL.revokeObjectURL(url);
           recordStream.getTracks().forEach(t => t.stop());
@@ -1084,7 +1155,7 @@ export async function render(container) {
           btnRecord.classList.remove('active');
           const label = document.getElementById('label-record');
           if (label) label.textContent = 'Record';
-          showToast('Recording downloaded locally', 'success');
+          showToast('💻 On-Device recording saved to your Downloads folder!', 'success');
         };
 
         recordStream.getVideoTracks()[0].onended = () => {
@@ -1093,14 +1164,23 @@ export async function render(container) {
 
         mediaRecorder.start(1000);
         btnRecord.classList.add('active');
+        recSeconds = 0;
         const label = document.getElementById('label-record');
-        if (label) label.textContent = 'Stop';
-        showToast('Recording started', 'info');
+        if (label) label.textContent = 'Stop (00:00)';
+
+        recInterval = setInterval(() => {
+          recSeconds++;
+          const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+          const secs = String(recSeconds % 60).padStart(2, '0');
+          if (label) label.textContent = `Stop (${mins}:${secs})`;
+        }, 1000);
+
+        showToast('🔴 On-Device recording active (Saving locally when done)', 'info');
       } catch (err) {
         console.error(err);
-        showToast('Recording cancelled', 'warning');
+        showToast('On-Device recording cancelled', 'warning');
       }
-    };
+    });
   }
 
   // Side Panel Toggle & Tabs
@@ -1224,11 +1304,11 @@ export async function render(container) {
         issuesDiscussed: document.getElementById('rpt-issues')?.value.trim(),
         actionItems: document.getElementById('rpt-actions')?.value.trim(),
         remarks: document.getElementById('rpt-remarks')?.value.trim(),
-        department: document.getElementById('rpt-dept')?.value.trim(),
+        department: document.getElementById('rpt-dept')?.value.trim() || 'Department of Computer Science & Engineering (Core)',
         preparedBy: meeting.mentorName || user.name,
         checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
         verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
-        hodName: document.getElementById('rpt-hod-name')?.value.trim() || '',
+        hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar',
         savedAt: new Date().toISOString()
       };
       await MeetingService.update(meetingId, { report: reportData });
@@ -1251,13 +1331,13 @@ export async function render(container) {
       time: document.getElementById('rpt-time')?.value || '',
       students: studentRows,
       issuesDiscussed: document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.',
-      actionItems: document.getElementById('rpt-actions')?.value.trim() || 'No action items.',
+      actionItems: document.getElementById('rpt-actions')?.value.trim() || 'No action items recorded.',
       remarks: document.getElementById('rpt-remarks')?.value.trim() || '',
-      department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'School of Computing',
+      department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
       preparedBy: meeting.mentorName || user.name || '',
       checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
       verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
-      hodName: document.getElementById('rpt-hod-name')?.value.trim() || ''
+      hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar'
     };
 
     exportMeetingSessionReport({ ...meeting, report: reportData });

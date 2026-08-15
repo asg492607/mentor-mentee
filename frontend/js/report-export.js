@@ -851,16 +851,16 @@ export function exportMeetingSessionReport(meeting) {
   } catch (e) {}
 
   const time = rpt.time || (meeting.scheduledAt ? new Date(meeting.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—');
-  const dept = rpt.department || meeting.department || 'School of Computing';
+  const dept = rpt.department || meeting.department || 'Department of Computer Science & Engineering (Core)';
   const preparedBy = rpt.preparedBy || meeting.mentorName || 'Faculty Mentor';
   const checkedBy = rpt.checkedBy || '';
-  const hodName = rpt.hodName || '';
+  const hodName = rpt.hodName || 'Dr. Suwarna Pawar';
 
-  const issues = rpt.issuesDiscussed || meeting.notes?.problem || meeting.notes?.summary || meeting.description || 'No issues reported.';
-  const advice = meeting.notes?.advice || '';
+  const issues = rpt.issuesDiscussed || meeting.notes?.issuesDiscussed || meeting.notes?.studentIssues || meeting.notes?.problem || meeting.notes?.summary || meeting.description || 'No issues reported.';
+  const actionTaken = meeting.notes?.actionTaken || meeting.notes?.remedialMeasures || meeting.notes?.advice || '';
   const tasks = Array.isArray(meeting.notes?.tasks) ? meeting.notes.tasks.map(t => `• ${t}`).join('\n') : '';
-  const fallbackActions = [advice, tasks].filter(Boolean).join('\n\n');
-  const actions = rpt.actionItems || fallbackActions || 'No action items.';
+  const fallbackActions = [actionTaken, tasks].filter(Boolean).join('\n\n');
+  const actions = rpt.actionItems || fallbackActions || 'No action items recorded.';
   const remarks = rpt.remarks || meeting.notes?.remarks || '';
 
   // Collect students list for attendance sheet

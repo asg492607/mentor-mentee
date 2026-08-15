@@ -102,25 +102,61 @@ export async function render(container) {
                 </div>
               ` : (m.status === 'APPROVED' || m.status === 'ONGOING') ? `
                 <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}">${m.status === 'ONGOING' ? '● Join Live' : 'Join Meeting'}</button>
-                <button class="btn btn-sm btn-secondary note-btn" data-id="${m.id}">Add Notes</button>
+                <button class="btn btn-sm btn-secondary note-btn" data-id="${m.id}">📝 Notes &amp; Report</button>
+                <button class="btn btn-sm btn-outline report-btn" data-id="${m.id}">📄 Download Report</button>
               ` : m.status === 'COMPLETED' ? `
-                <button class="btn btn-sm btn-secondary note-btn" style="margin-bottom:8px;" data-id="${m.id}">View Notes</button>
-                <button class="btn btn-sm btn-primary report-btn" data-id="${m.id}">Download Report</button>
+                <button class="btn btn-sm btn-secondary note-btn" style="margin-bottom:4px;" data-id="${m.id}">📝 View / Edit Notes</button>
+                <button class="btn btn-sm btn-primary report-btn" data-id="${m.id}">📄 Download Report</button>
               ` : ''}
             </div>
           </div>
 
-          <!-- Notes form (hidden) -->
-          <div id="notes-${m.id}" style="display:none;" class="inline-form" style="margin-top:12px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <div class="form-group"><label class="form-label">Problem Discussed</label><textarea class="form-textarea np" style="min-height:60px;" placeholder="What was discussed?">${m.notes?.problem||''}</textarea></div>
-              <div class="form-group"><label class="form-label">Advice Given</label><textarea class="form-textarea na" style="min-height:60px;" placeholder="Guidance provided?">${m.notes?.advice||''}</textarea></div>
-              <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Summary</label><textarea class="form-textarea ns" style="min-height:60px;" placeholder="Meeting summary...">${m.notes?.summary||''}</textarea></div>
-              <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Action Items (one per line)</label><textarea class="form-textarea nt" style="min-height:60px;" placeholder="Task 1&#10;Task 2">${(m.notes?.tasks||[]).join('\n')}</textarea></div>
+          <!-- Structured Report & Notes Form -->
+          <div id="notes-${m.id}" style="display:none;margin-top:16px;padding:16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;" class="inline-form">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+              <h4 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:6px;">
+                📋 Mentorship Meeting Notes &amp; Action Report
+              </h4>
+              <button class="btn btn-sm btn-outline report-btn" data-id="${m.id}" type="button" style="padding:4px 10px;font-size:0.78rem;">
+                🖨️ Export PDF / Print
+              </button>
             </div>
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button class="btn btn-sm btn-primary save-note-btn" data-id="${m.id}" data-sid="${m.studentId}">Save Notes</button>
+            
+            <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+              <!-- Section 1: Student Issues / Issues Discussed -->
+              <div class="form-group">
+                <label class="form-label" style="font-weight:600;display:flex;align-items:center;gap:5px;">
+                  <span style="color:var(--danger,#ef4444);">⚠️</span> Section 1: Student Issues &amp; Concerns Discussed
+                </label>
+                <textarea class="form-textarea np" style="min-height:75px;" placeholder="Record direct student issues, academic/personal/hostel/classroom concerns discussed in this meeting...">${m.notes?.issuesDiscussed || m.notes?.studentIssues || m.notes?.problem || ''}</textarea>
+              </div>
+
+              <!-- Section 2: Action Taken & Remedial Measures -->
+              <div class="form-group">
+                <label class="form-label" style="font-weight:600;display:flex;align-items:center;gap:5px;">
+                  <span style="color:var(--success,#22c55e);">✅</span> Section 2: Action Taken &amp; Remedial Measures
+                </label>
+                <textarea class="form-textarea na" style="min-height:75px;" placeholder="Record action taken, remedial measures suggested, mentor advice &amp; solutions provided...">${m.notes?.actionTaken || m.notes?.remedialMeasures || m.notes?.advice || ''}</textarea>
+              </div>
+
+              <!-- Follow-up Action Items (Tasks) & Remarks -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">🎯 Action Items / Tasks (one per line)</label>
+                  <textarea class="form-textarea nt" style="min-height:65px;" placeholder="Task 1&#10;Task 2">${(m.notes?.tasks||[]).join('\n')}</textarea>
+                  <small style="color:var(--text-muted);font-size:0.75rem;">Auto-assigned to student's task roster</small>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">📝 Additional Remarks (Optional)</label>
+                  <textarea class="form-textarea nr" style="min-height:65px;" placeholder="Additional observations or remarks for HOD review...">${m.notes?.remarks || m.notes?.summary || ''}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap;">
               <button class="btn btn-sm btn-secondary cancel-note-btn" data-id="${m.id}">Cancel</button>
+              <button class="btn btn-sm btn-primary save-note-btn" data-id="${m.id}" data-sid="${m.studentId}">💾 Save Notes</button>
+              <button class="btn btn-sm btn-success save-gen-report-btn" data-id="${m.id}" data-sid="${m.studentId}">🖨️ Save &amp; Download Report</button>
             </div>
           </div>
         </div>
@@ -190,35 +226,79 @@ export async function render(container) {
       });
     });
 
+    // Helper to persist notes
+    async function saveMeetingNotes(meetingId, studentId, andDownloadReport = false) {
+      const card = document.getElementById(`card-${meetingId}`);
+      const issuesDiscussed = card.querySelector('.np')?.value || '';
+      const actionTaken = card.querySelector('.na')?.value || '';
+      const tasks = card.querySelector('.nt')?.value?.split('\n').filter(Boolean) || [];
+      const remarks = card.querySelector('.nr')?.value || '';
+
+      const notes = {
+        issuesDiscussed,
+        actionTaken,
+        problem: issuesDiscussed,
+        advice: actionTaken,
+        summary: remarks || issuesDiscussed,
+        tasks,
+        remarks
+      };
+
+      await MeetingService.addNotes(meetingId, notes);
+
+      // Create action items from tasks list
+      if (studentId && studentId !== 'ALL' && tasks.length) {
+        for (const desc of tasks) {
+          await TaskService.create({
+            studentId,
+            mentorId: user.id,
+            description: desc,
+            category: 'Meeting Action',
+            dueDate: null
+          });
+        }
+      }
+
+      const m = meetings.find(x => x.id === meetingId);
+      if (m) {
+        m.notes = notes;
+        m.status = 'COMPLETED';
+      }
+
+      showToast('Meeting notes saved successfully!', 'success');
+      document.getElementById(`notes-${meetingId}`).style.display = 'none';
+      renderTab();
+
+      if (andDownloadReport && m) {
+        exportMeetingSessionReport(m);
+      }
+    }
+
     // Save notes
     document.querySelectorAll('.save-note-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const card = document.getElementById(`card-${btn.dataset.id}`);
-        const notes = {
-          problem: card.querySelector('.np')?.value || '',
-          advice:  card.querySelector('.na')?.value || '',
-          summary: card.querySelector('.ns')?.value || '',
-          tasks:   card.querySelector('.nt')?.value?.split('\n').filter(Boolean) || []
-        };
+        btn.disabled = true;
         try {
-          await MeetingService.addNotes(btn.dataset.id, notes);
-          // Create action items from tasks list
-          if (btn.dataset.sid && notes.tasks.length) {
-            for (const desc of notes.tasks) {
-              await TaskService.create({
-                studentId: btn.dataset.sid,
-                mentorId: user.id,
-                description: desc,
-                category: 'Meeting Action',
-                dueDate: null
-              });
-            }
-          }
-          showToast('Notes saved!', 'success');
-          document.getElementById(`notes-${btn.dataset.id}`).style.display = 'none';
-          meetings.find(m => m.id === btn.dataset.id).status = 'COMPLETED';
-          renderTab();
-        } catch (err) { showToast(err.message, 'error'); }
+          await saveMeetingNotes(btn.dataset.id, btn.dataset.sid, false);
+        } catch (err) {
+          showToast(err.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Save and download report
+    document.querySelectorAll('.save-gen-report-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await saveMeetingNotes(btn.dataset.id, btn.dataset.sid, true);
+        } catch (err) {
+          showToast(err.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
       });
     });
 
@@ -258,12 +338,6 @@ export async function render(container) {
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Type</label>
-              <select id="sched-type" class="form-select" required>
-                <option>Academic Issue</option><option>Career Guidance</option><option>Project Guidance</option><option>General Check-in</option>
-              </select>
-            </div>
-            <div class="form-group">
               <label class="form-label">Topic / Description</label>
               <input type="text" id="sched-desc" class="form-input" required placeholder="What will this meeting cover?">
             </div>
@@ -299,9 +373,9 @@ export async function render(container) {
     btn.disabled = true; btn.textContent = 'Scheduling...';
     try {
       const studentId = container.querySelector('#sched-student').value;
-      const type = container.querySelector('#sched-type').value;
       const desc = container.querySelector('#sched-desc').value;
       const date = container.querySelector('#sched-date').value;
+      const type = 'Mentorship Meeting';
 
       if (studentId === 'ALL') {
         // Group Meeting
@@ -317,7 +391,7 @@ export async function render(container) {
         for (const s of students) {
           await NotificationService.create({
             userId: s.id, type: 'MEETING_APPROVED',
-            title: 'New Group Meeting', message: `Scheduled for ${fmt(date)}: ${type}`, relatedId: mId
+            title: 'New Group Meeting', message: `Scheduled for ${fmt(date)}: ${desc}`, relatedId: mId
           });
         }
       } else {
@@ -333,7 +407,7 @@ export async function render(container) {
         
         await NotificationService.create({
           userId: student.id, type: 'MEETING_APPROVED',
-          title: 'Meeting Scheduled', message: `Your mentor scheduled a meeting for ${fmt(date)}`, relatedId: mId
+          title: 'Meeting Scheduled', message: `Your mentor scheduled a meeting for ${fmt(date)}: ${desc}`, relatedId: mId
         });
       }
 
