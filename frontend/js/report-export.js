@@ -1,4 +1,4 @@
-import { FacultyService, StudentService } from '/js/services.js';
+import { FacultyService, StudentService, IssueService, MeetingService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 
 export async function exportMentorStudentReport(format = 'excel') {
@@ -306,10 +306,15 @@ export async function exportSingleMentorReport(mentorId, format = 'excel') {
   if (!mentorId) return showToast('Please select a mentor first', 'warning');
   showToast(`Preparing ${format.toUpperCase()} report for selected mentor...`, 'info');
   try {
-    const mentor = await FacultyService.get(mentorId);
+    const [mentor, students, issues, meetings] = await Promise.all([
+      FacultyService.get(mentorId),
+      StudentService.getByMentor(mentorId),
+      IssueService.getByMentor(mentorId),
+      MeetingService.getByMentor(mentorId)
+    ]);
+
     if (!mentor) return showToast('Mentor not found', 'error');
 
-    const students = await StudentService.getByMentor(mentorId);
     if (!students || students.length === 0) {
       return showToast(`No assigned mentees found for ${mentor.name}`, 'warning');
     }
@@ -330,67 +335,244 @@ export async function exportSingleMentorReport(mentorId, format = 'excel') {
       'Class': s.class ? `Class ${s.class}` : 'Unassigned Class',
       'Student Name': s.name || '—',
       'Enrollment No': s.enrollmentNumber || '—',
+      'CGPA': s.cgpa || '—',
+      'Attendance': s.attendance !== undefined ? `${s.attendance}%` : '—',
+      'Risk Level': s.riskLevel || 'LOW',
       'Department': s.department || '—'
     }));
 
+    // Compile Issues and Action Taken rows
+    const issueRows = (issues || []).map((iss, idx) => {
+      const actionTakenText = iss.actionTaken || iss.resolution || (iss.status === 'RESOLVED' ? 'Issue resolved by mentor.' : '[Pending Action / Under Review]');
+      return {
+        'Sr No': idx + 1,
+        'Student Name': iss.studentName || '—',
+        'Issue Title': iss.title || 'Student Grievance',
+        'Category': iss.category || 'General',
+        'Date Raised': iss.createdAt ? new Date(iss.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+        'Status': iss.status || 'OPEN',
+        'Issue Description': iss.description || '—',
+        'Action Taken & Remedial Measures': actionTakenText,
+        'Escalation Target': iss.escalationLevel && iss.escalationLevel !== 'MENTOR' ? iss.escalationLevel : 'Handled by Mentor'
+      };
+    });
+
     const sanitizeName = (mentor.name || 'Mentor').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const dateStr = new Date().toISOString().slice(0, 10);
 
     if (format === 'excel') {
       if (typeof XLSX === 'undefined') return showToast('Excel export library is not loaded', 'error');
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(reportRows);
-      ws['!cols'] = [
+      
+      // Sheet 1: Mentees List
+      const ws1 = XLSX.utils.json_to_sheet(reportRows);
+      ws1['!cols'] = [
         { wch: 8 },  // Sr No
         { wch: 18 }, // Class
         { wch: 25 }, // Student Name
         { wch: 18 }, // Enrollment No
-        { wch: 20 }  // Department
+        { wch: 10 }, // CGPA
+        { wch: 14 }, // Attendance
+        { wch: 14 }, // Risk Level
+        { wch: 24 }  // Department
       ];
-      XLSX.utils.book_append_sheet(wb, ws, 'Mentees List');
-      const dateStr = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `${sanitizeName}_Mentees_${dateStr}.xlsx`);
-      showToast(`Excel mentee report for ${mentor.name} downloaded successfully!`, 'success');
+      XLSX.utils.book_append_sheet(wb, ws1, 'Mentees List');
+
+      // Sheet 2: Issues & Action Taken
+      const ws2 = XLSX.utils.json_to_sheet(issueRows.length > 0 ? issueRows : [{
+        'Status Message': 'No grievances or student issues recorded for assigned mentees.'
+      }]);
+      ws2['!cols'] = [
+        { wch: 8 },  // Sr No
+        { wch: 22 }, // Student Name
+        { wch: 26 }, // Issue Title
+        { wch: 18 }, // Category
+        { wch: 14 }, // Date Raised
+        { wch: 14 }, // Status
+        { wch: 35 }, // Issue Description
+        { wch: 40 }, // Action Taken & Remedial Measures
+        { wch: 20 }  // Escalation Target
+      ];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Issues & Action Taken');
+
+      XLSX.writeFile(wb, `${sanitizeName}_Mentorship_Report_${dateStr}.xlsx`);
+      showToast(`Excel mentorship report with action taken for ${mentor.name} downloaded successfully!`, 'success');
     } else if (format === 'pdf') {
-      if (window.jspdf && window.jspdf.jsPDF) {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        doc.setFontSize(14);
-        doc.setTextColor(98, 84, 231);
-        doc.text(`Mentee Allocation Report — ${mentor.name}`, 14, 15);
-
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(`Department: ${mentor.department || '—'} | Designation: ${mentor.designation || 'Faculty'} | Total Mentees: ${students.length}`, 14, 22);
-
-        const headers = [['#', 'Class', 'Student Name', 'Enrollment No', 'Department']];
-        const body = reportRows.map(r => [
-          r['Sr No'],
-          r['Class'],
-          r['Student Name'],
-          r['Enrollment No'],
-          r['Department']
-        ]);
-
-        doc.autoTable({
-          startY: 26,
-          head: headers,
-          body: body,
-          theme: 'grid',
-          headStyles: { fillColor: [98, 84, 231], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-          styles: { fontSize: 8, cellPadding: 2.5 }
-        });
-
-        const dateStr = new Date().toISOString().slice(0, 10);
-        doc.save(`${sanitizeName}_Mentees_${dateStr}.pdf`);
-        showToast(`PDF mentee report for ${mentor.name} downloaded successfully!`, 'success');
-      } else {
-        openPrintableReportWindow(reportRows, [mentor], sorted);
-      }
+      openPrintableSingleMentorReportWindow(mentor, sorted, issues, meetings);
     }
   } catch (err) {
     console.error("Single mentor export error:", err);
     showToast(`Export failed: ${err.message}`, 'error');
   }
+}
+
+function openPrintableSingleMentorReportWindow(mentor, students, issues = [], meetings = []) {
+  const printWin = window.open('', '_blank', 'width=1050,height=900');
+  if (!printWin) {
+    return showToast('Pop-up blocked. Please allow pop-ups to view printable PDF report.', 'warning');
+  }
+
+  const openIssuesCount = issues.filter(i => i.status !== 'RESOLVED').length;
+  const resolvedIssuesCount = issues.filter(i => i.status === 'RESOLVED').length;
+  const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Mentorship Report — ${mentor.name}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm 12mm; }
+        body { font-family: 'Times New Roman', Times, serif; padding: 20px; color: #0f172a; background: #fff; line-height: 1.35; font-size: 10pt; }
+        .rpt-banner { width: 100%; height: auto; display: block; border-bottom: 2px solid #1e293b; margin-bottom: 12px; }
+        .title-block { text-align: center; margin-bottom: 14px; }
+        .title-block h1 { font-size: 13pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; border: 1.5px solid #0f172a; display: inline-block; padding: 4px 22px; background: #f8fafc; margin: 0; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 9.5pt; }
+        .meta-table td { padding: 5px 8px; border: 1px solid #94a3b8; }
+        .meta-table td:first-child { width: 28%; font-weight: 700; background: #f1f5f9; }
+        .sec-title { font-size: 10pt; font-weight: 700; text-transform: uppercase; background: #f1f5f9; border: 1px solid #334155; padding: 5px 8px; margin-top: 16px; margin-bottom: 0; }
+        table.data-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; border: 1px solid #334155; margin-bottom: 14px; }
+        table.data-tbl th { background: #e2e8f0; border: 1px solid #64748b; padding: 6px 8px; text-align: left; font-weight: 700; }
+        table.data-tbl td { border: 1px solid #94a3b8; padding: 5px 8px; vertical-align: top; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; }
+        .badge-open { background: #fee2e2; color: #991b1b; }
+        .badge-resolved { background: #dcfce7; color: #166534; }
+        .badge-escalated { background: #fef3c7; color: #92400e; }
+        .action-text { background: #f8fafc; border-left: 3px solid #4f46e5; padding: 4px 6px; font-style: normal; font-size: 8.5pt; color: #1e293b; margin-top: 2px; }
+        .sig-block { margin-top: 24px; border-top: 1.5px solid #334155; padding-top: 10px; }
+        .sig-row { display: flex; justify-content: space-between; gap: 8px; }
+        .sig-col { flex: 1; text-align: center; }
+        .sig-space { height: 36px; border-bottom: 1px solid #0f172a; margin-bottom: 4px; }
+        .sig-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; }
+        .btn-print { position: fixed; top: 16px; right: 20px; background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+        @media print {
+          .btn-print { display: none; }
+          body { padding: 0; }
+          .page-break { page-break-before: always; }
+        }
+      </style>
+    </head>
+    <body>
+      <button class="btn-print" onclick="window.print()">🖨️ Print / Save PDF</button>
+
+      <img src="${bannerUrl}" alt="MIT-ADT University" class="rpt-banner">
+
+      <div class="title-block">
+        <h1>Faculty Mentorship &amp; Grievance Action Report</h1>
+        <div style="font-size:8.5pt;color:#475569;margin-top:4px;font-style:italic;">Comprehensive Record of Mentees, Issues Raised &amp; Action Taken</div>
+      </div>
+
+      <table class="meta-table">
+        <tr><td>Faculty / Mentor Name</td><td><strong>Prof. ${mentor.name || 'Faculty'}</strong> (${mentor.designation || 'Assistant Professor'})</td></tr>
+        <tr><td>Department</td><td>${mentor.department || 'Department of Computer Science & Engineering (Core)'}</td></tr>
+        <tr><td>Assigned Mentees Count</td><td>${students.length} Students</td></tr>
+        <tr><td>Issues &amp; Grievances Summary</td><td><strong>${issues.length} Total Issues</strong> &bull; <span style="color:#b91c1c;">${openIssuesCount} Open / Pending Action</span> &bull; <span style="color:#15803d;">${resolvedIssuesCount} Resolved</span></td></tr>
+        <tr><td>Generated Date</td><td>${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</td></tr>
+      </table>
+
+      <!-- ── SECTION 1: ISSUES & ACTION TAKEN ── -->
+      <div class="sec-title">Section 1: Student Issues, Grievances &amp; Action Taken Record</div>
+      <table class="data-tbl">
+        <thead>
+          <tr>
+            <th style="width:5%;">#</th>
+            <th style="width:20%;">Student Name</th>
+            <th style="width:22%;">Issue Title &amp; Category</th>
+            <th style="width:13%;">Status</th>
+            <th style="width:40%;">Action Taken &amp; Remedial Measures</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${issues.length === 0 
+            ? `<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b;">No grievances or student issues recorded.</td></tr>`
+            : issues.map((iss, i) => {
+              const bCls = iss.status === 'RESOLVED' ? 'badge-resolved' : (iss.status === 'ESCALATED' ? 'badge-escalated' : 'badge-open');
+              const actText = iss.actionTaken || iss.resolution || (iss.status === 'RESOLVED' ? 'Issue resolved by mentor.' : '[Action Pending - Requires Follow-up]');
+              return `
+                <tr>
+                  <td style="text-align:center;">${i + 1}</td>
+                  <td>
+                    <strong>${iss.studentName || '—'}</strong><br>
+                    <small style="color:#64748b;">${iss.studentEnrollment || iss.enrollmentNumber || ''}</small>
+                  </td>
+                  <td>
+                    <strong>${iss.title || 'Grievance'}</strong><br>
+                    <small style="color:#64748b;">Category: ${iss.category || 'General'}</small><br>
+                    <small style="color:#475569;">${iss.description || ''}</small>
+                  </td>
+                  <td>
+                    <span class="badge ${bCls}">${iss.status || 'OPEN'}</span><br>
+                    <small style="color:#64748b;font-size:7pt;">${iss.createdAt ? new Date(iss.createdAt).toLocaleDateString('en-IN', {day:'2-digit',month:'short'}) : ''}</small>
+                  </td>
+                  <td>
+                    <div class="action-text">
+                      <strong>Action Taken:</strong> ${actText}
+                    </div>
+                    ${iss.escalationHistory && iss.escalationHistory.length > 0 ? `
+                      <small style="display:block;margin-top:4px;color:#92400e;">• Escalated to: ${iss.escalationLevel || 'HOD'}</small>
+                    ` : ''}
+                  </td>
+                </tr>
+              `;
+            }).join('')
+          }
+        </tbody>
+      </table>
+
+      <!-- ── SECTION 2: ASSIGNED MENTEES ROSTER ── -->
+      <div class="sec-title" style="margin-top:20px;">Section 2: Complete Mentee Roster &amp; Academic Standing</div>
+      <table class="data-tbl">
+        <thead>
+          <tr>
+            <th style="width:5%;">#</th>
+            <th style="width:25%;">Student Name</th>
+            <th style="width:20%;">Enrollment No.</th>
+            <th style="width:18%;">Class</th>
+            <th style="width:12%;">CGPA</th>
+            <th style="width:12%;">Attendance</th>
+            <th style="width:8%;">Risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${students.map((s, idx) => `
+            <tr>
+              <td style="text-align:center;">${idx + 1}</td>
+              <td><strong>${s.name || '—'}</strong></td>
+              <td>${s.enrollmentNumber || '—'}</td>
+              <td>${s.class ? `Class ${s.class}` : 'Unassigned'}</td>
+              <td>${s.cgpa || '—'}</td>
+              <td>${s.attendance !== undefined ? `${s.attendance}%` : '—'}</td>
+              <td>${s.riskLevel || 'LOW'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="sig-block">
+        <div class="sig-row">
+          <div class="sig-col">
+            <div class="sig-space"></div>
+            <div class="sig-label">Mentor / Faculty Signature</div>
+            <div style="font-size:8pt;font-weight:700;">Prof. ${mentor.name}</div>
+          </div>
+          <div class="sig-col">
+            <div class="sig-space"></div>
+            <div class="sig-label">Mentorship Coordinator</div>
+            <div style="font-size:8pt;font-weight:700;">Prof. _________________</div>
+          </div>
+          <div class="sig-col">
+            <div class="sig-space"></div>
+            <div class="sig-label">Head of Department (HOD)</div>
+            <div style="font-size:8pt;font-weight:700;">Dr. Suwarna Pawar</div>
+            <div style="font-size:6.5pt;color:#64748b;">Department of Computer Science &amp; Engineering (Core)</div>
+          </div>
+        </div>
+      </div>
+
+    </body>
+    </html>
+  `);
+  printWin.document.close();
 }
 
 /**

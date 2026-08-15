@@ -461,8 +461,20 @@ export const IssueService = {
     await updateDoc(doc(db, 'issues', id), { ...data, updatedAt: now() });
   },
 
+  async updateActionTaken(id, actionTaken) {
+    await updateDoc(doc(db, 'issues', id), {
+      actionTaken,
+      updatedAt: now()
+    });
+  },
+
   async resolve(id, resolution, resolvedByRole = null) {
-    const updateData = { status: 'RESOLVED', resolution, updatedAt: now() };
+    const updateData = { 
+      status: 'RESOLVED', 
+      resolution, 
+      actionTaken: resolution,
+      updatedAt: now() 
+    };
     if (resolvedByRole) updateData.resolvedByRole = resolvedByRole;
     await updateDoc(doc(db, 'issues', id), updateData);
   },

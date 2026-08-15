@@ -3,7 +3,7 @@ import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { MeetingService, NotificationService, TaskService } from '/js/services.js';
+import { MeetingService, NotificationService, TaskService, IssueService } from '/js/services.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 
 function statusBadge(s) {
@@ -256,6 +256,19 @@ export async function render(container) {
             category: 'Meeting Action',
             dueDate: null
           });
+        }
+      }
+
+      // Auto-update action taken on any open student issue
+      if (studentId && studentId !== 'ALL' && actionTaken) {
+        try {
+          const studentIssues = await IssueService.getByStudent(studentId);
+          const openIssue = studentIssues.find(i => i.status === 'OPEN' || i.status === 'IN_PROGRESS');
+          if (openIssue) {
+            await IssueService.updateActionTaken(openIssue.id, actionTaken);
+          }
+        } catch (issErr) {
+          console.warn('Could not auto-link issue action taken:', issErr);
         }
       }
 

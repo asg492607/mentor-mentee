@@ -93,7 +93,15 @@ export async function render(container) {
                 </p>
                 <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${issue.description||''}</p>
                 <p style="color:var(--text-muted);font-size:0.75rem;">Raised on ${fmt(issue.createdAt)}</p>
-                ${issue.resolution ? `<p style="color:var(--success);margin-top:8px;font-size:0.825rem;"><strong>Resolution:</strong> ${issue.resolution}</p>` : ''}
+                ${issue.actionTaken || issue.resolution ? `
+                  <div style="background:rgba(99,102,241,0.07);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.825rem;color:var(--text-primary);">
+                    <strong>Action Taken &amp; Remedial Measures:</strong> ${issue.actionTaken || issue.resolution}
+                  </div>
+                ` : (issue.status !== 'RESOLVED' ? `
+                  <div style="background:rgba(239,68,68,0.06);border-left:3px solid var(--danger);padding:6px 10px;border-radius:6px;margin-top:8px;font-size:0.78rem;color:#b91c1c;">
+                    ⚠️ Action Pending — Click "Log Action / Guidance" to record remedial measures for reports.
+                  </div>
+                ` : '')}
                 ${(issue.escalationHistory||[]).length > 0 ? `
                   <div style="background:var(--bg-tertiary, #f8fafc);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.75rem;">
                     <strong>Escalation History:</strong>
@@ -103,10 +111,11 @@ export async function render(container) {
               </div>
               ${issue.status !== 'RESOLVED' ? `
                 <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+                  <button class="btn btn-sm btn-secondary log-action-btn" data-id="${issue.id}" style="font-size:0.8rem;white-space:nowrap;">📝 Log Action Taken</button>
                   ${issue.escalationLevel === 'MENTOR' ? `
                     <button class="btn btn-sm btn-success res-btn" data-id="${issue.id}" data-sid="${issue.studentId}">✓ Resolve</button>
                   ` : ''}
-                  <button class="btn btn-sm btn-primary escalate-btn" data-id="${issue.id}" data-cat="${issue.category}">↑ Escalate / Re-assign</button>
+                  <button class="btn btn-sm btn-primary escalate-btn" data-id="${issue.id}" data-cat="${issue.category}">↑ Escalate</button>
                 </div>
               ` : ''}
             </div>
@@ -115,17 +124,53 @@ export async function render(container) {
       </div>
     `;
 
+    document.querySelectorAll('.log-action-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const issue = issues.find(i => i.id === btn.dataset.id);
+        showModal({
+          title: `Log Action Taken & Remedial Measures`,
+          content: `
+            <div class="form-group">
+              <label class="form-label">Student: <strong>${issue?.studentName || 'Student'}</strong></label>
+              <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;">Issue: ${issue?.title || ''} (${issue?.category || 'General'})</p>
+              <label class="form-label" style="font-weight:600;">Action Taken / Remedial Measures</label>
+              <textarea id="issue-action-taken-input" class="form-textarea" style="min-height:120px;" placeholder="Describe what steps, counsel, or remedial measures were provided to the student...">${issue?.actionTaken || issue?.resolution || ''}</textarea>
+            </div>
+          `,
+          confirmText: '💾 Save Action Taken',
+          onConfirm: async (close) => {
+            const actionText = document.getElementById('issue-action-taken-input').value.trim();
+            if (!actionText) {
+              showToast('Please enter the action taken or remedial measures', 'warning');
+              return;
+            }
+            try {
+              await IssueService.updateActionTaken(btn.dataset.id, actionText);
+              if (issue) {
+                issue.actionTaken = actionText;
+              }
+              close();
+              showToast('Action taken recorded successfully! It will now reflect on all reports.', 'success');
+              renderList();
+            } catch (err) {
+              showToast('Failed to save action: ' + err.message, 'error');
+            }
+          }
+        });
+      });
+    });
+
     document.querySelectorAll('.res-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         showModal({
-          title: 'Resolve issue',
+          title: 'Resolve issue & Record Final Action',
           content: `
             <div class="form-group">
-              <label class="form-label">Resolution notes</label>
-              <textarea id="resolution-notes" class="form-textarea" style="min-height:120px;" placeholder="Write what was resolved and any follow-up required."></textarea>
+              <label class="form-label">Final Action Taken &amp; Resolution Notes</label>
+              <textarea id="resolution-notes" class="form-textarea" style="min-height:120px;" placeholder="Detail the final remedial action and resolution provided."></textarea>
             </div>
           `,
-          confirmText: 'Resolve',
+          confirmText: '✓ Resolve Issue',
           onConfirm: async (close) => {
             const resolution = document.getElementById('resolution-notes').value.trim();
             if (!resolution) {
@@ -144,9 +189,10 @@ export async function render(container) {
               if (issue) {
                 issue.status = 'RESOLVED';
                 issue.resolution = resolution;
+                issue.actionTaken = resolution;
               }
               close();
-              showToast('Issue resolved!', 'success');
+              showToast('Issue resolved and action recorded!', 'success');
               renderList();
             } catch (err) { showToast(err.message, 'error'); }
           }
