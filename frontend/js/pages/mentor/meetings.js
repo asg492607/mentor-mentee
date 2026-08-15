@@ -392,31 +392,49 @@ export async function render(container) {
 
       if (studentId === 'ALL') {
         // Group Meeting
-        const mId = await MeetingService.create({
-          mentorId: user.id, mentorName: user.name,
-          studentId: 'ALL', studentName: 'Group Meeting',
-          isGroup: true, type, description: desc, scheduledAt: date,
+        const mData = {
+          mentorId: user.id, 
+          mentorName: user.name,
+          studentId: 'ALL', 
+          studentName: 'Group Meeting',
+          isGroup: true, 
+          type, 
+          topic: desc, 
+          description: desc, 
+          scheduledAt: date,
+          department: user.department || 'Department of Computer Science & Engineering (Core)',
+          students: students.map(s => ({ name: s.name, studentName: s.name, enrollment: s.enrollmentNumber || s.rollNumber || '—' })),
           status: 'APPROVED'
-        });
-        meetings.unshift({ id: mId, studentName: 'Group Meeting (All)', type, description: desc, scheduledAt: date, status: 'APPROVED' });
+        };
+        const mId = await MeetingService.create(mData);
+        meetings.unshift({ id: mId, ...mData, studentName: 'Group Meeting (All Mentees)' });
         
         // Notify all students
         for (const s of students) {
           await NotificationService.create({
             userId: s.id, type: 'MEETING_APPROVED',
-            title: 'New Group Meeting', message: `Scheduled for ${fmt(date)}: ${desc}`, relatedId: mId
+            title: 'New Group Mentorship Meeting', message: `Scheduled for ${fmt(date)}: ${desc}`, relatedId: mId
           });
         }
       } else {
         // Individual
         const student = students.find(s => s.id === studentId);
-        const mId = await MeetingService.create({
-          mentorId: user.id, mentorName: user.name,
-          studentId: student.id, studentName: student.name,
-          type, description: desc, scheduledAt: date,
+        const mData = {
+          mentorId: user.id, 
+          mentorName: user.name,
+          studentId: student.id, 
+          studentName: student.name,
+          studentEnrollment: student.enrollmentNumber || student.rollNumber || '—',
+          department: student.department || user.department || 'Department of Computer Science & Engineering (Core)',
+          type, 
+          topic: desc, 
+          description: desc, 
+          scheduledAt: date,
+          students: [{ name: student.name, enrollment: student.enrollmentNumber || student.rollNumber || '—' }],
           status: 'APPROVED' // Pre-approved since mentor created it
-        });
-        meetings.unshift({ id: mId, studentId, studentName: student.name, type, description: desc, scheduledAt: date, status: 'APPROVED' });
+        };
+        const mId = await MeetingService.create(mData);
+        meetings.unshift({ id: mId, ...mData });
         
         await NotificationService.create({
           userId: student.id, type: 'MEETING_APPROVED',
