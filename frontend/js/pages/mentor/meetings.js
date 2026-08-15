@@ -85,7 +85,7 @@ export async function render(container) {
             <div style="flex:1;">
               <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
                 <strong style="font-size:0.9rem;">${m.studentName || '—'}</strong>
-                <span class="badge badge-accent">${m.type}</span>
+                <span class="badge badge-accent">${m.type || m.topic || 'Mentorship Session'}</span>
                 ${statusBadge(m.status)}
               </div>
               <p style="color:var(--text-secondary);font-size:0.825rem;margin-bottom:6px;">${m.description || ''}</p>
