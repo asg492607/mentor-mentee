@@ -3,7 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StatsService } from '/js/services.js';
-import { exportSingleMentorReport, exportMentorStudentReport } from '/js/report-export.js';
+import { exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
 
 function riskBadge(r) {
   const map = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' };
@@ -12,6 +12,11 @@ function riskBadge(r) {
 
 function fmt(val, suffix = '') {
   return val !== undefined && val !== null && val !== '' ? `${val}${suffix}` : '—';
+}
+
+function statusBadge(s) {
+  const cls = { REQUESTED: 'badge-warning', APPROVED: 'badge-success', ONGOING: 'badge-info', REJECTED: 'badge-danger', COMPLETED: 'badge-muted', CANCELLED: 'badge-muted' }[s] || 'badge-muted';
+  return `<span class="badge ${cls}">${s || 'SCHEDULED'}</span>`;
 }
 
 export async function render(container) {
@@ -32,6 +37,13 @@ export async function render(container) {
   try {
     const data = await StatsService.getMentorStats(user.id);
     const { totalStudents, highRiskStudents, openIssues, completedMeetings, students, meetings, issues } = data;
+
+    // Sort meetings: latest first
+    const sortedMeetings = [...meetings].sort((a, b) => {
+      const dateA = new Date(a.scheduledAt || a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.scheduledAt || b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
 
     // Meetings per month (last 6)
     const now = new Date();
@@ -71,14 +83,14 @@ export async function render(container) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
           <div>
             <h2 style="font-size:1.2rem;font-weight:800;margin:0;">📊 My Mentorship Report Center</h2>
-            <p style="color:var(--text-muted);font-size:0.82rem;margin:3px 0 0;">Download your complete mentee list and academic overview reports</p>
+            <p style="color:var(--text-muted);font-size:0.82rem;margin:3px 0 0;">Download comprehensive batch reports or official PDF reports per individual meeting session</p>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-sm btn-secondary" id="btn-mentor-excel" style="display:flex;align-items:center;gap:6px;font-weight:600;">
-              <i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Download My Report (Excel)
+              <i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Download Mentee List (Excel)
             </button>
             <button class="btn btn-sm btn-secondary" id="btn-mentor-pdf" style="display:flex;align-items:center;gap:6px;font-weight:600;">
-              <i class="ph ph-file-pdf" style="font-size:1.1rem;color:var(--danger);"></i> Download My Report (PDF)
+              <i class="ph ph-file-pdf" style="font-size:1.1rem;color:var(--danger);"></i> Download Summary Sheet (PDF)
             </button>
           </div>
         </div>
@@ -134,6 +146,72 @@ export async function render(container) {
           </div>
         </div>
 
+        <!-- ── Individual Meeting Session Reports (Download per Meeting) ── -->
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <h3 style="font-size:0.95rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--accent);">📋</span> Individual Meeting Session Reports
+              </h3>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin:3px 0 0;">
+                Download official MIT-ADT University Mentorship Session Reports (with Issues Discussed, Remedial Actions, Signatures &amp; Verified Attendance)
+              </p>
+            </div>
+            <span class="badge badge-accent" style="font-size:0.8rem;">${sortedMeetings.length} Total Sessions</span>
+          </div>
+
+          ${sortedMeetings.length === 0
+            ? `<div style="padding:32px;text-align:center;color:var(--text-muted);">
+                <p style="margin-bottom:10px;">No meeting sessions scheduled or logged yet.</p>
+                <a href="#/mentor/meetings" class="btn btn-sm btn-primary">+ Schedule First Meeting</a>
+              </div>`
+            : `<div class="table-responsive">
+                <table class="data-table" style="width:100%;font-size:0.875rem;">
+                  <thead>
+                    <tr>
+                      <th style="padding:12px;">#</th>
+                      <th style="padding:12px;">Topic / Agenda</th>
+                      <th style="padding:12px;">Mentee / Attendees</th>
+                      <th style="padding:12px;">Date &amp; Time</th>
+                      <th style="padding:12px;">Status</th>
+                      <th style="padding:12px;text-align:right;">Official Report</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${sortedMeetings.map((m, idx) => {
+                      const topic = m.description || m.type || 'Mentorship Session';
+                      const isGrp = m.isGroup || m.studentId === 'ALL';
+                      const attendee = isGrp ? '👥 Group Meeting (All Mentees)' : (m.studentName || '—');
+                      const dateStr = m.scheduledAt 
+                        ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' })
+                        : (m.preferredDate ? new Date(m.preferredDate).toLocaleDateString('en-IN', { dateStyle:'medium' }) : 'Date not set');
+
+                      return `
+                        <tr>
+                          <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${idx + 1}</td>
+                          <td style="padding:12px;">
+                            <strong style="color:var(--text-primary);display:block;font-size:0.9rem;">${topic}</strong>
+                            ${m.notes?.issuesDiscussed ? `<small style="color:var(--text-muted);display:block;margin-top:2px;">Issues: ${m.notes.issuesDiscussed.slice(0, 60)}${m.notes.issuesDiscussed.length > 60 ? '...' : ''}</small>` : ''}
+                          </td>
+                          <td style="padding:12px;font-weight:600;">
+                            ${isGrp ? `<span class="badge badge-accent">${attendee}</span>` : attendee}
+                          </td>
+                          <td style="padding:12px;color:var(--text-secondary);font-size:0.82rem;">${dateStr}</td>
+                          <td style="padding:12px;">${statusBadge(m.status)}</td>
+                          <td style="padding:12px;text-align:right;white-space:nowrap;">
+                            <button class="btn btn-sm btn-primary meeting-report-dl-btn" data-id="${m.id}" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:6px 14px;border-radius:8px;">
+                              <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Download Report
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>`
+          }
+        </div>
+
         <!-- ── Full Mentee Directory ── -->
         <div class="card" style="margin-bottom:24px;">
           <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
@@ -158,6 +236,7 @@ export async function render(container) {
                       <th style="padding:12px;">Attendance</th>
                       <th style="padding:12px;">Risk Level</th>
                       <th style="padding:12px;">Department</th>
+                      <th style="padding:12px;text-align:right;">Booklet</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -171,32 +250,11 @@ export async function render(container) {
                         <td style="padding:12px;color:${(parseFloat(s.attendance) || 0) < 75 ? 'var(--danger)' : 'inherit'};">${fmt(s.attendance, '%')}</td>
                         <td style="padding:12px;">${riskBadge(s.riskLevel)}</td>
                         <td style="padding:12px;font-size:0.82rem;color:var(--text-muted);">${s.department || '—'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>`
-          }
-        </div>
-
-        <!-- ── Recent Meetings Log ── -->
-        <div class="card">
-          <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-            <h3 style="font-size:0.95rem;font-weight:700;margin:0;">📋 Recent Meeting Sessions</h3>
-            <a href="#/mentor/meetings" style="font-size:0.8rem;color:var(--accent);font-weight:600;">View All →</a>
-          </div>
-          ${meetings.filter(m => m.status === 'COMPLETED').length === 0
-            ? '<p style="padding:20px;color:var(--text-muted);">No completed meetings yet.</p>'
-            : `<div class="table-responsive">
-                <table class="data-table" style="width:100%;">
-                  <thead><tr><th>Student</th><th>Type</th><th>Date</th><th>Status</th></tr></thead>
-                  <tbody>
-                    ${meetings.filter(m => m.status === 'COMPLETED').slice(0, 10).map(m => `
-                      <tr>
-                        <td style="font-weight:600;">${m.studentName || '—'}</td>
-                        <td><span class="badge badge-info">${m.type || 'Session'}</span></td>
-                        <td style="color:var(--text-muted);font-size:0.82rem;">${m.scheduledAt ? new Date(m.scheduledAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—'}</td>
-                        <td><span class="badge badge-success">Completed</span></td>
+                        <td style="padding:12px;text-align:right;">
+                          <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-secondary" style="display:inline-flex;align-items:center;gap:4px;">
+                            <i class="ph ph-book-open"></i> Booklet
+                          </a>
+                        </td>
                       </tr>
                     `).join('')}
                   </tbody>
@@ -237,7 +295,19 @@ export async function render(container) {
       }
     }
 
-    // Download Buttons
+    // Individual Meeting PDF Report Download Handlers
+    container.querySelectorAll('.meeting-report-dl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const m = meetings.find(x => x.id === btn.dataset.id);
+        if (!m) {
+          showToast('Meeting record not found', 'error');
+          return;
+        }
+        exportMeetingSessionReport(m);
+      });
+    });
+
+    // Batch Download Buttons
     container.querySelector('#btn-mentor-excel')?.addEventListener('click', async () => {
       await exportSingleMentorReport(user.id, 'excel');
     });
