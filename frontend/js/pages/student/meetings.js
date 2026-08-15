@@ -145,7 +145,7 @@ export async function render(container) {
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
               <div style="flex:1;">
                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
-                  <strong style="font-size:0.9rem;">${m.type}</strong>
+                  <strong style="font-size:0.9rem;">${m.topic || m.type || m.description || 'Mentorship Session'}</strong>
                   ${statusBadge(m.status)}
                   ${m.status === 'ONGOING' ? '<span style="font-size:0.7rem;color:var(--info);font-weight:600;animation:pulse 1.5s ease-in-out infinite;">● LIVE</span>' : ''}
                 </div>
@@ -163,12 +163,12 @@ export async function render(container) {
             </div>
             ${m.status === 'COMPLETED' && m.notes ? `
             <div id="notes-panel-${m.id}" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-              <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:12px;color:var(--text-secondary);">Meeting Notes</h4>
+              <h4 style="font-size:0.85rem;font-weight:600;margin-bottom:12px;color:var(--text-secondary);">Meeting Notes &amp; Action Taken</h4>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                ${m.notes.problem ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Problem Discussed</p><p style="font-size:0.825rem;">${m.notes.problem}</p></div>` : ''}
-                ${m.notes.advice ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Advice Given</p><p style="font-size:0.825rem;">${m.notes.advice}</p></div>` : ''}
-                ${m.notes.summary ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Summary</p><p style="font-size:0.825rem;">${m.notes.summary}</p></div>` : ''}
-                ${m.notes.tasks?.length ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">Action Items</p>${m.notes.tasks.map(t => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="color:var(--accent);">→</span><p style="font-size:0.825rem;">${t}</p></div>`).join('')}</div>` : ''}
+                ${(m.notes.issuesDiscussed || m.notes.problem) ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;font-weight:700;">Section 1: Issues Discussed</p><p style="font-size:0.825rem;">${m.notes.issuesDiscussed || m.notes.problem}</p></div>` : ''}
+                ${(m.notes.actionTaken || m.notes.advice) ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;"><p style="font-size:0.72rem;color:var(--accent);margin-bottom:4px;font-weight:700;">Section 2: Action Taken / Guidance</p><p style="font-size:0.825rem;">${m.notes.actionTaken || m.notes.advice}</p></div>` : ''}
+                ${m.notes.summary && m.notes.summary !== (m.notes.issuesDiscussed || m.notes.problem) ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;font-weight:700;">Summary</p><p style="font-size:0.825rem;">${m.notes.summary}</p></div>` : ''}
+                ${m.notes.tasks?.length ? `<div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;grid-column:1/-1;"><p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;font-weight:700;">Assigned Action Items</p>${m.notes.tasks.map(t => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="color:var(--accent);">→</span><p style="font-size:0.825rem;">${t}</p></div>`).join('')}</div>` : ''}
               </div>
             </div>` : ''}
           </div>
