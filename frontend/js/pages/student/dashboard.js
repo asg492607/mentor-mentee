@@ -67,7 +67,7 @@ export async function render(container) {
     const content = container.querySelector('#dash-content');
     if (!content) return;
 
-    const isBookletIncomplete = bookletCompletionPct < 50;
+    const isBookletIncomplete = bookletCompletionPct < 75;
 
     content.innerHTML = `
       <div class="dashboard-container">
@@ -82,10 +82,10 @@ export async function render(container) {
               </div>
               <div>
                 <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--text-primary);">
-                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 50%)
+                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 75%)
                 </h4>
                 <p style="margin:4px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
-                  First-time setup requirement: You must complete at least <strong>50% of your Mentorship Booklet</strong> to unlock full account features.
+                  First-time setup requirement: You must complete at least <strong>75% of your Mentorship Booklet</strong> across all sections to unlock full account features.
                 </p>
               </div>
             </div>

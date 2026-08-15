@@ -57,11 +57,11 @@ export async function render(container) {
     const deansOnly  = faculty.filter(f => (f.role || '').toUpperCase() === 'DEAN');
     const adminsOnly = faculty.filter(f => (f.role || '').toUpperCase() === 'ADMIN');
 
-    // Count how many students have filled at least 50% of their booklet
+    // Count how many students have filled at least 75% of their booklet
     let filledBookletCount = 0;
     bookletSnap.docs.forEach(d => {
       const pct = BookletService.calculateCompletion(d.data());
-      if (pct >= 50) filledBookletCount++;
+      if (pct >= 75) filledBookletCount++;
     });
 
     const unassigned = uniqueStudents.filter(s => !s.mentorId).length;

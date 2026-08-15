@@ -242,7 +242,9 @@ export const StudentService = {
 export const BookletService = {
   calculateCompletion(data) {
     if (!data) return 0;
-    const fields = [
+    
+    // 1. Personal & Family Profile (Weight: 40%)
+    const personalFields = [
       data.personal?.name,
       data.personal?.admissionYear,
       data.personal?.class,
@@ -254,29 +256,77 @@ export const BookletService = {
       data.personal?.religion,
       data.personal?.category,
       data.personal?.fatherName,
+      data.personal?.fatherOccupation,
       data.personal?.fatherPhoneM,
       data.personal?.motherName,
+      data.personal?.motherOccupation,
       data.personal?.motherPhoneM,
       data.personal?.guardianName,
       data.personal?.guardianPhone,
       data.personal?.presentAddress,
-      data.personal?.permanentAddress,
+      data.personal?.permanentAddress
+    ];
+    let personalFilled = 0;
+    personalFields.forEach(v => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') personalFilled++;
+    });
+    const personalScore = (personalFilled / personalFields.length) * 40;
+
+    // 2. Health & Vitals Section (Weight: 20%)
+    const healthFields = [
       data.health?.diet,
-      data.health?.bloodGroup,
+      data.health?.exercise,
       data.health?.height,
       data.health?.weight,
+      data.health?.pulse,
+      data.health?.bp,
+      data.health?.cvs,
+      data.health?.rs,
+      data.health?.skin,
+      data.health?.eyes
+    ];
+    let healthFilled = 0;
+    healthFields.forEach(v => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') healthFilled++;
+    });
+    const healthScore = (healthFilled / healthFields.length) * 20;
+
+    // 3. Previous Academic Performance Section (Weight: 20%)
+    const perfFields = [
       data.performance?.examPassed,
       data.performance?.board,
       data.performance?.passingYear,
-      data.performance?.totalMarks
+      data.performance?.collegeAttended,
+      data.performance?.classAwarded,
+      data.performance?.totalMarks,
+      data.performance?.pcmMarks,
+      data.performance?.selectionMethod
     ];
-    let filled = 0;
-    fields.forEach(val => {
-      if (val !== undefined && val !== null && String(val).trim() !== '') {
-        filled++;
-      }
+    let perfFilled = 0;
+    perfFields.forEach(v => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') perfFilled++;
     });
-    return Math.round((filled / fields.length) * 100);
+    const perfScore = (perfFilled / perfFields.length) * 20;
+
+    // 4. Activities & Co-Curricular Section (Weight: 10%)
+    let actScore = 0;
+    if (Array.isArray(data.activities) && data.activities.length > 0 && data.activities.some(a => (a.activity || '').trim())) {
+      actScore = 10;
+    } else if (data.performance?.extraCurricular || data.performance?.otherAchievements || data.performance?.ncc || data.performance?.scholarships) {
+      actScore = 10;
+    }
+
+    // 5. Semester Academics & Mentorship Meets (Weight: 10%)
+    let acadScore = 0;
+    const sems = Object.keys(data.academics || {});
+    if (sems.length > 0 && sems.some(s => (data.academics[s]?.subjects?.length > 0 || data.academics[s]?.classAwarded))) {
+      acadScore = 10;
+    } else if (Array.isArray(data.meets) && data.meets.length > 0) {
+      acadScore = 10;
+    }
+
+    const totalPct = Math.round(personalScore + healthScore + perfScore + actScore + acadScore);
+    return Math.min(100, Math.max(0, totalPct));
   },
 
   async getBooklet(studentId) {
