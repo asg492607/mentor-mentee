@@ -140,9 +140,13 @@ export async function render(container) {
   `;
 
   try {
-    const data = await StatsService.getMentorStats(user.id);
-    const { totalStudents, pendingRequests, completedMeetings, students, meetings } = data;
-    const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
+    const data = await StatsService.getMentorStats(user.id) || {};
+    const students = data.students || [];
+    const meetings = data.meetings || [];
+    const totalStudents = data.totalStudents ?? students.length;
+    const pendingRequests = data.pendingRequests ?? meetings.filter(m => m.status === 'REQUESTED').length;
+    const highRisk = data.highRiskStudents ?? students.filter(s => s.riskLevel === 'HIGH').length;
+    const completedMeetings = data.completedMeetings ?? meetings.filter(m => m.status === 'COMPLETED').length;
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
     const dash = container.querySelector('#mentor-dash');
     if (!dash) return;

@@ -960,12 +960,14 @@ export const StatsService = {
     ]);
 
     const totalStudents = students.length;
+    const pendingRequests = meetings.filter(m => m.status === 'REQUESTED').length;
     const highRiskStudents = students.filter(s => s.riskLevel === 'HIGH').length;
     const openIssues = issues.filter(i => i.status === 'OPEN').length;
     const completedMeetings = meetings.filter(m => m.status === 'COMPLETED').length;
 
     const stats = {
       totalStudents,
+      pendingRequests,
       highRiskStudents,
       openIssues,
       completedMeetings,
