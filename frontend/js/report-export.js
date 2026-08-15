@@ -863,29 +863,44 @@ export function exportMeetingSessionReport(meeting) {
   const actions = rpt.actionItems || fallbackActions || 'No action items recorded.';
   const remarks = rpt.remarks || meeting.notes?.remarks || '';
 
-  // Collect students list for attendance sheet
+  // Collect students list for attendance sheet (excluding placeholder non-student strings)
+  const isPlaceholderStudent = (name) => {
+    const n = (name || '').trim().toLowerCase();
+    return !n || n === 'group meeting' || n === 'group' || n === 'all' || n === 'student' || n === 'student attendee' || n === 'unassigned';
+  };
+
   let studentsList = [];
   if (Array.isArray(rpt.students) && rpt.students.length > 0) {
-    studentsList = rpt.students;
+    studentsList = rpt.students.filter(s => !isPlaceholderStudent(s.name || s.studentName));
   } else if (Array.isArray(meeting.students) && meeting.students.length > 0) {
-    studentsList = meeting.students;
-  } else if (meeting.studentName && meeting.studentName !== 'Student' && meeting.studentName !== 'Group Meeting') {
+    studentsList = meeting.students.filter(s => !isPlaceholderStudent(s.name || s.studentName));
+  } else if (meeting.studentName && !isPlaceholderStudent(meeting.studentName)) {
     studentsList = [{ name: meeting.studentName, enrollment: meeting.studentEnrollment || meeting.studentEnrollmentNumber || meeting.enrollmentNumber || '—' }];
   } else {
-    studentsList = [{ name: meeting.studentName || 'Student Attendee', enrollment: '—' }];
+    studentsList = [];
   }
 
-  const totalStudents = studentsList.length;
+  const isGroupSession = meeting.studentId === 'ALL' || (meeting.studentName || '').toLowerCase() === 'group meeting' || (topic || '').toLowerCase().includes('group');
+  const totalStudentsText = studentsList.length > 0 
+    ? `${studentsList.length} student${studentsList.length !== 1 ? 's' : ''}` 
+    : (isGroupSession ? 'All Assigned Mentees (Group Session)' : '0 students recorded');
+
   const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
 
-  const attendanceRows = studentsList.map((s, i) => `
+  const attendanceRows = studentsList.length > 0 ? studentsList.map((s, i) => `
     <tr>
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${i + 1}</td>
       <td style="border:1px solid #64748b;padding:5px 8px;font-weight:600;">${s.name || s.studentName || '—'}</td>
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${s.enrollment || s.enrollmentNumber || s.rollNumber || '—'}</td>
       <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;color:#475569;font-size:8pt;font-style:italic;">[Verified Digital Attendance]</td>
     </tr>
-  `).join('');
+  `).join('') : `
+    <tr>
+      <td colspan="4" style="text-align:center;padding:16px;color:#64748b;font-style:italic;">
+        ${isGroupSession ? 'Group Mentorship Session conducted for all assigned mentees.' : 'No individual student attendees recorded.'}
+      </td>
+    </tr>
+  `;
 
   const reportWin = window.open('', '_blank', 'width=950,height=1100');
   if (!reportWin) {
@@ -999,7 +1014,7 @@ export function exportMeetingSessionReport(meeting) {
         <tr><td>Time of Meeting</td><td>${time}</td></tr>
         <tr><td>Department</td><td>${dept}</td></tr>
         <tr><td>Mentor / Faculty</td><td>Prof. ${preparedBy}</td></tr>
-        <tr><td>Total Students Present</td><td>${totalStudents} student${totalStudents !== 1 ? 's' : ''} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance verified on Page 2)</em></td></tr>
+        <tr><td>Total Students Present</td><td>${totalStudentsText} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance verified on Page 2)</em></td></tr>
       </table>
 
       <div class="section">
