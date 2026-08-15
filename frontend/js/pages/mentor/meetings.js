@@ -27,7 +27,9 @@ export async function render(container) {
         ${createHeader('Meetings', user)}
         <div class="page-content">
           <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-            <button class="btn btn-primary" id="btn-schedule-meeting">+ Schedule Meeting</button>
+            <button class="btn btn-primary" id="btn-schedule-meeting" style="display:flex;align-items:center;gap:6px;border-radius:20px;font-weight:600;">
+              <i class="ph ph-calendar-plus" style="font-size:1.1rem;"></i> Schedule Meeting
+            </button>
           </div>
           <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;" id="tab-bar">
             ${['Pending','Approved','Completed','All'].map((t,i) =>
@@ -379,6 +381,9 @@ export async function render(container) {
   });
   container.querySelector('#close-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
   container.querySelector('#cancel-sched-modal').addEventListener('click', () => schedModal.style.display = 'none');
+  schedModal.addEventListener('click', (e) => {
+    if (e.target === schedModal) schedModal.style.display = 'none';
+  });
 
   container.querySelector('#sched-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -445,6 +450,14 @@ export async function render(container) {
       showToast('Meeting scheduled successfully!', 'success');
       schedModal.style.display = 'none';
       e.target.reset();
+      
+      // Auto-switch to Approved tab so mentor immediately sees scheduled meeting
+      activeTab = 'approved';
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        const isAppr = b.dataset.tab === 'approved';
+        b.style.borderBottomColor = isAppr ? 'var(--accent)' : 'transparent';
+        b.style.color = isAppr ? 'var(--accent)' : 'var(--text-secondary)';
+      });
       renderTab();
     } catch(err) {
       showToast(err.message, 'error');
