@@ -253,12 +253,30 @@ service cloud.firestore {
 
     // ── Booklets Collection ────────────────────────────────────────────────────
     match /booklets/{studentId} {
-      allow read, write: if isAuth();
+      allow read: if isAuth() && (
+        uid() == studentId || 
+        isFaculty() || 
+        isDean() || 
+        isSuperAdmin()
+      );
+      allow write: if isAuth() && (
+        uid() == studentId ||
+        isFaculty() || 
+        isDean() || 
+        isSuperAdmin()
+      );
     }
 
     // ── Web Issues Collection ──────────────────────────────────────────────────
     match /web_issues/{issueId} {
-      allow read, write: if isAuth();
+      allow read: if isAuth() && (
+        resource.data.userId == uid() || 
+        isSuperAdmin() || 
+        isDean() || 
+        isHOD()
+      );
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if isSuperAdmin();
     }
   }
 }
