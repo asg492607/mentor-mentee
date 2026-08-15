@@ -21,7 +21,7 @@ export function createSidebar(role, activePath) {
       { path: '/mentor/meetings', label: 'Meetings', icon: '<i class="ph ph-calendar-check"></i>' },
       { path: '/mentor/issues', label: 'Issues', icon: '<i class="ph ph-warning-circle"></i>' },
       { path: '/mentor/reports', label: 'Reports', icon: '<i class="ph ph-chart-bar"></i>' },
-      { path: '/mentor/booklet', label: 'Mentorship Booklet', icon: '<i class="ph ph-book-open"></i>' }
+      { path: '#profile-modal', label: 'My Profile', icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'HOD') {
     navItems = [
@@ -31,7 +31,8 @@ export function createSidebar(role, activePath) {
       { path: '/hod/directory', label: 'Users', icon: '<i class="ph ph-users"></i>' },
       { path: '/hod/risk-students', label: 'Risk Students', icon: '<i class="ph ph-warning"></i>' },
       { path: '/hod/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' },
-      { path: '/hod/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' }
+      { path: '/hod/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' },
+      { path: '#profile-modal', label: 'My Profile', icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'DEAN') {
     navItems = [
@@ -41,7 +42,8 @@ export function createSidebar(role, activePath) {
       { path: '/dean/analytics', label: 'Analytics', icon: '<i class="ph ph-chart-line-up"></i>' },
       { path: '/dean/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
       { path: '/dean/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' },
-      { path: '/dean/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' }
+      { path: '/dean/reports', label: 'Mentor Reports', icon: '<i class="ph ph-chart-bar"></i>' },
+      { path: '#profile-modal', label: 'My Profile', icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'ADMIN') {
     navItems = [
@@ -50,12 +52,14 @@ export function createSidebar(role, activePath) {
       { path: '/admin/departments', label: 'Departments', icon: '<i class="ph ph-buildings"></i>' },
       { path: '/admin/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
       { path: '/admin/settings',    label: 'Settings',    icon: '<i class="ph ph-gear"></i>' },
-      { path: '/admin/infrastructure', label: 'System Intelligence', icon: '<i class="ph ph-cpu"></i>' }
+      { path: '/admin/infrastructure', label: 'System Intelligence', icon: '<i class="ph ph-cpu"></i>' },
+      { path: '#profile-modal', label: 'My Profile', icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'SECTION_HEAD') {
     navItems = [
       { path: '/section/dashboard', label: 'Dashboard', icon: '<i class="ph ph-squares-four"></i>' },
-      { path: '/section/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' }
+      { path: '/section/escalations', label: 'Escalations', icon: '<i class="ph ph-siren"></i>' },
+      { path: '#profile-modal', label: 'My Profile', icon: '<i class="ph ph-user"></i>' }
     ];
   }
 
@@ -63,7 +67,7 @@ export function createSidebar(role, activePath) {
   navItems.push({ path: '/landing', label: 'Landing Page', icon: '<i class="ph ph-house"></i>' });
 
   const navHtml = navItems.map(item => `
-    <a href="#${item.path}" class="sidebar-item ${activePath === item.path ? 'active' : ''}">
+    <a href="${item.path.startsWith('#') ? item.path : '#' + item.path}" class="sidebar-item ${activePath === item.path ? 'active' : ''}">
       ${item.icon}
       ${item.label}
     </a>
@@ -102,6 +106,20 @@ document.body.addEventListener('click', async (e) => {
     } catch (err) {
       window.location.hash = '/login';
     }
+    return;
+  }
+
+  // Handle My Profile modal click from sidebar
+  const profileItem = e.target.closest('a[href="#profile-modal"]');
+  if (profileItem) {
+    e.preventDefault();
+    try {
+      const { openProfileModal } = await import('/js/components/profile-modal.js');
+      openProfileModal();
+    } catch (err) {
+      console.error('Failed to open profile modal:', err);
+    }
+    return;
   }
   
   // Handle Mobile Backdrop Close

@@ -133,7 +133,7 @@ export async function render(container) {
               <td>${riskBadge(s.riskLevel)}</td>
               <td>
                   <button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button>
-                  <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary">Booklet</a>
+                  <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary" style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-book-open"></i> Booklet</a>
               </td>
             </tr>
           `).join('')}

@@ -39,7 +39,7 @@ export async function render(container) {
 
     container.innerHTML = `
         <div class="dashboard-layout fade-in">
-            ${createSidebar(user.role, '/mentor/booklet')}
+            ${createSidebar(user.role, '/mentor/students')}
             <div class="main-content">
                 ${createHeader('Booklet: ' + safe(studentName), user)}
                 
