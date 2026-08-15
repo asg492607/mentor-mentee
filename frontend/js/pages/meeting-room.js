@@ -327,7 +327,7 @@ export async function render(container) {
                         <div class="report-sig-line"></div>
                         <div class="report-sig-name">Verify By</div>
                         <div class="report-sig-person" style="font-size:0.68rem; line-height:1.25;">
-                          <div>Dr. Nilesh Thale</div>
+                          <div>Dr. Nilesh Thorat</div>
                           <div>Dr. Aman Singh</div>
                         </div>
                         <div class="report-sig-role">Verification Committee</div>
@@ -1307,7 +1307,7 @@ export async function render(container) {
         department: document.getElementById('rpt-dept')?.value.trim() || 'Department of Computer Science & Engineering (Core)',
         preparedBy: meeting.mentorName || user.name,
         checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
-        verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
+        verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
         hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar',
         savedAt: new Date().toISOString()
       };
@@ -1336,7 +1336,7 @@ export async function render(container) {
       department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
       preparedBy: meeting.mentorName || user.name || '',
       checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
-      verifiedBy: 'Dr. Nilesh Thale, Dr. Aman Singh',
+      verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
       hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar'
     };
 
