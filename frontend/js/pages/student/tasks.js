@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { TaskService } from '/js/services.js';
+import { TaskService, NotificationService } from '/js/services.js';
 
 function statusCls(s) { return {PENDING:'badge-warning',IN_PROGRESS:'badge-info',COMPLETED:'badge-success',OVERDUE:'badge-danger'}[s]||'badge-muted'; }
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
@@ -89,8 +89,20 @@ export async function render(container) {
         try {
           await TaskService.markComplete(btn.dataset.id);
           const t = tasks.find(x => x.id === btn.dataset.id);
-          if (t) { t.status = 'COMPLETED'; t.progress = 100; }
-          showToast('Task marked complete!', 'success');
+          if (t) { 
+            t.status = 'COMPLETED'; 
+            t.progress = 100;
+            if (t.mentorId) {
+              await NotificationService.create({
+                userId: t.mentorId,
+                type: 'TASK_COMPLETED',
+                title: '✅ Task Completed by Student',
+                message: `${user.name} marked action item completed: ${t.description}`,
+                relatedId: t.id
+              });
+            }
+          }
+          showToast('Task marked complete and mentor notified!', 'success');
           renderTasks();
         } catch (err) { showToast(err.message, 'error'); }
       });
