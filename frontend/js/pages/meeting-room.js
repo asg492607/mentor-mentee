@@ -633,7 +633,7 @@ export async function render(container) {
     if (isMentor && waitingList.length > 0) {
       html += `<div class="waiting-room-card">
                 <div class="waiting-room-header">
-                    <span class="waiting-room-title">Ã¢ÂÂ³ WAITING ROOM (${waitingList.length})</span>
+                    <span class="waiting-room-title">⏳ WAITING ROOM (${waitingList.length})</span>
                     <div style="display:flex;gap:4px;">
                         <button class="btn-meet-secondary" style="padding:3px 8px;font-size:0.75rem;" onclick="window.admitAll()">Admit All</button>
                         <button class="btn-meet-secondary" style="padding:3px 8px;font-size:0.75rem;" onclick="window.denyAll()">Deny All</button>
@@ -647,8 +647,8 @@ export async function render(container) {
                             <span class="participant-sub">Waiting to join</span>
                         </div>
                         <div class="participant-actions">
-                            <button class="btn-part-action" style="background:#10b98122;color:#10b981;border-color:#10b98144;" onclick="window.admitUser('${person.id}')" title="Admit">Ã¢Å“â€œ</button>
-                            <button class="btn-part-action danger" onclick="window.denyUser('${person.id}')" title="Deny">Ã¢Å“â€¢</button>
+                            <button class="btn-part-action" style="background:#10b98122;color:#10b981;border-color:#10b98144;" onclick="window.admitUser('${person.id}')" title="Admit">✓</button>
+                            <button class="btn-part-action danger" onclick="window.denyUser('${person.id}')" title="Deny">✕</button>
                         </div>
                     </div>
                 `).join('')}
@@ -664,13 +664,13 @@ export async function render(container) {
                 <div class="participant-avatar-badge">${escapeHtml((person.name || '?')[0].toUpperCase())}</div>
                 <div class="participant-info">
                     <span class="participant-name">${escapeHtml(person.name)} ${isSelf ? '<span style="color:#818cf8;font-size:0.75rem;">(You)</span>' : ''}</span>
-                    <span class="participant-sub">${personIsHost ? 'Ã°Å¸â€˜â€˜ Meeting Host' : 'Student Participant'}</span>
+                    <span class="participant-sub">${personIsHost ? '👑 Meeting Host' : 'Student Participant'}</span>
                 </div>
                 ${isMentor && !isSelf ? `
                     <div class="participant-actions">
-                        <button class="btn-part-action" onclick="window.muteMic('${person.id}')" title="Mute Participant Microphone">Ã°Å¸â€â€¡</button>
-                        <button class="btn-part-action" onclick="window.stopCam('${person.id}')" title="Stop Participant Video">Ã°Å¸â€œÂ·Ã¢ÂÅ’</button>
-                        <button class="btn-part-action danger" onclick="window.removeUser('${person.id}')" title="Remove from Call">Ã°Å¸Å¡Â«</button>
+                        <button class="btn-part-action" onclick="window.muteMic('${person.id}')" title="Mute Participant Microphone">🔇</button>
+                        <button class="btn-part-action" onclick="window.stopCam('${person.id}')" title="Stop Participant Video">📷✕</button>
+                        <button class="btn-part-action danger" onclick="window.removeUser('${person.id}')" title="Remove from Call">🚫</button>
                     </div>
                 ` : ''}
             </div>

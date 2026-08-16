@@ -8,6 +8,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
     let selfId = Math.random().toString(36).substring(2, 10);
     let unsubscribes = [];
     let myPresenceRef = null;
+    let pruneInterval = null;
     const isHost = isHostExplicit !== null ? !!isHostExplicit : ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'].includes(String(user?.role).toUpperCase());
 
     async function connect() {
@@ -147,8 +148,6 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
             handlers[type] = (handlers[type] || []).filter(item => item !== callback);
         };
     }
-
-    let pruneInterval = null;
 
     async function pruneStaleSignals() {
         if (!isHost || !connected) return;
