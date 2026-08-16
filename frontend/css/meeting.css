@@ -2424,5 +2424,75 @@ input:checked + .switch-slider:before {
   transform: scale(1.15);
 }
 
+/* ---------- Session Certificate Modal ---------- */
+.certificate-modal-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  border: 2px solid rgba(251, 191, 36, 0.4);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 680px;
+  width: 90%;
+  color: #fff;
+  position: relative;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(251, 191, 36, 0.15);
+}
+
+.cert-gold-border {
+  border: 1px dashed rgba(251, 191, 36, 0.6);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ---------- Pomodoro / Deep Work Sprint Timer ---------- */
+.pomodoro-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pomodoro-pill:hover, .pomodoro-pill.active {
+  background: rgba(244, 63, 94, 0.3);
+  border-color: #f43f5e;
+}
+
+/* ---------- Active Speaker Waveform Indicator ---------- */
+.active-speaker-ring {
+  box-shadow: 0 0 0 3px #10b981, 0 0 20px rgba(16, 185, 129, 0.5) !important;
+}
+
+.waveform-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.waveform-bar {
+  width: 2px;
+  height: 100%;
+  background: #34d399;
+  border-radius: 2px;
+  animation: wave-anim 0.8s infinite ease-in-out alternate;
+}
+
+.waveform-bar:nth-child(2) { animation-delay: 0.2s; height: 60%; }
+.waveform-bar:nth-child(3) { animation-delay: 0.4s; height: 80%; }
+
+@keyframes wave-anim {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+
+
 
 

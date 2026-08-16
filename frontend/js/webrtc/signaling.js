@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot, pomodoro)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query', 'pomodoro'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -130,6 +130,8 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('pair-code', { from: data.from, fileName: data.fileName, content: data.content });
                         } else if (!isInitialMessages && data.type === 'copilot-query') {
                             emit('copilot-query', { from: data.from, name: data.name, prompt: data.prompt, response: data.response });
+                        } else if (!isInitialMessages && data.type === 'pomodoro') {
+                            emit('pomodoro', { from: data.from, action: data.action, durationSec: data.durationSec });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -364,6 +366,16 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendPomodoro(action, durationSec) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'pomodoro', from: selfId, name: user?.name, action, durationSec, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -419,6 +431,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendCustomQuiz,
         sendPairCode,
         sendCopilotQuery,
+        sendPomodoro,
         sendControl,
         updateRoomSettings,
         disconnect,

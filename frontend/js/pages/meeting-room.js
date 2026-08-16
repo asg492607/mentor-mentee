@@ -77,6 +77,10 @@ export async function render(container) {
                   <span class="meeting-live-dot" style="background:#34d399; box-shadow:0 0 8px #34d399;"></span>
                   <span id="network-status-text">HD 1080p • 24ms</span>
                 </span>
+                <span class="pomodoro-pill" id="btn-pomodoro-timer" title="Click to start 25m Focus / Deep Work Sprint">
+                  <span>⏱️</span>
+                  <span id="pomodoro-text">Sprint 25m</span>
+                </span>
                 <span class="meeting-security-chip">🔒 E2E Encrypted</span>
                 <span class="meeting-security-chip" id="participant-count-chip">👥 1 Participant</span>
                 <span class="hand-raise-badge" id="top-hand-raised-badge" style="display:none;">🙋 Hand Raised</span>
@@ -278,6 +282,9 @@ export async function render(container) {
                   <button class="btn btn-secondary btn-sm" id="btn-toggle-engagement" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3);">
                     <i class="ph ph-chart-donut"></i> Analytics
                   </button>`}
+                  <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(251, 191, 36, 0.15); color:#fbbf24; border:1px solid rgba(251, 191, 36, 0.3); grid-column:span 2;">
+                    <i class="ph ph-certificate"></i> 🎖️ Issue Mentorship Certificate
+                  </button>
                 </div>
 
                 <!-- Live Talk-Time & Engagement Analytics Widget -->
@@ -1513,6 +1520,10 @@ export async function render(container) {
 
       signaling.onMessage('copilot-query', payload => {
         handleRemoteCopilotMessage(payload);
+      });
+
+      signaling.onMessage('pomodoro', payload => {
+        handlePomodoroMessage(payload);
       });
 
       signaling.onMessage('waiting', () => {
@@ -3363,6 +3374,142 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
       }
     }
   });
+
+  // Pomodoro Deep Work Focus Sprint Timer
+  let pomodoroInterval = null;
+  let pomodoroSeconds = 1500; // 25 minutes
+  let pomodoroRunning = false;
+
+  document.getElementById('btn-pomodoro-timer')?.addEventListener('click', async () => {
+    if (!pomodoroRunning) {
+      const choice = prompt('Choose Pomodoro Sprint Duration in Minutes:\n• 25 (Standard Deep Work)\n• 15 (Problem Solving Sprint)\n• 5 (Doubt Clearance Sprint)', '25');
+      if (!choice) return;
+      const mins = parseInt(choice, 10) || 25;
+      startPomodoroTimer(mins * 60);
+      await signaling.sendPomodoro('start', mins * 60);
+      showToast(`⏱️ Started ${mins}-minute Pomodoro Focus Sprint!`, 'success');
+    } else {
+      stopPomodoroTimer();
+      await signaling.sendPomodoro('pause', 0);
+      showToast('⏱️ Pomodoro Sprint paused', 'info');
+    }
+  });
+
+  function startPomodoroTimer(totalSeconds) {
+    pomodoroSeconds = totalSeconds;
+    pomodoroRunning = true;
+    const pill = document.getElementById('btn-pomodoro-timer');
+    const txt = document.getElementById('pomodoro-text');
+    if (pill) pill.classList.add('active');
+
+    if (pomodoroInterval) clearInterval(pomodoroInterval);
+    pomodoroInterval = setInterval(() => {
+      pomodoroSeconds--;
+      if (pomodoroSeconds <= 0) {
+        clearInterval(pomodoroInterval);
+        pomodoroRunning = false;
+        if (pill) pill.classList.remove('active');
+        if (txt) txt.textContent = 'Sprint Done! 🎉';
+        playSynthesizedSound('fanfare');
+        showToast('🎉 Pomodoro Deep Work Sprint Complete! Great focus.', 'success');
+      } else {
+        const m = String(Math.floor(pomodoroSeconds / 60)).padStart(2, '0');
+        const s = String(pomodoroSeconds % 60).padStart(2, '0');
+        if (txt) txt.textContent = `${m}:${s}`;
+      }
+    }, 1000);
+  }
+
+  function stopPomodoroTimer() {
+    pomodoroRunning = false;
+    if (pomodoroInterval) clearInterval(pomodoroInterval);
+    const pill = document.getElementById('btn-pomodoro-timer');
+    const txt = document.getElementById('pomodoro-text');
+    if (pill) pill.classList.remove('active');
+    if (txt) txt.textContent = 'Sprint 25m';
+  }
+
+  function handlePomodoroMessage(payload) {
+    if (payload.action === 'start') {
+      startPomodoroTimer(payload.durationSec || 1500);
+      showToast(`⏱️ Host launched a ${Math.round((payload.durationSec || 1500)/60)}m Focus Sprint!`, 'info');
+    } else if (payload.action === 'pause') {
+      stopPomodoroTimer();
+      showToast('⏱️ Focus Sprint paused', 'info');
+    }
+  }
+
+  // Official Mentorship Completion Certificate Generator
+  document.getElementById('btn-issue-certificate')?.addEventListener('click', () => {
+    openCertificateModal();
+  });
+
+  function openCertificateModal() {
+    document.querySelectorAll('#certificate-modal-root').forEach(e => e.remove());
+    const certModal = document.createElement('div');
+    certModal.id = 'certificate-modal-root';
+    certModal.className = 'modal-backdrop';
+    certModal.style.cssText = 'display:flex; z-index:10002; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
+    
+    const studentName = meeting.studentName || 'Eng. Student';
+    const mentorName = meeting.mentorName || user.name;
+    const certDate = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const certHash = 'MITADT-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+
+    certModal.innerHTML = `
+      <div class="certificate-modal-card">
+        <div style="display:flex; justify-content:flex-end; margin-bottom: -10px;">
+          <button class="btn btn-ghost btn-sm" id="btn-close-cert" style="color:#fff; font-size:1.2rem; border-radius:50%; width:32px; height:32px; padding:0;">✕</button>
+        </div>
+        <div class="cert-gold-border">
+          <div style="font-size:0.8rem; font-weight:800; color:#fbbf24; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px;">
+            MIT ART, DESIGN &amp; TECHNOLOGY UNIVERSITY
+          </div>
+          <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:14px;">SCHOOL OF COMPUTING • DEPARTMENT OF CSE</div>
+          
+          <h1 style="font-size:1.6rem; font-weight:900; color:#fff; margin:0 0 10px 0; text-transform:uppercase; letter-spacing:1px;">
+            Certificate of Mentorship &amp; Academic Engagement
+          </h1>
+          <p style="font-size:0.85rem; color:#cbd5e1; margin:0 0 14px 0;">This official institutional credential certifies that</p>
+          
+          <div style="font-size:1.4rem; font-weight:900; color:#38bdf8; border-bottom:2px solid rgba(56,189,248,0.4); display:inline-block; padding:0 24px 4px 24px; margin-bottom:14px;">
+            ${escapeHtml(studentName)}
+          </div>
+          
+          <p style="font-size:0.82rem; color:#cbd5e1; max-width:540px; margin:0 auto 16px auto; line-height:1.6;">
+            has actively participated in the academic mentorship session on <strong>"${escapeHtml(meeting.type || 'Academic Progress & Project Review')}"</strong> with exemplary attendance, technical curiosity, and academic compliance.
+          </p>
+
+          <div style="display:flex; justify-content:space-around; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:16px; margin-top:14px;">
+            <div style="text-align:center;">
+              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Prof. ${escapeHtml(mentorName)}</div>
+              <div style="font-size:0.7rem; color:#94a3b8;">Faculty Mentor / Host</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:0.8rem; font-weight:700; color:#10b981;">✓ VERIFIED DIGITAL DOSSIER</div>
+              <div style="font-size:0.65rem; color:#64748b;">${certHash} • ${certDate}</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Dr. Suwarna Pawar</div>
+              <div style="font-size:0.7rem; color:#94a3b8;">Head of Department (CSE)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
+          <button class="btn btn-primary btn-sm" id="btn-print-cert" style="border-radius:10px; font-weight:700; padding:8px 20px;">
+            🖨️ Print / Download Certificate
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(certModal);
+
+    certModal.querySelector('#btn-close-cert').onclick = () => certModal.remove();
+    certModal.querySelector('#btn-print-cert').onclick = () => {
+      window.print();
+    };
+  }
 
   // Post-Call Student Rating & Feedback System
   let selectedStudentRating = 5;
