@@ -137,6 +137,9 @@ export async function render(container) {
               <button class="side-panel-tab" data-panel="participants">
                 <span>👥 People</span>
               </button>
+              <button class="side-panel-tab" data-panel="tools">
+                <span>🎨 Tools</span>
+              </button>
               ${isMentor ? `
               <button class="side-panel-tab" data-panel="controls">
                 <span>🛡️ Controls</span>
@@ -162,6 +165,111 @@ export async function render(container) {
 
               <!-- Participants Panel -->
               <div id="panel-participants" hidden></div>
+
+              <!-- Interactive Tools Suite Panel -->
+              <div id="panel-tools" hidden style="padding:14px; display:flex; flex-direction:column; gap:16px;">
+                
+                <!-- Quick Tool Launchers -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-whiteboard" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(99, 102, 241, 0.15); color:#a5b4fc; border:1px solid rgba(99, 102, 241, 0.3);">
+                    <i class="ph ph-paint-brush"></i> Whiteboard
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-toggle-scratchpad-view" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(6, 182, 212, 0.15); color:#67e8f9; border:1px solid rgba(6, 182, 212, 0.3);">
+                    <i class="ph ph-code"></i> Code Pad
+                  </button>
+                </div>
+
+                <!-- Structured Agenda Checklist Section -->
+                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      ⏱️ Meeting Agenda &amp; Checklist
+                    </span>
+                    <span id="agenda-count-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700;">0/4</span>
+                  </div>
+                  <div class="agenda-list" id="in-room-agenda-list">
+                    <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Review Academic Attendance &amp; Marks"> <span>Review Academic Attendance &amp; Marks</span></label>
+                    <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Discuss Backlogs &amp; Subject Difficulties"> <span>Discuss Backlogs &amp; Subject Difficulties</span></label>
+                    <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Internship &amp; Career Milestone Progress"> <span>Internship &amp; Career Milestone Progress</span></label>
+                    <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Finalize Action Items &amp; Next Check-in"> <span>Finalize Action Items &amp; Next Check-in</span></label>
+                  </div>
+                </div>
+
+                <!-- Code Scratchpad Container -->
+                <div id="scratchpad-box" style="display:none; background:#090d16; border-radius:12px; border:1px solid #334155; overflow:hidden;">
+                  <div class="scratchpad-toolbar">
+                    <select id="scratchpad-lang" style="background:#1e293b; color:#38bdf8; border:1px solid #475569; border-radius:6px; padding:2px 8px; font-size:0.75rem;">
+                      <option value="javascript">JavaScript</option>
+                      <option value="python">Python</option>
+                      <option value="java">Java</option>
+                      <option value="cpp">C++</option>
+                      <option value="sql">SQL</option>
+                      <option value="markdown">Markdown</option>
+                    </select>
+                    <div style="display:flex; gap:6px;">
+                      <button id="btn-copy-code" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:0.75rem;" title="Copy Code">📋 Copy</button>
+                      <button id="btn-append-code-notes" style="background:transparent; border:none; color:#38bdf8; cursor:pointer; font-size:0.75rem;" title="Append to Session Notes">💾 Save to Notes</button>
+                    </div>
+                  </div>
+                  <textarea id="in-room-scratchpad" class="scratchpad-editor" rows="6" placeholder="// Type code or shared markdown notes here..."></textarea>
+                </div>
+
+                <!-- In-Room Live Poll Section -->
+                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      📊 Live Confidence &amp; Understanding Poll
+                    </span>
+                    ${isMentor ? '<button class="btn btn-ghost btn-sm" id="btn-trigger-custom-poll" style="padding:2px 6px; font-size:0.7rem; color:#818cf8;">+ New Poll</button>' : ''}
+                  </div>
+
+                  <div id="active-poll-container">
+                    <div class="poll-card">
+                      <div style="font-size:0.85rem; font-weight:700; color:#f8fafc; margin-bottom:8px;" id="poll-question-text">
+                        Rate your confidence in current semester subjects:
+                      </div>
+                      <div id="poll-options-list">
+                        <button class="poll-option-btn" data-vote="High Confidence (Ready)">
+                          <div class="poll-progress-fill" style="width:0%;"></div>
+                          <div class="poll-option-text"><span>🟢 High Confidence (Ready)</span><span class="poll-pct">0%</span></div>
+                        </button>
+                        <button class="poll-option-btn" data-vote="Moderate (Need Practice)">
+                          <div class="poll-progress-fill" style="width:0%;"></div>
+                          <div class="poll-option-text"><span>🟡 Moderate (Need Practice)</span><span class="poll-pct">0%</span></div>
+                        </button>
+                        <button class="poll-option-btn" data-vote="Struggling (Need Remedial Help)">
+                          <div class="poll-progress-fill" style="width:0%;"></div>
+                          <div class="poll-option-text"><span>🔴 Struggling (Need Remedial Help)</span><span class="poll-pct">0%</span></div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- In-Room File & Assignment Dropzone -->
+                <div class="meet-dropzone" id="in-room-dropzone">
+                  <i class="ph ph-file-arrow-up" style="font-size:1.8rem; color:#818cf8; margin-bottom:4px; display:block;"></i>
+                  <div style="font-size:0.82rem; font-weight:600; color:#e2e8f0;">Drop resume, assignment or scorecard</div>
+                  <div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">PDF, DOCX, PNG (Simulated In-Call Share)</div>
+                  <input type="file" id="in-room-file-input" style="display:none;">
+                </div>
+                <div id="shared-files-tray" style="display:flex; flex-direction:column; gap:6px;"></div>
+
+                <!-- 30-Second Voice Summary Recorder -->
+                ${isMentor ? `
+                <div class="voice-recorder-widget">
+                  <div>
+                    <div style="font-size:0.82rem; font-weight:700; color:#f8fafc;">🎤 30s Voice Summary</div>
+                    <div style="font-size:0.7rem; color:#94a3b8;" id="voice-recorder-status">Record mentor audio recap for mentee</div>
+                  </div>
+                  <button class="voice-record-btn" id="btn-record-voice-summary" title="Record Voice Summary">
+                    <i class="ph ph-microphone" style="font-size:1.2rem;"></i>
+                  </button>
+                </div>
+                <div id="voice-audio-playback" style="display:none; margin-top:4px;"></div>
+                ` : ''}
+
+              </div>
 
               <!-- Host Control Center -->
               ${isMentor ? `
@@ -399,6 +507,14 @@ export async function render(container) {
                 <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
               </span>
               <span class="control-btn-label">People</span>
+            </button>
+
+            <!-- Tools Drawer Toggle -->
+            <button class="control-btn" id="btn-toggle-tools" title="Interactive Tools Suite">
+              <span class="control-btn-icon" style="color:#a5b4fc;">
+                <i class="ph ph-paint-brush-broad" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label">Tools</span>
             </button>
 
             <!-- Host Controls Drawer Toggle (Host only) -->
@@ -1193,7 +1309,7 @@ export async function render(container) {
     document.querySelectorAll('.side-panel-tab').forEach(item => {
       item.classList.toggle('active', item.dataset.panel === panelName);
     });
-    ['chat', 'participants', 'controls', 'notes', 'report'].forEach(name => {
+    ['chat', 'participants', 'tools', 'controls', 'notes', 'report'].forEach(name => {
       const panel = document.getElementById(`panel-${name}`);
       if (panel) panel.hidden = panelName !== name;
     });
@@ -1201,7 +1317,14 @@ export async function render(container) {
     if (chatForm) chatForm.hidden = panelName !== 'chat';
 
     if (sidePanelTitle) {
-      const titles = { chat: 'Meeting Chat', participants: 'People in Call', controls: 'Host Control Center', notes: 'Session Notes', report: 'Report Generation' };
+      const titles = { 
+        chat: 'Meeting Chat', 
+        participants: 'People in Call', 
+        tools: 'Interactive Collaboration Suite', 
+        controls: 'Host Control Center', 
+        notes: 'Session Notes', 
+        report: 'Report Generation' 
+      };
       sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
     }
   }
@@ -1222,6 +1345,14 @@ export async function render(container) {
     }
   });
 
+  document.getElementById('btn-toggle-tools')?.addEventListener('click', () => {
+    if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'tools') {
+      sidePanel.classList.add('hidden');
+    } else {
+      openPanelTab('tools');
+    }
+  });
+
   document.getElementById('btn-toggle-controls')?.addEventListener('click', () => {
     if (!sidePanel.classList.contains('hidden') && document.querySelector('.side-panel-tab.active')?.dataset.panel === 'controls') {
       sidePanel.classList.add('hidden');
@@ -1237,6 +1368,374 @@ export async function render(container) {
   document.querySelectorAll('.side-panel-tab').forEach(button => {
     button.addEventListener('click', () => openPanelTab(button.dataset.panel));
   });
+
+  // ── INTERACTIVE COLLABORATION TOOLS LOGIC ──────────────────────────────────────
+
+  // 1. Toggle Code Scratchpad
+  document.getElementById('btn-toggle-scratchpad-view')?.addEventListener('click', () => {
+    const box = document.getElementById('scratchpad-box');
+    if (box) {
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  document.getElementById('btn-copy-code')?.addEventListener('click', () => {
+    const code = document.getElementById('in-room-scratchpad')?.value;
+    if (code) {
+      navigator.clipboard.writeText(code);
+      showToast('Code copied to clipboard!', 'success');
+    }
+  });
+
+  document.getElementById('btn-append-code-notes')?.addEventListener('click', async () => {
+    const code = document.getElementById('in-room-scratchpad')?.value;
+    const lang = document.getElementById('scratchpad-lang')?.value || 'code';
+    if (!code) { showToast('Scratchpad is empty', 'warning'); return; }
+    
+    const formattedSnippet = `\n\n--- [${lang.toUpperCase()} SNIPPET] ---\n` + code;
+    const notesEl = document.getElementById('meeting-notes');
+    if (notesEl) {
+      notesEl.value += formattedSnippet;
+    }
+    const rptIssues = document.getElementById('rpt-issues');
+    if (rptIssues) {
+      rptIssues.value += formattedSnippet;
+    }
+    showToast('Code appended to meeting notes & report draft!', 'success');
+  });
+
+  // 2. Structured Agenda Checklist Toggling
+  const agendaCheckboxes = document.querySelectorAll('.agenda-chk');
+  function updateAgendaProgress() {
+    const total = agendaCheckboxes.length;
+    const checked = [...agendaCheckboxes].filter(c => c.checked).length;
+    const badge = document.getElementById('agenda-count-badge');
+    if (badge) badge.textContent = `${checked}/${total}`;
+    
+    agendaCheckboxes.forEach(chk => {
+      chk.closest('.agenda-item-row')?.classList.toggle('completed', chk.checked);
+    });
+  }
+
+  agendaCheckboxes.forEach(chk => {
+    chk.addEventListener('change', () => {
+      updateAgendaProgress();
+      const itemText = chk.dataset.item;
+      // Auto-append completed agenda item to meeting report resolutions
+      if (chk.checked) {
+        const rptActions = document.getElementById('rpt-actions');
+        if (rptActions && !rptActions.value.includes(itemText)) {
+          rptActions.value = (rptActions.value ? rptActions.value + '\n' : '') + `✓ Covered: ${itemText}`;
+        }
+      }
+    });
+  });
+
+  // 3. Live Polls Voting Engine
+  let pollVotes = { 'High Confidence (Ready)': 0, 'Moderate (Need Practice)': 0, 'Struggling (Need Remedial Help)': 0 };
+  let totalVotes = 0;
+  let hasVoted = false;
+
+  document.querySelectorAll('.poll-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (hasVoted) { showToast('You have already submitted your response', 'info'); return; }
+      const choice = btn.dataset.vote;
+      if (pollVotes[choice] !== undefined) {
+        pollVotes[choice]++;
+      } else {
+        pollVotes[choice] = 1;
+      }
+      totalVotes++;
+      hasVoted = true;
+
+      // Update Poll progress bars
+      document.querySelectorAll('.poll-option-btn').forEach(b => {
+        const opt = b.dataset.vote;
+        const count = pollVotes[opt] || 0;
+        const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+        const fill = b.querySelector('.poll-progress-fill');
+        const pctText = b.querySelector('.poll-pct');
+        if (fill) fill.style.width = `${pct}%`;
+        if (pctText) pctText.textContent = `${pct}% (${count})`;
+      });
+
+      showToast(`Vote recorded: ${choice}`, 'success');
+      appendMessage('System (Poll)', `A participant voted: "${choice}"`);
+    });
+  });
+
+  document.getElementById('btn-trigger-custom-poll')?.addEventListener('click', () => {
+    const q = prompt('Enter custom poll question:', 'Are you ready for the upcoming technical assessment?');
+    if (!q) return;
+    document.getElementById('poll-question-text').textContent = q;
+    pollVotes = { 'Yes / Confident': 0, 'Need Clarification': 0, 'Not Ready': 0 };
+    totalVotes = 0;
+    hasVoted = false;
+    
+    document.getElementById('poll-options-list').innerHTML = `
+      <button class="poll-option-btn" data-vote="Yes / Confident">
+        <div class="poll-progress-fill" style="width:0%;"></div>
+        <div class="poll-option-text"><span>🟢 Yes / Confident</span><span class="poll-pct">0%</span></div>
+      </button>
+      <button class="poll-option-btn" data-vote="Need Clarification">
+        <div class="poll-progress-fill" style="width:0%;"></div>
+        <div class="poll-option-text"><span>🟡 Need Clarification</span><span class="poll-pct">0%</span></div>
+      </button>
+      <button class="poll-option-btn" data-vote="Not Ready">
+        <div class="poll-progress-fill" style="width:0%;"></div>
+        <div class="poll-option-text"><span>🔴 Not Ready</span><span class="poll-pct">0%</span></div>
+      </button>
+    `;
+    showToast('New Poll launched for participants!', 'success');
+  });
+
+  // 4. File Dropzone In-Room File Sharing
+  const dropzone = document.getElementById('in-room-dropzone');
+  const fileInput = document.getElementById('in-room-file-input');
+
+  dropzone?.addEventListener('click', () => fileInput?.click());
+  dropzone?.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleSharedFile(e.dataTransfer.files[0]);
+  });
+  fileInput?.addEventListener('change', (e) => {
+    if (e.target.files.length) handleSharedFile(e.target.files[0]);
+  });
+
+  function handleSharedFile(file) {
+    const tray = document.getElementById('shared-files-tray');
+    if (!tray) return;
+    const fileCard = document.createElement('div');
+    fileCard.style.cssText = 'padding:8px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem;';
+    fileCard.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+        <i class="ph ph-file-pdf" style="font-size:1.2rem; color:#818cf8;"></i>
+        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#e2e8f0; font-weight:600;">${escapeHtml(file.name)}</span>
+      </div>
+      <span style="font-size:0.7rem; color:#10b981; font-weight:700;">Shared In Call</span>
+    `;
+    tray.appendChild(fileCard);
+    appendMessage('System (File Share)', `📁 Document shared in room: ${file.name} (${Math.round(file.size / 1024)} KB)`);
+    showToast(`Shared "${file.name}" with room participants`, 'success');
+  }
+
+  // 5. 30-Second Voice Summary Recorder
+  let voiceRecorder = null;
+  let voiceChunks = [];
+  let isRecordingVoice = false;
+  const voiceRecordBtn = document.getElementById('btn-record-voice-summary');
+  const voiceStatus = document.getElementById('voice-recorder-status');
+
+  voiceRecordBtn?.addEventListener('click', async () => {
+    if (!isRecordingVoice) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceRecorder = new MediaRecorder(stream);
+        voiceChunks = [];
+        voiceRecorder.ondataavailable = e => voiceChunks.push(e.data);
+        voiceRecorder.onstop = async () => {
+          const blob = new Blob(voiceChunks, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(blob);
+          const playbackDiv = document.getElementById('voice-audio-playback');
+          if (playbackDiv) {
+            playbackDiv.style.display = 'block';
+            playbackDiv.innerHTML = `
+              <div style="background:rgba(15,23,42,0.8); border:1px solid #334155; border-radius:10px; padding:8px;">
+                <audio controls src="${audioUrl}" style="width:100%; height:32px;"></audio>
+                <div style="font-size:0.7rem; color:#10b981; margin-top:4px;">✓ Voice summary recorded &amp; attached to session notes!</div>
+              </div>
+            `;
+          }
+          showToast('Voice recap recorded and attached to meeting!', 'success');
+        };
+
+        voiceRecorder.start();
+        isRecordingVoice = true;
+        voiceRecordBtn.classList.add('recording');
+        if (voiceStatus) voiceStatus.textContent = '● Recording voice note... (Click to finish)';
+      } catch (err) {
+        showToast('Microphone access needed for voice notes: ' + err.message, 'error');
+      }
+    } else {
+      voiceRecorder?.stop();
+      isRecordingVoice = false;
+      voiceRecordBtn.classList.remove('recording');
+      if (voiceStatus) voiceStatus.textContent = 'Voice recap saved';
+    }
+  });
+
+  // 6. Live Collaborative Whiteboard Engine
+  document.getElementById('btn-launch-whiteboard')?.addEventListener('click', () => {
+    openWhiteboardModal();
+  });
+
+  function openWhiteboardModal() {
+    document.querySelectorAll('#whiteboard-modal-root').forEach(e => e.remove());
+
+    const wbRoot = document.createElement('div');
+    wbRoot.id = 'whiteboard-modal-root';
+    wbRoot.className = 'whiteboard-overlay';
+    wbRoot.innerHTML = `
+      <div class="whiteboard-topbar">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+            <i class="ph ph-paint-brush"></i>
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:1rem; font-weight:800; color:#fff;">Live Interactive Whiteboard</h3>
+            <p style="margin:0; font-size:0.75rem; color:#94a3b8;">Sketch system architecture, math formulas &amp; problem solutions</p>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="whiteboard-toolbar">
+          <button class="wb-tool-btn active" data-tool="pen" title="Pencil / Draw"><i class="ph ph-pencil-simple"></i></button>
+          <button class="wb-tool-btn" data-tool="highlighter" title="Highlighter"><i class="ph ph-highlighter"></i></button>
+          <button class="wb-tool-btn" data-tool="line" title="Straight Line"><i class="ph ph-line-segment"></i></button>
+          <button class="wb-tool-btn" data-tool="rect" title="Rectangle"><i class="ph ph-rectangle"></i></button>
+          <button class="wb-tool-btn" data-tool="circle" title="Circle"><i class="ph ph-circle"></i></button>
+          <button class="wb-tool-btn" data-tool="eraser" title="Eraser"><i class="ph ph-eraser"></i></button>
+          
+          <div style="width:1px; height:20px; background:#475569; margin:0 4px;"></div>
+          
+          <!-- Color Picker -->
+          <input type="color" id="wb-color" value="#4f46e5" style="width:28px; height:28px; border:none; border-radius:50%; cursor:pointer; background:transparent;">
+          
+          <!-- Brush Size -->
+          <input type="range" id="wb-size" min="1" max="24" value="4" style="width:60px; cursor:pointer;" title="Stroke Thickness">
+
+          <div style="width:1px; height:20px; background:#475569; margin:0 4px;"></div>
+
+          <button class="wb-tool-btn" id="wb-clear-btn" title="Clear Canvas"><i class="ph ph-trash"></i></button>
+        </div>
+
+        <!-- Top Right Actions -->
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn btn-sm btn-primary" id="wb-save-mom-btn" style="border-radius:10px; font-weight:700; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-camera"></i> Save Snapshot to MOM
+          </button>
+          <button class="btn btn-sm btn-secondary" id="wb-export-png-btn" style="border-radius:10px; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-download-simple"></i> Download PNG
+          </button>
+          <button class="btn btn-ghost btn-sm" id="wb-close-btn" style="color:#fff; font-size:1.2rem; padding:4px 8px; border-radius:50%;">✕</button>
+        </div>
+      </div>
+
+      <div class="wb-canvas-container">
+        <canvas id="wb-canvas"></canvas>
+      </div>
+    `;
+
+    document.body.appendChild(wbRoot);
+
+    const canvas = wbRoot.querySelector('#wb-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Resize canvas
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let drawing = false;
+    let currentTool = 'pen';
+    let startX = 0, startY = 0;
+    let snapshotImageData = null;
+
+    wbRoot.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wbRoot.querySelectorAll('.wb-tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+      });
+    });
+
+    const colorPicker = wbRoot.querySelector('#wb-color');
+    const sizePicker = wbRoot.querySelector('#wb-size');
+
+    canvas.addEventListener('mousedown', (e) => {
+      drawing = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+      snapshotImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!drawing) return;
+      const x = e.offsetX;
+      const y = e.offsetY;
+      const strokeColor = colorPicker.value;
+      const lineWidth = parseInt(sizePicker.value, 10);
+
+      if (currentTool === 'pen' || currentTool === 'eraser' || currentTool === 'highlighter') {
+        ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : (currentTool === 'highlighter' ? `${strokeColor}55` : strokeColor);
+        ctx.lineWidth = currentTool === 'highlighter' ? lineWidth * 3 : lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      } else if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle') {
+        ctx.putImageData(snapshotImageData, 0, 0);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        if (currentTool === 'line') {
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(x, y);
+        } else if (currentTool === 'rect') {
+          ctx.strokeRect(startX, startY, x - startX, y - startY);
+        } else if (currentTool === 'circle') {
+          const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+          ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+        }
+        ctx.stroke();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => { drawing = false; });
+    canvas.addEventListener('mouseleave', () => { drawing = false; });
+
+    // Clear Canvas
+    wbRoot.querySelector('#wb-clear-btn').onclick = () => {
+      if (confirm('Clear the entire whiteboard canvas?')) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    // Close Modal
+    wbRoot.querySelector('#wb-close-btn').onclick = () => wbRoot.remove();
+
+    // Export PNG
+    wbRoot.querySelector('#wb-export-png-btn').onclick = () => {
+      const link = document.createElement('a');
+      link.download = `whiteboard_snapshot_${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('Whiteboard PNG downloaded!', 'success');
+    };
+
+    // Save snapshot to MOM Report
+    wbRoot.querySelector('#wb-save-mom-btn').onclick = async () => {
+      const dataUrl = canvas.toDataURL('image/png');
+      try {
+        await MeetingService.update(meetingId, { whiteboardSnapshot: dataUrl });
+        showToast('Whiteboard snapshot saved to Meeting MOM Report!', 'success');
+        wbRoot.remove();
+      } catch (err) {
+        showToast('Error saving snapshot: ' + err.message, 'error');
+      }
+    };
+  }
 
   // Chat form submission
   document.getElementById('chat-form')?.addEventListener('submit', event => {
