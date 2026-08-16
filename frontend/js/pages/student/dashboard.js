@@ -49,6 +49,7 @@ export async function render(container) {
     const risk = StatsService.computeRisk(fullProfile);
 
     const upcomingMeetings = (meetings || []).filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
+    const unacknowledgedMeets = (meetings || []).filter(m => m.status === 'COMPLETED' && !m.studentAcknowledged && !m.isGroup);
     const pendingTasks     = (tasks || []).filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
     const openIssues       = (issues || []).filter(i => i.status === 'OPEN');
 
@@ -70,6 +71,30 @@ export async function render(container) {
 
     content.innerHTML = `
       <div class="dashboard-container">
+
+        ${unacknowledgedMeets.length > 0 ? `
+        <!-- Unacknowledged MOM Banner -->
+        <div class="card" style="padding:16px 20px; margin-bottom:18px; background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(99,102,241,0.12)); border:1.5px solid #10b981; border-radius:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:40px; height:40px; border-radius:50%; background:rgba(16,185,129,0.2); color:#10b981; display:flex; align-items:center; justify-content:center; font-size:1.3rem;">
+                <i class="ph ph-seal-check"></i>
+              </div>
+              <div>
+                <h4 style="margin:0; font-size:0.92rem; font-weight:700; color:var(--text);">
+                  Action Required: ${unacknowledgedMeets.length} Completed Session MOM Waiting for Sign-Off
+                </h4>
+                <p style="margin:2px 0 0 0; font-size:0.78rem; color:var(--text-secondary);">
+                  Review guidance notes from your mentor and confirm official dual sign-off record.
+                </p>
+              </div>
+            </div>
+            <a href="#/student/meetings" class="btn btn-sm btn-primary" style="font-weight:700; border-radius:8px; background:#10b981; border:none; padding:8px 16px;">
+              ✍️ Review &amp; Sign-Off →
+            </a>
+          </div>
+        </div>
+        ` : ''}
 
         ${isBookletIncomplete ? `
         <!-- Mandatory Booklet Alert Banner -->
