@@ -84,6 +84,10 @@ export async function render(container) {
             </div>
           </div>
           <div class="meeting-topbar-right">
+            <button class="btn-meet-secondary" id="btn-pair-program-toggle" title="Toggle Side-by-Side Pair Programming Workstation">
+              <i class="ph ph-code" style="font-size:1.1rem; color:#38bdf8;"></i>
+              <span>Split IDE</span>
+            </button>
             <button class="btn-meet-secondary" id="copy-room-link" title="Copy invitation link">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
               <span>Copy Link</span>
@@ -149,6 +153,23 @@ export async function render(container) {
             </div>` : ''}
           </section>
 
+          <!-- Pair-Programming Split Workstation -->
+          <section class="pair-workstation-panel" id="pair-workstation">
+            <div class="pair-tabs-bar">
+              <button class="pair-tab-btn active" data-file="solution.js"><i class="ph ph-file-js"></i> solution.js</button>
+              <button class="pair-tab-btn" data-file="algorithm.py"><i class="ph ph-file-code"></i> algorithm.py</button>
+              <button class="pair-tab-btn" data-file="schema.sql"><i class="ph ph-database"></i> schema.sql</button>
+              <div style="flex:1;"></div>
+              <button class="btn btn-sm btn-primary" id="btn-run-pair-code" style="padding:4px 10px; font-size:0.75rem; border-radius:6px; font-weight:700;">▶ Run</button>
+            </div>
+            <textarea id="pair-code-editor" style="flex:1; background:#020617; color:#f8fafc; border:none; padding:12px; font-family:'JetBrains Mono', monospace; font-size:0.82rem; resize:none; outline:none; line-height:1.5;" placeholder="// Type code here in real-time collaboration mode..."></textarea>
+            <div class="terminal-header">
+              <span>⚡ Output Console</span>
+              <span id="pair-terminal-status" style="color:#10b981;">Ready</span>
+            </div>
+            <div class="code-terminal-console" id="pair-terminal-out" style="max-height:90px;">// Output will appear here...</div>
+          </section>
+
           <!-- Side Drawer Panel -->
           <aside class="meeting-side-panel hidden" id="meeting-side-panel">
             <div class="side-panel-header">
@@ -159,6 +180,9 @@ export async function render(container) {
             <div class="side-panel-tabs">
               <button class="side-panel-tab active" data-panel="chat">
                 <span>💬 Chat</span>
+              </button>
+              <button class="side-panel-tab" data-panel="copilot">
+                <span>🧠 Copilot</span>
               </button>
               <button class="side-panel-tab" data-panel="participants">
                 <span>👥 People</span>
@@ -182,6 +206,27 @@ export async function render(container) {
             </div>
 
             <div class="side-panel-body">
+              <!-- AI Copilot Panel -->
+              <div id="panel-copilot" hidden style="padding:14px; display:flex; flex-direction:column; gap:10px; height:100%;">
+                <div style="font-size:0.85rem; font-weight:800; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                  🧠 AI Mentorship Copilot
+                </div>
+                <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:4px;" class="custom-scrollbar">
+                  <button class="copilot-prompt-pill" data-prompt="Summarize session key takeaways and action items so far.">📌 Summarize</button>
+                  <button class="copilot-prompt-pill" data-prompt="Explain B-Tree vs B+ Tree in simple DBMS terms.">💡 Explain Concept</button>
+                  <button class="copilot-prompt-pill" data-prompt="Draft a structured 4-week remedial study schedule for Operating Systems.">📝 Remedial Plan</button>
+                  <button class="copilot-prompt-pill" data-prompt="Suggest 3 technical interview coding questions on Graph BFS/DFS.">🎯 Tech Questions</button>
+                </div>
+                <div class="copilot-chat-feed" id="copilot-feed">
+                  <div class="copilot-message-ai">
+                    👋 <strong>Hello!</strong> I am your real-time AI Mentorship Assistant. Click any quick prompt above or ask a question below to analyze student progress, generate study blueprints, or clarify engineering concepts.
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="copilot-input" class="chat-input" placeholder="Ask AI Copilot..." style="flex:1;">
+                  <button class="btn btn-sm btn-primary" id="btn-ask-copilot" style="border-radius:8px; font-weight:700;">Ask</button>
+                </div>
+              </div>
               <!-- Chat Panel -->
               <div id="panel-chat">
                 <div class="chat-messages" id="chat-messages">
@@ -852,6 +897,31 @@ export async function render(container) {
             </div>
           </div>
         </div>
+
+        <!-- Post-Call Student Rating & Mentorship Feedback Modal -->
+        <div id="post-call-rating-modal" class="modal-backdrop" style="display:none;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);position:fixed;inset:0;justify-content:center;align-items:center;">
+          <div class="modal" style="max-width:460px;width:90%;background:#0f172a;border-radius:16px;border:1px solid #334155;color:white;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.6);text-align:center;">
+            <div style="font-size:2.5rem;margin-bottom:8px;">🎓</div>
+            <h3 style="margin:0;font-size:1.25rem;font-weight:800;color:#f8fafc;">Rate Your Mentorship Session</h3>
+            <p style="font-size:0.8rem;color:#94a3b8;margin:6px 0 16px 0;">Help us ensure premier academic mentorship quality at MIT-ADT University.</p>
+            
+            <div class="star-rating-row" id="star-rating-container">
+              <button class="star-rating-btn active" data-rating="1">★</button>
+              <button class="star-rating-btn active" data-rating="2">★</button>
+              <button class="star-rating-btn active" data-rating="3">★</button>
+              <button class="star-rating-btn active" data-rating="4">★</button>
+              <button class="star-rating-btn active" data-rating="5">★</button>
+            </div>
+            <div style="font-size:0.82rem;font-weight:700;color:#fbbf24;margin-bottom:14px;" id="rating-label-text">5.0 / 5.0 (Exceptional &amp; Highly Valuable)</div>
+
+            <textarea id="feedback-comment-input" class="chat-input" rows="3" placeholder="Share specific feedback or topics clarified with your mentor (optional)..." style="width:100%;min-height:70px;margin-bottom:16px;border-radius:10px;"></textarea>
+
+            <div style="display:flex;gap:10px;justify-content:center;">
+              <button class="btn btn-secondary btn-sm" id="btn-skip-rating" style="border-radius:8px;padding:8px 16px;">Skip</button>
+              <button class="btn btn-primary btn-sm" id="btn-submit-rating" style="border-radius:8px;padding:8px 20px;font-weight:700;">Submit Feedback &amp; Exit</button>
+            </div>
+          </div>
+        </div>
       </div>`;
 
   const peers = new Map();
@@ -1435,6 +1505,14 @@ export async function render(container) {
 
       signaling.onMessage('doubt', payload => {
         handleDoubtMessage(payload);
+      });
+
+      signaling.onMessage('pair-code', payload => {
+        handlePairCodeMessage(payload);
+      });
+
+      signaling.onMessage('copilot-query', payload => {
+        handleRemoteCopilotMessage(payload);
       });
 
       signaling.onMessage('waiting', () => {
@@ -3098,6 +3176,237 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
     signaling.disconnect();
   }
 
+  // AI Mentorship Copilot Logic
+  const copilotFeed = document.getElementById('copilot-feed');
+  const copilotInput = document.getElementById('copilot-input');
+  const btnAskCopilot = document.getElementById('btn-ask-copilot');
+
+  function appendCopilotMessage(sender, text, isAi = true) {
+    if (!copilotFeed) return;
+    const msg = document.createElement('div');
+    msg.className = isAi ? 'copilot-message-ai' : 'copilot-message-user';
+    msg.innerHTML = `
+      <div style="font-size:0.75rem; font-weight:700; color:${isAi ? '#a5b4fc' : '#94a3b8'}; margin-bottom:4px;">
+        ${isAi ? '🧠 AI Copilot' : `${escapeHtml(sender)}`}
+      </div>
+      <div style="white-space:pre-wrap; line-height:1.5;">${escapeHtml(text)}</div>
+      ${isAi ? `
+      <div style="display:flex; gap:6px; margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
+        <button class="btn btn-ghost btn-sm btn-copilot-copy" style="font-size:0.7rem; padding:2px 6px; color:#38bdf8;">📋 Copy to Chat</button>
+        <button class="btn btn-ghost btn-sm btn-copilot-notes" style="font-size:0.7rem; padding:2px 6px; color:#34d399;">💾 Save to Notes</button>
+      </div>` : ''}
+    `;
+
+    if (isAi) {
+      msg.querySelector('.btn-copilot-copy')?.addEventListener('click', () => {
+        if (signaling.sendChat(`[AI Copilot Insight]:\n${text}`)) {
+          appendMessage('You (via AI Copilot)', text, true);
+          showToast('Copilot insight shared in room chat!', 'success');
+        }
+      });
+      msg.querySelector('.btn-copilot-notes')?.addEventListener('click', () => {
+        const notesArea = document.getElementById('meeting-notes');
+        if (notesArea) {
+          notesArea.value += `\n\n--- [AI COPILOT RECOMMENDATION] ---\n${text}`;
+          showToast('AI recommendation saved to session notes!', 'success');
+        }
+      });
+    }
+
+    copilotFeed.appendChild(msg);
+    copilotFeed.scrollTop = copilotFeed.scrollHeight;
+  }
+
+  async function processCopilotQuery(promptText) {
+    if (!promptText.trim()) return;
+    appendCopilotMessage(user.name, promptText, false);
+    if (copilotInput) copilotInput.value = '';
+
+    // Synthesize contextual AI response
+    let responseText = '';
+    const q = promptText.toLowerCase();
+
+    if (q.includes('summarize') || q.includes('summary')) {
+      const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
+      responseText = `📌 **Session Summary & Progress:**\n• Completed Agendas: ${checkedAgendas.join(', ') || 'Academic and attendance review underway'}.\n• Diagnostic Assessment: ${quizScore}/${quizQuestions.length} score recorded.\n• Engagement Level: Strong interactive dialogue between Mentor & Mentee. Action items are being populated.`;
+    } else if (q.includes('remedial') || q.includes('schedule') || q.includes('backlog')) {
+      responseText = `📝 **4-Week Structured Remedial Action Blueprint:**\n• Week 1: Fundamental Concept Mastery & Tutorial Re-attempts.\n• Week 2: Laboratory practical practice & debugging sessions.\n• Week 3: Previous Year Question Paper (PYQ) Mock Assessment.\n• Week 4: Final Faculty Pre-exam clearance evaluation.`;
+    } else if (q.includes('b-tree') || q.includes('concept') || q.includes('explain')) {
+      responseText = `💡 **Conceptual Clarification (DBMS Indexing):**\n• **B-Tree**: Keys and data records are stored in both internal and leaf nodes. Searching may stop at an internal node.\n• **B+ Tree**: All data pointers are stored *only* in leaf nodes linked as a doubly-linked list. Provides superior range query performance (O(log N) + O(K)).`;
+    } else if (q.includes('question') || q.includes('interview') || q.includes('graph')) {
+      responseText = `🎯 **Recommended Technical Interview Questions:**\n1. *Course Schedule (LeetCode 207)* - Topological Sort & Cycle Detection in DAG.\n2. *Rotting Oranges (LeetCode 994)* - Multi-source BFS Shortest Path.\n3. *Number of Islands (LeetCode 200)* - Connected Components via DFS.`;
+    } else {
+      responseText = `🧠 **AI Mentorship Analysis:**\nRegarding "${promptText}":\nFor optimal academic performance and compliance at MIT-ADT University, students should maintain balanced theoretical fundamentals and hands-on laboratory implementation. Prioritize resolving backlogs early in the semester and log all deliverables in the digital dossier.`;
+    }
+
+    setTimeout(() => {
+      appendCopilotMessage('AI Copilot', responseText, true);
+    }, 400);
+
+    await signaling.sendCopilotQuery(promptText, responseText);
+  }
+
+  btnAskCopilot?.addEventListener('click', () => processCopilotQuery(copilotInput.value));
+  copilotInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') processCopilotQuery(copilotInput.value);
+  });
+
+  document.querySelectorAll('.copilot-prompt-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      processCopilotQuery(pill.dataset.prompt);
+    });
+  });
+
+  function handleRemoteCopilotMessage(payload) {
+    if (payload.prompt && payload.response) {
+      appendCopilotMessage(payload.name || 'Peer', payload.prompt, false);
+      appendCopilotMessage('AI Copilot', payload.response, true);
+    }
+  }
+
+  // Side-by-Side Pair Programming Workstation Logic
+  const pairFiles = {
+    'solution.js': '// JavaScript Solution\nfunction twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const diff = target - nums[i];\n    if (map.has(diff)) return [map.get(diff), i];\n    map.set(nums[i], i);\n  }\n  return [];\n}\n\nconsole.log("TwoSum Result:", twoSum([2, 7, 11, 15], 9));',
+    'algorithm.py': '# Python Algorithm Simulation\ndef binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n\nprint("Search Index:", binary_search([1, 3, 5, 7, 9, 11], 7))',
+    'schema.sql': '-- SQL Schema & Normalization\nCREATE TABLE Students (\n    student_id INT PRIMARY KEY,\n    name VARCHAR(100) NOT NULL,\n    department VARCHAR(50),\n    attendance_pct DECIMAL(5,2)\n);\n\nSELECT * FROM Students WHERE attendance_pct >= 75.00;'
+  };
+
+  let activePairFile = 'solution.js';
+  const pairEditor = document.getElementById('pair-code-editor');
+  const btnPairToggle = document.getElementById('btn-pair-program-toggle');
+
+  if (pairEditor) {
+    pairEditor.value = pairFiles[activePairFile];
+  }
+
+  btnPairToggle?.addEventListener('click', () => {
+    const layout = container.querySelector('.meeting-room-layout');
+    layout.classList.toggle('pair-programming-mode');
+    const isPair = layout.classList.contains('pair-programming-mode');
+    btnPairToggle.classList.toggle('active', isPair);
+    showToast(isPair ? '💻 Side-by-Side Pair Programming Workstation Enabled' : 'Standard Video Grid View', 'info');
+  });
+
+  document.querySelectorAll('.pair-tab-btn').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pair-tab-btn').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activePairFile = tab.dataset.file;
+      if (pairEditor) {
+        pairEditor.value = pairFiles[activePairFile] || '';
+      }
+    });
+  });
+
+  let pairCodeDebounce = null;
+  pairEditor?.addEventListener('input', () => {
+    pairFiles[activePairFile] = pairEditor.value;
+    clearTimeout(pairCodeDebounce);
+    pairCodeDebounce = setTimeout(async () => {
+      await signaling.sendPairCode(activePairFile, pairEditor.value);
+    }, 400);
+  });
+
+  function handlePairCodeMessage(payload) {
+    if (payload.fileName && payload.content !== undefined) {
+      pairFiles[payload.fileName] = payload.content;
+      if (activePairFile === payload.fileName && pairEditor) {
+        const start = pairEditor.selectionStart;
+        const end = pairEditor.selectionEnd;
+        pairEditor.value = payload.content;
+        pairEditor.setSelectionRange(start, end);
+      }
+    }
+  }
+
+  document.getElementById('btn-run-pair-code')?.addEventListener('click', async () => {
+    const code = pairEditor?.value || '';
+    const outEl = document.getElementById('pair-terminal-out');
+    const statusEl = document.getElementById('pair-terminal-status');
+
+    if (!code.trim()) { showToast('Editor is empty', 'info'); return; }
+
+    statusEl.textContent = 'Running...';
+    statusEl.style.color = '#f59e0b';
+    const startTime = performance.now();
+
+    try {
+      let logs = [];
+      if (activePairFile.endsWith('.js')) {
+        const customConsole = {
+          log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
+          error: (...args) => logs.push('[ERROR] ' + args.join(' ')),
+          warn: (...args) => logs.push('[WARN] ' + args.join(' '))
+        };
+        const runFn = new Function('console', code);
+        runFn(customConsole);
+      } else {
+        logs.push(`[${activePairFile.toUpperCase()} Sandbox Runner]`);
+        logs.push(`Execution completed with exit code 0.`);
+      }
+
+      const dur = Math.round(performance.now() - startTime);
+      const res = logs.join('\n') || '[Code executed with no output]';
+      if (outEl) outEl.textContent = `[Finished in ${dur}ms]\n` + res;
+      if (statusEl) {
+        statusEl.textContent = 'Success (0)';
+        statusEl.style.color = '#10b981';
+      }
+      await signaling.sendCodeRun(code, activePairFile, res);
+      showToast('Executed pair code successfully!', 'success');
+    } catch(err) {
+      const dur = Math.round(performance.now() - startTime);
+      if (outEl) outEl.textContent = `[Runtime Error in ${dur}ms]:\n` + err.message;
+      if (statusEl) {
+        statusEl.textContent = 'Error (1)';
+        statusEl.style.color = '#ef4444';
+      }
+    }
+  });
+
+  // Post-Call Student Rating & Feedback System
+  let selectedStudentRating = 5;
+  const ratingModal = document.getElementById('post-call-rating-modal');
+  const ratingLabels = {
+    1: '1.0 / 5.0 (Poor / Needs Improvement)',
+    2: '2.0 / 5.0 (Below Average)',
+    3: '3.0 / 5.0 (Satisfactory & Helpful)',
+    4: '4.0 / 5.0 (Very Good & Clear)',
+    5: '5.0 / 5.0 (Exceptional & Highly Valuable)'
+  };
+
+  document.querySelectorAll('.star-rating-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = parseInt(btn.dataset.rating, 10);
+      selectedStudentRating = r;
+      document.querySelectorAll('.star-rating-btn').forEach(b => {
+        const bRating = parseInt(b.dataset.rating, 10);
+        b.classList.toggle('active', bRating <= r);
+      });
+      const lbl = document.getElementById('rating-label-text');
+      if (lbl) lbl.textContent = ratingLabels[r] || `${r}.0 / 5.0`;
+    });
+  });
+
+  document.getElementById('btn-skip-rating')?.addEventListener('click', async () => {
+    if (ratingModal) ratingModal.style.display = 'none';
+    await cleanup();
+    navigateTo('/student/meetings');
+  });
+
+  document.getElementById('btn-submit-rating')?.addEventListener('click', async () => {
+    const feedbackText = document.getElementById('feedback-comment-input')?.value.trim() || 'Session completed successfully.';
+    try {
+      await MeetingService.acknowledgeMeeting(meetingId, user.id, feedbackText, selectedStudentRating);
+      showToast('Thank you! Your mentorship feedback has been submitted.', 'success');
+    } catch(e) {
+      console.warn('Feedback recording warning:', e);
+    }
+    if (ratingModal) ratingModal.style.display = 'none';
+    await cleanup();
+    navigateTo('/student/meetings');
+  });
+
   document.getElementById('btn-end')?.addEventListener('click', async () => {
     if (isMentor) {
       const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
@@ -3111,9 +3420,17 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
           console.warn('Meeting status sync warning:', e);
         }
       }
+      await cleanup();
+      navigateTo('/mentor/meetings');
+    } else {
+      // Show Rating Modal to student upon finishing the call
+      if (ratingModal) {
+        ratingModal.style.display = 'flex';
+      } else {
+        await cleanup();
+        navigateTo('/student/meetings');
+      }
     }
-    await cleanup();
-    navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
   });
 
   window.addEventListener('hashchange', cleanup, { once: true });

@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -126,6 +126,10 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('doubt', { from: data.from, name: data.name, question: data.question, category: data.category });
                         } else if (!isInitialMessages && data.type === 'custom-quiz') {
                             emit('custom-quiz', { from: data.from, name: data.name, question: data.question, options: data.options, correctIndex: data.correctIndex });
+                        } else if (!isInitialMessages && data.type === 'pair-code') {
+                            emit('pair-code', { from: data.from, fileName: data.fileName, content: data.content });
+                        } else if (!isInitialMessages && data.type === 'copilot-query') {
+                            emit('copilot-query', { from: data.from, name: data.name, prompt: data.prompt, response: data.response });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -340,6 +344,26 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendPairCode(fileName, content) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'pair-code', from: selfId, fileName, content, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendCopilotQuery(prompt, response) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'copilot-query', from: selfId, name: user?.name, prompt, response, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -393,6 +417,8 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendKeyMoment,
         sendDoubt,
         sendCustomQuiz,
+        sendPairCode,
+        sendCopilotQuery,
         sendControl,
         updateRoomSettings,
         disconnect,
