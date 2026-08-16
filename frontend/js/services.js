@@ -461,6 +461,266 @@ export const MeetingService = {
       endedAt: now(),
       updatedAt: now()
     });
+  },
+
+  // Generate direct Google Calendar creation link
+  generateGoogleCalendarUrl(meeting) {
+    const title = encodeURIComponent(meeting.type || meeting.topic || 'Mentorship Session');
+    const startIso = meeting.scheduledAt || meeting.preferredDate;
+    if (!startIso) return null;
+
+    const startDate = new Date(startIso);
+    if (isNaN(startDate.getTime())) return null;
+
+    const endDate = new Date(startDate.getTime() + 45 * 60 * 1000); // 45 min duration default
+    
+    const formatGCalTime = (d) => d.toISOString().replace(/-|:|\.\d+/g, '');
+    const dates = `${formatGCalTime(startDate)}/${formatGCalTime(endDate)}`;
+    
+    const origin = window.location.origin;
+    const meetingRoomUrl = `${origin}/#/meeting-room?id=${meeting.id}`;
+    const desc = encodeURIComponent(
+      `Mentorship Meeting\n\n` +
+      `Topic/Type: ${meeting.type || meeting.topic || 'General Mentoring'}\n` +
+      `Purpose & Agenda: ${meeting.description || 'Routine mentorship discussion'}\n` +
+      `Host: ${meeting.mentorName || 'Faculty Mentor'}\n` +
+      `Student(s): ${meeting.isGroup ? 'Mentor Cohort' : (meeting.studentName || 'Mentee')}\n\n` +
+      `Join Live Video Room: ${meetingRoomUrl}`
+    );
+    const location = encodeURIComponent(meetingRoomUrl);
+
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${desc}&location=${location}`;
+  },
+
+  // Generate .ics iCalendar file string
+  generateIcsContent(meeting) {
+    const startIso = meeting.scheduledAt || meeting.preferredDate;
+    if (!startIso) return null;
+    const startDate = new Date(startIso);
+    if (isNaN(startDate.getTime())) return null;
+    const endDate = new Date(startDate.getTime() + 45 * 60 * 1000);
+
+    const pad = n => String(n).padStart(2, '0');
+    const formatIcsDate = d => 
+      `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+
+    const origin = window.location.origin;
+    const meetingRoomUrl = `${origin}/#/meeting-room?id=${meeting.id}`;
+    const summary = (meeting.type || meeting.topic || 'Mentorship Session').replace(/\n/g, ' ');
+    const description = `Mentorship Session\\nTopic: ${summary}\\nAgenda/Why: ${(meeting.description || 'Mentoring').replace(/\n/g, ' ')}\\nJoin: ${meetingRoomUrl}`;
+
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Lumina Mentorship//Meeting Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:lumina-${meeting.id}@mitadt.edu`,
+      `DTSTAMP:${formatIcsDate(new Date())}`,
+      `DTSTART:${formatIcsDate(startDate)}`,
+      `DTEND:${formatIcsDate(endDate)}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${description}`,
+      `LOCATION:${meetingRoomUrl}`,
+      `URL:${meetingRoomUrl}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+  },
+
+  // Download .ics file
+  downloadIcs(meeting) {
+    const ics = this.generateIcsContent(meeting);
+    if (!ics) return;
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `meeting_${meeting.id || 'event'}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  // Student Dual Sign-Off / Acknowledgment
+  async acknowledgeMeeting(meetingId, studentId, feedback = '', rating = 5) {
+    await updateDoc(doc(db, 'meetings', meetingId), {
+      studentAcknowledged: true,
+      acknowledgedAt: now(),
+      acknowledgedByStudentId: studentId,
+      studentFeedback: feedback,
+      studentRating: rating,
+      updatedAt: now()
+    });
+  },
+
+  // Save MOM Notes with Auto Action Task Sync
+  async saveMOMWithActionItems(meetingId, momData) {
+    const { 
+      issuesDiscussed = '', 
+      actionTaken = '', 
+      tasks = [], 
+      remarks = '', 
+      privateObservations = '',
+      whiteboardSnapshot = null,
+      voiceNoteUrl = null,
+      checkedAgendaItems = [],
+      studentId = null,
+      mentorId = null
+    } = momData;
+
+    const notesObj = {
+      issuesDiscussed,
+      actionTaken,
+      problem: issuesDiscussed,
+      advice: actionTaken,
+      summary: remarks || issuesDiscussed,
+      tasks: Array.isArray(tasks) ? tasks : [],
+      remarks,
+      privateObservations,
+      whiteboardSnapshot,
+      voiceNoteUrl,
+      checkedAgendaItems
+    };
+
+    await updateDoc(doc(db, 'meetings', meetingId), {
+      notes: notesObj,
+      status: 'COMPLETED',
+      endedAt: now(),
+      updatedAt: now()
+    });
+
+    // Auto-create individual Action Tasks for student
+    if (studentId && studentId !== 'ALL' && Array.isArray(tasks) && tasks.length > 0) {
+      for (const t of tasks) {
+        const taskText = typeof t === 'string' ? t.trim() : (t.text || '').trim();
+        if (taskText) {
+          try {
+            await TaskService.create({
+              studentId,
+              mentorId,
+              description: taskText,
+              category: 'Meeting Action Item',
+              meetingId,
+              dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 7 days default
+            });
+          } catch (e) {
+            console.warn('Could not auto-create action task:', e);
+          }
+        }
+      }
+    }
+  }
+};
+
+// ─── AVAILABILITY SERVICE ─────────────────────────────────────────────────────
+
+export const AvailabilityService = {
+  // Get mentor's configured office hours
+  async get(mentorId) {
+    try {
+      const docSnap = await getDoc(doc(db, 'mentor_availability', mentorId));
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+    } catch (e) {
+      console.warn('AvailabilityService get error:', e);
+    }
+    // Sensible default office hours
+    return {
+      activeDays: ['Monday', 'Wednesday', 'Friday'],
+      startTime: '14:00',
+      endTime: '17:00',
+      slotDuration: 30, // in minutes
+      bufferMinutes: 10,
+      maxDailyMeets: 4,
+      locationMode: 'ONLINE'
+    };
+  },
+
+  // Save mentor's availability configuration
+  async save(mentorId, data) {
+    await setDoc(doc(db, 'mentor_availability', mentorId), {
+      ...data,
+      mentorId,
+      updatedAt: now()
+    }, { merge: true });
+  },
+
+  // Calculate available slots for a target date
+  async getAvailableSlots(mentorId, targetDateStr, existingMeetings = []) {
+    const config = await this.get(mentorId);
+    const targetDate = new Date(targetDateStr);
+    if (isNaN(targetDate.getTime())) return [];
+
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const targetDayName = days[targetDate.getDay()];
+
+    if (!config.activeDays.includes(targetDayName)) {
+      return []; // Mentor does not take meetings on this day
+    }
+
+    const [startH, startM] = (config.startTime || '14:00').split(':').map(Number);
+    const [endH, endM] = (config.endTime || '17:00').split(':').map(Number);
+    const slotDuration = Number(config.slotDuration) || 30;
+    const buffer = Number(config.bufferMinutes) || 10;
+    const maxDaily = Number(config.maxDailyMeets) || 4;
+
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+
+    // Filter existing meetings on target date
+    const targetDateYMD = targetDate.toISOString().split('T')[0];
+    const dayMeetings = existingMeetings.filter(m => {
+      if (['CANCELLED', 'REJECTED'].includes(m.status)) return false;
+      const sched = m.scheduledAt || m.preferredDate;
+      return sched && sched.startsWith(targetDateYMD);
+    });
+
+    if (dayMeetings.length >= maxDaily) {
+      return []; // Daily cap reached
+    }
+
+    // Generate candidate slots
+    const slots = [];
+    let currentMin = startMinutes;
+
+    while (currentMin + slotDuration <= endMinutes) {
+      const h = Math.floor(currentMin / 60);
+      const m = currentMin % 60;
+      const timeString = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      
+      const slotStartIso = `${targetDateYMD}T${timeString}:00`;
+      const slotStartTime = new Date(slotStartIso).getTime();
+      const slotEndTime = slotStartTime + slotDuration * 60 * 1000;
+
+      // Check conflict with existing meetings (including buffer)
+      const hasConflict = dayMeetings.some(meet => {
+        const mStartIso = meet.scheduledAt || meet.preferredDate;
+        if (!mStartIso) return false;
+        const mStartTime = new Date(mStartIso).getTime();
+        const mEndTime = mStartTime + (45 * 60 * 1000); // assume 45 min meet
+        
+        // Overlap test with buffer
+        const bufferMs = buffer * 60 * 1000;
+        return (slotStartTime < mEndTime + bufferMs) && (slotEndTime + bufferMs > mStartTime);
+      });
+
+      slots.push({
+        time: timeString,
+        label: new Date(`${targetDateYMD}T${timeString}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        iso: slotStartIso,
+        duration: slotDuration,
+        isAvailable: !hasConflict
+      });
+
+      currentMin += (slotDuration + buffer);
+    }
+
+    return slots;
   }
 };
 
@@ -697,7 +957,7 @@ export const NotificationService = {
 // ─── CHAT SERVICE ─────────────────────────────────────────────────────────────
 
 export const ChatService = {
-  // Get or create a conversation document
+  // Get or create a 1-on-1 conversation document
   async getConversation(studentId, mentorId) {
     const chatId = `${studentId}_${mentorId}`;
     const docRef = doc(db, 'chats', chatId);
@@ -706,11 +966,50 @@ export const ChatService = {
       await setDoc(docRef, {
         studentId,
         mentorId,
+        isGroup: false,
         createdAt: now(),
         updatedAt: now(),
         lastMessage: '',
         unreadCount: 0
       });
+    }
+    return chatId;
+  },
+
+  // Get or create a mentor cohort group conversation document
+  async getGroupConversation(mentorId, mentorName = 'Faculty Mentor', students = []) {
+    const chatId = `group_${mentorId}`;
+    const docRef = doc(db, 'chats', chatId);
+    const docSnap = await getDoc(docRef);
+    const studentIds = students.map(s => s.id || s);
+
+    if (!docSnap.exists()) {
+      await setDoc(docRef, {
+        mentorId,
+        mentorName,
+        studentId: 'ALL',
+        studentIds,
+        participantIds: [mentorId, ...studentIds],
+        title: `${mentorName}'s Mentee Cohort`,
+        isGroup: true,
+        createdAt: now(),
+        updatedAt: now(),
+        lastMessage: 'Cohort Group Chat initialized.',
+        lastSenderName: 'System',
+        unreadCount: 0
+      });
+    } else {
+      // Sync student IDs to keep member list updated
+      try {
+        await updateDoc(docRef, {
+          mentorName,
+          studentIds,
+          participantIds: [mentorId, ...studentIds],
+          updatedAt: now()
+        });
+      } catch (e) {
+        console.warn('Could not update group participant list:', e);
+      }
     }
     return chatId;
   },
@@ -726,26 +1025,56 @@ export const ChatService = {
     });
   },
 
-  // Send a message
-  async sendMessage(chatId, senderId, text) {
-    await addDoc(collection(db, 'chats', chatId, 'messages'), {
+  // Send a message with sender name, role, and text
+  async sendMessage(chatId, senderId, text, senderName = '', senderRole = '') {
+    const msgData = {
       senderId,
       text,
       createdAt: now()
-    });
-    // Update the parent chat document
-    await updateDoc(doc(db, 'chats', chatId), {
-      lastMessage: text,
-      updatedAt: now()
-    });
+    };
+    if (senderName) msgData.senderName = senderName;
+    if (senderRole) msgData.senderRole = senderRole;
+
+    await addDoc(collection(db, 'chats', chatId, 'messages'), msgData);
+    
+    // Update parent conversation summary
+    try {
+      await updateDoc(doc(db, 'chats', chatId), {
+        lastMessage: text,
+        lastSenderName: senderName || '',
+        updatedAt: now()
+      });
+    } catch (e) {
+      console.warn('Failed to update chat doc summary:', e);
+    }
   },
 
-  // Get all conversations for a user
+  // Get all conversations for a user (1-on-1 & groups)
   async getUserConversations(userId, role) {
-    const field = (role === 'STUDENT') ? 'studentId' : 'mentorId';
+    const isStudent = (String(role).toUpperCase() === 'STUDENT');
+    const field = isStudent ? 'studentId' : 'mentorId';
+    
     const q = query(collection(db, 'chats'), where(field, '==', userId));
     const snapsResult = await getDocs(q);
-    return snapsResult.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    const convs = snapsResult.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // For students, also fetch group chats where student is in studentIds or studentId is ALL
+    if (isStudent) {
+      try {
+        const groupQ = query(collection(db, 'chats'), where('studentId', '==', 'ALL'));
+        const groupSnaps = await getDocs(groupQ);
+        groupSnaps.docs.forEach(d => {
+          const data = { id: d.id, ...d.data() };
+          if (!convs.some(c => c.id === data.id)) {
+            convs.push(data);
+          }
+        });
+      } catch (e) {
+        console.warn('Group chat query fallback:', e);
+      }
+    }
+
+    return convs.sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
   }
 };
 
