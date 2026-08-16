@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot, pomodoro)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot, pomodoro, flashcard, focus-check, resource)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query', 'pomodoro'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query', 'pomodoro', 'flashcard-sync', 'focus-check', 'resource-share'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -132,6 +132,12 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('copilot-query', { from: data.from, name: data.name, prompt: data.prompt, response: data.response });
                         } else if (!isInitialMessages && data.type === 'pomodoro') {
                             emit('pomodoro', { from: data.from, action: data.action, durationSec: data.durationSec });
+                        } else if (!isInitialMessages && data.type === 'flashcard-sync') {
+                            emit('flashcard-sync', { from: data.from, cardIndex: data.cardIndex, isFlipped: data.isFlipped });
+                        } else if (!isInitialMessages && data.type === 'focus-check') {
+                            emit('focus-check', { from: data.from, name: data.name, action: data.action, status: data.status });
+                        } else if (!isInitialMessages && data.type === 'resource-share') {
+                            emit('resource-share', { from: data.from, name: data.name, title: data.title, link: data.link, category: data.category });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -376,6 +382,36 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendFlashcardSync(cardIndex, isFlipped) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'flashcard-sync', from: selfId, cardIndex, isFlipped, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendFocusCheck(action, status) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'focus-check', from: selfId, name: user?.name, action, status, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendResourceShare(title, link, category) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'resource-share', from: selfId, name: user?.name, title, link, category, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -432,6 +468,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendPairCode,
         sendCopilotQuery,
         sendPomodoro,
+        sendFlashcardSync,
+        sendFocusCheck,
+        sendResourceShare,
         sendControl,
         updateRoomSettings,
         disconnect,

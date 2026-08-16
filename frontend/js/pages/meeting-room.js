@@ -282,8 +282,11 @@ export async function render(container) {
                   <button class="btn btn-secondary btn-sm" id="btn-toggle-engagement" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3);">
                     <i class="ph ph-chart-donut"></i> Analytics
                   </button>`}
-                  <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(251, 191, 36, 0.15); color:#fbbf24; border:1px solid rgba(251, 191, 36, 0.3); grid-column:span 2;">
-                    <i class="ph ph-certificate"></i> 🎖️ Issue Mentorship Certificate
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-flashcards" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(236, 72, 153, 0.15); color:#f472b6; border:1px solid rgba(236, 72, 153, 0.3);">
+                    <i class="ph ph-cards"></i> Flashcards
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(251, 191, 36, 0.15); color:#fbbf24; border:1px solid rgba(251, 191, 36, 0.3);">
+                    <i class="ph ph-certificate"></i> 🎖️ Certificate
                   </button>
                 </div>
 
@@ -532,6 +535,12 @@ export async function render(container) {
                       <input type="checkbox" id="toggle-host-room-lock">
                       <span class="switch-slider blue"></span>
                     </label>
+                  </div>
+
+                  <div style="margin-top:10px;">
+                    <button class="btn btn-sm btn-secondary" id="btn-trigger-focus-check" style="width:100%; border-radius:8px; font-weight:700; background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3);">
+                      ⚡ Send Quick Attention &amp; Focus Check
+                    </button>
                   </div>
                 </div>
               </div>` : ''}
@@ -1524,6 +1533,18 @@ export async function render(container) {
 
       signaling.onMessage('pomodoro', payload => {
         handlePomodoroMessage(payload);
+      });
+
+      signaling.onMessage('flashcard-sync', payload => {
+        handleRemoteFlashcard(payload);
+      });
+
+      signaling.onMessage('focus-check', payload => {
+        handleFocusCheckMessage(payload);
+      });
+
+      signaling.onMessage('resource-share', payload => {
+        handleResourceShareMessage(payload);
       });
 
       signaling.onMessage('waiting', () => {
@@ -3509,6 +3530,166 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
     certModal.querySelector('#btn-print-cert').onclick = () => {
       window.print();
     };
+  }
+
+  // Interactive Engineering Flashcards Rapid Revision Deck
+  const flashcardsDeck = [
+    { subject: 'Operating Systems', q: 'What is Belady\'s Anomaly in page replacement algorithms?', a: 'Belady\'s Anomaly is the phenomenon where increasing the number of page frames results in an increase in the number of page faults (typically occurs in FIFO).' },
+    { subject: 'Database Systems (DBMS)', q: 'What is the key difference between 3NF and BCNF?', a: '3NF allows the right-hand side to be a prime attribute when X is not a superkey. BCNF strictly requires every determinant X in X -> Y to be a superkey.' },
+    { subject: 'Computer Networks', q: 'What is the function of the TCP Three-Way Handshake?', a: 'Synchronizes initial sequence numbers (SYN), acknowledges connection requests (SYN-ACK), and establishes a full-duplex reliable connection (ACK).' },
+    { subject: 'Data Structures & Algorithms', q: 'What is the worst-case and average-case time complexity of QuickSort?', a: 'Average Case: O(N log N). Worst Case: O(N²) (when the pivot consistently partitions into empty and N-1 elements).' },
+    { subject: 'Object Oriented Programming', q: 'What is the diamond problem in C++ and how is it resolved?', a: 'The diamond problem occurs when a class inherits from two classes that both inherit from the same base class. Resolved using "virtual" base inheritance.' },
+    { subject: 'Software Engineering', q: 'What does the ACID properties acronym stand for in transactions?', a: 'Atomicity, Consistency, Isolation, and Durability.' }
+  ];
+
+  let currentCardIdx = 0;
+  let isCardFlipped = false;
+
+  document.getElementById('btn-launch-flashcards')?.addEventListener('click', () => {
+    openFlashcardsModal();
+  });
+
+  function openFlashcardsModal() {
+    document.querySelectorAll('#flashcards-modal-root').forEach(e => e.remove());
+    const modal = document.createElement('div');
+    modal.id = 'flashcards-modal-root';
+    modal.className = 'modal-backdrop';
+    modal.style.cssText = 'display:flex; z-index:10003; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
+
+    modal.innerHTML = `
+      <div class="modal" style="max-width:540px; width:90%; background:#0f172a; border-radius:18px; border:1px solid #334155; padding:24px; color:#fff; text-align:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-size:0.85rem; font-weight:800; color:#f472b6; display:flex; align-items:center; gap:6px;">
+            🎴 Engineering Flashcards Revision
+          </div>
+          <span id="flashcard-counter" style="font-size:0.75rem; color:#94a3b8; font-weight:700;">Card 1 / ${flashcardsDeck.length}</span>
+          <button class="btn btn-ghost btn-sm" id="btn-close-flashcards" style="color:#fff; font-size:1.2rem; border:none; background:none; cursor:pointer;">✕</button>
+        </div>
+
+        <div class="flashcard-wrapper" id="active-flashcard">
+          <div class="flashcard-inner">
+            <div class="flashcard-front">
+              <div id="flashcard-subject" style="font-size:0.7rem; font-weight:700; color:#a5b4fc; text-transform:uppercase; margin-bottom:8px;">${flashcardsDeck[currentCardIdx].subject}</div>
+              <div id="flashcard-question" style="font-size:1.05rem; font-weight:700; color:#f8fafc; line-height:1.5;">${flashcardsDeck[currentCardIdx].q}</div>
+              <div style="font-size:0.72rem; color:#94a3b8; margin-top:14px;">(Click to reveal answer 🔄)</div>
+            </div>
+            <div class="flashcard-back">
+              <div style="font-size:0.7rem; font-weight:700; color:#34d399; text-transform:uppercase; margin-bottom:8px;">✓ Conceptual Answer</div>
+              <div id="flashcard-answer" style="font-size:0.95rem; color:#f1f5f9; line-height:1.5;">${flashcardsDeck[currentCardIdx].a}</div>
+              <div style="font-size:0.72rem; color:#cbd5e1; margin-top:14px;">(Click to flip back)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+          <button class="btn btn-secondary btn-sm" id="btn-prev-card" style="border-radius:8px; padding:6px 14px;">◀ Previous</button>
+          <button class="btn btn-primary btn-sm" id="btn-flip-card-action" style="border-radius:8px; padding:6px 16px; font-weight:700;">🔄 Flip Card</button>
+          <button class="btn btn-secondary btn-sm" id="btn-next-card" style="border-radius:8px; padding:6px 14px;">Next ▶</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const wrapper = modal.querySelector('#active-flashcard');
+    const updateCardUI = () => {
+      const card = flashcardsDeck[currentCardIdx];
+      modal.querySelector('#flashcard-subject').textContent = card.subject;
+      modal.querySelector('#flashcard-question').textContent = card.q;
+      modal.querySelector('#flashcard-answer').textContent = card.a;
+      modal.querySelector('#flashcard-counter').textContent = `Card ${currentCardIdx + 1} / ${flashcardsDeck.length}`;
+      wrapper.classList.toggle('flipped', isCardFlipped);
+    };
+
+    wrapper.onclick = async () => {
+      isCardFlipped = !isCardFlipped;
+      wrapper.classList.toggle('flipped', isCardFlipped);
+      await signaling.sendFlashcardSync(currentCardIdx, isCardFlipped);
+    };
+
+    modal.querySelector('#btn-flip-card-action').onclick = async () => {
+      isCardFlipped = !isCardFlipped;
+      wrapper.classList.toggle('flipped', isCardFlipped);
+      await signaling.sendFlashcardSync(currentCardIdx, isCardFlipped);
+    };
+
+    modal.querySelector('#btn-prev-card').onclick = async () => {
+      if (currentCardIdx > 0) currentCardIdx--;
+      isCardFlipped = false;
+      updateCardUI();
+      await signaling.sendFlashcardSync(currentCardIdx, isCardFlipped);
+    };
+
+    modal.querySelector('#btn-next-card').onclick = async () => {
+      if (currentCardIdx < flashcardsDeck.length - 1) currentCardIdx++;
+      else currentCardIdx = 0;
+      isCardFlipped = false;
+      updateCardUI();
+      await signaling.sendFlashcardSync(currentCardIdx, isCardFlipped);
+    };
+
+    modal.querySelector('#btn-close-flashcards').onclick = () => modal.remove();
+  }
+
+  function handleRemoteFlashcard(payload) {
+    currentCardIdx = payload.cardIndex || 0;
+    isCardFlipped = !!payload.isFlipped;
+    const modal = document.getElementById('flashcards-modal-root');
+    if (modal) {
+      const card = flashcardsDeck[currentCardIdx];
+      if (card) {
+        modal.querySelector('#flashcard-subject').textContent = card.subject;
+        modal.querySelector('#flashcard-question').textContent = card.q;
+        modal.querySelector('#flashcard-answer').textContent = card.a;
+        modal.querySelector('#flashcard-counter').textContent = `Card ${currentCardIdx + 1} / ${flashcardsDeck.length}`;
+        modal.querySelector('#active-flashcard')?.classList.toggle('flipped', isCardFlipped);
+      }
+    }
+  }
+
+  // Host Focus Check Micro-Ping Handler
+  document.getElementById('btn-trigger-focus-check')?.addEventListener('click', async () => {
+    await signaling.sendFocusCheck('ping', '');
+    showToast('⚡ Focus Check ping sent to participants!', 'success');
+  });
+
+  function handleFocusCheckMessage(payload) {
+    if (payload.action === 'ping' && !isMentor) {
+      document.querySelectorAll('#focus-ping-toast').forEach(e => e.remove());
+      const toast = document.createElement('div');
+      toast.id = 'focus-ping-toast';
+      toast.className = 'focus-check-toast';
+      toast.innerHTML = `
+        <span style="font-size:1.4rem;">👋</span>
+        <div>
+          <div style="font-size:0.8rem; font-weight:700; color:#fff;">Mentor Focus Check</div>
+          <div style="font-size:0.72rem; color:#cbd5e1;">Are you following the concept?</div>
+        </div>
+        <div style="display:flex; gap:6px; margin-left:8px;">
+          <button class="btn btn-sm btn-primary" id="btn-focus-yes" style="padding:4px 10px; font-size:0.72rem; font-weight:700;">👍 Following!</button>
+          <button class="btn btn-sm btn-secondary" id="btn-focus-help" style="padding:4px 10px; font-size:0.72rem;">🙋 Need Clarity</button>
+        </div>
+      `;
+      document.body.appendChild(toast);
+
+      toast.querySelector('#btn-focus-yes').onclick = async () => {
+        toast.remove();
+        await signaling.sendFocusCheck('ack', 'Engaged & Following');
+        showToast('✓ Response acknowledged to mentor!', 'success');
+      };
+      toast.querySelector('#btn-focus-help').onclick = async () => {
+        toast.remove();
+        await signaling.sendFocusCheck('ack', 'Requested Concept Clarification');
+        showToast('🙋 Mentor notified that you need clarification.', 'info');
+      };
+
+      setTimeout(() => toast.remove(), 12000);
+    } else if (payload.action === 'ack' && isMentor) {
+      showToast(`⚡ ${payload.name || 'Student'}: ${payload.status || 'Active & Following'}`, 'info');
+    }
+  }
+
+  function handleResourceShareMessage(payload) {
+    showToast(`📁 ${payload.name || 'Participant'} shared: ${payload.title}`, 'info');
   }
 
   // Post-Call Student Rating & Feedback System
