@@ -3,7 +3,7 @@ import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, MeetingService, IssueService, TaskService, StatsService, BookletService } from '/js/services.js';
+import { StudentService, FacultyService, MeetingService, IssueService, TaskService, StatsService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
 
 function fmt(iso) {
@@ -56,7 +56,6 @@ export async function render(container) {
     let mentor = null;
     if (fullProfile.mentorId) {
       try {
-        const { FacultyService } = await import('/js/services.js');
         mentor = await FacultyService.get(fullProfile.mentorId);
       } catch (mErr) {
         console.warn('Could not load mentor info:', mErr);

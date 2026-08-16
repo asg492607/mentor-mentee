@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { IssueService, NotificationService, SettingsService } from '/js/services.js';
+import { StudentService, IssueService, NotificationService, SettingsService } from '/js/services.js';
 
 function statusBadge(s) {
   const cls = {OPEN:'badge-warning',RESOLVED:'badge-success',ESCALATED:'badge-danger',CLOSED:'badge-muted'}[s] || 'badge-muted';
@@ -81,7 +81,6 @@ export async function render(container) {
     btn.disabled = true;
 
     try {
-      const { StudentService } = await import('/js/services.js');
       const freshUser = await StudentService.get(user.id);
       if (freshUser) {
         Object.assign(user, freshUser);

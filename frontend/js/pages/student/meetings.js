@@ -3,7 +3,7 @@ import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { MeetingService, NotificationService } from '/js/services.js';
+import { MeetingService, NotificationService, StudentService } from '/js/services.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 
 const TYPES = ['Academic Issue','Career Guidance','Personal Concern','Internship','Project Guidance','Higher Studies'];
@@ -83,7 +83,6 @@ export async function render(container) {
       btn.disabled = true;
       btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
 
-      const { StudentService } = await import('/js/services.js');
       const freshUser = await StudentService.get(user.id);
       if (freshUser) {
         Object.assign(user, freshUser);
