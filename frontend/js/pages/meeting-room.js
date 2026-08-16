@@ -1235,33 +1235,34 @@ export async function render(container) {
   });
 
   document.querySelectorAll('.side-panel-tab').forEach(button => {
-    button.onclick = () => openPanelTab(button.dataset.panel);
+    button.addEventListener('click', () => openPanelTab(button.dataset.panel));
   });
 
   // Chat form submission
-  document.getElementById('chat-form').onsubmit = event => {
+  document.getElementById('chat-form')?.addEventListener('submit', event => {
     event.preventDefault();
     if (!isMentor && activeRoomSettings.chatLocked) {
       showToast('Chat is currently locked by the host', 'warning');
       return;
     }
     const input = document.getElementById('chat-input');
+    if (!input) return;
     const text = input.value.trim();
     if (text && signaling.sendChat(text)) {
       appendMessage('You', text, true);
       input.value = '';
     }
-  };
+  });
 
   // Copy invite link
-  document.getElementById('copy-room-link').onclick = async () => {
+  document.getElementById('copy-room-link')?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
       showToast('Meeting invite link copied to clipboard', 'success');
     } catch (e) {
       showToast('Failed to copy link', 'error');
     }
-  };
+  });
 
   // Save session notes
   document.getElementById('save-meeting-notes')?.addEventListener('click', async () => {
@@ -1358,7 +1359,7 @@ export async function render(container) {
   }
 
   // Leave / End Call button
-  document.getElementById('btn-end').onclick = async () => {
+  document.getElementById('btn-end')?.addEventListener('click', async () => {
     if (isMentor) {
       const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
       if (endForAll) {
@@ -1374,7 +1375,7 @@ export async function render(container) {
     }
     await cleanup();
     navigateTo(String(user.role).toUpperCase() === 'STUDENT' ? '/student/meetings' : '/mentor/meetings');
-  };
+  });
 
   window.addEventListener('hashchange', cleanup, { once: true });
 
@@ -1384,25 +1385,25 @@ export async function render(container) {
     const previewVideo = document.getElementById('preview-video');
     if (previewVideo) previewVideo.srcObject = localStream;
 
-    document.getElementById('preview-mic').onclick = event => {
+    document.getElementById('preview-mic')?.addEventListener('click', event => {
       const isEnabled = toggleMic(localStream);
       event.currentTarget.classList.toggle('muted', !isEnabled);
       const mainMic = document.getElementById('btn-mic');
       if (mainMic) mainMic.classList.toggle('active', !isEnabled);
-    };
+    });
 
-    document.getElementById('preview-cam').onclick = event => {
+    document.getElementById('preview-cam')?.addEventListener('click', event => {
       const isEnabled = toggleCamera(localStream);
       event.currentTarget.classList.toggle('muted', !isEnabled);
       const mainCam = document.getElementById('btn-cam');
       if (mainCam) mainCam.classList.toggle('active', !isEnabled);
-    };
+    });
   } catch (e) {
     console.warn('Could not initialize preview:', e);
   }
 
   // Enter meeting room on join click
-  document.getElementById('btn-join-meeting').onclick = () => {
+  document.getElementById('btn-join-meeting')?.addEventListener('click', () => {
     document.getElementById('join-screen')?.remove();
     if (isMentor) {
       document.getElementById('meeting-waiting')?.remove();
@@ -1414,5 +1415,5 @@ export async function render(container) {
       }
     }
     init();
-  };
+  });
 }
