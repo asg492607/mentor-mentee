@@ -4,7 +4,7 @@ import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare, 
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { showToast } from '/js/components/toast.js';
-import { MeetingService } from '/js/services.js';
+import { MeetingService, TaskService, NotificationService } from '/js/services.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -569,6 +569,26 @@ export async function render(container) {
                   <textarea id="meeting-notes" class="meeting-notes-area" placeholder="Enter session notes, action items, or feedback for the mentee...">${escapeHtml(meeting.notes?.summary || '')}</textarea>
                   <button class="btn-join-main" id="save-meeting-notes" style="padding:10px 16px; font-size:0.875rem; margin-top:8px;">Save Session Notes</button>
                 </div>
+
+                <div class="remedial-task-card">
+                  <div style="font-size:0.82rem; font-weight:800; color:#ef4444; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    🎯 Assign Remedial Action Task
+                  </div>
+                  <p style="font-size:0.72rem; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
+                    Directly creates an official actionable task for the student in their academic portal.
+                  </p>
+                  <input type="text" id="remedial-task-title" class="report-input" placeholder="e.g. Complete DBMS Module 2 Assignment" style="margin-bottom:6px; font-size:0.78rem;">
+                  <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <input type="date" id="remedial-task-due" class="report-input" style="flex:1; font-size:0.75rem;">
+                    <select id="remedial-task-prio" class="report-input" style="flex:0.8; font-size:0.75rem;">
+                      <option value="HIGH">🔴 High</option>
+                      <option value="NORMAL" selected>🟡 Normal</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-sm btn-primary" id="btn-issue-remedial-task" style="width:100%; border-radius:8px; font-weight:700;">
+                    📌 Assign Remedial Task Now
+                  </button>
+                </div>
               </div>` : ''}
 
               <!-- Report Generation Panel (Mentor Only) -->
@@ -791,6 +811,14 @@ export async function render(container) {
                 <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
               </span>
               <span class="control-btn-label">People</span>
+            </button>
+
+            <!-- Screen Annotation Pen Overlay Toggle -->
+            <button class="control-btn" id="btn-screen-annotate" title="Live Pen / Highlighter Annotation Overlay">
+              <span class="control-btn-icon" style="color:#38bdf8;">
+                <i class="ph ph-pencil-simple-line" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label">Annotate</span>
             </button>
 
             <!-- Tools Drawer Toggle -->
@@ -3691,6 +3719,179 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
   function handleResourceShareMessage(payload) {
     showToast(`📁 ${payload.name || 'Participant'} shared: ${payload.title}`, 'info');
   }
+
+  // Live Screen Annotation / Pen Overlay Mode
+  let isAnnotating = false;
+  let annotationCanvas = null;
+  let annotationColor = '#06b6d4';
+  let isAnnotDrawing = false;
+  let annotLastX = 0;
+  let annotLastY = 0;
+
+  document.getElementById('btn-screen-annotate')?.addEventListener('click', () => {
+    isAnnotating = !isAnnotating;
+    const btn = document.getElementById('btn-screen-annotate');
+    btn?.classList.toggle('active', isAnnotating);
+
+    if (isAnnotating) {
+      startAnnotationMode();
+      showToast('✏️ Annotation Overlay Active (Draw directly over screen/video)', 'info');
+    } else {
+      stopAnnotationMode();
+      showToast('Annotation Mode Closed', 'info');
+    }
+  });
+
+  function startAnnotationMode() {
+    stopAnnotationMode();
+    const mainWorkspace = container.querySelector('.meeting-main');
+    if (!mainWorkspace) return;
+
+    annotationCanvas = document.createElement('canvas');
+    annotationCanvas.id = 'screen-annotation-canvas';
+    annotationCanvas.className = 'annotation-overlay-canvas';
+    annotationCanvas.width = mainWorkspace.clientWidth;
+    annotationCanvas.height = mainWorkspace.clientHeight;
+
+    const toolbar = document.createElement('div');
+    toolbar.id = 'screen-annotation-toolbar';
+    toolbar.className = 'annotation-toolbar';
+    toolbar.innerHTML = `
+      <span style="font-size:0.75rem; font-weight:700; color:#cbd5e1;">✏️ Pen:</span>
+      <button class="annotation-color-btn active" data-color="#06b6d4" style="background:#06b6d4;"></button>
+      <button class="annotation-color-btn" data-color="#ef4444" style="background:#ef4444;"></button>
+      <button class="annotation-color-btn" data-color="#f59e0b" style="background:#f59e0b;"></button>
+      <button class="annotation-color-btn" data-color="#10b981" style="background:#10b981;"></button>
+      <button class="btn btn-ghost btn-sm" id="btn-clear-annot" style="color:#ef4444; font-size:0.75rem; padding:2px 8px;">🗑️ Clear</button>
+      <button class="btn btn-ghost btn-sm" id="btn-close-annot" style="color:#cbd5e1; font-size:0.75rem; padding:2px 8px;">✕ Close</button>
+    `;
+
+    mainWorkspace.style.position = 'relative';
+    mainWorkspace.appendChild(annotationCanvas);
+    mainWorkspace.appendChild(toolbar);
+
+    const ctx = annotationCanvas.getContext('2d');
+
+    toolbar.querySelectorAll('.annotation-color-btn').forEach(b => {
+      b.onclick = () => {
+        toolbar.querySelectorAll('.annotation-color-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        annotationColor = b.dataset.color;
+      };
+    });
+
+    toolbar.querySelector('#btn-clear-annot').onclick = async () => {
+      ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+      await signaling.sendAnnotation('clear', null);
+    };
+
+    toolbar.querySelector('#btn-close-annot').onclick = () => {
+      document.getElementById('btn-screen-annotate')?.click();
+    };
+
+    annotationCanvas.onmousedown = (e) => {
+      isAnnotDrawing = true;
+      const rect = annotationCanvas.getBoundingClientRect();
+      annotLastX = (e.clientX - rect.left) / rect.width;
+      annotLastY = (e.clientY - rect.top) / rect.height;
+    };
+
+    annotationCanvas.onmousemove = async (e) => {
+      if (!isAnnotDrawing) return;
+      const rect = annotationCanvas.getBoundingClientRect();
+      const currX = (e.clientX - rect.left) / rect.width;
+      const currY = (e.clientY - rect.top) / rect.height;
+
+      ctx.strokeStyle = annotationColor;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(annotLastX * annotationCanvas.width, annotLastY * annotationCanvas.height);
+      ctx.lineTo(currX * annotationCanvas.width, currY * annotationCanvas.height);
+      ctx.stroke();
+
+      const stroke = { fromX: annotLastX, fromY: annotLastY, toX: currX, toY: currY, color: annotationColor, size: 4 };
+      annotLastX = currX;
+      annotLastY = currY;
+
+      await signaling.sendAnnotation('stroke', stroke);
+    };
+
+    annotationCanvas.onmouseup = () => { isAnnotDrawing = false; };
+    annotationCanvas.onmouseleave = () => { isAnnotDrawing = false; };
+  }
+
+  function stopAnnotationMode() {
+    document.getElementById('screen-annotation-canvas')?.remove();
+    document.getElementById('screen-annotation-toolbar')?.remove();
+  }
+
+  signaling.onMessage('annotation', payload => {
+    if (!annotationCanvas) {
+      startAnnotationMode();
+    }
+    if (!annotationCanvas) return;
+    const ctx = annotationCanvas.getContext('2d');
+    if (payload.action === 'clear') {
+      ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+    } else if (payload.action === 'stroke' && payload.stroke) {
+      const s = payload.stroke;
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.size || 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(s.fromX * annotationCanvas.width, s.fromY * annotationCanvas.height);
+      ctx.lineTo(s.toX * annotationCanvas.width, s.toY * annotationCanvas.height);
+      ctx.stroke();
+    }
+  });
+
+  // In-Meeting Remedial Task Assignment Logic
+  document.getElementById('btn-issue-remedial-task')?.addEventListener('click', async () => {
+    const title = document.getElementById('remedial-task-title')?.value.trim();
+    const dueDate = document.getElementById('remedial-task-due')?.value;
+    const priority = document.getElementById('remedial-task-prio')?.value || 'NORMAL';
+    const studentId = meeting.studentId;
+
+    if (!title) {
+      showToast('Please enter a task title', 'warning');
+      return;
+    }
+
+    try {
+      if (TaskService && studentId) {
+        await TaskService.create({
+          title,
+          description: `Remedial action item assigned during mentorship session on "${meeting.type || 'Academic Progress'}".`,
+          studentId,
+          dueDate: dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          priority,
+          status: 'PENDING',
+          assignedBy: user.name,
+          meetingId
+        });
+
+        if (NotificationService) {
+          await NotificationService.create({
+            userId: studentId,
+            title: `New Remedial Task Assigned: ${title}`,
+            message: `Prof. ${user.name} assigned a new task due on ${dueDate || 'next week'}.`,
+            type: 'TASK'
+          });
+        }
+      }
+
+      const notesArea = document.getElementById('meeting-notes');
+      if (notesArea) {
+        notesArea.value += `\n• [REMEDIAL TASK ASSIGNED] ${title} (Priority: ${priority}, Due: ${dueDate || '7 days'})`;
+      }
+
+      showToast(`🎯 Remedial task "${title}" assigned to mentee!`, 'success');
+      document.getElementById('remedial-task-title').value = '';
+    } catch(e) {
+      showToast('Task creation: ' + e.message, 'error');
+    }
+  });
 
   // Post-Call Student Rating & Feedback System
   let selectedStudentRating = 5;

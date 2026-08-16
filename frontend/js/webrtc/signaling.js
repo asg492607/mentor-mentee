@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot, pomodoro, flashcard, focus-check, resource)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts, pair-code, copilot, pomodoro, flashcard, focus-check, resource, annotation)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query', 'pomodoro', 'flashcard-sync', 'focus-check', 'resource-share'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz', 'pair-code', 'copilot-query', 'pomodoro', 'flashcard-sync', 'focus-check', 'resource-share', 'annotation'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -105,6 +105,8 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('hand-raise', { from: data.from, name: data.name, isRaised: data.isRaised });
                         } else if (!isInitialMessages && data.type === 'whiteboard') {
                             emit('whiteboard', { from: data.from, action: data.action, stroke: data.stroke });
+                        } else if (!isInitialMessages && data.type === 'annotation') {
+                            emit('annotation', { from: data.from, action: data.action, stroke: data.stroke });
                         } else if (!isInitialMessages && data.type === 'transcript') {
                             emit('transcript', { from: data.from, name: data.name, text: data.text, isFinal: data.isFinal });
                         } else if (!isInitialMessages && data.type === 'quiz') {
@@ -412,6 +414,16 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendAnnotation(action, stroke) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'annotation', from: selfId, action, stroke, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -471,6 +483,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendFlashcardSync,
         sendFocusCheck,
         sendResourceShare,
+        sendAnnotation,
         sendControl,
         updateRoomSettings,
         disconnect,

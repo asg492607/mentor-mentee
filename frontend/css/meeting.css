@@ -2580,6 +2580,58 @@ input:checked + .switch-slider:before {
   animation: slide-down 0.3s ease;
 }
 
+/* ---------- Transparent Screen Annotation / Pen Overlay ---------- */
+.annotation-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 45;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.annotation-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  z-index: 50;
+}
+
+.annotation-color-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.annotation-color-btn.active, .annotation-color-btn:hover {
+  transform: scale(1.25);
+  border-color: #ffffff;
+}
+
+/* ---------- Remedial Task Quick Issuer Card ---------- */
+.remedial-task-card {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(245, 158, 11, 0.08));
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 10px;
+}
+
+
 
 
 
