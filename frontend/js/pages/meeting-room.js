@@ -352,6 +352,38 @@ export async function render(container) {
                   </div>
                 </div>
 
+                <!-- Timestamped Key Moments Bookmarking -->
+                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      📌 Key Moments &amp; Timeline
+                    </span>
+                    <button class="btn btn-ghost btn-sm" id="btn-add-quick-moment" style="padding:2px 6px; font-size:0.7rem; color:#38bdf8;">+ Tag</button>
+                  </div>
+                  <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
+                    <button class="btn btn-sm btn-ghost tag-moment-btn" data-tag="🔴 EXAM WARNING" style="font-size:0.7rem; padding:2px 6px; background:rgba(239,68,68,0.15); color:#f87171; border-radius:6px;">🔴 Exam</button>
+                    <button class="btn btn-sm btn-ghost tag-moment-btn" data-tag="🟡 DEADLINE" style="font-size:0.7rem; padding:2px 6px; background:rgba(245,158,11,0.15); color:#fbbf24; border-radius:6px;">🟡 Deadline</button>
+                    <button class="btn btn-sm btn-ghost tag-moment-btn" data-tag="🟢 ACTION ITEM" style="font-size:0.7rem; padding:2px 6px; background:rgba(16,185,129,0.15); color:#34d399; border-radius:6px;">🟢 Action</button>
+                    <button class="btn btn-sm btn-ghost tag-moment-btn" data-tag="🔵 KEY CONCEPT" style="font-size:0.7rem; padding:2px 6px; background:rgba(56,189,248,0.15); color:#38bdf8; border-radius:6px;">🔵 Concept</button>
+                  </div>
+                  <div id="key-moments-feed" style="display:flex; flex-direction:column; gap:4px; max-height:100px; overflow-y:auto;">
+                    <div style="font-size:0.72rem; color:#64748b; font-style:italic;">Click a tag above to bookmark an important meeting moment...</div>
+                  </div>
+                </div>
+
+                <!-- Structured Doubt & Question Queue -->
+                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      🙋 Student Doubt &amp; Q&amp;A Queue
+                    </span>
+                    <button class="btn btn-ghost btn-sm" id="btn-raise-doubt-modal" style="padding:2px 6px; font-size:0.7rem; color:#a5b4fc;">+ Ask Doubt</button>
+                  </div>
+                  <div id="doubt-queue-feed" style="display:flex; flex-direction:column; gap:6px; max-height:120px; overflow-y:auto;">
+                    <div style="font-size:0.72rem; color:#64748b; font-style:italic;">No open student doubts yet. Click '+ Ask Doubt' to submit questions.</div>
+                  </div>
+                </div>
+
                 <!-- In-Room File & Assignment Dropzone -->
                 <div class="meet-dropzone" id="in-room-dropzone">
                   <i class="ph ph-file-arrow-up" style="font-size:1.8rem; color:#818cf8; margin-bottom:4px; display:block;"></i>
@@ -597,6 +629,16 @@ export async function render(container) {
           <button class="reaction-btn" data-emoji="🙋" data-label="Raise Hand" id="btn-hand-raise-popover" title="Raise Hand" style="background:rgba(245,158,11,0.2); border-radius:50%;">🙋</button>
         </div>
 
+        <!-- Audio Soundboard Popover -->
+        <div class="soundboard-popover" id="soundboard-popover" style="display:none;">
+          <button class="sound-effect-btn" data-sound="bell"><span>🔔</span><span>Focus Bell</span></button>
+          <button class="sound-effect-btn" data-sound="applause"><span>👏</span><span>Clap</span></button>
+          <button class="sound-effect-btn" data-sound="insight"><span>💡</span><span>Eureka</span></button>
+          <button class="sound-effect-btn" data-sound="fanfare"><span>🎉</span><span>Celebration</span></button>
+          <button class="sound-effect-btn" data-sound="beep"><span>⏱️</span><span>Timer Beep</span></button>
+          <button class="sound-effect-btn" data-sound="level-up"><span>🚀</span><span>Level Up</span></button>
+        </div>
+
         <div class="video-fx-menu" id="video-fx-menu" style="display:none; left:180px;">
           <div style="font-size:0.75rem; font-weight:700; color:#94a3b8; padding:4px 8px;">Studio Camera FX</div>
           <button class="fx-option-btn active" data-filter="none"><span>✨ Normal (Original)</span></button>
@@ -656,6 +698,22 @@ export async function render(container) {
                 <i class="ph ph-smiley" style="font-size:1.3rem;"></i>
               </span>
               <span class="control-btn-label" id="label-reaction">React</span>
+            </button>
+
+            <!-- Audio Soundboard -->
+            <button class="control-btn" id="btn-soundboard-toggle" title="Audio Soundboard & Cues">
+              <span class="control-btn-icon" style="color:#f43f5e;">
+                <i class="ph ph-speaker-high" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label">Sound</span>
+            </button>
+
+            <!-- Theater Mode / Cinema View -->
+            <button class="control-btn" id="btn-theater-mode" title="Focus / Theater Cinema View">
+              <span class="control-btn-icon" style="color:#10b981;">
+                <i class="ph ph-corners-out" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label">Focus</span>
             </button>
 
             <!-- Chat Drawer Toggle -->
@@ -1364,6 +1422,19 @@ export async function render(container) {
 
       signaling.onMessage('code-run', payload => {
         handleCodeRunMessage(payload);
+      });
+
+      signaling.onMessage('sound-fx', payload => {
+        playSynthesizedSound(payload.sound);
+        showToast(`🔊 Sound FX: ${payload.sound.toUpperCase()}`, 'info');
+      });
+
+      signaling.onMessage('moment', payload => {
+        handleMomentMessage(payload);
+      });
+
+      signaling.onMessage('doubt', payload => {
+        handleDoubtMessage(payload);
       });
 
       signaling.onMessage('waiting', () => {
@@ -2672,6 +2743,195 @@ export async function render(container) {
     showToast('Official Attendance & Engagement Audit (.CSV) downloaded!', 'success');
   });
 
+  // Web Audio Soundboard Synthesizer
+  function playSynthesizedSound(sound) {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+
+      if (sound === 'bell') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 1.2);
+      } else if (sound === 'insight') {
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + (i * 0.08));
+          gain.gain.setValueAtTime(0.2, now + (i * 0.08));
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.08) + 0.3);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + (i * 0.08));
+          osc.stop(now + (i * 0.08) + 0.3);
+        });
+      } else if (sound === 'fanfare' || sound === 'applause') {
+        [440, 554.37, 659.25, 880].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + (i * 0.06));
+          gain.gain.setValueAtTime(0.15, now + (i * 0.06));
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.06) + 0.4);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + (i * 0.06));
+          osc.stop(now + (i * 0.06) + 0.4);
+        });
+      } else if (sound === 'beep') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1000, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      } else if (sound === 'level-up') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      }
+    } catch(e) {
+      console.warn('Sound synthesis error:', e);
+    }
+  }
+
+  // Soundboard Popover Toggle & Triggers
+  const btnSoundboard = document.getElementById('btn-soundboard-toggle');
+  const soundboardPopover = document.getElementById('soundboard-popover');
+
+  btnSoundboard?.addEventListener('click', () => {
+    soundboardPopover.style.display = soundboardPopover.style.display === 'none' ? 'grid' : 'none';
+  });
+
+  document.querySelectorAll('.sound-effect-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const snd = btn.dataset.sound;
+      playSynthesizedSound(snd);
+      soundboardPopover.style.display = 'none';
+      await signaling.sendSoundFx(snd);
+      showToast(`Triggered sound cue: ${snd.toUpperCase()}`, 'success');
+    });
+  });
+
+  // Theater / Focus Cinema Mode Toggle
+  const btnTheater = document.getElementById('btn-theater-mode');
+  btnTheater?.addEventListener('click', () => {
+    const layout = container.querySelector('.meeting-room-layout');
+    layout.classList.toggle('theater-mode');
+    const isTheater = layout.classList.contains('theater-mode');
+    btnTheater.classList.toggle('active', isTheater);
+    showToast(isTheater ? '🖥️ Theater / Cinema Mode Active (Distraction-Free)' : 'Normal View Restored', 'info');
+  });
+
+  // Timestamped Key Moments Bookmarking
+  const bookmarkedMoments = [];
+
+  function addKeyMoment(tag, note) {
+    const timeStr = timerText ? timerText.textContent : '00:00';
+    const momentObj = { tag, note, time: timeStr, user: user.name };
+    bookmarkedMoments.push(momentObj);
+
+    const feed = document.getElementById('key-moments-feed');
+    if (feed) {
+      const row = document.createElement('div');
+      row.className = 'key-moment-row';
+      row.innerHTML = `
+        <span><strong style="color:#38bdf8;">[${timeStr}]</strong> ${tag} ${note ? `• ${escapeHtml(note)}` : ''}</span>
+        <span style="font-size:0.65rem; color:#94a3b8;">${escapeHtml(user.name)}</span>
+      `;
+      feed.prepend(row);
+    }
+    showToast(`📌 Bookmarked key moment: ${tag}`, 'success');
+  }
+
+  document.querySelectorAll('.tag-moment-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tag = btn.dataset.tag;
+      const note = prompt(`Add optional note for moment "${tag}":`, '');
+      const timeStr = timerText ? timerText.textContent : '00:00';
+      addKeyMoment(tag, note);
+      await signaling.sendKeyMoment(tag, note || '', timeStr);
+    });
+  });
+
+  document.getElementById('btn-add-quick-moment')?.addEventListener('click', async () => {
+    const customTag = prompt('Enter custom tag name (e.g. 🔴 LAB EXAM, 🟢 PROJECT DEMO):', '📌 IMPORTANT HIGHLIGHT');
+    if (!customTag) return;
+    const note = prompt('Optional description / details:', '');
+    const timeStr = timerText ? timerText.textContent : '00:00';
+    addKeyMoment(customTag, note);
+    await signaling.sendKeyMoment(customTag, note || '', timeStr);
+  });
+
+  function handleMomentMessage(payload) {
+    const feed = document.getElementById('key-moments-feed');
+    if (feed) {
+      const row = document.createElement('div');
+      row.className = 'key-moment-row';
+      row.innerHTML = `
+        <span><strong style="color:#38bdf8;">[${payload.timestamp || '00:00'}]</strong> ${escapeHtml(payload.tag)} ${payload.note ? `• ${escapeHtml(payload.note)}` : ''}</span>
+        <span style="font-size:0.65rem; color:#94a3b8;">${escapeHtml(payload.name || 'Participant')}</span>
+      `;
+      feed.prepend(row);
+    }
+    bookmarkedMoments.push({ tag: payload.tag, note: payload.note, time: payload.timestamp, user: payload.name });
+    showToast(`📌 ${payload.name || 'Participant'} tagged a key moment: ${payload.tag}`, 'info');
+  }
+
+  // Student Doubt Queue System
+  const doubtQueue = [];
+
+  document.getElementById('btn-raise-doubt-modal')?.addEventListener('click', async () => {
+    const question = prompt('What is your question / doubt for the mentor?', '');
+    if (!question) return;
+    const category = prompt('Category (e.g. Theory, Coding, Backlog, Internship):', 'Theory');
+    
+    addDoubtToQueue(user.name, question, category || 'General');
+    await signaling.sendDoubt(question, category || 'General');
+  });
+
+  function addDoubtToQueue(studentName, question, category) {
+    doubtQueue.push({ studentName, question, category, resolved: false });
+    const feed = document.getElementById('doubt-queue-feed');
+    if (feed) {
+      const card = document.createElement('div');
+      card.className = 'doubt-item-card';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+          <span style="font-size:0.7rem; font-weight:700; color:#a5b4fc;">[${escapeHtml(category)}] ${escapeHtml(studentName)}</span>
+          <button class="btn btn-ghost btn-sm" style="font-size:0.65rem; padding:1px 5px; color:#10b981;" onclick="this.closest('.doubt-item-card').style.opacity='0.4'; this.textContent='✓ Clarified';">Mark Resolved</button>
+        </div>
+        <div style="color:#e2e8f0; font-size:0.78rem;">${escapeHtml(question)}</div>
+      `;
+      feed.prepend(card);
+    }
+    showToast(`🙋 Doubt logged in Q&A Queue: "${question}"`, 'success');
+  }
+
+  function handleDoubtMessage(payload) {
+    addDoubtToQueue(payload.name || 'Student', payload.question, payload.category || 'General');
+  }
+
   document.getElementById('btn-synthesize-mom')?.addEventListener('click', () => {
     const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
     const codeSnippet = document.getElementById('in-room-scratchpad')?.value.trim();
@@ -2697,10 +2957,13 @@ ${checkedAgendas.length > 0 ? checkedAgendas.map(a => `• [COMPLETED] ${a}`).jo
 • Rapid Diagnostic Assessment Score: ${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)
 • Key Topics Clarified: Core conceptual doubts, DBMS normalization, algorithmic optimization.
 
-4. CODE / ARTIFACTS REVIEWED:
+4. KEY MOMENTS & HIGHLIGHTS TIMELINE:
+${bookmarkedMoments.length > 0 ? bookmarkedMoments.map(m => `• [${m.time}] ${m.tag}${m.note ? `: ${m.note}` : ''} (Logged by ${m.user})`).join('\n') : '• No specific critical warnings tagged during this session.'}
+
+5. CODE / ARTIFACTS REVIEWED:
 ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding problems and project architecture blueprints reviewed.'}
 
-5. NEXT MILESTONES & DEADLINES:
+6. NEXT MILESTONES & DEADLINES:
 • Complete remedial assignments before the upcoming internal assessment.
 • Submit weekly progress report to the mentor.
 • Next Scheduled Follow-up: 14 days from session date.

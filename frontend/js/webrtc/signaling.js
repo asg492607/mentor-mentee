@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code, sound, moments, doubts)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run', 'sound-fx', 'moment', 'doubt', 'custom-quiz'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -117,6 +117,15 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('slides', { from: data.from, slideIndex: data.slideIndex });
                         } else if (!isInitialMessages && data.type === 'code-run') {
                             emit('code-run', { from: data.from, name: data.name, code: data.code, lang: data.lang, output: data.output });
+                        } else if (!isInitialMessages && data.type === 'sound-fx') {
+                            emit('sound-fx', { from: data.from, sound: data.sound });
+                            deleteDoc(change.doc.ref).catch(()=>{});
+                        } else if (!isInitialMessages && data.type === 'moment') {
+                            emit('moment', { from: data.from, name: data.name, timestamp: data.timestamp, tag: data.tag, note: data.note });
+                        } else if (!isInitialMessages && data.type === 'doubt') {
+                            emit('doubt', { from: data.from, name: data.name, question: data.question, category: data.category });
+                        } else if (!isInitialMessages && data.type === 'custom-quiz') {
+                            emit('custom-quiz', { from: data.from, name: data.name, question: data.question, options: data.options, correctIndex: data.correctIndex });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -291,6 +300,46 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendSoundFx(sound) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'sound-fx', from: selfId, sound, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendKeyMoment(tag, note, timestamp) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'moment', from: selfId, name: user?.name, tag, note, timestamp, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendDoubt(question, category) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'doubt', from: selfId, name: user?.name, question, category, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendCustomQuiz(question, options, correctIndex) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'custom-quiz', from: selfId, name: user?.name, question, options, correctIndex, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -340,6 +389,10 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendLaserPointer,
         sendSlideSync,
         sendCodeRun,
+        sendSoundFx,
+        sendKeyMoment,
+        sendDoubt,
+        sendCustomQuiz,
         sendControl,
         updateRoomSettings,
         disconnect,
