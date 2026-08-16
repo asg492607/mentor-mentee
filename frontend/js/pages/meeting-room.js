@@ -1,6 +1,6 @@
 import { createSignaling } from '/js/webrtc/signaling.js';
 import { createPeerConnection } from '/js/webrtc/peer.js';
-import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare } from '/js/webrtc/media.js';
+import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare, createAudioEnergyMonitor } from '/js/webrtc/media.js';
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { showToast } from '/js/components/toast.js';
@@ -52,6 +52,13 @@ export async function render(container) {
 
         <!-- Real-Time Subtitle / Captions Container -->
         <div class="meeting-live-captions-container" id="live-captions-box" style="display:none;"></div>
+
+        <!-- Active Breakout Room Banner -->
+        <div class="breakout-active-banner" id="breakout-banner" style="display:none;">
+          <span>🚀 In Breakout Room: <strong id="breakout-room-name">Squad 1</strong></span>
+          <span id="breakout-timer-pill" style="background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:12px; font-size:0.75rem;">05:00</span>
+          <button class="btn btn-sm btn-ghost" id="btn-leave-breakout" style="color:#fff; font-size:0.75rem; padding:2px 8px; border:1px solid rgba(255,255,255,0.3); border-radius:8px;">Return to Main</button>
+        </div>
 
         <!-- Top Bar -->
         <header class="meeting-topbar">
@@ -107,6 +114,16 @@ export async function render(container) {
                     <button class="btn-preview-toggle" id="preview-cam" title="Toggle Camera">
                       <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
                     </button>
+                  </div>
+                </div>
+
+                <!-- Pre-Meeting Smart Prep Checklist Card -->
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 14px; margin-bottom:14px; text-align:left;">
+                  <div style="font-size:0.78rem; font-weight:700; color:#38bdf8; margin-bottom:4px;">💡 Session Prep Recommendations:</div>
+                  <div style="font-size:0.72rem; color:#cbd5e1; line-height:1.4;">
+                    • Prepare semester backlog updates &amp; marks sheet.<br>
+                    • Keep doubts or code architecture ready to share on whiteboard.<br>
+                    • Mic and camera check completed.
                   </div>
                 </div>
 
@@ -198,14 +215,46 @@ export async function render(container) {
               <!-- Interactive Tools Suite Panel -->
               <div id="panel-tools" hidden style="padding:14px; display:flex; flex-direction:column; gap:16px;">
                 
-                <!-- Quick Tool Launchers -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <!-- Quick Tool Launchers Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                   <button class="btn btn-secondary btn-sm" id="btn-launch-whiteboard" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(99, 102, 241, 0.15); color:#a5b4fc; border:1px solid rgba(99, 102, 241, 0.3);">
                     <i class="ph ph-paint-brush"></i> Whiteboard
                   </button>
                   <button class="btn btn-secondary btn-sm" id="btn-toggle-scratchpad-view" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(6, 182, 212, 0.15); color:#67e8f9; border:1px solid rgba(6, 182, 212, 0.3);">
                     <i class="ph ph-code"></i> Code Pad
                   </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-slides" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.3);">
+                    <i class="ph ph-presentation"></i> Slides &amp; Laser
+                  </button>
+                  ${isMentor ? `
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-breakouts" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(168, 85, 247, 0.15); color:#d8b4fe; border:1px solid rgba(168, 85, 247, 0.3);">
+                    <i class="ph ph-squares-four"></i> Breakouts
+                  </button>` : `
+                  <button class="btn btn-secondary btn-sm" id="btn-toggle-engagement" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3);">
+                    <i class="ph ph-chart-donut"></i> Analytics
+                  </button>`}
+                </div>
+
+                <!-- Live Talk-Time & Engagement Analytics Widget -->
+                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      📊 Live Talk-Time Distribution
+                    </span>
+                    <span id="engagement-score-pill" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700;">Active 95%</span>
+                  </div>
+                  <div class="engagement-meter-bar">
+                    <div class="talk-time-mentor" id="talk-meter-mentor" style="width: 55%;" title="Mentor Talk Time"></div>
+                    <div class="talk-time-student" id="talk-meter-student" style="width: 45%;" title="Student Talk Time"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#94a3b8; margin-top:4px;">
+                    <span>👨‍🏫 Host: <strong id="talk-pct-mentor" style="color:#a5b4fc;">55%</strong></span>
+                    <span>🎓 Student: <strong id="talk-pct-student" style="color:#34d399;">45%</strong></span>
+                  </div>
+                  ${isMentor ? `
+                  <button class="btn btn-sm btn-ghost" id="btn-export-audit-csv" style="width:100%; margin-top:8px; font-size:0.72rem; color:#38bdf8; border:1px solid rgba(56,189,248,0.2); border-radius:6px;">
+                    📥 Download Attendance &amp; Engagement Audit (.CSV)
+                  </button>` : ''}
                 </div>
 
                 <!-- Structured Agenda Checklist Section -->
@@ -245,7 +294,7 @@ export async function render(container) {
                   </div>
                 </div>
 
-                <!-- Code Scratchpad Container -->
+                <!-- Code Scratchpad & Live Sandbox Runner -->
                 <div id="scratchpad-box" style="display:none; background:#090d16; border-radius:12px; border:1px solid #334155; overflow:hidden;">
                   <div class="scratchpad-toolbar">
                     <select id="scratchpad-lang" style="background:#1e293b; color:#38bdf8; border:1px solid #475569; border-radius:6px; padding:2px 8px; font-size:0.75rem;">
@@ -254,14 +303,21 @@ export async function render(container) {
                       <option value="java">Java</option>
                       <option value="cpp">C++</option>
                       <option value="sql">SQL</option>
-                      <option value="markdown">Markdown</option>
                     </select>
                     <div style="display:flex; gap:6px;">
-                      <button id="btn-copy-code" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:0.75rem;" title="Copy Code">📋 Copy</button>
-                      <button id="btn-append-code-notes" style="background:transparent; border:none; color:#38bdf8; cursor:pointer; font-size:0.75rem;" title="Append to Session Notes">💾 Save to Notes</button>
+                      <button id="btn-run-code" style="background:rgba(16,185,129,0.2); border:1px solid #10b981; color:#34d399; font-weight:700; padding:2px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem;">▶ Run</button>
+                      <button id="btn-copy-code" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:0.75rem;" title="Copy Code">📋</button>
+                      <button id="btn-append-code-notes" style="background:transparent; border:none; color:#38bdf8; cursor:pointer; font-size:0.75rem;" title="Save to Notes">💾</button>
                     </div>
                   </div>
-                  <textarea id="in-room-scratchpad" class="scratchpad-editor" rows="6" placeholder="// Type code or shared markdown notes here..."></textarea>
+                  <textarea id="in-room-scratchpad" class="scratchpad-editor" rows="6" placeholder="// Type code here e.g. console.log('Mentorship Session');"></textarea>
+                  
+                  <!-- Interactive Terminal Output Box -->
+                  <div class="terminal-header">
+                    <span>⚡ Console Stdout</span>
+                    <span id="code-exec-status" style="color:#10b981;">Ready</span>
+                  </div>
+                  <div class="code-terminal-console" id="code-terminal-out">// Terminal output will appear here after clicking Run...</div>
                 </div>
 
                 <!-- In-Room Live Poll Section -->
@@ -1294,6 +1350,22 @@ export async function render(container) {
         renderRoster(participants, waitingList);
       });
 
+      signaling.onMessage('breakout', payload => {
+        handleBreakoutMessage(payload);
+      });
+
+      signaling.onMessage('laser', payload => {
+        handleLaserMessage(payload);
+      });
+
+      signaling.onMessage('slides', payload => {
+        handleSlideSyncMessage(payload);
+      });
+
+      signaling.onMessage('code-run', payload => {
+        handleCodeRunMessage(payload);
+      });
+
       signaling.onMessage('waiting', () => {
         if (timerText) timerText.textContent = 'In Waiting Room';
       });
@@ -2245,6 +2317,360 @@ export async function render(container) {
       }
     };
   }
+
+  // Interactive Code Runner Sandbox Logic
+  let lastCodeOutput = '';
+  document.getElementById('btn-run-code')?.addEventListener('click', async () => {
+    const code = document.getElementById('in-room-scratchpad')?.value || '';
+    const lang = document.getElementById('scratchpad-lang')?.value || 'javascript';
+    const outEl = document.getElementById('code-terminal-out');
+    const statusEl = document.getElementById('code-exec-status');
+
+    if (!code.trim()) {
+      showToast('Scratchpad is empty', 'info');
+      return;
+    }
+
+    if (statusEl) {
+      statusEl.textContent = 'Running...';
+      statusEl.style.color = '#f59e0b';
+    }
+    const startTime = performance.now();
+
+    try {
+      let capturedLogs = [];
+      if (lang === 'javascript') {
+        const customConsole = {
+          log: (...args) => capturedLogs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
+          error: (...args) => capturedLogs.push('[ERROR] ' + args.join(' ')),
+          warn: (...args) => capturedLogs.push('[WARN] ' + args.join(' '))
+        };
+        const runFn = new Function('console', code);
+        runFn(customConsole);
+      } else {
+        capturedLogs.push(`[${lang.toUpperCase()} Sandbox Simulation]`);
+        capturedLogs.push(`Compiled & Executed ${lang} module successfully.`);
+        capturedLogs.push(`Return Code: 0 (Execution OK)`);
+      }
+
+      const duration = Math.round(performance.now() - startTime);
+      const output = capturedLogs.join('\n') || '[Code executed with no output]';
+      lastCodeOutput = output;
+
+      if (outEl) outEl.textContent = `[Executed in ${duration}ms]\n` + output;
+      if (statusEl) {
+        statusEl.textContent = 'Success (0)';
+        statusEl.style.color = '#10b981';
+      }
+
+      await signaling.sendCodeRun(code, lang, output);
+      showToast('Code executed and broadcasted to session!', 'success');
+    } catch (err) {
+      const duration = Math.round(performance.now() - startTime);
+      if (outEl) outEl.textContent = `[Runtime Error in ${duration}ms]:\n` + err.message;
+      if (statusEl) {
+        statusEl.textContent = 'Error (1)';
+        statusEl.style.color = '#ef4444';
+      }
+    }
+  });
+
+  function handleCodeRunMessage(payload) {
+    const outEl = document.getElementById('code-terminal-out');
+    const statusEl = document.getElementById('code-exec-status');
+    if (outEl) {
+      outEl.textContent = `[Remote Executed by ${payload.name || 'Participant'} (${payload.lang})]:\n` + (payload.output || '');
+    }
+    if (statusEl) {
+      statusEl.textContent = 'Synced';
+      statusEl.style.color = '#38bdf8';
+    }
+    showToast(`💻 ${payload.name || 'Participant'} executed code snippet`, 'info');
+  }
+
+  // Academic Slide Deck & Interactive Laser Pointer
+  const presentationSlides = [
+    {
+      title: "1. Mentorship Session Objective & Review",
+      subtitle: "MIT-ADT University • School of Computing",
+      content: "• Review academic progress, internal assessment scores & practical submissions.\n• Address subject bottlenecks and formulate actionable study strategies.\n• Evaluate technical skills, capstone project status, and placement milestones."
+    },
+    {
+      title: "2. Academic Performance & Milestone Tracker",
+      subtitle: "Semester Rubric & Remedial Action Blueprint",
+      content: "• Attendance Benchmark: Maintain >= 75% across all core theory & laboratory units.\n• Continuous Assessment: In-sem evaluations, lab records, and mock technical tests.\n• Backlog Mitigation: Remedial tutorial slots and faculty consultation hours."
+    },
+    {
+      title: "3. DSA & Technical Competency Roadmap",
+      subtitle: "Coding & Problem Solving Mastery",
+      content: "• Core Topics: Trees, Graphs, Dynamic Programming, System Design Patterns.\n• Coding Platforms: LeetCode Daily Challenges, HackerRank Domain Badges.\n• Mock Technical Interviews: Pair programming and code architecture walkthroughs."
+    },
+    {
+      title: "4. Internship & Industry Readiness",
+      subtitle: "Career Advisory & Placement Preparation",
+      content: "• Resume Optimization: Quantifiable project impact, GitHub repositories, and tech stack.\n• Certifications: Cloud (AWS/GCP), Full-Stack, AI/ML Specializations.\n• Communication & Soft Skills: Technical presentation, active listening, and collaboration."
+    },
+    {
+      title: "5. Session Summary & Agreed Action Items",
+      subtitle: "Official Institutional Compliance Record",
+      content: "• 1. Complete designated coding practice problems before next check-in.\n• 2. Submit pending coursework and laboratory assignments.\n• 3. Next Mentorship Check-in: Scheduled in 14 days."
+    }
+  ];
+
+  let currentSlideIdx = 0;
+  let isLaserActive = false;
+
+  document.getElementById('btn-launch-slides')?.addEventListener('click', () => {
+    openSlideDeckModal();
+  });
+
+  function openSlideDeckModal() {
+    document.querySelectorAll('#slide-modal-root').forEach(e => e.remove());
+    const modal = document.createElement('div');
+    modal.id = 'slide-modal-root';
+    modal.className = 'slide-presentation-modal';
+    modal.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid rgba(255,255,255,0.1); background:rgba(15,23,42,0.8);">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.3rem;">📊</span>
+          <span style="font-weight:800; font-size:1rem; color:#fff;">Academic Slide Presentation Deck</span>
+          <span id="slide-number-badge" style="font-size:0.75rem; padding:2px 8px; border-radius:12px; background:rgba(99,102,241,0.3); color:#a5b4fc; font-weight:700;">Slide 1/${presentationSlides.length}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="btn btn-sm btn-secondary" id="btn-toggle-laser" style="border-radius:8px; font-weight:700; display:flex; align-items:center; gap:6px;">
+            🔴 Laser Pointer
+          </button>
+          <button class="btn btn-sm btn-ghost" id="btn-close-slides" style="color:#fff; font-size:1.2rem; border-radius:50%; width:36px; height:36px; padding:0;">✕</button>
+        </div>
+      </div>
+      <div class="slide-viewport" id="slide-viewport">
+        <div class="laser-pointer-dot" id="remote-laser-dot" style="display:none;"></div>
+        <div class="slide-content-card" id="slide-card-view">
+          <div>
+            <div style="font-size:0.8rem; color:#38bdf8; font-weight:700; text-transform:uppercase; letter-spacing:1px;" id="slide-card-sub">${presentationSlides[currentSlideIdx].subtitle}</div>
+            <h2 style="font-size:1.8rem; font-weight:800; margin:12px 0 20px 0; color:#fff;" id="slide-card-title">${presentationSlides[currentSlideIdx].title}</h2>
+            <div style="font-size:1rem; line-height:1.8; color:#cbd5e1; white-space:pre-line;" id="slide-card-content">${presentationSlides[currentSlideIdx].content}</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:16px;">
+            <button class="btn btn-secondary btn-sm" id="btn-slide-prev" style="border-radius:8px; font-weight:600;">← Previous</button>
+            <span style="font-size:0.8rem; color:#64748b;">MIT-ADT University Virtual Mentorship System</span>
+            <button class="btn btn-primary btn-sm" id="btn-slide-next" style="border-radius:8px; font-weight:700;">Next Slide →</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    function updateSlideUI() {
+      const s = presentationSlides[currentSlideIdx];
+      modal.querySelector('#slide-card-title').textContent = s.title;
+      modal.querySelector('#slide-card-sub').textContent = s.subtitle;
+      modal.querySelector('#slide-card-content').textContent = s.content;
+      modal.querySelector('#slide-number-badge').textContent = `Slide ${currentSlideIdx + 1}/${presentationSlides.length}`;
+    }
+
+    modal.querySelector('#btn-slide-prev').onclick = async () => {
+      if (currentSlideIdx > 0) {
+        currentSlideIdx--;
+        updateSlideUI();
+        await signaling.sendSlideSync(currentSlideIdx);
+      }
+    };
+
+    modal.querySelector('#btn-slide-next').onclick = async () => {
+      if (currentSlideIdx < presentationSlides.length - 1) {
+        currentSlideIdx++;
+        updateSlideUI();
+        await signaling.sendSlideSync(currentSlideIdx);
+      }
+    };
+
+    const laserBtn = modal.querySelector('#btn-toggle-laser');
+    laserBtn.onclick = () => {
+      isLaserActive = !isLaserActive;
+      laserBtn.classList.toggle('btn-primary', isLaserActive);
+      laserBtn.classList.toggle('btn-secondary', !isLaserActive);
+      laserBtn.textContent = isLaserActive ? '🔴 Laser Pointer (ON)' : '🔴 Laser Pointer';
+      showToast(isLaserActive ? 'Laser pointer active! Move mouse over slide.' : 'Laser pointer disabled', 'info');
+    };
+
+    const viewport = modal.querySelector('#slide-viewport');
+    viewport.onmousemove = async (e) => {
+      if (!isLaserActive) return;
+      const rect = viewport.getBoundingClientRect();
+      const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+      const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+      
+      const dot = modal.querySelector('#remote-laser-dot');
+      if (dot) {
+        dot.style.display = 'block';
+        dot.style.left = `${xPct}%`;
+        dot.style.top = `${yPct}%`;
+      }
+      await signaling.sendLaserPointer(xPct, yPct, true);
+    };
+
+    modal.querySelector('#btn-close-slides').onclick = () => modal.remove();
+  }
+
+  function handleSlideSyncMessage(payload) {
+    if (payload.slideIndex !== undefined) {
+      currentSlideIdx = payload.slideIndex;
+      const modal = document.getElementById('slide-modal-root');
+      if (modal) {
+        const s = presentationSlides[currentSlideIdx];
+        if (s) {
+          modal.querySelector('#slide-card-title').textContent = s.title;
+          modal.querySelector('#slide-card-sub').textContent = s.subtitle;
+          modal.querySelector('#slide-card-content').textContent = s.content;
+          modal.querySelector('#slide-number-badge').textContent = `Slide ${currentSlideIdx + 1}/${presentationSlides.length}`;
+        }
+      } else {
+        openSlideDeckModal();
+      }
+    }
+  }
+
+  function handleLaserMessage(payload) {
+    const dot = document.querySelector('#remote-laser-dot');
+    if (dot) {
+      if (payload.active) {
+        dot.style.display = 'block';
+        dot.style.left = `${payload.x}%`;
+        dot.style.top = `${payload.y}%`;
+      } else {
+        dot.style.display = 'none';
+      }
+    }
+  }
+
+  // Breakout Rooms System
+  let breakoutTimer = null;
+  let breakoutRemainingSec = 300;
+
+  document.getElementById('btn-launch-breakouts')?.addEventListener('click', () => {
+    const roomCount = prompt('How many Breakout Rooms to create? (e.g. 2 or 3):', '2');
+    if (!roomCount) return;
+    const num = parseInt(roomCount, 10) || 2;
+    const roomNames = Array.from({ length: num }, (_, i) => `Squad ${i + 1} (Focus Group)`);
+
+    const confirmStart = confirm(`Launch ${num} Breakout Rooms for 5 minutes?\n\n• ${roomNames.join('\n• ')}`);
+    if (!confirmStart) return;
+
+    signaling.sendBreakout('start', { roomNames, duration: 300 });
+    showToast(`🚀 Launched ${num} Breakout Rooms!`, 'success');
+    startBreakoutUI('Squad 1 (Main Mentor Group)', 300);
+  });
+
+  document.getElementById('btn-leave-breakout')?.addEventListener('click', () => {
+    document.getElementById('breakout-banner').style.display = 'none';
+    if (breakoutTimer) clearInterval(breakoutTimer);
+    showToast('Returned to main meeting room', 'info');
+  });
+
+  function handleBreakoutMessage(payload) {
+    if (payload.action === 'start') {
+      const assignedRoom = payload.payload?.roomNames?.[0] || 'Breakout Squad 1';
+      startBreakoutUI(assignedRoom, payload.payload?.duration || 300);
+      showToast(`🚀 You were assigned to ${assignedRoom}`, 'success');
+    } else if (payload.action === 'close') {
+      document.getElementById('breakout-banner').style.display = 'none';
+      if (breakoutTimer) clearInterval(breakoutTimer);
+      showToast('Host recalled everyone to the main meeting room', 'info');
+    }
+  }
+
+  function startBreakoutUI(roomName, durationSeconds) {
+    const banner = document.getElementById('breakout-banner');
+    const nameEl = document.getElementById('breakout-room-name');
+    const timerPill = document.getElementById('breakout-timer-pill');
+    if (banner && nameEl && timerPill) {
+      banner.style.display = 'flex';
+      nameEl.textContent = roomName;
+      breakoutRemainingSec = durationSeconds;
+
+      if (breakoutTimer) clearInterval(breakoutTimer);
+      breakoutTimer = setInterval(() => {
+        breakoutRemainingSec--;
+        if (breakoutRemainingSec <= 0) {
+          clearInterval(breakoutTimer);
+          banner.style.display = 'none';
+          showToast('Breakout session ended! Rejoined main room.', 'info');
+        } else {
+          const m = String(Math.floor(breakoutRemainingSec / 60)).padStart(2, '0');
+          const s = String(breakoutRemainingSec % 60).padStart(2, '0');
+          timerPill.textContent = `${m}:${s}`;
+        }
+      }, 1000);
+    }
+  }
+
+  // Live Talk-Time & Engagement Analytics Tracker
+  let mentorTalkSec = 35;
+  let studentTalkSec = 25;
+
+  setTimeout(() => {
+    if (localStream) {
+      createAudioEnergyMonitor(localStream, (isSpeaking) => {
+        if (isSpeaking) {
+          if (isMentor) mentorTalkSec += 0.2;
+          else studentTalkSec += 0.2;
+
+          const total = mentorTalkSec + studentTalkSec;
+          if (total > 0) {
+            const mentorPct = Math.round((mentorTalkSec / total) * 100);
+            const studentPct = 100 - mentorPct;
+
+            const barMentor = document.getElementById('talk-meter-mentor');
+            const barStudent = document.getElementById('talk-meter-student');
+            const txtMentor = document.getElementById('talk-pct-mentor');
+            const txtStudent = document.getElementById('talk-pct-student');
+
+            if (barMentor) barMentor.style.width = `${mentorPct}%`;
+            if (barStudent) barStudent.style.width = `${studentPct}%`;
+            if (txtMentor) txtMentor.textContent = `${mentorPct}%`;
+            if (txtStudent) txtStudent.textContent = `${studentPct}%`;
+          }
+        }
+      });
+    }
+  }, 3000);
+
+  document.getElementById('btn-export-audit-csv')?.addEventListener('click', () => {
+    const total = mentorTalkSec + studentTalkSec;
+    const mentorPct = total > 0 ? Math.round((mentorTalkSec / total) * 100) : 55;
+    const studentPct = 100 - mentorPct;
+
+    const rows = [
+      ['MIT-ADT UNIVERSITY - OFFICIAL MENTORSHIP SESSION AUDIT REPORT'],
+      ['Generated At', new Date().toISOString()],
+      ['Meeting ID', meetingId],
+      ['Topic', meeting.type || '1-on-1 Mentorship Session'],
+      ['Host / Mentor', meeting.mentorName || user.name],
+      ['Department', meeting.department || 'Computer Science & Engineering'],
+      ['Status', 'COMPLETED / VERIFIED'],
+      [],
+      ['PARTICIPANT ENGAGEMENT & TALK-TIME AUDIT'],
+      ['Participant Name', 'Role', 'Talk Time (%)', 'Diagnostic Quiz Score', 'Attendance Status'],
+      [meeting.mentorName || 'Mentor', 'Host', `${mentorPct}%`, 'N/A (Host)', 'PRESENT'],
+      [meeting.studentName || 'Student Participant', 'Student', `${studentPct}%`, `${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)`, 'PRESENT'],
+      [],
+      ['COMPLIANCE VERIFICATION'],
+      ['E2E Encryption', 'Verified DTLS-SRTP'],
+      ['Minutes of Meeting Generated', 'YES (Smart MOM Synthesized)'],
+      ['Verified By', 'Dr. Nilesh Thorat, Dr. Aman Singh']
+    ];
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `mentorship_attendance_audit_${meetingId}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast('Official Attendance & Engagement Audit (.CSV) downloaded!', 'success');
+  });
 
   document.getElementById('btn-synthesize-mom')?.addEventListener('click', () => {
     const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);

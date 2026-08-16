@@ -51,3 +51,43 @@ export function stopScreenShare(stream) {
         track.stop();
     });
 }
+
+/**
+ * Creates an audio energy monitor to calculate speech activity for engagement metrics
+ */
+export function createAudioEnergyMonitor(stream, onActivity) {
+    if (!stream || stream.getAudioTracks().length === 0) return null;
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let active = true;
+
+        function checkLevel() {
+            if (!active) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            const isSpeaking = average > 25; // speech threshold
+            onActivity(isSpeaking, average);
+            requestAnimationFrame(checkLevel);
+        }
+        checkLevel();
+
+        return () => {
+            active = false;
+            try { audioCtx.close(); } catch(e){}
+        };
+    } catch(e) {
+        console.warn('Audio energy monitor initialization warning:', e);
+        return null;
+    }
+}
+

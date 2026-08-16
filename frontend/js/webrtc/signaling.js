@@ -84,9 +84,9 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes, breakouts, laser, slides, code)
             let isInitialMessages = true;
-            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz'];
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz', 'breakout', 'laser', 'slides', 'code-run'];
             const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -109,6 +109,14 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             emit('transcript', { from: data.from, name: data.name, text: data.text, isFinal: data.isFinal });
                         } else if (!isInitialMessages && data.type === 'quiz') {
                             emit('quiz', { from: data.from, name: data.name, event: data.event, payload: data.payload });
+                        } else if (!isInitialMessages && data.type === 'breakout') {
+                            emit('breakout', { from: data.from, action: data.action, payload: data.payload });
+                        } else if (!isInitialMessages && data.type === 'laser') {
+                            emit('laser', { from: data.from, x: data.x, y: data.y, active: data.active });
+                        } else if (!isInitialMessages && data.type === 'slides') {
+                            emit('slides', { from: data.from, slideIndex: data.slideIndex });
+                        } else if (!isInitialMessages && data.type === 'code-run') {
+                            emit('code-run', { from: data.from, name: data.name, code: data.code, lang: data.lang, output: data.output });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -243,6 +251,46 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendBreakout(action, payload = {}) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'breakout', from: selfId, name: user?.name, action, payload, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendLaserPointer(x, y, active = true) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'laser', from: selfId, x, y, active, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendSlideSync(slideIndex) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'slides', from: selfId, slideIndex, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendCodeRun(code, lang, output) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'code-run', from: selfId, name: user?.name, code, lang, output, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -288,6 +336,10 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         sendWhiteboard,
         sendTranscript,
         sendQuiz,
+        sendBreakout,
+        sendLaserPointer,
+        sendSlideSync,
+        sendCodeRun,
         sendControl,
         updateRoomSettings,
         disconnect,
