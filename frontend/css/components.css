@@ -584,3 +584,56 @@
   0% { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+/* ---------- Interactive Calendar Styles ---------- */
+.calendar-wrapper {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.calendar-day-cell {
+  position: relative;
+  border-radius: 12px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border);
+  transition: all 0.15s ease-in-out;
+}
+
+.calendar-day-cell.current-month:hover {
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.12);
+  transform: translateY(-2px);
+}
+
+.calendar-day-cell.is-today {
+  border-color: var(--primary, #6366f1) !important;
+}
+
+.cal-event-pill {
+  transition: transform 0.1s ease, filter 0.1s ease;
+  cursor: pointer;
+}
+
+.cal-event-pill:hover {
+  transform: scale(1.02);
+  filter: brightness(0.95);
+}
+
+@media (max-width: 768px) {
+  .calendar-grid {
+    gap: 4px !important;
+  }
+  .calendar-day-cell {
+    min-height: 70px !important;
+    padding: 4px !important;
+  }
+  .calendar-grid-header {
+    font-size: 0.72rem !important;
+  }
+  .cal-event-pill {
+    font-size: 0.65rem !important;
+    padding: 2px 4px !important;
+  }
+}
+
