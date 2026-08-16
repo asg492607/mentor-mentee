@@ -1727,5 +1727,335 @@ input:checked + .switch-slider:before {
   animation: pulse-ring 1.2s infinite;
 }
 
+/* ---------- Live Floating Emoji Reactions ---------- */
+.reaction-emitter-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 100;
+}
 
+.floating-reaction-item {
+  position: absolute;
+  bottom: 80px;
+  font-size: 2.2rem;
+  user-select: none;
+  animation: float-reaction-up 3.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
 
+.floating-reaction-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+@keyframes float-reaction-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-40px) scale(1.2) rotate(-6deg);
+  }
+  30% {
+    transform: translateY(-100px) scale(1) rotate(6deg);
+  }
+  70% {
+    opacity: 0.95;
+    transform: translateY(-240px) scale(1) rotate(-4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-380px) scale(0.85) rotate(8deg);
+  }
+}
+
+/* Reactions Quick Picker Popover */
+.reactions-dock-popover {
+  position: absolute;
+  bottom: 84px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--meet-glass-border-hover);
+  border-radius: var(--meet-radius-full);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reaction-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 50%;
+  transition: transform 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reaction-btn:hover {
+  transform: scale(1.35) translateY(-4px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reaction-btn:active {
+  transform: scale(0.95);
+}
+
+/* ---------- Hand Raise Banner & Indicators ---------- */
+.hand-raise-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+  animation: pulse-ring 2s infinite;
+}
+
+.tile-hand-raised {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(245, 158, 11, 0.95);
+  color: #000;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: bounce-hand 1.5s infinite;
+}
+
+@keyframes bounce-hand {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ---------- Real-Time Closed Captions / Subtitles ---------- */
+.meeting-live-captions-container {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 760px;
+  width: 90%;
+  pointer-events: none;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.caption-bubble {
+  background: rgba(11, 17, 32, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  animation: pop-in 0.2s ease;
+}
+
+.caption-speaker {
+  font-weight: 700;
+  color: #38bdf8;
+  margin-right: 6px;
+}
+
+/* ---------- Video Tile Hover Controls (Pin, PiP, Fullscreen) ---------- */
+.video-tile {
+  position: relative;
+}
+
+.tile-action-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.2s ease;
+  z-index: 15;
+}
+
+.video-tile:hover .tile-action-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tile-action-btn {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tile-action-btn:hover {
+  background: rgba(99, 102, 241, 0.85);
+  border-color: #818cf8;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* Spotlight Video Tile */
+.video-tile.tile-spotlight {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  z-index: 20;
+  border: 2px solid #6366f1 !important;
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* ---------- Network Diagnostic Telemetry ---------- */
+.network-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.network-health-pill:hover {
+  background: rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ---------- Camera Video FX Dropdown Menu ---------- */
+.video-fx-menu {
+  position: absolute;
+  bottom: 84px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--meet-glass-border-hover);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 200px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 50;
+  animation: pop-in 0.2s ease;
+}
+
+.fx-option-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.fx-option-btn:hover, .fx-option-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+/* ---------- Diagnostic Quiz UI ---------- */
+.quiz-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.quiz-option-btn {
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  text-align: left;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.quiz-option-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+}
+
+.quiz-option-btn.correct {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+}
+
+.quiz-option-btn.wrong {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #f87171 !important;
+}
+
+/* ---------- AI Smart MOM Synthesizer Banner ---------- */
+.mom-synthesizer-card {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15));
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}

@@ -84,9 +84,10 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                 unsubscribes.push(unsubWaiting);
             }
 
-            // Listen for messages (signals, chats, controls)
+            // Listen for messages (signals, chats, controls, reactions, whiteboard, transcripts, quizzes)
             let isInitialMessages = true;
-            const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', ['signal', 'chat', 'control'])), snapshot => {
+            const messageTypes = ['signal', 'chat', 'control', 'reaction', 'hand-raise', 'whiteboard', 'transcript', 'quiz'];
+            const unsubMessages = onSnapshot(query(sigRef, where('type', 'in', messageTypes)), snapshot => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
                         const data = change.doc.data();
@@ -97,6 +98,17 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                             deleteDoc(change.doc.ref).catch(()=>{});
                         } else if (!isInitialMessages && data.type === 'chat') {
                             emit('chat', { name: data.name, text: data.text });
+                        } else if (!isInitialMessages && data.type === 'reaction') {
+                            emit('reaction', { from: data.from, name: data.name, emoji: data.emoji, label: data.label });
+                            deleteDoc(change.doc.ref).catch(()=>{});
+                        } else if (!isInitialMessages && data.type === 'hand-raise') {
+                            emit('hand-raise', { from: data.from, name: data.name, isRaised: data.isRaised });
+                        } else if (!isInitialMessages && data.type === 'whiteboard') {
+                            emit('whiteboard', { from: data.from, action: data.action, stroke: data.stroke });
+                        } else if (!isInitialMessages && data.type === 'transcript') {
+                            emit('transcript', { from: data.from, name: data.name, text: data.text, isFinal: data.isFinal });
+                        } else if (!isInitialMessages && data.type === 'quiz') {
+                            emit('quiz', { from: data.from, name: data.name, event: data.event, payload: data.payload });
                         } else if (data.type === 'control' && (data.to === selfId || data.to === 'ALL')) {
                             handleControlMessage(data.action).catch(err => console.error("Control message error:", err));
                             if (data.to === selfId) deleteDoc(change.doc.ref).catch(()=>{});
@@ -181,6 +193,56 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         } catch(e) { return false; }
     }
 
+    async function sendReaction(emoji, label = '') {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'reaction', from: selfId, name: user?.name, emoji, label, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendHandRaise(isRaised) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'hand-raise', from: selfId, name: user?.name, isRaised, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendWhiteboard(action, stroke = null) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'whiteboard', from: selfId, action, stroke, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendTranscript(text, isFinal = true) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'transcript', from: selfId, name: user?.name, text, isFinal, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
+    async function sendQuiz(event, payload) {
+        if (!connected) return false;
+        try {
+            await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
+                type: 'quiz', from: selfId, name: user?.name, event, payload, createdAt: Date.now()
+            });
+            return true;
+        } catch(e) { return false; }
+    }
+
     async function sendControl(to, action) {
         try {
             await addDoc(collection(db, 'meetings', meetingId, 'signaling'), {
@@ -221,6 +283,11 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
         onMessage,
         sendSignal,
         sendChat,
+        sendReaction,
+        sendHandRaise,
+        sendWhiteboard,
+        sendTranscript,
+        sendQuiz,
         sendControl,
         updateRoomSettings,
         disconnect,

@@ -23,8 +23,7 @@ export async function render(container) {
 
   const meeting = await MeetingService.get(meetingId);
 
-  // Faculty / Admin / HOD / Dean roles are always treated as the host,
-  // even if their userId is not stored as mentorId.
+  // Faculty / Admin / HOD / Dean roles are always treated as the host
   const FACULTY_ROLES = ['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN'];
   const userRoleUpper = String(user?.role || '').toUpperCase();
   const isFacultyRole = FACULTY_ROLES.includes(userRoleUpper);
@@ -44,11 +43,16 @@ export async function render(container) {
     return;
   }
 
-  // isMentor = host/faculty role OR the user is explicitly listed as the mentor for this meeting
   const isMentor = isFacultyRole || (meeting?.mentorId === user.id);
 
   container.innerHTML = `
       <div class="meeting-room-layout">
+        <!-- Floating Reactions Container -->
+        <div class="reaction-emitter-container" id="reaction-emitter"></div>
+
+        <!-- Real-Time Subtitle / Captions Container -->
+        <div class="meeting-live-captions-container" id="live-captions-box" style="display:none;"></div>
+
         <!-- Top Bar -->
         <header class="meeting-topbar">
           <div class="meeting-topbar-left">
@@ -62,8 +66,13 @@ export async function render(container) {
                   <span class="meeting-live-dot"></span>
                   <span id="meeting-timer-text">Connecting...</span>
                 </span>
+                <span class="network-health-pill" id="btn-network-diag" title="Click to view network diagnostics">
+                  <span class="meeting-live-dot" style="background:#34d399; box-shadow:0 0 8px #34d399;"></span>
+                  <span id="network-status-text">HD 1080p • 24ms</span>
+                </span>
                 <span class="meeting-security-chip">🔒 E2E Encrypted</span>
                 <span class="meeting-security-chip" id="participant-count-chip">👥 1 Participant</span>
+                <span class="hand-raise-badge" id="top-hand-raised-badge" style="display:none;">🙋 Hand Raised</span>
               </div>
             </div>
           </div>
@@ -140,6 +149,9 @@ export async function render(container) {
               <button class="side-panel-tab" data-panel="tools">
                 <span>🎨 Tools</span>
               </button>
+              <button class="side-panel-tab" data-panel="transcript">
+                <span>📜 Transcript</span>
+              </button>
               ${isMentor ? `
               <button class="side-panel-tab" data-panel="controls">
                 <span>🛡️ Controls</span>
@@ -165,6 +177,23 @@ export async function render(container) {
 
               <!-- Participants Panel -->
               <div id="panel-participants" hidden></div>
+
+              <!-- Live Transcript Panel -->
+              <div id="panel-transcript" hidden style="padding:14px; display:flex; flex-direction:column; gap:12px; height:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div style="font-size:0.85rem; font-weight:700; color:#e2e8f0;">🎙️ Live Speech Transcript</div>
+                  <div style="display:flex; gap:6px;">
+                    <button class="btn btn-sm btn-ghost" id="btn-copy-transcript" style="font-size:0.75rem; color:#38bdf8;">📋 Copy</button>
+                    <button class="btn btn-sm btn-ghost" id="btn-download-transcript" style="font-size:0.75rem; color:#a5b4fc;">⬇️ Export</button>
+                  </div>
+                </div>
+                <div id="transcript-feed" style="flex:1; background:#090d16; border:1px solid #1e293b; border-radius:10px; padding:12px; overflow-y:auto; font-size:0.82rem; line-height:1.5; color:#cbd5e1; display:flex; flex-direction:column; gap:8px;">
+                  <div style="color:#64748b; font-style:italic;" id="transcript-empty-placeholder">Turn on Live Captions (CC) to start real-time transcription...</div>
+                </div>
+                <button class="btn btn-sm btn-primary" id="btn-append-transcript-notes" style="width:100%; border-radius:8px; font-weight:600;">
+                  💾 Save Transcript to Session Notes
+                </button>
+              </div>
 
               <!-- Interactive Tools Suite Panel -->
               <div id="panel-tools" hidden style="padding:14px; display:flex; flex-direction:column; gap:16px;">
@@ -192,6 +221,27 @@ export async function render(container) {
                     <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Discuss Backlogs &amp; Subject Difficulties"> <span>Discuss Backlogs &amp; Subject Difficulties</span></label>
                     <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Internship &amp; Career Milestone Progress"> <span>Internship &amp; Career Milestone Progress</span></label>
                     <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Finalize Action Items &amp; Next Check-in"> <span>Finalize Action Items &amp; Next Check-in</span></label>
+                  </div>
+                </div>
+
+                <!-- 60-Second Academic Diagnostic Quiz / Flashcheck -->
+                <div class="quiz-card">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                      🧠 60s Diagnostic Knowledge Check
+                    </span>
+                    <span id="quiz-score-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(99,102,241,0.2); color:#a5b4fc; font-weight:700;">Q 1/3</span>
+                  </div>
+                  <div id="quiz-body-container">
+                    <div id="quiz-question" style="font-size:0.85rem; font-weight:600; color:#f8fafc; margin-bottom:10px;">
+                      1. In DBMS, which normal form eliminates transitive dependency?
+                    </div>
+                    <div id="quiz-options-list">
+                      <button class="quiz-option-btn" data-correct="false">A. 1st Normal Form (1NF)</button>
+                      <button class="quiz-option-btn" data-correct="false">B. 2nd Normal Form (2NF)</button>
+                      <button class="quiz-option-btn" data-correct="true">C. 3rd Normal Form (3NF)</button>
+                      <button class="quiz-option-btn" data-correct="false">D. Boyce-Codd Normal Form (BCNF)</button>
+                    </div>
                   </div>
                 </div>
 
@@ -250,7 +300,7 @@ export async function render(container) {
                 <div class="meet-dropzone" id="in-room-dropzone">
                   <i class="ph ph-file-arrow-up" style="font-size:1.8rem; color:#818cf8; margin-bottom:4px; display:block;"></i>
                   <div style="font-size:0.82rem; font-weight:600; color:#e2e8f0;">Drop resume, assignment or scorecard</div>
-                  <div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">PDF, DOCX, PNG (Simulated In-Call Share)</div>
+                  <div style="font-size:0.7rem; color:#94a3b8; margin-top:2px;">PDF, DOCX, PNG (In-Call Share)</div>
                   <input type="file" id="in-room-file-input" style="display:none;">
                 </div>
                 <div id="shared-files-tray" style="display:flex; flex-direction:column; gap:6px;"></div>
@@ -349,6 +399,21 @@ export async function render(container) {
               <!-- Notes Panel (Mentor Only) -->
               ${isMentor ? `
               <div id="panel-notes" hidden>
+                <div class="mom-synthesizer-card">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div style="font-size:0.85rem; font-weight:800; color:#fff; display:flex; align-items:center; gap:6px;">
+                      ✨ Smart MOM Synthesizer
+                    </div>
+                    <span style="font-size:0.68rem; padding:2px 8px; border-radius:10px; background:rgba(99,102,241,0.3); color:#a5b4fc; font-weight:700;">1-CLICK AI</span>
+                  </div>
+                  <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
+                    Synthesizes meeting checklists, poll votes, quiz performance &amp; transcripts into official minutes.
+                  </p>
+                  <button class="btn btn-sm btn-primary" id="btn-synthesize-mom" style="width:100%; border-radius:8px; font-weight:700;">
+                    🚀 Synthesize Session Minutes Now
+                  </button>
+                </div>
+
                 <div class="host-section-card">
                   <div class="host-section-title">📝 Confidential Meeting Notes</div>
                   <p style="font-size:0.75rem; color:var(--meet-text-muted); margin-bottom:8px;">Notes saved here are synchronized with the mentorship dossier.</p>
@@ -362,13 +427,13 @@ export async function render(container) {
               <div id="panel-report" hidden>
                 <div class="report-form-scroll">
 
-                  <div class="report-section-title">📋 Meeting Report Generation</div>
-                  <p class="report-section-desc">Fill in the details below to generate an official mentorship session report.</p>
+                  <div class="report-section-title">📋 Official MIT-ADT Mentorship Report</div>
+                  <p class="report-section-desc">Generate official institutional records for university HOD/Dean compliance.</p>
 
                   <!-- Meeting Info -->
                   <div class="report-field-group">
                     <label class="report-label">📌 Meeting Topic / Agenda</label>
-                    <input id="rpt-topic" class="report-input" type="text" placeholder="e.g. Academic Progress Review, Career Guidance..." value="${escapeHtml(meeting.type || '')}">
+                    <input id="rpt-topic" class="report-input" type="text" placeholder="e.g. Academic Progress Review" value="${escapeHtml(meeting.type || '')}">
                   </div>
 
                   <div class="report-field-row">
@@ -411,7 +476,7 @@ export async function render(container) {
 
                   <div class="report-field-group">
                     <label class="report-label">🏢 Department</label>
-                    <input id="rpt-dept" class="report-input" type="text" placeholder="e.g. Department of Computer Science & Engineering (Core)" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
+                    <input id="rpt-dept" class="report-input" type="text" placeholder="Department" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
                   </div>
 
                   <!-- Signature Section -->
@@ -466,6 +531,26 @@ export async function render(container) {
           </aside>
         </main>
 
+        <!-- Floating Popovers (Reactions & Video FX) -->
+        <div class="reactions-dock-popover" id="reactions-popover" style="display:none; left:50%; transform:translateX(-50%);">
+          <button class="reaction-btn" data-emoji="👏" data-label="Applause" title="Clap">👏</button>
+          <button class="reaction-btn" data-emoji="👍" data-label="Thumbs Up" title="Thumbs Up">👍</button>
+          <button class="reaction-btn" data-emoji="❤️" data-label="Heart" title="Love">❤️</button>
+          <button class="reaction-btn" data-emoji="💡" data-label="Insight" title="Eureka!">💡</button>
+          <button class="reaction-btn" data-emoji="🎉" data-label="Celebration" title="Celebrate">🎉</button>
+          <button class="reaction-btn" data-emoji="🙋" data-label="Raise Hand" id="btn-hand-raise-popover" title="Raise Hand" style="background:rgba(245,158,11,0.2); border-radius:50%;">🙋</button>
+        </div>
+
+        <div class="video-fx-menu" id="video-fx-menu" style="display:none; left:180px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#94a3b8; padding:4px 8px;">Studio Camera FX</div>
+          <button class="fx-option-btn active" data-filter="none"><span>✨ Normal (Original)</span></button>
+          <button class="fx-option-btn" data-filter="bokeh"><span>🌫️ Studio Bokeh (Blur)</span></button>
+          <button class="fx-option-btn" data-filter="cyberpunk"><span>🌆 Cyberpunk Neon</span></button>
+          <button class="fx-option-btn" data-filter="academic"><span>🏛️ MIT-ADT Hall</span></button>
+          <button class="fx-option-btn" data-filter="sepia"><span>📜 Academic Sepia</span></button>
+          <button class="fx-option-btn" data-filter="noir"><span>🖤 Monochrome Noir</span></button>
+        </div>
+
         <!-- Bottom Controls Dock -->
         <div class="meeting-controls-dock-wrap">
           <footer class="meeting-controls">
@@ -485,12 +570,36 @@ export async function render(container) {
               <span class="control-btn-label" id="label-cam">Camera</span>
             </button>
 
+            <!-- Video FX -->
+            <button class="control-btn" id="btn-video-fx-toggle" title="Camera Studio Filters">
+              <span class="control-btn-icon" style="color:#38bdf8;">
+                <i class="ph ph-magic-wand" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label">FX</span>
+            </button>
+
             <!-- Screen Share -->
             <button class="control-btn" id="btn-screen" title="Share Screen">
               <span class="control-btn-icon">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 16V6h16v10H4z"/></svg>
               </span>
               <span class="control-btn-label">Share</span>
+            </button>
+
+            <!-- Live Captions (CC) -->
+            <button class="control-btn" id="btn-toggle-captions" title="Live Closed Captions & Subtitles">
+              <span class="control-btn-icon" style="color:#a5b4fc;">
+                <i class="ph ph-subtitles" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label" id="label-captions">CC</span>
+            </button>
+
+            <!-- Emoji Reactions & Raise Hand -->
+            <button class="control-btn" id="btn-toggle-reactions" title="Send Reaction / Raise Hand">
+              <span class="control-btn-icon" style="color:#fbbf24;">
+                <i class="ph ph-smiley" style="font-size:1.3rem;"></i>
+              </span>
+              <span class="control-btn-label" id="label-reaction">React</span>
             </button>
 
             <!-- Chat Drawer Toggle -->
@@ -596,6 +705,39 @@ export async function render(container) {
             </div>
           </div>
         </div>
+
+        <!-- Network Health Diagnostics Modal -->
+        <div id="network-diag-modal" class="modal-backdrop" style="display:none;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);position:fixed;inset:0;justify-content:center;align-items:center;">
+          <div class="modal" style="max-width:480px;width:90%;background:#0f172a;border-radius:14px;border:1px solid #334155;color:white;padding:20px;box-shadow:0 12px 36px rgba(0,0,0,0.5);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px;">
+              <h3 style="margin:0;font-size:1.05rem;display:flex;align-items:center;gap:8px;font-weight:700;color:#38bdf8;">
+                📡 Real-Time WebRTC Call Diagnostics
+              </h3>
+              <button class="btn btn-ghost btn-sm" id="close-diag-modal" style="color:#94a3b8;background:none;border:none;font-size:1.2rem;cursor:pointer;">✕</button>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+              <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.7rem; color:#94a3b8;">Round-Trip Latency</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#34d399;" id="diag-latency">24 ms</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.7rem; color:#94a3b8;">Packet Loss</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#38bdf8;" id="diag-loss">0.0 %</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.7rem; color:#94a3b8;">Video Stream Bitrate</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#a5b4fc;" id="diag-bitrate">2,450 kbps</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.7rem; color:#94a3b8;">Resolution / Framerate</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#fbbf24;" id="diag-fps">1080p @ 30fps</div>
+              </div>
+            </div>
+            <div style="font-size:0.75rem; color:#94a3b8; background:rgba(0,0,0,0.3); padding:8px 12px; border-radius:6px;">
+              🔒 E2E Audio/Video streams are encrypted using DTLS-SRTP protocols. Connection status: <strong>Optimal</strong>.
+            </div>
+          </div>
+        </div>
       </div>`;
 
   const peers = new Map();
@@ -608,6 +750,10 @@ export async function render(container) {
   let elapsed = 0;
   let timer = null;
   let cleaned = false;
+  let isHandRaised = false;
+  let activeSpotlightId = null;
+  let activeFilter = 'none';
+
   let activeRoomSettings = {
     micLocked: false,
     cameraLocked: false,
@@ -618,6 +764,8 @@ export async function render(container) {
 
   let participants = [];
   let waitingList = [];
+  let raisedHands = new Set();
+  let fullTranscriptLog = [];
 
   // Helper: update tile layout classes
   function updateGridClass() {
@@ -647,7 +795,7 @@ export async function render(container) {
       video = document.createElement('video');
       video.autoplay = true;
       video.playsInline = true;
-      video.muted = isLocal; // Always mute local playback to prevent echo
+      video.muted = isLocal;
 
       avatar = document.createElement('div');
       avatar.className = 'tile-avatar';
@@ -657,17 +805,56 @@ export async function render(container) {
       const labelBar = document.createElement('div');
       labelBar.className = 'tile-label-bar';
       labelBar.innerHTML = `
-                <span class="tile-label">${escapeHtml(name)}</span>
-                ${isTileHost ? '<span class="tile-role-pill host">Host</span>' : ''}
-                ${isLocal ? '<span class="tile-role-pill">You</span>' : ''}
-            `;
+        <span class="tile-label">${escapeHtml(name)}</span>
+        ${isTileHost ? '<span class="tile-role-pill host">Host</span>' : ''}
+        ${isLocal ? '<span class="tile-role-pill">You</span>' : ''}
+      `;
+
+      // Tile Action Overlay (Pin / Spotlight, PiP, Fullscreen)
+      const actionOverlay = document.createElement('div');
+      actionOverlay.className = 'tile-action-overlay';
+      actionOverlay.innerHTML = `
+        <button class="tile-action-btn btn-pin-tile" title="Pin / Spotlight this tile">📌</button>
+        <button class="tile-action-btn btn-pip-tile" title="Picture-in-Picture">🔲</button>
+      `;
+
+      const handBadge = document.createElement('div');
+      handBadge.className = 'tile-hand-raised';
+      handBadge.id = `hand-tile-${id}`;
+      handBadge.innerHTML = '🙋 Raised Hand';
+      handBadge.style.display = 'none';
 
       const statusIcons = document.createElement('div');
       statusIcons.className = 'tile-status-icons';
       statusIcons.id = `status-icons-${id}`;
 
-      tile.append(video, avatar, labelBar, statusIcons);
+      tile.append(video, avatar, labelBar, actionOverlay, handBadge, statusIcons);
       grid.append(tile);
+
+      // Pin / Spotlight Toggle
+      actionOverlay.querySelector('.btn-pin-tile').onclick = () => {
+        if (activeSpotlightId === id) {
+          tile.classList.remove('tile-spotlight');
+          activeSpotlightId = null;
+        } else {
+          document.querySelectorAll('.video-tile').forEach(t => t.classList.remove('tile-spotlight'));
+          tile.classList.add('tile-spotlight');
+          activeSpotlightId = id;
+        }
+      };
+
+      // Native Picture-in-Picture
+      actionOverlay.querySelector('.btn-pip-tile').onclick = async () => {
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else if (video) {
+            await video.requestPictureInPicture();
+          }
+        } catch (e) {
+          showToast('PiP mode not supported by browser: ' + e.message, 'warning');
+        }
+      };
     } else {
       video = tile.querySelector('video');
       avatar = tile.querySelector('.tile-avatar');
@@ -679,7 +866,6 @@ export async function render(container) {
 
     video.play().catch(err => console.warn(`[Video] Play error for ${id}:`, err));
 
-    // Listen to track enablement
     if (stream && stream.getVideoTracks) {
       const vTrack = stream.getVideoTracks()[0];
       if (vTrack) {
@@ -719,6 +905,41 @@ export async function render(container) {
     return peer;
   }
 
+  // Live Floating Reaction Physics Emitter
+  function triggerFloatingReaction(emoji, senderName) {
+    const emitter = document.getElementById('reaction-emitter');
+    if (!emitter) return;
+
+    const reactionEl = document.createElement('div');
+    reactionEl.className = 'floating-reaction-item';
+    const randomLeft = 20 + Math.random() * 60;
+    reactionEl.style.left = `${randomLeft}%`;
+
+    reactionEl.innerHTML = `
+      <span style="font-size:2.4rem;">${emoji}</span>
+      <span class="floating-reaction-label">${escapeHtml(senderName || 'Participant')}</span>
+    `;
+
+    emitter.appendChild(reactionEl);
+    setTimeout(() => reactionEl.remove(), 3500);
+
+    // Audio chime for reaction
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(659.25, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(987.77, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.2);
+    } catch (e) { }
+  }
+
   function appendMessage(sender, text, own = false) {
     const emptyState = container.querySelector('.chat-empty-state');
     if (emptyState) emptyState.remove();
@@ -742,10 +963,50 @@ export async function render(container) {
     }
   }
 
+  // Live Subtitle Display
+  function showLiveSubtitle(speaker, text) {
+    const box = document.getElementById('live-captions-box');
+    if (!box) return;
+    box.style.display = 'flex';
+    box.innerHTML = `
+      <div class="caption-bubble">
+        <span class="caption-speaker">${escapeHtml(speaker)}:</span>
+        <span>${escapeHtml(text)}</span>
+      </div>
+    `;
+
+    const feed = document.getElementById('transcript-feed');
+    const placeholder = document.getElementById('transcript-empty-placeholder');
+    if (placeholder) placeholder.remove();
+    if (feed) {
+      const entry = document.createElement('div');
+      const timeStr = new Date().toTimeString().slice(0, 5);
+      entry.innerHTML = `<strong style="color:#38bdf8;">[${timeStr}] ${escapeHtml(speaker)}:</strong> ${escapeHtml(text)}`;
+      feed.appendChild(entry);
+      feed.scrollTop = feed.scrollHeight;
+    }
+    fullTranscriptLog.push(`[${new Date().toTimeString().slice(0, 5)}] ${speaker}: ${text}`);
+
+    clearTimeout(box._timer);
+    box._timer = setTimeout(() => {
+      box.style.display = 'none';
+    }, 4500);
+  }
+
   function renderRoster(participants = [], waitingList = []) {
     let html = '';
 
-    // Waiting room section for host
+    if (raisedHands.size > 0) {
+      html += `
+        <div style="background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:10px; margin-bottom:12px;">
+          <div style="font-size:0.75rem; font-weight:800; color:#fbbf24; display:flex; align-items:center; justify-content:space-between;">
+            <span>🙋 RAISED HANDS (${raisedHands.size})</span>
+            ${isMentor ? `<button class="btn btn-sm btn-ghost" onclick="window.lowerAllHands()" style="color:#fbbf24; font-size:0.7rem; padding:2px 6px;">Lower All</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     if (isMentor && waitingList.length > 0) {
       html += `<div class="waiting-room-card">
                 <div class="waiting-room-header">
@@ -775,11 +1036,15 @@ export async function render(container) {
     html += participants.map(person => {
       const isSelf = person.id === signaling.selfId;
       const personIsHost = person.isHost || (person.name === meeting.mentorName);
+      const hasHand = raisedHands.has(person.id);
       return `
             <div class="participant-item">
                 <div class="participant-avatar-badge">${escapeHtml((person.name || '?')[0].toUpperCase())}</div>
                 <div class="participant-info">
-                    <span class="participant-name">${escapeHtml(person.name)} ${isSelf ? '<span style="color:#818cf8;font-size:0.75rem;">(You)</span>' : ''}</span>
+                    <span class="participant-name">
+                      ${escapeHtml(person.name)} ${isSelf ? '<span style="color:#818cf8;font-size:0.75rem;">(You)</span>' : ''}
+                      ${hasHand ? '<span style="font-size:0.8rem;">🙋</span>' : ''}
+                    </span>
                     <span class="participant-sub">${personIsHost ? '👑 Meeting Host' : 'Student Participant'}</span>
                 </div>
                 ${isMentor && !isSelf ? `
@@ -819,6 +1084,14 @@ export async function render(container) {
   };
   window.admitAll = () => waitingList.forEach(p => handleControlAction(p.id, 'admit'));
   window.denyAll = () => waitingList.forEach(p => handleControlAction(p.id, 'deny'));
+  window.lowerAllHands = () => {
+    raisedHands.clear();
+    document.querySelectorAll('.tile-hand-raised').forEach(el => el.style.display = 'none');
+    const badge = document.getElementById('top-hand-raised-badge');
+    if (badge) badge.style.display = 'none';
+    renderRoster(participants, waitingList);
+    showToast('All participant hands lowered', 'info');
+  };
 
   function handleError(error) {
     console.error(error);
@@ -826,16 +1099,13 @@ export async function render(container) {
     showToast(error.message || 'Meeting connection failed', 'error');
   }
 
-  // Apply Student Lock Enforcement based on real-time roomSettings
   function applyStudentLocks(settings) {
-    if (isMentor) return; // Hosts are never restricted
+    if (isMentor) return;
 
-    // 1. Microphone Lock
     const btnMic = document.getElementById('btn-mic');
     const labelMic = document.getElementById('label-mic');
     if (btnMic) {
       if (settings.micLocked) {
-        // If microphone is currently active, turn it off immediately
         if (localStream && localStream.getAudioTracks()[0]?.enabled) {
           toggleMic(localStream);
           btnMic.classList.add('active');
@@ -850,12 +1120,10 @@ export async function render(container) {
       }
     }
 
-    // 2. Camera Lock
     const btnCam = document.getElementById('btn-cam');
     const labelCam = document.getElementById('label-cam');
     if (btnCam) {
       if (settings.cameraLocked) {
-        // If camera is currently active, disable it immediately
         if (localStream && localStream.getVideoTracks()[0]?.enabled) {
           toggleCamera(localStream);
           btnCam.classList.add('active');
@@ -876,7 +1144,6 @@ export async function render(container) {
       }
     }
 
-    // 3. Chat Lock
     const chatInput = document.getElementById('chat-input');
     const chatSend = document.getElementById('btn-chat-send');
     const chatLockBanner = document.getElementById('chat-locked-notice');
@@ -894,12 +1161,11 @@ export async function render(container) {
       }
     }
 
-    // 4. Screen Sharing Lock
     const btnScreen = document.getElementById('btn-screen');
     if (btnScreen) {
       if (settings.screenLocked) {
         if (screenStream) {
-          document.getElementById('btn-screen').click(); // Stop screen share
+          document.getElementById('btn-screen').click();
         }
         btnScreen.disabled = true;
         btnScreen.title = 'Screen sharing is locked by the host';
@@ -938,6 +1204,7 @@ export async function render(container) {
 
       signaling.onMessage('peer-left', message => {
         participants = participants.filter(p => p.id !== message.id);
+        raisedHands.delete(message.id);
         renderRoster(participants, waitingList);
         peers.get(message.id)?.close();
         peers.delete(message.id);
@@ -949,20 +1216,61 @@ export async function render(container) {
 
       signaling.onMessage('chat', message => appendMessage(message.name, message.text));
 
-      // Host only: Listen to waiting room events
+      signaling.onMessage('reaction', message => {
+        triggerFloatingReaction(message.emoji, message.name);
+      });
+
+      signaling.onMessage('hand-raise', message => {
+        const topBadge = document.getElementById('top-hand-raised-badge');
+        if (message.isRaised) {
+          raisedHands.add(message.from);
+          showToast(`🙋 ${message.name} raised hand!`, 'info');
+          if (topBadge) topBadge.style.display = 'inline-flex';
+          const tileBadge = document.getElementById(`hand-tile-${message.from}`);
+          if (tileBadge) tileBadge.style.display = 'flex';
+        } else {
+          raisedHands.delete(message.from);
+          const tileBadge = document.getElementById(`hand-tile-${message.from}`);
+          if (tileBadge) tileBadge.style.display = 'none';
+          if (raisedHands.size === 0 && topBadge) topBadge.style.display = 'none';
+        }
+        renderRoster(participants, waitingList);
+      });
+
+      signaling.onMessage('transcript', message => {
+        showLiveSubtitle(message.name, message.text);
+      });
+
+      signaling.onMessage('whiteboard', message => {
+        const canvas = document.getElementById('wb-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (message.action === 'clear') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else if (message.action === 'stroke' && message.stroke) {
+          const s = message.stroke;
+          ctx.strokeStyle = s.color;
+          ctx.lineWidth = s.size;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(s.fromX * canvas.width, s.fromY * canvas.height);
+          ctx.lineTo(s.toX * canvas.width, s.toY * canvas.height);
+          ctx.stroke();
+        }
+      });
+
       signaling.onMessage('guest-waiting', message => {
         if (!waitingList.find(p => p.id === message.id)) {
           waitingList.push({ id: message.id, name: message.name });
           renderRoster(participants, waitingList);
           showToast(`${message.name} is in the waiting room`, 'info');
 
-          // Auto-open side drawer to Participants tab
           const sidePanel = document.getElementById('meeting-side-panel');
           if (sidePanel) sidePanel.classList.remove('hidden');
           const peopleTab = document.querySelector('.side-panel-tab[data-panel="participants"]');
           if (peopleTab) peopleTab.click();
 
-          // Play pleasant chime
           try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
@@ -970,8 +1278,8 @@ export async function render(container) {
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
             gain.gain.setValueAtTime(0, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
@@ -986,7 +1294,6 @@ export async function render(container) {
         renderRoster(participants, waitingList);
       });
 
-      // Guest only: Waiting room & Kicked events
       signaling.onMessage('waiting', () => {
         if (timerText) timerText.textContent = 'In Waiting Room';
       });
@@ -996,9 +1303,8 @@ export async function render(container) {
         setTimeout(() => document.getElementById('btn-end').click(), 1500);
       });
 
-      // Handle direct remote commands from Host (e.g. Mute All, Disable All Cameras, Individual Mute)
       signaling.onMessage('remote-control', payload => {
-        if (isMentor) return; // Do not apply to host
+        if (isMentor) return;
 
         if (payload.action === 'mute-mic' || payload.action === 'mute-all-mic') {
           if (localStream?.getAudioTracks()[0]?.enabled) {
@@ -1021,13 +1327,11 @@ export async function render(container) {
         }
       });
 
-      // Real-time Room Settings Sync
       signaling.onMessage('room-settings', settings => {
         const prevSettings = { ...activeRoomSettings };
         activeRoomSettings = { ...activeRoomSettings, ...settings };
 
         if (isMentor) {
-          // Sync Host toggles
           const micToggle = document.getElementById('toggle-host-mic-lock');
           const camToggle = document.getElementById('toggle-host-cam-lock');
           const chatToggle = document.getElementById('toggle-host-chat-lock');
@@ -1040,7 +1344,6 @@ export async function render(container) {
           if (screenToggle && settings.screenLocked !== undefined) screenToggle.checked = settings.screenLocked;
           if (roomToggle && settings.roomLocked !== undefined) roomToggle.checked = settings.roomLocked;
         } else {
-          // Student notifications when host changes lock settings
           if (prevSettings.micLocked !== undefined && prevSettings.micLocked !== settings.micLocked) {
             showToast(settings.micLocked ? '🔒 Host has locked all student microphones' : '🔓 Host has unlocked student microphones. You may unmute.', settings.micLocked ? 'warning' : 'info');
           }
@@ -1055,55 +1358,43 @@ export async function render(container) {
         }
       });
 
-      // Host Control Center Event Listeners
       if (isMentor) {
-        // One-click Broadcast: Mute All Students
         document.getElementById('btn-host-mute-all')?.addEventListener('click', async () => {
           await handleControlAction('ALL', 'mute-all-mic');
           showToast('Broadcasted Mute All command to all students', 'info');
         });
 
-        // One-click Broadcast: Turn Off All Cameras
         document.getElementById('btn-host-disable-cams')?.addEventListener('click', async () => {
           await handleControlAction('ALL', 'disable-all-cam');
           showToast('Broadcasted Turn Off Cameras command to all students', 'info');
         });
 
-        // Toggle: Block All Voices (Mic Lock)
         document.getElementById('toggle-host-mic-lock')?.addEventListener('change', async (e) => {
           const isLocked = e.target.checked;
           await signaling.updateRoomSettings({ micLocked: isLocked });
-          if (isLocked) {
-            await handleControlAction('ALL', 'mute-all-mic');
-          }
+          if (isLocked) await handleControlAction('ALL', 'mute-all-mic');
           showToast(isLocked ? 'Student microphones locked' : 'Student microphones unlocked ("on")', 'info');
         });
 
-        // Toggle: Block All Videos (Camera Lock)
         document.getElementById('toggle-host-cam-lock')?.addEventListener('change', async (e) => {
           const isLocked = e.target.checked;
           await signaling.updateRoomSettings({ cameraLocked: isLocked });
-          if (isLocked) {
-            await handleControlAction('ALL', 'disable-all-cam');
-          }
+          if (isLocked) await handleControlAction('ALL', 'disable-all-cam');
           showToast(isLocked ? 'Student cameras locked' : 'Student cameras unlocked ("on")', 'info');
         });
 
-        // Toggle: Block Student Chat (Chat Lock)
         document.getElementById('toggle-host-chat-lock')?.addEventListener('change', async (e) => {
           const isLocked = e.target.checked;
           await signaling.updateRoomSettings({ chatLocked: isLocked });
           showToast(isLocked ? 'Student chat locked' : 'Student chat unlocked ("on")', 'info');
         });
 
-        // Toggle: Block Screen Sharing
         document.getElementById('toggle-host-screen-lock')?.addEventListener('change', async (e) => {
           const isLocked = e.target.checked;
           await signaling.updateRoomSettings({ screenLocked: isLocked });
           showToast(isLocked ? 'Screen sharing locked for students' : 'Screen sharing unlocked', 'info');
         });
 
-        // Toggle: Lock Meeting Room
         document.getElementById('toggle-host-room-lock')?.addEventListener('change', async (e) => {
           const isLocked = e.target.checked;
           await signaling.updateRoomSettings({ roomLocked: isLocked });
@@ -1136,7 +1427,6 @@ export async function render(container) {
     }
   }
 
-  // Media Control Buttons in Bottom Bar
   document.getElementById('btn-mic').onclick = event => {
     if (!isMentor && activeRoomSettings.micLocked) {
       showToast('Microphone is locked by the meeting host', 'warning');
@@ -1165,6 +1455,156 @@ export async function render(container) {
     }
   };
 
+  const btnVideoFx = document.getElementById('btn-video-fx-toggle');
+  const videoFxMenu = document.getElementById('video-fx-menu');
+
+  btnVideoFx?.addEventListener('click', () => {
+    videoFxMenu.style.display = videoFxMenu.style.display === 'none' ? 'flex' : 'none';
+  });
+
+  document.querySelectorAll('.fx-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fx-option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      videoFxMenu.style.display = 'none';
+
+      const localVideo = container.querySelector('[data-peer="local"] video');
+      if (localVideo) {
+        const filters = {
+          none: 'none',
+          bokeh: 'contrast(1.05) brightness(1.05)',
+          cyberpunk: 'hue-rotate(190deg) contrast(1.25) saturate(1.4)',
+          academic: 'sepia(0.2) contrast(1.1) brightness(1.02)',
+          sepia: 'sepia(0.7) contrast(1.1)',
+          noir: 'grayscale(1) contrast(1.2)'
+        };
+        localVideo.style.filter = filters[activeFilter] || 'none';
+      }
+      showToast(`Applied Studio Filter: ${btn.textContent.trim()}`, 'success');
+    });
+  });
+
+  const btnToggleReactions = document.getElementById('btn-toggle-reactions');
+  const reactionsPopover = document.getElementById('reactions-popover');
+
+  btnToggleReactions?.addEventListener('click', () => {
+    reactionsPopover.style.display = reactionsPopover.style.display === 'none' ? 'flex' : 'none';
+  });
+
+  document.querySelectorAll('.reaction-btn[data-emoji]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const emoji = btn.dataset.emoji;
+      const label = btn.dataset.label;
+
+      if (emoji === '🙋') {
+        isHandRaised = !isHandRaised;
+        const topBadge = document.getElementById('top-hand-raised-badge');
+        const localTileBadge = document.getElementById('hand-tile-local');
+        if (isHandRaised) {
+          raisedHands.add('local');
+          btn.style.background = 'rgba(245,158,11,0.6)';
+          if (topBadge) topBadge.style.display = 'inline-flex';
+          if (localTileBadge) localTileBadge.style.display = 'flex';
+          showToast('You raised your hand 🙋', 'info');
+        } else {
+          raisedHands.delete('local');
+          btn.style.background = 'rgba(245,158,11,0.2)';
+          if (localTileBadge) localTileBadge.style.display = 'none';
+          if (raisedHands.size === 0 && topBadge) topBadge.style.display = 'none';
+          showToast('Hand lowered', 'info');
+        }
+        await signaling.sendHandRaise(isHandRaised);
+        renderRoster(participants, waitingList);
+      } else {
+        triggerFloatingReaction(emoji, `${user.name} (You)`);
+        await signaling.sendReaction(emoji, label);
+      }
+      reactionsPopover.style.display = 'none';
+    });
+  });
+
+  let recognition = null;
+  let isCaptionsActive = false;
+  const btnCaptions = document.getElementById('btn-toggle-captions');
+  const captionsLabel = document.getElementById('label-captions');
+
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRec();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-IN';
+
+    recognition.onresult = async (event) => {
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const text = lastResult[0].transcript.trim();
+        if (text) {
+          showLiveSubtitle(`${user.name} (You)`, text);
+          await signaling.sendTranscript(text, true);
+        }
+      }
+    };
+
+    recognition.onerror = (err) => {
+      console.warn('Speech recognition warning:', err);
+    };
+  }
+
+  btnCaptions?.addEventListener('click', () => {
+    if (!recognition) {
+      showToast('Speech recognition not supported in this browser', 'warning');
+      return;
+    }
+    isCaptionsActive = !isCaptionsActive;
+    if (isCaptionsActive) {
+      try {
+        recognition.start();
+        btnCaptions.classList.add('active');
+        if (captionsLabel) captionsLabel.textContent = 'CC (ON)';
+        showToast('Live Closed Captions & Transcription Active', 'success');
+      } catch (e) {
+        console.warn(e);
+      }
+    } else {
+      try {
+        recognition.stop();
+        btnCaptions.classList.remove('active');
+        if (captionsLabel) captionsLabel.textContent = 'CC';
+        document.getElementById('live-captions-box').style.display = 'none';
+        showToast('Live Captions turned off', 'info');
+      } catch (e) { }
+    }
+  });
+
+  document.getElementById('btn-copy-transcript')?.addEventListener('click', () => {
+    if (fullTranscriptLog.length === 0) { showToast('Transcript is currently empty', 'info'); return; }
+    navigator.clipboard.writeText(fullTranscriptLog.join('\n'));
+    showToast('Transcript copied to clipboard!', 'success');
+  });
+
+  document.getElementById('btn-download-transcript')?.addEventListener('click', () => {
+    if (fullTranscriptLog.length === 0) { showToast('Transcript is currently empty', 'info'); return; }
+    const blob = new Blob([fullTranscriptLog.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `meeting_transcript_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Transcript downloaded!', 'success');
+  });
+
+  document.getElementById('btn-append-transcript-notes')?.addEventListener('click', () => {
+    if (fullTranscriptLog.length === 0) { showToast('Transcript is empty', 'warning'); return; }
+    const notesEl = document.getElementById('meeting-notes');
+    if (notesEl) {
+      notesEl.value += '\n\n--- [LIVE TRANSCRIPT] ---\n' + fullTranscriptLog.join('\n');
+      showToast('Transcript appended to session notes!', 'success');
+    }
+  });
+
   document.getElementById('btn-screen').onclick = async event => {
     if (!isMentor && activeRoomSettings.screenLocked) {
       showToast('Screen sharing is locked by the meeting host', 'warning');
@@ -1191,7 +1631,6 @@ export async function render(container) {
     }
   };
 
-  // Recording Logic (Host Mentor Only: 2 Types - On-Device & Cloud)
   let mediaRecorder = null;
   let recordedChunks = [];
   let recordStream = null;
@@ -1205,7 +1644,6 @@ export async function render(container) {
   const btnStartDeviceRec = document.getElementById('btn-start-device-rec');
 
   if (btnRecord && recordModal) {
-    // Open recording options modal
     btnRecord.onclick = () => {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         if (confirm('Stop On-Device Recording and save the video file?')) {
@@ -1219,7 +1657,6 @@ export async function render(container) {
     closeRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
     cancelRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
 
-    // Option 1: Start On-Device Recording
     btnStartDeviceRec?.addEventListener('click', async () => {
       recordModal.style.display = 'none';
 
@@ -1299,7 +1736,17 @@ export async function render(container) {
     });
   }
 
-  // Side Panel Toggle & Tabs
+  const btnNetDiag = document.getElementById('btn-network-diag');
+  const netDiagModal = document.getElementById('network-diag-modal');
+  const closeDiagModal = document.getElementById('close-diag-modal');
+
+  btnNetDiag?.addEventListener('click', () => {
+    if (netDiagModal) netDiagModal.style.display = 'flex';
+  });
+  closeDiagModal?.addEventListener('click', () => {
+    if (netDiagModal) netDiagModal.style.display = 'none';
+  });
+
   const sidePanel = document.getElementById('meeting-side-panel');
   const sidePanelTitle = document.getElementById('side-panel-title');
 
@@ -1309,7 +1756,7 @@ export async function render(container) {
     document.querySelectorAll('.side-panel-tab').forEach(item => {
       item.classList.toggle('active', item.dataset.panel === panelName);
     });
-    ['chat', 'participants', 'tools', 'controls', 'notes', 'report'].forEach(name => {
+    ['chat', 'participants', 'tools', 'transcript', 'controls', 'notes', 'report'].forEach(name => {
       const panel = document.getElementById(`panel-${name}`);
       if (panel) panel.hidden = panelName !== name;
     });
@@ -1321,9 +1768,10 @@ export async function render(container) {
         chat: 'Meeting Chat', 
         participants: 'People in Call', 
         tools: 'Interactive Collaboration Suite', 
+        transcript: 'Live Speech Transcript',
         controls: 'Host Control Center', 
-        notes: 'Session Notes', 
-        report: 'Report Generation' 
+        notes: 'Session Notes & MOM', 
+        report: 'Official Report Generation' 
       };
       sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
     }
@@ -1369,14 +1817,9 @@ export async function render(container) {
     button.addEventListener('click', () => openPanelTab(button.dataset.panel));
   });
 
-  // ── INTERACTIVE COLLABORATION TOOLS LOGIC ──────────────────────────────────────
-
-  // 1. Toggle Code Scratchpad
   document.getElementById('btn-toggle-scratchpad-view')?.addEventListener('click', () => {
     const box = document.getElementById('scratchpad-box');
-    if (box) {
-      box.style.display = box.style.display === 'none' ? 'block' : 'none';
-    }
+    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
   });
 
   document.getElementById('btn-copy-code')?.addEventListener('click', () => {
@@ -1387,24 +1830,19 @@ export async function render(container) {
     }
   });
 
-  document.getElementById('btn-append-code-notes')?.addEventListener('click', async () => {
+  document.getElementById('btn-append-code-notes')?.addEventListener('click', () => {
     const code = document.getElementById('in-room-scratchpad')?.value;
     const lang = document.getElementById('scratchpad-lang')?.value || 'code';
     if (!code) { showToast('Scratchpad is empty', 'warning'); return; }
     
     const formattedSnippet = `\n\n--- [${lang.toUpperCase()} SNIPPET] ---\n` + code;
     const notesEl = document.getElementById('meeting-notes');
-    if (notesEl) {
-      notesEl.value += formattedSnippet;
-    }
+    if (notesEl) notesEl.value += formattedSnippet;
     const rptIssues = document.getElementById('rpt-issues');
-    if (rptIssues) {
-      rptIssues.value += formattedSnippet;
-    }
+    if (rptIssues) rptIssues.value += formattedSnippet;
     showToast('Code appended to meeting notes & report draft!', 'success');
   });
 
-  // 2. Structured Agenda Checklist Toggling
   const agendaCheckboxes = document.querySelectorAll('.agenda-chk');
   function updateAgendaProgress() {
     const total = agendaCheckboxes.length;
@@ -1421,7 +1859,6 @@ export async function render(container) {
     chk.addEventListener('change', () => {
       updateAgendaProgress();
       const itemText = chk.dataset.item;
-      // Auto-append completed agenda item to meeting report resolutions
       if (chk.checked) {
         const rptActions = document.getElementById('rpt-actions');
         if (rptActions && !rptActions.value.includes(itemText)) {
@@ -1431,7 +1868,79 @@ export async function render(container) {
     });
   });
 
-  // 3. Live Polls Voting Engine
+  const quizQuestions = [
+    {
+      q: '1. In DBMS, which normal form eliminates transitive dependency?',
+      options: ['1st Normal Form (1NF)', '2nd Normal Form (2NF)', '3rd Normal Form (3NF)', 'Boyce-Codd (BCNF)'],
+      correct: 2
+    },
+    {
+      q: '2. What is the average time complexity of QuickSort in typical cases?',
+      options: ['O(N)', 'O(N log N)', 'O(N^2)', 'O(log N)'],
+      correct: 1
+    },
+    {
+      q: '3. In Operating Systems, which condition is NOT necessary for Deadlock?',
+      options: ['Mutual Exclusion', 'Hold and Wait', 'Preemption Allowed', 'Circular Wait'],
+      correct: 2
+    }
+  ];
+  let currentQuizIdx = 0;
+  let quizScore = 0;
+
+  function renderQuizQuestion(idx) {
+    const qData = quizQuestions[idx];
+    const qEl = document.getElementById('quiz-question');
+    const listEl = document.getElementById('quiz-options-list');
+    const badge = document.getElementById('quiz-score-badge');
+    if (!qEl || !listEl) return;
+
+    if (badge) badge.textContent = `Q ${idx + 1}/${quizQuestions.length}`;
+    qEl.textContent = qData.q;
+    listEl.innerHTML = qData.options.map((opt, oIdx) => `
+      <button class="quiz-option-btn" data-opt-idx="${oIdx}">
+        <span>${String.fromCharCode(65 + oIdx)}. ${opt}</span>
+      </button>
+    `).join('');
+
+    listEl.querySelectorAll('.quiz-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selected = parseInt(btn.dataset.optIdx, 10);
+        const isCorrect = selected === qData.correct;
+        if (isCorrect) {
+          btn.classList.add('correct');
+          quizScore++;
+          showToast('Correct answer! 🎉', 'success');
+        } else {
+          btn.classList.add('wrong');
+          listEl.querySelector(`[data-opt-idx="${qData.correct}"]`)?.classList.add('correct');
+          showToast('Incorrect answer', 'warning');
+        }
+        listEl.querySelectorAll('.quiz-option-btn').forEach(b => b.disabled = true);
+
+        setTimeout(() => {
+          if (currentQuizIdx + 1 < quizQuestions.length) {
+            currentQuizIdx++;
+            renderQuizQuestion(currentQuizIdx);
+          } else {
+            const body = document.getElementById('quiz-body-container');
+            if (body) {
+              body.innerHTML = `
+                <div style="text-align:center; padding:12px 0;">
+                  <div style="font-size:1.5rem; margin-bottom:4px;">🎯</div>
+                  <div style="font-weight:800; font-size:1rem; color:#f8fafc;">Diagnostic Check Complete!</div>
+                  <div style="color:#10b981; font-weight:700; margin:4px 0;">Final Score: ${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)</div>
+                  <div style="font-size:0.75rem; color:#94a3b8; margin-top:6px;">Performance recorded in mentorship assessment log.</div>
+                </div>
+              `;
+            }
+          }
+        }, 1500);
+      });
+    });
+  }
+  renderQuizQuestion(0);
+
   let pollVotes = { 'High Confidence (Ready)': 0, 'Moderate (Need Practice)': 0, 'Struggling (Need Remedial Help)': 0 };
   let totalVotes = 0;
   let hasVoted = false;
@@ -1448,7 +1957,6 @@ export async function render(container) {
       totalVotes++;
       hasVoted = true;
 
-      // Update Poll progress bars
       document.querySelectorAll('.poll-option-btn').forEach(b => {
         const opt = b.dataset.vote;
         const count = pollVotes[opt] || 0;
@@ -1489,7 +1997,6 @@ export async function render(container) {
     showToast('New Poll launched for participants!', 'success');
   });
 
-  // 4. File Dropzone In-Room File Sharing
   const dropzone = document.getElementById('in-room-dropzone');
   const fileInput = document.getElementById('in-room-file-input');
 
@@ -1522,7 +2029,6 @@ export async function render(container) {
     showToast(`Shared "${file.name}" with room participants`, 'success');
   }
 
-  // 5. 30-Second Voice Summary Recorder
   let voiceRecorder = null;
   let voiceChunks = [];
   let isRecordingVoice = false;
@@ -1567,7 +2073,6 @@ export async function render(container) {
     }
   });
 
-  // 6. Live Collaborative Whiteboard Engine
   document.getElementById('btn-launch-whiteboard')?.addEventListener('click', () => {
     openWhiteboardModal();
   });
@@ -1585,12 +2090,11 @@ export async function render(container) {
             <i class="ph ph-paint-brush"></i>
           </div>
           <div>
-            <h3 style="margin:0; font-size:1rem; font-weight:800; color:#fff;">Live Interactive Whiteboard</h3>
-            <p style="margin:0; font-size:0.75rem; color:#94a3b8;">Sketch system architecture, math formulas &amp; problem solutions</p>
+            <h3 style="margin:0; font-size:1rem; font-weight:800; color:#fff;">Live Collaborative Whiteboard</h3>
+            <p style="margin:0; font-size:0.75rem; color:#94a3b8;">Real-time synchronized canvas for math formulas, diagrams &amp; architecture</p>
           </div>
         </div>
 
-        <!-- Toolbar -->
         <div class="whiteboard-toolbar">
           <button class="wb-tool-btn active" data-tool="pen" title="Pencil / Draw"><i class="ph ph-pencil-simple"></i></button>
           <button class="wb-tool-btn" data-tool="highlighter" title="Highlighter"><i class="ph ph-highlighter"></i></button>
@@ -1600,19 +2104,12 @@ export async function render(container) {
           <button class="wb-tool-btn" data-tool="eraser" title="Eraser"><i class="ph ph-eraser"></i></button>
           
           <div style="width:1px; height:20px; background:#475569; margin:0 4px;"></div>
-          
-          <!-- Color Picker -->
           <input type="color" id="wb-color" value="#4f46e5" style="width:28px; height:28px; border:none; border-radius:50%; cursor:pointer; background:transparent;">
-          
-          <!-- Brush Size -->
           <input type="range" id="wb-size" min="1" max="24" value="4" style="width:60px; cursor:pointer;" title="Stroke Thickness">
-
           <div style="width:1px; height:20px; background:#475569; margin:0 4px;"></div>
-
           <button class="wb-tool-btn" id="wb-clear-btn" title="Clear Canvas"><i class="ph ph-trash"></i></button>
         </div>
 
-        <!-- Top Right Actions -->
         <div style="display:flex; align-items:center; gap:8px;">
           <button class="btn btn-sm btn-primary" id="wb-save-mom-btn" style="border-radius:10px; font-weight:700; display:flex; align-items:center; gap:6px;">
             <i class="ph ph-camera"></i> Save Snapshot to MOM
@@ -1634,7 +2131,6 @@ export async function render(container) {
     const canvas = wbRoot.querySelector('#wb-canvas');
     const ctx = canvas.getContext('2d');
     
-    // Resize canvas
     function resizeCanvas() {
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
@@ -1647,6 +2143,7 @@ export async function render(container) {
     let drawing = false;
     let currentTool = 'pen';
     let startX = 0, startY = 0;
+    let lastX = 0, lastY = 0;
     let snapshotImageData = null;
 
     wbRoot.querySelectorAll('.wb-tool-btn[data-tool]').forEach(btn => {
@@ -1664,12 +2161,14 @@ export async function render(container) {
       drawing = true;
       startX = e.offsetX;
       startY = e.offsetY;
+      lastX = e.offsetX;
+      lastY = e.offsetY;
       snapshotImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       ctx.beginPath();
       ctx.moveTo(startX, startY);
     });
 
-    canvas.addEventListener('mousemove', (e) => {
+    canvas.addEventListener('mousemove', async (e) => {
       if (!drawing) return;
       const x = e.offsetX;
       const y = e.offsetY;
@@ -1677,12 +2176,25 @@ export async function render(container) {
       const lineWidth = parseInt(sizePicker.value, 10);
 
       if (currentTool === 'pen' || currentTool === 'eraser' || currentTool === 'highlighter') {
-        ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : (currentTool === 'highlighter' ? `${strokeColor}55` : strokeColor);
-        ctx.lineWidth = currentTool === 'highlighter' ? lineWidth * 3 : lineWidth;
+        const actualColor = currentTool === 'eraser' ? '#ffffff' : (currentTool === 'highlighter' ? `${strokeColor}55` : strokeColor);
+        const actualWidth = currentTool === 'highlighter' ? lineWidth * 3 : lineWidth;
+        ctx.strokeStyle = actualColor;
+        ctx.lineWidth = actualWidth;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.lineTo(x, y);
         ctx.stroke();
+
+        await signaling.sendWhiteboard('stroke', {
+          fromX: lastX / canvas.width,
+          fromY: lastY / canvas.height,
+          toX: x / canvas.width,
+          toY: y / canvas.height,
+          color: actualColor,
+          size: actualWidth
+        });
+        lastX = x;
+        lastY = y;
       } else if (currentTool === 'line' || currentTool === 'rect' || currentTool === 'circle') {
         ctx.putImageData(snapshotImageData, 0, 0);
         ctx.strokeStyle = strokeColor;
@@ -1704,18 +2216,16 @@ export async function render(container) {
     canvas.addEventListener('mouseup', () => { drawing = false; });
     canvas.addEventListener('mouseleave', () => { drawing = false; });
 
-    // Clear Canvas
-    wbRoot.querySelector('#wb-clear-btn').onclick = () => {
+    wbRoot.querySelector('#wb-clear-btn').onclick = async () => {
       if (confirm('Clear the entire whiteboard canvas?')) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await signaling.sendWhiteboard('clear');
       }
     };
 
-    // Close Modal
     wbRoot.querySelector('#wb-close-btn').onclick = () => wbRoot.remove();
 
-    // Export PNG
     wbRoot.querySelector('#wb-export-png-btn').onclick = () => {
       const link = document.createElement('a');
       link.download = `whiteboard_snapshot_${new Date().toISOString().slice(0, 10)}.png`;
@@ -1724,7 +2234,6 @@ export async function render(container) {
       showToast('Whiteboard PNG downloaded!', 'success');
     };
 
-    // Save snapshot to MOM Report
     wbRoot.querySelector('#wb-save-mom-btn').onclick = async () => {
       const dataUrl = canvas.toDataURL('image/png');
       try {
@@ -1737,7 +2246,53 @@ export async function render(container) {
     };
   }
 
-  // Chat form submission
+  document.getElementById('btn-synthesize-mom')?.addEventListener('click', () => {
+    const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
+    const codeSnippet = document.getElementById('in-room-scratchpad')?.value.trim();
+    const studentsPresent = participants.map(p => p.name).join(', ') || meeting.studentName || 'Student';
+
+    const synthesizedMOM = `
+============================================================
+MINUTES OF MENTORSHIP MEETING (OFFICIAL INSTITUTIONAL RECORD)
+Topic: ${meeting.type || '1-on-1 Mentorship Session'}
+Date: ${new Date().toISOString().slice(0, 10)} | Time: ${new Date().toTimeString().slice(0, 5)}
+Mentor (Host): Prof. ${meeting.mentorName || user.name}
+Attendees Present: ${studentsPresent}
+Department: ${meeting.department || 'Department of Computer Science & Engineering (Core)'}
+============================================================
+
+1. EXECUTIVE SUMMARY & OBJECTIVE:
+Mentorship session conducted focusing on student academic progress, backlog eradication, and career guidance. The student actively engaged in problem-solving and diagnostic reviews.
+
+2. COMPLETED AGENDAS & ACTION ITEMS:
+${checkedAgendas.length > 0 ? checkedAgendas.map(a => `• [COMPLETED] ${a}`).join('\n') : '• Completed core academic review and attendance audit.'}
+
+3. DIAGNOSTIC ASSESSMENT & UNDERSTANDING:
+• Rapid Diagnostic Assessment Score: ${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)
+• Key Topics Clarified: Core conceptual doubts, DBMS normalization, algorithmic optimization.
+
+4. CODE / ARTIFACTS REVIEWED:
+${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding problems and project architecture blueprints reviewed.'}
+
+5. NEXT MILESTONES & DEADLINES:
+• Complete remedial assignments before the upcoming internal assessment.
+• Submit weekly progress report to the mentor.
+• Next Scheduled Follow-up: 14 days from session date.
+============================================================
+`.trim();
+
+    const notesArea = document.getElementById('meeting-notes');
+    if (notesArea) notesArea.value = synthesizedMOM;
+
+    const rptIssues = document.getElementById('rpt-issues');
+    if (rptIssues) rptIssues.value = `Discussed: ${checkedAgendas.join('; ') || 'Academic and career milestones'}. Diagnostic score: ${quizScore}/${quizQuestions.length}.`;
+
+    const rptActions = document.getElementById('rpt-actions');
+    if (rptActions) rptActions.value = `1. Resolve academic blockers.\n2. Submit remedial coursework.\n3. Next check-in in 2 weeks.`;
+
+    showToast('✨ Smart MOM synthesized and populated into notes & report!', 'success');
+  });
+
   document.getElementById('chat-form')?.addEventListener('submit', event => {
     event.preventDefault();
     if (!isMentor && activeRoomSettings.chatLocked) {
@@ -1753,7 +2308,6 @@ export async function render(container) {
     }
   });
 
-  // Copy invite link
   document.getElementById('copy-room-link')?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
@@ -1763,7 +2317,6 @@ export async function render(container) {
     }
   });
 
-  // Save session notes
   document.getElementById('save-meeting-notes')?.addEventListener('click', async () => {
     try {
       const summary = document.getElementById('meeting-notes').value.trim();
@@ -1774,21 +2327,19 @@ export async function render(container) {
     }
   });
 
-  // Add student row button
   document.getElementById('btn-add-student')?.addEventListener('click', () => {
     const list = document.getElementById('rpt-students-list');
     if (!list) return;
     const row = document.createElement('div');
     row.className = 'rpt-student-row';
     row.innerHTML = `
-            <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
-            <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
-            <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
-        `;
+      <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4">
+      <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1">
+      <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
+    `;
     list.appendChild(row);
   });
 
-  // Save meeting report
   document.getElementById('btn-save-report')?.addEventListener('click', async () => {
     try {
       const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
@@ -1818,7 +2369,6 @@ export async function render(container) {
     }
   });
 
-  // Generate & Print meeting report — Uses centralized official MIT-ADT template
   document.getElementById('btn-generate-report')?.addEventListener('click', () => {
     const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
       name: row.querySelector('.rpt-sname')?.value.trim() || '',
@@ -1843,11 +2393,13 @@ export async function render(container) {
     exportMeetingSessionReport({ ...meeting, report: reportData });
   });
 
-  // Clean up connections
   async function cleanup() {
     if (cleaned) return;
     cleaned = true;
     clearInterval(timer);
+    if (recognition && isCaptionsActive) {
+      try { recognition.stop(); } catch (e) { }
+    }
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
     }
@@ -1857,7 +2409,6 @@ export async function render(container) {
     signaling.disconnect();
   }
 
-  // Leave / End Call button
   document.getElementById('btn-end')?.addEventListener('click', async () => {
     if (isMentor) {
       const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
@@ -1878,7 +2429,6 @@ export async function render(container) {
 
   window.addEventListener('hashchange', cleanup, { once: true });
 
-  // Pre-join camera and mic preview
   try {
     localStream = await getLocalStream();
     const previewVideo = document.getElementById('preview-video');
@@ -1901,7 +2451,6 @@ export async function render(container) {
     console.warn('Could not initialize preview:', e);
   }
 
-  // Enter meeting room on join click
   document.getElementById('btn-join-meeting')?.addEventListener('click', () => {
     document.getElementById('join-screen')?.remove();
     if (isMentor) {

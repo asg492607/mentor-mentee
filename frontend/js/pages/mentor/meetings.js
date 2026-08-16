@@ -32,6 +32,11 @@ const MEETING_TYPES = [
 export async function render(container) {
   const user = getUserProfile();
 
+  let meetings = [];
+  let students = [];
+  let activeTab = 'pending';
+  let activeViewMode = 'list';
+
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/mentor/meetings')}
@@ -82,11 +87,6 @@ export async function render(container) {
       </div>
     </div>
   `;
-
-  let meetings = [];
-  let students = [];
-  let activeTab = 'pending';
-  let activeViewMode = 'list';
 
   async function loadData() {
     try {

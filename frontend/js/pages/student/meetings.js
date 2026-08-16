@@ -32,6 +32,11 @@ function fmt(iso) {
 export async function render(container) {
   const user = getUserProfile();
 
+  let meetings = [];
+  let activeViewMode = 'list';
+  let bookingMode = 'slot'; // 'slot' or 'custom'
+  let selectedSlotIso = null;
+
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/student/meetings')}
@@ -118,11 +123,6 @@ export async function render(container) {
       </div>
     </div>
   `;
-
-  let meetings = [];
-  let activeViewMode = 'list';
-  let bookingMode = 'slot'; // 'slot' or 'custom'
-  let selectedSlotIso = null;
 
   const toggle = () => {
     const f = container.querySelector('#req-form');
