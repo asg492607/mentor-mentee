@@ -644,6 +644,15 @@ export async function render(container) {
       const desc = container.querySelector('#sched-desc').value.trim();
       const date = container.querySelector('#sched-date').value;
 
+      if (!studentId) {
+        showToast('Please select a target mentee or cohort group', 'warning');
+        return;
+      }
+      if (!date) {
+        showToast('Please select a date and time for the meeting', 'warning');
+        return;
+      }
+
       if (studentId === 'ALL') {
         const mData = {
           mentorId: user.id, 
@@ -672,6 +681,10 @@ export async function render(container) {
         }
       } else {
         const student = students.find(s => s.id === studentId);
+        if (!student) {
+          showToast('Selected student not found in mentor cohort', 'warning');
+          return;
+        }
         const mData = {
           mentorId: user.id, 
           mentorName: user.name,

@@ -2,6 +2,7 @@ import { getUserProfile, updateUserProfileData } from '../auth.js';
 import { db } from '../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { showToast } from './toast.js';
+import { escapeHtml } from '../utils.js';
 
 let modalContainer = null;
 
@@ -28,7 +29,7 @@ export async function openProfileModal() {
   }
 
   const role = (profile.role || 'FACULTY').toUpperCase();
-  const initials = (profile.name || 'User').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const initials = escapeHtml((profile.name || 'User').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2));
 
   const modalHtml = `
     <div id="global-faculty-profile-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.75);backdrop-filter:blur(5px);position:fixed;inset:0;justify-content:center;align-items:center;padding:16px;">
@@ -42,11 +43,11 @@ export async function openProfileModal() {
             </div>
             <div>
               <h3 style="margin:0;font-size:1.25rem;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                ${profile.name || 'Faculty Profile'}
-                <span class="badge badge-accent" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;letter-spacing:0.04em;">${role}</span>
+                ${escapeHtml(profile.name || 'Faculty Profile')}
+                <span class="badge badge-accent" style="font-size:0.72rem;padding:3px 10px;border-radius:20px;letter-spacing:0.04em;">${escapeHtml(role)}</span>
               </h3>
               <p style="margin:4px 0 0 0;color:var(--text-secondary);font-size:0.85rem;">
-                ${profile.email || ''} &bull; ${profile.department || 'School of Computing'}
+                ${escapeHtml(profile.email || '')} &bull; ${escapeHtml(profile.department || 'School of Computing')}
               </p>
             </div>
           </div>
@@ -59,52 +60,52 @@ export async function openProfileModal() {
             
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Full Name</label>
-              <input type="text" id="prof-name" class="form-input" value="${profile.name || ''}" required placeholder="Dr. / Prof. Full Name">
+              <input type="text" id="prof-name" class="form-input" value="${escapeHtml(profile.name || '')}" required placeholder="Dr. / Prof. Full Name">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Email Address</label>
-              <input type="email" class="form-input" value="${profile.email || ''}" readonly style="opacity:0.65;cursor:not-allowed;" title="Email cannot be altered">
+              <input type="email" class="form-input" value="${escapeHtml(profile.email || '')}" readonly style="opacity:0.65;cursor:not-allowed;" title="Email cannot be altered">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Designation / Title</label>
-              <input type="text" id="prof-designation" class="form-input" value="${profile.designation || (role === 'HOD' ? 'Head of Department' : role === 'DEAN' ? 'Dean' : 'Assistant Professor')}" placeholder="e.g. Assistant Professor, HOD">
+              <input type="text" id="prof-designation" class="form-input" value="${escapeHtml(profile.designation || (role === 'HOD' ? 'Head of Department' : role === 'DEAN' ? 'Dean' : 'Assistant Professor'))}" placeholder="e.g. Assistant Professor, HOD">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Department</label>
-              <input type="text" id="prof-dept" class="form-input" value="${profile.department || 'Department of Computer Science & Engineering (Core)'}" placeholder="Department">
+              <input type="text" id="prof-dept" class="form-input" value="${escapeHtml(profile.department || 'Department of Computer Science & Engineering (Core)')}" placeholder="Department">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Contact Number</label>
-              <input type="tel" id="prof-phone" class="form-input" value="${profile.phone || profile.contactNumber || ''}" placeholder="e.g. +91 9876543210">
+              <input type="tel" id="prof-phone" class="form-input" value="${escapeHtml(profile.phone || profile.contactNumber || '')}" placeholder="e.g. +91 9876543210">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Employee / Staff ID</label>
-              <input type="text" id="prof-empid" class="form-input" value="${profile.employeeId || ''}" placeholder="e.g. EMP-10492">
+              <input type="text" id="prof-empid" class="form-input" value="${escapeHtml(profile.employeeId || '')}" placeholder="e.g. EMP-10492">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Cabin / Office Room</label>
-              <input type="text" id="prof-cabin" class="form-input" value="${profile.cabinNumber || profile.officeRoom || ''}" placeholder="e.g. Block C, Room 304">
+              <input type="text" id="prof-cabin" class="form-input" value="${escapeHtml(profile.cabinNumber || profile.officeRoom || '')}" placeholder="e.g. Block C, Room 304">
             </div>
 
             <div class="form-group">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Office / Meeting Hours</label>
-              <input type="text" id="prof-hours" class="form-input" value="${profile.officeHours || ''}" placeholder="e.g. Mon-Fri 3:00 PM - 5:00 PM">
+              <input type="text" id="prof-hours" class="form-input" value="${escapeHtml(profile.officeHours || '')}" placeholder="e.g. Mon-Fri 3:00 PM - 5:00 PM">
             </div>
 
             <div class="form-group" style="grid-column:1/-1;">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Specialization / Domain Expertise</label>
-              <input type="text" id="prof-spec" class="form-input" value="${profile.specialization || ''}" placeholder="e.g. Machine Learning, Cloud Computing, Cyber Security">
+              <input type="text" id="prof-spec" class="form-input" value="${escapeHtml(profile.specialization || '')}" placeholder="e.g. Machine Learning, Cloud Computing, Cyber Security">
             </div>
 
             <div class="form-group" style="grid-column:1/-1;">
               <label class="form-label" style="font-weight:600;font-size:0.85rem;">Professional Bio / Mentorship Philosophy</label>
-              <textarea id="prof-bio" class="form-textarea" style="min-height:75px;" placeholder="Brief summary of your academic background and mentorship goals...">${profile.bio || ''}</textarea>
+              <textarea id="prof-bio" class="form-textarea" style="min-height:75px;" placeholder="Brief summary of your academic background and mentorship goals...">${escapeHtml(profile.bio || '')}</textarea>
             </div>
 
           </div>
@@ -139,21 +140,23 @@ export async function openProfileModal() {
   document.getElementById('faculty-profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const saveBtn = document.getElementById('btn-save-profile');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+    }
 
     try {
       const updates = {
-        name: document.getElementById('prof-name').value.trim(),
-        designation: document.getElementById('prof-designation').value.trim(),
-        department: document.getElementById('prof-dept').value.trim(),
-        phone: document.getElementById('prof-phone').value.trim(),
-        contactNumber: document.getElementById('prof-phone').value.trim(),
-        employeeId: document.getElementById('prof-empid').value.trim(),
-        cabinNumber: document.getElementById('prof-cabin').value.trim(),
-        officeHours: document.getElementById('prof-hours').value.trim(),
-        specialization: document.getElementById('prof-spec').value.trim(),
-        bio: document.getElementById('prof-bio').value.trim(),
+        name: document.getElementById('prof-name')?.value.trim() || '',
+        designation: document.getElementById('prof-designation')?.value.trim() || '',
+        department: document.getElementById('prof-dept')?.value.trim() || '',
+        phone: document.getElementById('prof-phone')?.value.trim() || '',
+        contactNumber: document.getElementById('prof-phone')?.value.trim() || '',
+        employeeId: document.getElementById('prof-empid')?.value.trim() || '',
+        cabinNumber: document.getElementById('prof-cabin')?.value.trim() || '',
+        officeHours: document.getElementById('prof-hours')?.value.trim() || '',
+        specialization: document.getElementById('prof-spec')?.value.trim() || '',
+        bio: document.getElementById('prof-bio')?.value.trim() || '',
         updatedAt: new Date().toISOString()
       };
 
@@ -180,8 +183,10 @@ export async function openProfileModal() {
     } catch (err) {
       showToast('Failed to update profile: ' + err.message, 'error');
     } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = '💾 Save Changes';
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Save Changes';
+      }
     }
   });
 }

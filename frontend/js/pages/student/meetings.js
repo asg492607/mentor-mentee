@@ -226,7 +226,11 @@ export async function render(container) {
       scheduledDate = selectedSlotIso;
       autoApprove = true; // Instant approval for verified office hours slots!
     } else {
-      scheduledDate = container.querySelector('#m-date').value || null;
+      scheduledDate = container.querySelector('#m-date')?.value || null;
+      if (!scheduledDate) {
+        showToast('Please select your preferred date & time for the session', 'warning');
+        return;
+      }
     }
 
     if (!description) { showToast('Please enter an agenda / description', 'warning'); return; }
