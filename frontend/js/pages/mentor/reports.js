@@ -268,9 +268,14 @@ export async function render(container) {
 
     // Chart
     if (window.Chart) {
-      const ctx = container.querySelector('#chart-meetings-mentor')?.getContext('2d');
-      if (ctx) {
-        new window.Chart(ctx, {
+      const canvas = container.querySelector('#chart-meetings-mentor');
+      if (canvas) {
+        if (activeMentorReportsChart) activeMentorReportsChart.destroy();
+        const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
+        const tc = isLight ? '#475569' : '#777799';
+        const gc = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+
+        activeMentorReportsChart = new window.Chart(canvas.getContext('2d'), {
           type: 'bar',
           data: {
             labels: months,
@@ -287,8 +292,8 @@ export async function render(container) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-              y: { beginAtZero: true, ticks: { stepSize: 1, color: '#777799' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-              x: { grid: { display: false }, ticks: { color: '#777799' } }
+              y: { beginAtZero: true, ticks: { stepSize: 1, color: tc }, grid: { color: gc } },
+              x: { grid: { display: false }, ticks: { color: tc } }
             }
           }
         });
@@ -320,5 +325,14 @@ export async function render(container) {
     console.error('Mentor reports error:', err);
     const rc = container.querySelector('#mentor-reports-content');
     if (rc) rc.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading reports</h3><p>${err.message}</p></div>`;
+  }
+}
+
+let activeMentorReportsChart = null;
+
+export function teardown() {
+  if (activeMentorReportsChart && typeof activeMentorReportsChart.destroy === 'function') {
+    activeMentorReportsChart.destroy();
+    activeMentorReportsChart = null;
   }
 }

@@ -139,35 +139,59 @@ export async function render(container) {
     });
 
     if (!window.Chart) return;
-    const tc = '#777799';
-    const gc = 'rgba(255,255,255,0.05)';
+    const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
+    const tc = isLight ? '#475569' : '#777799';
+    const gc = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
 
     // Avg SGPA Bar
-    new window.Chart((container.querySelector('#chart-sgpa') || document.createElement('canvas')).getContext('2d'), {
-      type:'bar',
-      data:{ labels:Object.keys(deptAvgSGPA), datasets:[{ label:'Avg SGPA', data:Object.values(deptAvgSGPA), backgroundColor:['#34d399','#60a5fa','#7c6aff','#fbbf24'], borderRadius:6 }] },
-      options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, max:10, grid:{color:gc},ticks:{color:tc,stepSize:2}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
-    });
+    const canvasSGPA = container.querySelector('#chart-sgpa');
+    if (canvasSGPA) {
+      if (activeCharts.sgpa) activeCharts.sgpa.destroy();
+      activeCharts.sgpa = new window.Chart(canvasSGPA.getContext('2d'), {
+        type:'bar',
+        data:{ labels:Object.keys(deptAvgSGPA), datasets:[{ label:'Avg SGPA', data:Object.values(deptAvgSGPA), backgroundColor:['#34d399','#60a5fa','#7c6aff','#fbbf24'], borderRadius:6 }] },
+        options:{ responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, max:10, grid:{color:gc},ticks:{color:tc,stepSize:2}}, x:{grid:{display:false},ticks:{color:tc,font:{size:10}}} } }
+      });
+    }
 
     // Issue categories doughnut
-    new window.Chart((container.querySelector('#chart-issues') || document.createElement('canvas')).getContext('2d'), {
-      type:'doughnut',
-      data:{ labels:Object.keys(issueCats), datasets:[{ data:Object.values(issueCats), backgroundColor:['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171','#a78bfa'], borderWidth:0 }] },
-      options:{ responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{ legend:{ position:'right',labels:{color:tc,font:{size:11}} } } }
-    });
+    const canvasIssues = container.querySelector('#chart-issues');
+    if (canvasIssues) {
+      if (activeCharts.issues) activeCharts.issues.destroy();
+      activeCharts.issues = new window.Chart(canvasIssues.getContext('2d'), {
+        type:'doughnut',
+        data:{ labels:Object.keys(issueCats), datasets:[{ data:Object.values(issueCats), backgroundColor:['#7c6aff','#34d399','#fbbf24','#60a5fa','#f87171','#a78bfa'], borderWidth:0 }] },
+        options:{ responsive:true,maintainAspectRatio:false,cutout:'65%', plugins:{ legend:{ position:'right',labels:{color:tc,font:{size:11}} } } }
+      });
+    }
 
     // Risk level pie
     const high   = students.filter(s => s.riskLevel==='HIGH').length;
     const medium = students.filter(s => s.riskLevel==='MEDIUM').length;
     const low    = students.filter(s => !s.riskLevel||s.riskLevel==='LOW').length;
-    new window.Chart((container.querySelector('#chart-risk-dist') || document.createElement('canvas')).getContext('2d'), {
-      type:'doughnut',
-      data:{ labels:['High','Medium','Low'], datasets:[{ data:[high,medium,low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }] },
-      options:{ responsive:true,maintainAspectRatio:false,cutout:'60%', plugins:{ legend:{ position:'bottom',labels:{color:tc} } } }
-    });
+    const canvasRisk = container.querySelector('#chart-risk-dist');
+    if (canvasRisk) {
+      if (activeCharts.risk) activeCharts.risk.destroy();
+      activeCharts.risk = new window.Chart(canvasRisk.getContext('2d'), {
+        type:'doughnut',
+        data:{ labels:['High','Medium','Low'], datasets:[{ data:[high,medium,low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }] },
+        options:{ responsive:true,maintainAspectRatio:false,cutout:'60%', plugins:{ legend:{ position:'bottom',labels:{color:tc} } } }
+      });
+    }
 
   } catch (err) {
     (container.querySelector('#analytics-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
   }
+}
+
+let activeCharts = {};
+
+export function teardown() {
+  Object.values(activeCharts).forEach(chart => {
+    if (chart && typeof chart.destroy === 'function') {
+      chart.destroy();
+    }
+  });
+  activeCharts = {};
 }
 

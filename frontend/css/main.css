@@ -6,6 +6,9 @@
   --bg-glass: rgba(255, 255, 255, 0.03);
   --bg-glass-hover: rgba(255, 255, 255, 0.06);
   --bg-input: rgba(255, 255, 255, 0.05);
+  --surface: var(--bg-card);
+  --surface-hover: var(--bg-card-hover);
+  --text: var(--text-primary);
   --text-primary: #eeeeff;
   --text-secondary: #9999cc;
   --text-muted: #555577;
@@ -55,6 +58,9 @@ html[data-theme="light"] {
   --bg-glass: rgba(0, 0, 0, 0.02);
   --bg-glass-hover: rgba(0, 0, 0, 0.04);
   --bg-input: rgba(0, 0, 0, 0.03);
+  --surface: var(--bg-card);
+  --surface-hover: var(--bg-card-hover);
+  --text: var(--text-primary);
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
@@ -302,4 +308,35 @@ a:hover {
   h1 { font-size: 1.75rem; }
   h2 { font-size: 1.5rem; }
   h3 { font-size: 1.25rem; }
+}
+
+/* Print Stylesheet for Reports & Booklets */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+  .sidebar, .header, .header-actions, .booklet-tabs, .btn, .theme-toggle-btn, .notification-bell, #sidebar-backdrop {
+    display: none !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  .page-content {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .card, .stat-card, .booklet-section {
+    background: #ffffff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .tab-content[hidden] {
+    display: block !important;
+  }
 }

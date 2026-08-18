@@ -240,22 +240,33 @@ export async function render(container) {
 
       const canvas = container.querySelector('#dean-risk-chart');
       if (canvas) {
-        new window.Chart(canvas.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-          labels: ['High Risk', 'Medium Risk', 'Low Risk'],
-          datasets: [{ data: [high, medium, low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }]
-        },
-        options: {
-          responsive:true, maintainAspectRatio:false, cutout:'65%',
-          plugins:{ legend:{ position:'right', labels:{color:'#777799',font:{size:11}} } }
-        }
-      });
+        if (activeDeanChart) activeDeanChart.destroy();
+        const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
+        activeDeanChart = new window.Chart(canvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+            datasets: [{ data: [high, medium, low], backgroundColor:['#f87171','#fbbf24','#34d399'], borderWidth:0 }]
+          },
+          options: {
+            responsive:true, maintainAspectRatio:false, cutout:'65%',
+            plugins:{ legend:{ position:'right', labels:{color: isLight ? '#475569' : '#777799',font:{size:11}} } }
+          }
+        });
       }
     }
 
   } catch (err) {
     const content = container.querySelector('#dean-content');
     if (content) content.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
+  }
+}
+
+let activeDeanChart = null;
+
+export function teardown() {
+  if (activeDeanChart && typeof activeDeanChart.destroy === 'function') {
+    activeDeanChart.destroy();
+    activeDeanChart = null;
   }
 }

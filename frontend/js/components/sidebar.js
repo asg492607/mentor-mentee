@@ -124,6 +124,10 @@ document.body.addEventListener('click', async (e) => {
   
   // Handle Mobile Backdrop Close
   if (e.target.id === 'sidebar-backdrop') {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    sidebar?.classList.remove('open');
+    backdrop?.classList.remove('visible');
     document.body.classList.remove('sidebar-open');
   }
 });

@@ -126,6 +126,7 @@ export async function render(container) {
         MENTOR:  '/mentor/dashboard',
         HOD:     '/hod/dashboard',
         DEAN:    '/dean/dashboard',
+        SECTION_HEAD: '/section/dashboard',
         ADMIN:   '/admin/dashboard'
       };
       if (profile && profile.role) {

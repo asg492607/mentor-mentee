@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, TaskService, NotificationService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function statusCls(s) { return {PENDING:'badge-warning',IN_PROGRESS:'badge-info',COMPLETED:'badge-success',OVERDUE:'badge-danger'}[s]||'badge-muted'; }
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
@@ -122,7 +123,7 @@ export async function render(container) {
     wrap.innerHTML = Object.entries(grouped).map(([sid, grp]) => `
       <div class="card" style="margin-bottom:16px;">
         <div class="card-header">
-          <h3>${grp.name}</h3>
+          <h3>${escapeHtml(grp.name)}</h3>
           <span style="color:var(--text-muted);font-size:0.8rem;">${grp.items.length} item(s)</span>
         </div>
         <table class="data-table">
@@ -130,10 +131,10 @@ export async function render(container) {
           <tbody>
             ${grp.items.map(item => `
               <tr>
-                <td>${item.description}</td>
-                <td><span class="badge badge-info">${item.category}</span></td>
+                <td>${escapeHtml(item.description)}</td>
+                <td><span class="badge badge-info">${escapeHtml(item.category)}</span></td>
                 <td style="font-size:0.8rem;">${fmt(item.dueDate)}</td>
-                <td><span class="badge ${statusCls(item.status)}">${item.status.replace('_',' ')}</span></td>
+                <td><span class="badge ${statusCls(item.status)}">${escapeHtml(item.status.replace('_',' '))}</span></td>
                 <td>
                   ${item.status !== 'COMPLETED' ? `<button class="btn btn-xs btn-success mark-done" data-id="${item.id}">Done</button>` : '—'}
                 </td>

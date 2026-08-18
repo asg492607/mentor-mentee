@@ -11,6 +11,8 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
 }[char]));
 
+let activeMeetingCleanup = null;
+
 export async function render(container) {
   const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const meetingId = params.get('id');
@@ -3221,6 +3223,7 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
   });
 
   async function cleanup() {
+    activeMeetingCleanup = null;
     if (cleaned) return;
     cleaned = true;
     clearInterval(timer);
@@ -3982,9 +3985,12 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
       const mainCam = document.getElementById('btn-cam');
       if (mainCam) mainCam.classList.toggle('active', !isEnabled);
     });
+    activeMeetingCleanup = cleanup;
   } catch (e) {
     console.warn('Could not initialize preview:', e);
   }
+
+  activeMeetingCleanup = cleanup;
 
   document.getElementById('btn-join-meeting')?.addEventListener('click', () => {
     document.getElementById('join-screen')?.remove();
@@ -3999,4 +4005,15 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
     }
     init();
   });
+}
+
+export async function teardown() {
+  if (activeMeetingCleanup) {
+    try {
+      await activeMeetingCleanup();
+    } catch (e) {
+      console.warn('Error during meeting teardown:', e);
+    }
+    activeMeetingCleanup = null;
+  }
 }
