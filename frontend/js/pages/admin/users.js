@@ -145,8 +145,9 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
-        const role = e.target.dataset.role;
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-approve')?.dataset?.id;
+        const role = e.currentTarget?.dataset?.role || e.target.closest('.btn-approve')?.dataset?.role;
+        if (!id) return;
         btn.disabled = true;
         btn.textContent = '...';
         try {
@@ -167,7 +168,8 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-view-profile').forEach(btn =>
       btn.addEventListener('click', (e) => {
-        if (window.openUserProfile) window.openUserProfile(e.target.dataset.id);
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-view-profile')?.dataset?.id;
+        if (id && window.openUserProfile) window.openUserProfile(id);
       })
     );
 

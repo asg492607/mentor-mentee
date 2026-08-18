@@ -284,7 +284,8 @@ export async function render(container) {
 
     container.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-approve')?.dataset?.id;
+        if (!id) return;
         btn.disabled = true; btn.textContent = '...';
         try {
           await FacultyService.approve(id);

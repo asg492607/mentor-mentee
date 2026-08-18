@@ -97,7 +97,7 @@ export async function render(container) {
 
     document.querySelectorAll('.head-select').forEach(sel => {
       sel.addEventListener('change', async (e) => {
-        const deptName = e.target.dataset.dept;
+        const deptName = e.currentTarget?.dataset?.dept || e.target.closest('.head-select')?.dataset?.dept;
         const newHeadId = e.target.value;
         const oldHead = faculty.find(f => f.department === deptName && (f.role === 'HOD' || f.role === 'SECTION_HEAD'));
         
@@ -114,7 +114,7 @@ export async function render(container) {
           if (newHeadId) {
             // Promote new head
             const newHead = faculty.find(f => f.id === newHeadId);
-            const newRole = departments.find(d => d.name === deptName).type === 'Section' ? 'SECTION_HEAD' : 'HOD';
+            const newRole = departments.find(d => d.name === deptName)?.type === 'Section' ? 'SECTION_HEAD' : 'HOD';
             await FacultyService.update(newHeadId, { role: newRole, department: deptName });
           }
           showToast('Department Head updated successfully', 'success');
@@ -127,9 +127,11 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-del').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-del')?.dataset?.id;
+        if (!id) return;
         if(!confirm('Are you sure you want to delete this department? All associated classes will remain orphaned.')) return;
         try {
-          await DepartmentService.delete(e.target.dataset.id);
+          await DepartmentService.delete(id);
           showToast('Department deleted', 'success');
           render(container); // reload
         } catch(err) {

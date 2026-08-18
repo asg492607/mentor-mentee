@@ -84,7 +84,8 @@ export async function render(container) {
 
     container.querySelectorAll('.class-select').forEach(sel => {
       sel.addEventListener('change', async (e) => {
-        const id = e.target.dataset.id;
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.class-select')?.dataset?.id;
+        if (!id) return;
         const newClass = e.target.value || null;
         try {
           await StudentService.update(id, { class: newClass });
@@ -97,7 +98,8 @@ export async function render(container) {
 
     container.querySelectorAll('.mentor-select').forEach(sel => {
       sel.addEventListener('change', async (e) => {
-        const id = e.target.dataset.id;
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.mentor-select')?.dataset?.id;
+        if (!id) return;
         const newMentor = e.target.value || null;
         const reason = prompt('Enter reason for mentor reassignment:', 'Workload Balancing / Academic Reassignment');
         if (reason === null) {

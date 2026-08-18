@@ -144,7 +144,8 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-add-dept-class').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const deptName = e.target.dataset.dept;
+        const deptName = e.currentTarget?.dataset?.dept || e.target.closest('.btn-add-dept-class')?.dataset?.dept;
+        if (!deptName) return;
         const input = document.querySelector(`.new-dept-class-input[data-dept="${CSS.escape(deptName)}"]`);
         const className = input ? input.value.trim() : '';
         if (!className) {

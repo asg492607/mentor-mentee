@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { TaskService, NotificationService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function statusCls(s) { return {PENDING:'badge-warning',IN_PROGRESS:'badge-info',COMPLETED:'badge-success',OVERDUE:'badge-danger'}[s]||'badge-muted'; }
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
@@ -38,6 +39,7 @@ export async function render(container) {
 
   function renderTasks() {
     const wrap = document.getElementById('tasks-wrap');
+    if (!wrap) return;
     let list = filter === 'ALL' ? tasks : tasks.filter(t => t.status === filter);
 
     // Auto-mark overdue
@@ -63,9 +65,9 @@ export async function render(container) {
           <div style="display:flex;align-items:flex-start;gap:16px;">
             <div style="flex:1;">
               <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
-                <h3 style="font-size:0.9rem;font-weight:600;margin:0;${t.status==='COMPLETED'?'text-decoration:line-through;color:var(--text-muted);':''}">${t.description}</h3>
-                <span class="badge ${statusCls(t.status)}">${t.status.replace('_',' ')}</span>
-                ${t.category ? `<span class="badge badge-info">${t.category}</span>` : ''}
+                <h3 style="font-size:0.9rem;font-weight:600;margin:0;${t.status==='COMPLETED'?'text-decoration:line-through;color:var(--text-muted);':''}">${escapeHtml(t.description)}</h3>
+                <span class="badge ${statusCls(t.status)}">${escapeHtml(t.status.replace('_',' '))}</span>
+                ${t.category ? `<span class="badge badge-info">${escapeHtml(t.category)}</span>` : ''}
               </div>
               <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:10px;">Due: ${fmt(t.dueDate)}</p>
               <div style="display:flex;align-items:center;gap:10px;">
@@ -85,10 +87,12 @@ export async function render(container) {
     </div>`;
 
     document.querySelectorAll('.done-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.done-btn')?.dataset?.id;
+        if (!id) return;
         try {
-          await TaskService.markComplete(btn.dataset.id);
-          const t = tasks.find(x => x.id === btn.dataset.id);
+          await TaskService.markComplete(id);
+          const t = tasks.find(x => x.id === id);
           if (t) { 
             t.status = 'COMPLETED'; 
             t.progress = 100;
@@ -109,10 +113,12 @@ export async function render(container) {
     });
 
     document.querySelectorAll('.start-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.start-btn')?.dataset?.id;
+        if (!id) return;
         try {
-          await TaskService.update(btn.dataset.id, { status: 'IN_PROGRESS', progress: 10 });
-          const t = tasks.find(x => x.id === btn.dataset.id);
+          await TaskService.update(id, { status: 'IN_PROGRESS', progress: 10 });
+          const t = tasks.find(x => x.id === id);
           if (t) { t.status = 'IN_PROGRESS'; t.progress = 10; }
           renderTasks();
         } catch (err) { showToast(err.message, 'error'); }

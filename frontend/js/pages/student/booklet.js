@@ -427,14 +427,17 @@ export async function render(container) {
         });
         activitiesBody.querySelectorAll('.delete-act').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                activitiesData.splice(e.target.dataset.idx, 1);
-                renderActivities();
+                const idx = e.currentTarget?.dataset?.idx || e.target.closest('.delete-act')?.dataset?.idx;
+                if (idx !== undefined) {
+                    activitiesData.splice(parseInt(idx, 10), 1);
+                    renderActivities();
+                }
             });
         });
     }
     renderActivities();
     
-    document.getElementById('btn-add-activity').addEventListener('click', () => {
+    document.getElementById('btn-add-activity')?.addEventListener('click', () => {
         activitiesData.push({ activity: '', date: '', institution: '', award: '' });
         renderActivities();
     });

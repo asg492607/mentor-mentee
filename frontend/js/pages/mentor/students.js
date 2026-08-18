@@ -223,7 +223,8 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-approve-student').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.target.dataset.id;
+        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-approve-student')?.dataset?.id;
+        if (!id) return;
         btn.disabled = true; btn.textContent = '...';
         try {
           // Approve and assign in parallel

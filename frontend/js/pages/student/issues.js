@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, IssueService, NotificationService, SettingsService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function statusBadge(s) {
   const cls = {OPEN:'badge-warning',RESOLVED:'badge-success',ESCALATED:'badge-danger',CLOSED:'badge-muted'}[s] || 'badge-muted';
@@ -64,21 +65,21 @@ export async function render(container) {
 
   const toggle = () => {
     const f = document.getElementById('issue-form');
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
   };
-  document.getElementById('btn-raise').addEventListener('click', toggle);
-  document.getElementById('btn-cancel-issue').addEventListener('click', toggle);
+  document.getElementById('btn-raise')?.addEventListener('click', toggle);
+  document.getElementById('btn-cancel-issue')?.addEventListener('click', toggle);
 
-  document.getElementById('btn-submit-issue').addEventListener('click', async () => {
-    const title    = document.getElementById('i-title').value.trim();
-    const category = document.getElementById('i-cat').value;
-    const priority = document.getElementById('i-pri').value;
-    const description = document.getElementById('i-desc').value.trim();
+  document.getElementById('btn-submit-issue')?.addEventListener('click', async () => {
+    const title    = document.getElementById('i-title')?.value.trim();
+    const category = document.getElementById('i-cat')?.value;
+    const priority = document.getElementById('i-pri')?.value;
+    const description = document.getElementById('i-desc')?.value.trim();
 
     if (!title || !description) { showToast('Please fill in title and description', 'warning'); return; }
 
     const btn = document.getElementById('btn-submit-issue');
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
 
     try {
       const freshUser = await StudentService.get(user.id);
@@ -106,19 +107,23 @@ export async function render(container) {
       }
 
       showToast('Issue submitted successfully', 'success');
-      document.getElementById('issue-form').style.display = 'none';
-      document.getElementById('i-title').value = '';
-      document.getElementById('i-desc').value = '';
+      const formEl = document.getElementById('issue-form');
+      if (formEl) formEl.style.display = 'none';
+      const titleEl = document.getElementById('i-title');
+      if (titleEl) titleEl.value = '';
+      const descEl = document.getElementById('i-desc');
+      if (descEl) descEl.value = '';
       loadIssues();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
-      btn.disabled = false;
+      if (btn) btn.disabled = false;
     }
   });
 
   async function loadIssues() {
     const wrap = document.getElementById('issues-wrap');
+    if (!wrap) return;
     try {
       const rawIssues = await IssueService.getByStudent(user.id);
       const issues = rawIssues.map(i => IssueService.sanitizeForStudent(i));
@@ -136,17 +141,17 @@ export async function render(container) {
             <div style="display:flex;align-items:flex-start;gap:12px;">
               <div style="flex:1;">
                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
-                  <h3 style="font-size:0.9rem;font-weight:600;margin:0;">${i.title}</h3>
+                  <h3 style="font-size:0.9rem;font-weight:600;margin:0;">${escapeHtml(i.title)}</h3>
                   ${statusBadge(i.status)}
                   ${priorityBadge(i.priority)}
-                  <span class="badge badge-info">${i.category}</span>
-                  ${i.escalationLevel ? `<span class="badge badge-muted" title="Currently handled by">@ ${i.escalationLevel}</span>` : ''}
+                  <span class="badge badge-info">${escapeHtml(i.category)}</span>
+                  ${i.escalationLevel ? `<span class="badge badge-muted" title="Currently handled by">@ ${escapeHtml(i.escalationLevel)}</span>` : ''}
                 </div>
-                <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:6px;">${i.description}</p>
-                ${i.status === 'ESCALATED' ? `<p style="color:var(--danger);font-size:0.78rem;margin-top:6px;">⚠ Your issue has been escalated to <strong>${i.escalationLevel}</strong> for further review.</p>` : ''}
+                <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:6px;">${escapeHtml(i.description)}</p>
+                ${i.status === 'ESCALATED' ? `<p style="color:var(--danger);font-size:0.78rem;margin-top:6px;">⚠ Your issue has been escalated to <strong>${escapeHtml(i.escalationLevel || '')}</strong> for further review.</p>` : ''}
                 ${i.actionTaken || i.resolution ? `
                   <div style="background:rgba(99,102,241,0.06);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.825rem;color:var(--text-primary);">
-                    <strong>Action Taken &amp; Remedial Measures:</strong> ${i.actionTaken || i.resolution}
+                    <strong>Action Taken &amp; Remedial Measures:</strong> ${escapeHtml(i.actionTaken || i.resolution)}
                   </div>
                 ` : ''}
               </div>

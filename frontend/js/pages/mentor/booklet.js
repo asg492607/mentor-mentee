@@ -405,41 +405,47 @@ export async function render(container) {
             });
             acadTbody.querySelectorAll('.delete-sub').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    academicsData[currentSem].subjects.splice(e.target.dataset.idx, 1);
-                    renderAcademicsForSem(currentSem);
+                    const idx = e.currentTarget?.dataset?.idx || e.target.closest('.delete-sub')?.dataset?.idx;
+                    if (idx !== undefined) {
+                        academicsData[currentSem].subjects.splice(parseInt(idx, 10), 1);
+                        renderAcademicsForSem(currentSem);
+                    }
                 });
             });
         }
     }
     
-    semSelect.addEventListener('change', (e) => renderAcademicsForSem(e.target.value));
+    semSelect?.addEventListener('change', (e) => renderAcademicsForSem(e.target.value));
     renderAcademicsForSem('SEM I'); // Initial render
 
-    document.getElementById('btn-add-subject').addEventListener('click', () => {
+    document.getElementById('btn-add-subject')?.addEventListener('click', () => {
         academicsData[currentSem].subjects.push({ name: '', date: '', seatNo: '', th: '', or: '', ia: '', total: '', result: '' });
         renderAcademicsForSem(currentSem);
     });
 
-    acadClass.addEventListener('input', (e) => academicsData[currentSem].classAwarded = e.target.value);
-    acadBacklogs.addEventListener('input', (e) => academicsData[currentSem].backlogs = e.target.value);
+    acadClass?.addEventListener('input', (e) => academicsData[currentSem].classAwarded = e.target.value);
+    acadBacklogs?.addEventListener('input', (e) => academicsData[currentSem].backlogs = e.target.value);
 
     // Render Activities Table (Readonly for Mentor)
     const activitiesBody = document.getElementById('activities-tbody');
     let activitiesData = bookletData.activities || [];
     if (activitiesData.length === 0) {
-        activitiesBody.innerHTML = '<tr><td colspan="4" style="padding:15px 0; text-align:center; color:var(--text-muted);">No activities logged yet.</td></tr>';
+        if (activitiesBody) activitiesBody.innerHTML = '<tr><td colspan="4" style="padding:15px 0; text-align:center; color:var(--text-muted);">No activities logged yet.</td></tr>';
     } else {
-        activitiesData.forEach(act => {
-            const tr = document.createElement('tr');
-            tr.style.borderBottom = '1px solid var(--border)';
-            tr.innerHTML = `
-                <td style="padding:10px 12px;">${safe(act.activity)}</td>
-                <td style="padding:10px 12px;">${safe(act.date)}</td>
-                <td style="padding:10px 12px;">${safe(act.institution)}</td>
-                <td style="padding:10px 12px;">${safe(act.award)}</td>
-            `;
-            activitiesBody.appendChild(tr);
-        });
+        if (activitiesBody) {
+            activitiesBody.innerHTML = '';
+            activitiesData.forEach(act => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border)';
+                tr.innerHTML = `
+                    <td style="padding:10px 12px;">${safe(act.activity)}</td>
+                    <td style="padding:10px 12px;">${safe(act.date)}</td>
+                    <td style="padding:10px 12px;">${safe(act.institution)}</td>
+                    <td style="padding:10px 12px;">${safe(act.award)}</td>
+                `;
+                activitiesBody.appendChild(tr);
+            });
+        }
     }
 
     // Render Meets Table (Editable for Mentor)
@@ -447,6 +453,7 @@ export async function render(container) {
     let meetsData = bookletData.meets || [];
 
     function renderMeets() {
+        if (!meetsBody) return;
         meetsBody.innerHTML = '';
         if (meetsData.length === 0) {
             meetsBody.innerHTML = '<tr><td colspan="5" style="padding:15px 0; text-align:center; color:var(--text-muted);">No meetings logged yet.</td></tr>';
@@ -467,20 +474,25 @@ export async function render(container) {
 
         meetsBody.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', (e) => {
-                meetsData[e.target.dataset.idx][e.target.dataset.field] = e.target.value;
+                const idx = e.target.dataset.idx;
+                const field = e.target.dataset.field;
+                if (meetsData[idx]) meetsData[idx][field] = e.target.value;
             });
         });
         meetsBody.querySelectorAll('.delete-meet').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                meetsData.splice(e.target.dataset.idx, 1);
-                renderMeets();
+                const idx = e.currentTarget?.dataset?.idx || e.target.closest('.delete-meet')?.dataset?.idx;
+                if (idx !== undefined) {
+                    meetsData.splice(parseInt(idx, 10), 1);
+                    renderMeets();
+                }
             });
         });
     }
 
     renderMeets();
 
-    document.getElementById('btn-add-meet').addEventListener('click', () => {
+    document.getElementById('btn-add-meet')?.addEventListener('click', () => {
         meetsData.push({ date: new Date().toISOString().split('T')[0], topic: '', suggestions: '', attendance: '' });
         renderMeets();
     });

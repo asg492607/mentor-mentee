@@ -258,7 +258,10 @@ export async function render(container) {
     `;
 
     container.querySelectorAll('.join-btn').forEach(b => {
-      b.addEventListener('click', (e) => navigateTo(`/meeting/${e.target.dataset.id}`));
+      b.addEventListener('click', (e) => {
+        const id = e.currentTarget?.dataset?.id || e.target.closest('[data-id]')?.dataset?.id;
+        if (id) navigateTo(`/meeting-room?id=${id}`);
+      });
     });
 
     // Render Mandatory Booklet Modal Popup if < 50% completed

@@ -245,7 +245,8 @@ export async function render(container) {
       // Wire status selects & delete buttons
       webIssuesContainer.querySelectorAll('.status-select-btn').forEach(sel => {
         sel.addEventListener('change', async (e) => {
-          const issueId = e.target.dataset.id;
+          const issueId = e.currentTarget?.dataset?.id || e.target.closest('.status-select-btn')?.dataset?.id;
+          if (!issueId) return;
           const newStatus = e.target.value;
           try {
             await WebIssueService.updateStatus(issueId, newStatus);
