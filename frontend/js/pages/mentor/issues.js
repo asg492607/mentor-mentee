@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { showModal } from '/js/components/modal.js';
 import { IssueService, NotificationService, SettingsService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
 
@@ -83,19 +84,19 @@ export async function render(container) {
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
               <div style="flex:1;">
                 <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
-                  <h3 style="font-size:0.95rem;font-weight:600;margin:0;">${issue.title}</h3>
-                  <span class="badge ${issue.status==='RESOLVED'?'badge-success':'badge-warning'}">${issue.status}</span>
-                  ${issue.priority ? `<span class="badge badge-danger">${issue.priority}</span>` : ''}
-                  <span class="badge badge-info" style="background:rgba(99,102,241,0.1);color:#6366f1;">Level: ${issue.escalationLevel || 'MENTOR'}</span>
+                  <h3 style="font-size:0.95rem;font-weight:600;margin:0;">${escapeHtml(issue.title)}</h3>
+                  <span class="badge ${issue.status==='RESOLVED'?'badge-success':'badge-warning'}">${escapeHtml(issue.status)}</span>
+                  ${issue.priority ? `<span class="badge badge-danger">${escapeHtml(issue.priority)}</span>` : ''}
+                  <span class="badge badge-info" style="background:rgba(99,102,241,0.1);color:#6366f1;">Level: ${escapeHtml(issue.escalationLevel || 'MENTOR')}</span>
                 </div>
                 <p style="color:var(--text-secondary);font-size:0.825rem;margin-bottom:4px;">
-                  <strong>Student:</strong> ${issue.studentName||'—'} | <strong>Category:</strong> ${issue.category || 'General'}
+                  <strong>Student:</strong> ${escapeHtml(issue.studentName||'—')} | <strong>Category:</strong> ${escapeHtml(issue.category || 'General')}
                 </p>
-                <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${issue.description||''}</p>
+                <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${escapeHtml(issue.description||'')}</p>
                 <p style="color:var(--text-muted);font-size:0.75rem;">Raised on ${fmt(issue.createdAt)}</p>
                 ${issue.actionTaken || issue.resolution ? `
                   <div style="background:rgba(99,102,241,0.07);border-left:3px solid var(--accent);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.825rem;color:var(--text-primary);">
-                    <strong>Action Taken &amp; Remedial Measures:</strong> ${issue.actionTaken || issue.resolution}
+                    <strong>Action Taken &amp; Remedial Measures:</strong> ${escapeHtml(issue.actionTaken || issue.resolution)}
                   </div>
                 ` : (issue.status !== 'RESOLVED' ? `
                   <div style="background:rgba(239,68,68,0.06);border-left:3px solid var(--danger);padding:6px 10px;border-radius:6px;margin-top:8px;font-size:0.78rem;color:#b91c1c;">
@@ -105,7 +106,7 @@ export async function render(container) {
                 ${(issue.escalationHistory||[]).length > 0 ? `
                   <div style="background:var(--bg-tertiary, #f8fafc);padding:8px 12px;border-radius:6px;margin-top:8px;font-size:0.75rem;">
                     <strong>Escalation History:</strong>
-                    ${issue.escalationHistory.map(h => `<div style="color:var(--text-muted);margin-top:2px;">• Sent from ${h.from} to <strong>${h.to}</strong> by ${h.escalatedBy || 'Mentor'}: "${h.reason || ''}"</div>`).join('')}
+                    ${issue.escalationHistory.map(h => `<div style="color:var(--text-muted);margin-top:2px;">• Sent from ${escapeHtml(h.from)} to <strong>${escapeHtml(h.to)}</strong> by ${escapeHtml(h.escalatedBy || 'Mentor')}: "${escapeHtml(h.reason || '')}"</div>`).join('')}
                   </div>
                 ` : ''}
               </div>
@@ -125,27 +126,28 @@ export async function render(container) {
     `;
 
     document.querySelectorAll('.log-action-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const issue = issues.find(i => i.id === btn.dataset.id);
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const issue = issues.find(i => i.id === issueId);
         showModal({
           title: `Log Action Taken & Remedial Measures`,
           content: `
             <div class="form-group">
-              <label class="form-label">Student: <strong>${issue?.studentName || 'Student'}</strong></label>
-              <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;">Issue: ${issue?.title || ''} (${issue?.category || 'General'})</p>
+              <label class="form-label">Student: <strong>${escapeHtml(issue?.studentName || 'Student')}</strong></label>
+              <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px;">Issue: ${escapeHtml(issue?.title || '')} (${escapeHtml(issue?.category || 'General')})</p>
               <label class="form-label" style="font-weight:600;">Action Taken / Remedial Measures</label>
-              <textarea id="issue-action-taken-input" class="form-textarea" style="min-height:120px;" placeholder="Describe what steps, counsel, or remedial measures were provided to the student...">${issue?.actionTaken || issue?.resolution || ''}</textarea>
+              <textarea id="issue-action-taken-input" class="form-textarea" style="min-height:120px;" placeholder="Describe what steps, counsel, or remedial measures were provided to the student...">${escapeHtml(issue?.actionTaken || issue?.resolution || '')}</textarea>
             </div>
           `,
           confirmText: '💾 Save Action Taken',
           onConfirm: async (close) => {
-            const actionText = document.getElementById('issue-action-taken-input').value.trim();
+            const actionText = document.getElementById('issue-action-taken-input')?.value.trim();
             if (!actionText) {
               showToast('Please enter the action taken or remedial measures', 'warning');
               return;
             }
             try {
-              await IssueService.updateActionTaken(btn.dataset.id, actionText);
+              await IssueService.updateActionTaken(issueId, actionText);
               if (issue) {
                 issue.actionTaken = actionText;
               }
@@ -161,7 +163,9 @@ export async function render(container) {
     });
 
     document.querySelectorAll('.res-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const studentId = e.currentTarget?.dataset?.sid || btn.dataset.sid;
         showModal({
           title: 'Resolve issue & Record Final Action',
           content: `
@@ -172,27 +176,30 @@ export async function render(container) {
           `,
           confirmText: '✓ Resolve Issue',
           onConfirm: async (close) => {
-            const resolution = document.getElementById('resolution-notes').value.trim();
+            const resolution = document.getElementById('resolution-notes')?.value.trim();
             if (!resolution) {
               showToast('Resolution notes are required', 'error');
               return;
             }
             try {
-              await IssueService.resolve(btn.dataset.id, resolution, 'FACULTY');
-              if (btn.dataset.sid) {
+              await IssueService.resolve(issueId, resolution, 'MENTOR');
+              const issue = issues.find(i => i.id === issueId);
+              if (studentId) {
                 await NotificationService.create({
-                  userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
-                  title:'Issue Resolved', message:`Your issue has been resolved by your Mentor: ${resolution}`, relatedId:btn.dataset.id
+                  userId: studentId,
+                  type: 'ISSUE_RESOLVED',
+                  title: 'Issue Resolved &amp; Guidance Logged',
+                  message: `Prof. ${user.name} resolved your issue: ${resolution}`,
+                  relatedId: issueId
                 });
               }
-              const issue = issues.find(i => i.id === btn.dataset.id);
               if (issue) {
                 issue.status = 'RESOLVED';
                 issue.resolution = resolution;
                 issue.actionTaken = resolution;
               }
               close();
-              showToast('Issue resolved and action recorded!', 'success');
+              showToast('Issue resolved and remedial action recorded for reports!', 'success');
               renderList();
             } catch (err) { showToast(err.message, 'error'); }
           }
@@ -201,39 +208,38 @@ export async function render(container) {
     });
 
     document.querySelectorAll('.escalate-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const cat = btn.dataset.cat;
-        const suggestedTarget = ['Travel Section', 'Non-Teaching', 'Non-Academic Section', 'Exam Section', 'Student Section'].includes(cat) ? cat : 'HOD';
-
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const currentCat = e.currentTarget?.dataset?.cat || btn.dataset.cat;
         showModal({
-          title: `Escalate Issue to Section Head / HOD`,
+          title: 'Escalate / Send Issue to Authority',
           content: `
             <div class="form-group">
-              <label class="form-label">Target Authority / Section</label>
+              <label class="form-label" style="font-weight:600;">Escalate Target</label>
               <select id="escalate-target-select" class="form-select" style="margin-bottom:12px;">
-                <option value="HOD" ${suggestedTarget === 'HOD' ? 'selected' : ''}>HOD (Head of Department)</option>
-                <optgroup label="Section Heads / Non-Academic Sections">
-                  ${issueCategories.map(sec => `
-                    <option value="${sec}" ${suggestedTarget === sec ? 'selected' : ''}>${sec} (Section Head)</option>
-                  `).join('')}
+                <option value="HOD">Head of Department (HOD)</option>
+                <optgroup label="Directly to Section Head">
+                  ${issueCategories.map(sec => `<option value="${sec}" ${sec === currentCat ? 'selected' : ''}>${sec} (Section Head)</option>`).join('')}
                 </optgroup>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Escalation Reason / Problem Details</label>
-              <textarea id="escalate-reason" class="form-textarea" style="min-height:100px;" placeholder="Explain why this problem is being sent to this section head or HOD..."></textarea>
+              <label class="form-label" style="font-weight:600;">Reason for Escalation</label>
+              <textarea id="escalation-reason-notes" class="form-textarea" style="min-height:100px;" placeholder="Explain why this requires administrative or section head intervention..."></textarea>
             </div>
           `,
-          confirmText: 'Escalate & Send',
+          confirmText: '↑ Send Escalation',
           onConfirm: async (close) => {
-            const targetSelect = document.getElementById('escalate-target-select');
-            const escalateTarget = targetSelect ? targetSelect.value : 'HOD';
-            const reason = document.getElementById('escalate-reason').value.trim();
-            if (!reason) { showToast('Escalation reason is required', 'error'); return; }
+            const escalateTarget = document.getElementById('escalate-target-select')?.value;
+            const reason = document.getElementById('escalation-reason-notes')?.value.trim();
+            if (!reason) {
+              showToast('Please provide a reason for escalation', 'warning');
+              return;
+            }
             try {
-              await IssueService.escalate(btn.dataset.id, escalateTarget, reason, user.name, 'FACULTY');
-              showToast(`Escalated to ${escalateTarget}`, 'info');
-              const issue = issues.find(i => i.id === btn.dataset.id);
+              await IssueService.escalate(issueId, escalateTarget, reason, user.name, user.role || 'MENTOR');
+              showToast(`Issue successfully escalated to ${escalateTarget}!`, 'info');
+              const issue = issues.find(i => i.id === issueId);
               if (issue) {
                 issue.escalationLevel = escalateTarget;
                 issue.status = 'ESCALATED';
@@ -349,16 +355,24 @@ export async function render(container) {
     const btn = container.querySelector('#btn-submit-issue');
     btn.disabled = true; btn.textContent = 'Submitting...';
     try {
-      const sId = container.querySelector('#issue-student').value;
+      const sId = container.querySelector('#issue-student')?.value;
       const student = students.find(s => s.id === sId);
-      const targetAuth = container.querySelector('#issue-target').value;
+      if (!sId || !student) {
+        showToast('Please select a valid student from your cohort', 'warning');
+        btn.disabled = false;
+        btn.textContent = 'Submit Issue';
+        return;
+      }
+      const targetAuth = container.querySelector('#issue-target')?.value || 'MENTOR';
       const issueData = {
-        studentId: student.id, studentName: student.name, department: student.department,
+        studentId: student.id,
+        studentName: student.name,
+        department: student.department || user.department || '',
         mentorId: user.id,
-        title: container.querySelector('#issue-title').value.trim(),
-        category: container.querySelector('#issue-cat').value,
-        priority: container.querySelector('#issue-pri').value,
-        description: container.querySelector('#issue-desc').value.trim(),
+        title: container.querySelector('#issue-title')?.value.trim() || 'Untitled Issue',
+        category: container.querySelector('#issue-cat')?.value || 'General',
+        priority: container.querySelector('#issue-pri')?.value || 'MEDIUM',
+        description: container.querySelector('#issue-desc')?.value.trim() || '',
         escalationLevel: targetAuth
       };
 

@@ -2,6 +2,7 @@ import { showModal, hideModal } from './modal.js';
 import { WebIssueService } from '../services.js';
 import { getUserProfile } from '../auth.js';
 import { showToast } from './toast.js';
+import { escapeHtml } from '../utils.js';
 
 export function openWebIssueModal() {
   const user = getUserProfile();
@@ -45,7 +46,7 @@ export function openWebIssueModal() {
 
       <div class="form-group">
         <label class="form-label" style="font-weight:600;font-size:0.78rem;color:var(--text-muted);">Current Route URL</label>
-        <input type="text" id="web-issue-url" class="form-input" value="${currentUrl}" readonly style="background:var(--bg-secondary);font-family:monospace;font-size:0.78rem;">
+        <input type="text" id="web-issue-url" class="form-input" value="${escapeHtml(currentUrl)}" readonly style="background:var(--bg-secondary);font-family:monospace;font-size:0.78rem;">
       </div>
     </form>
   `;
