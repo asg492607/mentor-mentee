@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { showModal } from '/js/components/modal.js';
 import { IssueService, NotificationService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
 
@@ -34,6 +35,7 @@ export async function render(container) {
 
   function renderList() {
     const wrap = document.getElementById('esc-content');
+    if (!wrap) return;
     if (!issues.length) {
       wrap.innerHTML = `<div class="empty-state card" style="padding:48px;">
         <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -53,20 +55,20 @@ export async function render(container) {
           <div class="card" style="padding:20px;border-left:3px solid ${issue.status==='RESOLVED'?'var(--success)':'var(--warning)'};" id="esc-${issue.id}">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
               <div style="flex:1;">
-                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
-                  <h3 style="font-size:0.95rem;font-weight:600;margin:0;">${issue.title}</h3>
-                  <span class="badge ${issue.status==='RESOLVED'?'badge-success':'badge-warning'}">${issue.status}</span>
-                  ${issue.priority ? `<span class="badge badge-danger">${issue.priority}</span>` : ''}
+                <div style="display:flex;flex-wrap:gap:8px;align-items:center;margin-bottom:8px;">
+                  <h3 style="font-size:0.95rem;font-weight:600;margin:0;">${escapeHtml(issue.title)}</h3>
+                  <span class="badge ${issue.status==='RESOLVED'?'badge-success':'badge-warning'}">${escapeHtml(issue.status)}</span>
+                  ${issue.priority ? `<span class="badge badge-danger">${escapeHtml(issue.priority)}</span>` : ''}
                 </div>
                 <p style="color:var(--text-secondary);font-size:0.825rem;margin-bottom:4px;">
-                  <strong>Student:</strong> ${issue.studentName||'—'}
+                  <strong>Student:</strong> ${escapeHtml(issue.studentName||'—')}
                 </p>
-                <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${issue.description||''}</p>
+                <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">${escapeHtml(issue.description||'')}</p>
                 <p style="color:var(--text-muted);font-size:0.75rem;">Raised on ${fmt(issue.createdAt)}</p>
-                ${issue.resolution ? `<p style="color:var(--success);margin-top:8px;font-size:0.825rem;"><strong>Resolution:</strong> ${issue.resolution}</p>` : ''}
+                ${issue.resolution ? `<p style="color:var(--success);margin-top:8px;font-size:0.825rem;"><strong>Resolution:</strong> ${escapeHtml(issue.resolution)}</p>` : ''}
                 ${(issue.escalationHistory||[]).length > 0 ? `
                   <p style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">
-                    Escalated from: ${issue.escalationHistory[issue.escalationHistory.length-1]?.from || 'MENTOR'}
+                    Escalated from: ${escapeHtml(issue.escalationHistory[issue.escalationHistory.length-1]?.from || 'MENTOR')}
                   </p>
                 ` : ''}
               </div>
@@ -82,7 +84,9 @@ export async function render(container) {
     `;
 
     document.querySelectorAll('.res-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const studentId = e.currentTarget?.dataset?.sid || btn.dataset.sid;
         showModal({
           title: 'Resolve issue',
           content: `
@@ -93,24 +97,24 @@ export async function render(container) {
           `,
           confirmText: 'Resolve',
           onConfirm: async (close) => {
-            const resolution = document.getElementById('resolution-notes').value.trim();
+            const resolution = document.getElementById('resolution-notes')?.value.trim();
             if (!resolution) {
               showToast('Resolution notes are required', 'error');
               return;
             }
             try {
-              await IssueService.resolve(btn.dataset.id, resolution, 'DEAN');
-              const issue = issues.find(i => i.id === btn.dataset.id);
-              if (btn.dataset.sid) {
+              await IssueService.resolve(issueId, resolution, 'DEAN');
+              const issue = issues.find(i => i.id === issueId);
+              if (studentId) {
                 await NotificationService.create({
-                  userId: btn.dataset.sid, type:'ISSUE_RESOLVED',
-                  title:'Issue Resolved', message:`Your issue has been resolved by the Dean: ${resolution}`, relatedId:btn.dataset.id
+                  userId: studentId, type:'ISSUE_RESOLVED',
+                  title:'Issue Resolved', message:`Your issue has been resolved by the Dean: ${resolution}`, relatedId:issueId
                 });
               }
               if (issue && issue.mentorId) {
                 await NotificationService.create({
                   userId: issue.mentorId, type:'ISSUE_RESOLVED',
-                  title:'Issue Resolved', message:`Student issue resolved by the Dean: ${resolution}`, relatedId:btn.dataset.id
+                  title:'Issue Resolved', message:`Student issue resolved by the Dean: ${resolution}`, relatedId:issueId
                 });
               }
               if (issue) {

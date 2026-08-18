@@ -1,12 +1,15 @@
+import { escapeHtml } from '../utils.js';
+
 export function createHeader(title, user, notificationCount = 0) {
   const badgeHtml = notificationCount > 0 ? `<span class="notification-badge">${notificationCount > 9 ? '9+' : notificationCount}</span>` : '';
-  const initial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
+  const initial = escapeHtml(user?.name ? user.name.charAt(0).toUpperCase() : '?');
 
   const role = (user?.role || 'STUDENT').toUpperCase();
   const pdfMap = {
     'ADMIN': '/docs/pdf/Lumina_Admin_Guide.pdf',
     'HOD': '/docs/pdf/Lumina_HOD_Guide.pdf',
     'DEAN': '/docs/pdf/Lumina_HOD_Guide.pdf',
+    'SECTION_HEAD': '/docs/pdf/Lumina_HOD_Guide.pdf',
     'MENTOR': '/docs/pdf/Lumina_Mentor_Guide.pdf',
     'FACULTY': '/docs/pdf/Lumina_Mentor_Guide.pdf',
     'STUDENT': '/docs/pdf/Lumina_Student_Mentee_Guide.pdf'
@@ -58,7 +61,7 @@ export function createHeader(title, user, notificationCount = 0) {
         </div>
         <div class="header-user-profile-btn flex items-center gap-3" id="global-header-profile-btn" style="cursor:pointer;padding:4px 12px 4px 6px;border-radius:24px;background:var(--bg-secondary);border:1px solid var(--border);transition:all 0.2s;user-select:none;" title="Click to view &amp; edit Profile">
           <div class="avatar avatar-sm">${initial}</div>
-          <span class="header-user-name" style="font-weight:600;font-size:0.875rem;">${user?.name || 'User'}</span>
+          <span class="header-user-name" style="font-weight:600;font-size:0.875rem;">${escapeHtml(user?.name || 'User')}</span>
           <i class="ph ph-caret-down" style="font-size:0.8rem;color:var(--text-muted);"></i>
         </div>
       </div>
