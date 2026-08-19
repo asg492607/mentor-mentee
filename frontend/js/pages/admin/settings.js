@@ -8,6 +8,7 @@ import {
   collection, getDocs, deleteDoc, doc, query, orderBy,
   updateDoc, increment, writeBatch, setDoc, getDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { escapeHtml } from '/js/utils.js';
 
 
 
@@ -206,8 +207,8 @@ export async function render(container) {
               <div class="card" style="padding:16px;border-left:4px solid ${iss.status==='RESOLVED'?'#22c55e':iss.status==='IN_PROGRESS'?'#f59e0b':'#ef4444'};">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <h4 style="font-size:0.98rem;font-weight:700;margin:0;color:var(--text-primary);">${iss.title}</h4>
-                    <span class="badge badge-info" style="font-size:0.75rem;">${iss.category || 'General'}</span>
+                    <h4 style="font-size:0.98rem;font-weight:700;margin:0;color:var(--text-primary);">${escapeHtml(iss.title)}</h4>
+                    <span class="badge badge-info" style="font-size:0.75rem;">${escapeHtml(iss.category || 'General')}</span>
                     ${priorityBadge}
                     ${statusBadge}
                   </div>
@@ -223,14 +224,14 @@ export async function render(container) {
                   </div>
                 </div>
 
-                <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin-bottom:12px;white-space:pre-wrap;background:var(--bg-secondary);padding:10px;border-radius:8px;">${iss.description}</p>
+                <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin-bottom:12px;white-space:pre-wrap;background:var(--bg-secondary);padding:10px;border-radius:8px;">${escapeHtml(iss.description)}</p>
 
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:0.78rem;color:var(--text-muted);border-top:1px solid var(--border);padding-top:10px;">
                   <div>
-                    <strong>Reporter:</strong> ${iss.reporterName} (${iss.reporterRole}) ${iss.reporterEmail ? '— ' + iss.reporterEmail : ''}
+                    <strong>Reporter:</strong> ${escapeHtml(iss.reporterName || 'Anonymous')} (${escapeHtml(iss.reporterRole || 'User')}) ${iss.reporterEmail ? '— ' + escapeHtml(iss.reporterEmail) : ''}
                   </div>
                   <div>
-                    <strong>Route URL:</strong> <code style="font-size:0.75rem;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;">${iss.pageUrl || '/'}</code>
+                    <strong>Route URL:</strong> <code style="font-size:0.75rem;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;">${escapeHtml(iss.pageUrl || '/')}</code>
                   </div>
                   <div>
                     <strong>Reported:</strong> ${new Date(iss.createdAt).toLocaleString()}
@@ -260,7 +261,9 @@ export async function render(container) {
 
       webIssuesContainer.querySelectorAll('.delete-issue-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          const issueId = e.currentTarget.dataset.id;
+          const targetBtn = e.currentTarget || e.target.closest('.delete-issue-btn');
+          const issueId = targetBtn?.dataset?.id;
+          if (!issueId) return;
           if (!confirm('Delete this web issue report permanently?')) return;
           try {
             await WebIssueService.deleteIssue(issueId);
@@ -326,15 +329,17 @@ export async function render(container) {
     const list = document.getElementById('sections-list');
     list.innerHTML = sections.map((sec, i) => `
       <span class="badge badge-info" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
-        ${sec}
+        ${escapeHtml(sec)}
         <button class="btn-del-section" data-idx="${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
       </span>
     `).join('');
 
     list.querySelectorAll('.btn-del-section').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        const targetBtn = e.currentTarget || e.target.closest('.btn-del-section');
+        const idx = parseInt(targetBtn?.dataset?.idx);
+        if (isNaN(idx)) return;
         if(!confirm('Delete this section?')) return;
-        const idx = parseInt(e.currentTarget.dataset.idx);
         const removed = sections.splice(idx, 1);
         renderSections();
         try {
@@ -749,11 +754,11 @@ export async function render(container) {
               const isKeeper = idx === 0;
               const created = rec.createdAt ? new Date(rec.createdAt).toLocaleString('en-IN') : '—';
               return `<tr id="cleanup-row-${rec.id}" style="${!isKeeper ? 'background:rgba(239,68,68,0.05);' : ''}">
-                <td style="font-family:monospace;font-size:0.75rem;">${g.email}</td>
-                <td style="font-weight:600;">${rec.name || '—'}</td>
-                <td><span class="badge badge-muted" style="font-size:0.7rem;">${rec.role || '—'}</span></td>
-                <td style="color:var(--text-muted);">${rec.collection}</td>
-                <td style="font-family:monospace;font-size:0.7rem;color:var(--text-muted);">${rec.id.slice(0,12)}…</td>
+                <td style="font-family:monospace;font-size:0.75rem;">${escapeHtml(g.email)}</td>
+                <td style="font-weight:600;">${escapeHtml(rec.name || '—')}</td>
+                <td><span class="badge badge-muted" style="font-size:0.7rem;">${escapeHtml(rec.role || '—')}</span></td>
+                <td style="color:var(--text-muted);">${escapeHtml(rec.collection || '')}</td>
+                <td style="font-family:monospace;font-size:0.7rem;color:var(--text-muted);">${escapeHtml(rec.id.slice(0,12))}…</td>
                 <td style="font-size:0.75rem;color:var(--text-muted);">${created}</td>
                 <td>
                   ${isKeeper
@@ -777,19 +782,21 @@ export async function render(container) {
 
     // Wire individual delete buttons
     cleanupResultsEl.querySelectorAll('.btn-del-single').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id       = btn.dataset.id;
-        const col      = btn.dataset.col;
-        const mentorId = btn.dataset.mentor;
+      btn.addEventListener('click', async (e) => {
+        const targetBtn = e.currentTarget || e.target.closest('.btn-del-single');
+        const id       = targetBtn?.dataset?.id;
+        const col      = targetBtn?.dataset?.col;
+        const mentorId = targetBtn?.dataset?.mentor;
+        if (!id) return;
         if (!confirm(`Delete this duplicate record (ID: ${id.slice(0,12)}…)? This cannot be undone.`)) return;
-        btn.disabled = true; btn.textContent = '…';
+        targetBtn.disabled = true; targetBtn.textContent = '…';
         try {
           await deleteDuplicateRecord(id, col, mentorId);
           document.getElementById(`cleanup-row-${id}`)?.remove();
           showToast('Duplicate record deleted.', 'success');
         } catch (err) {
           showToast('Failed to delete: ' + err.message, 'error');
-          btn.disabled = false; btn.textContent = 'Delete';
+          targetBtn.disabled = false; targetBtn.textContent = 'Delete';
         }
       });
     });
