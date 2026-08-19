@@ -990,9 +990,12 @@ export async function render(container) {
   // Wire Role Tab buttons
   container.querySelectorAll('.role-tab-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      const targetBtn = e.currentTarget || e.target.closest('.role-tab-btn');
       container.querySelectorAll('.role-tab-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      renderRoleTab(e.target.dataset.role);
+      if (targetBtn) {
+        targetBtn.classList.add('active');
+        renderRoleTab(targetBtn.dataset.role);
+      }
     });
   });
 

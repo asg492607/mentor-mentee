@@ -742,9 +742,12 @@ export async function render(container) {
 
   document.querySelectorAll('.bulk-role-tab').forEach(tab => {
     tab.addEventListener('click', (e) => {
+      const targetBtn = e.currentTarget || e.target.closest('.bulk-role-tab');
       document.querySelectorAll('.bulk-role-tab').forEach(t => t.className = 'btn btn-sm btn-secondary bulk-role-tab');
-      e.target.className = 'btn btn-sm btn-primary bulk-role-tab';
-      selectedBulkRole = e.target.dataset.role;
+      if (targetBtn) {
+        targetBtn.className = 'btn btn-sm btn-primary bulk-role-tab';
+        selectedBulkRole = targetBtn.dataset.role;
+      }
       if (parsedRows.length > 0) {
         renderPreview();
       }
