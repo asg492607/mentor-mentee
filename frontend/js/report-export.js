@@ -1,5 +1,6 @@
 import { FacultyService, StudentService, IssueService, MeetingService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function exportMentorStudentReport(format = 'excel') {
   showToast(`Preparing ${format.toUpperCase()} classwise allocation report...`, 'info');
@@ -259,7 +260,7 @@ function openPrintableReportWindow(reportRows, mentors, sortedStudents) {
 
     return `
           <div class="class-header">
-            <span>📌 ${cName}</span>
+            <span>📌 ${escapeHtml(cName)}</span>
             <span style="font-size:0.85rem;font-weight:600;color:#64748b;">${totalInClass} Student(s) across ${Object.keys(mentorsInClass).length} Mentor(s)</span>
           </div>
 
@@ -267,7 +268,7 @@ function openPrintableReportWindow(reportRows, mentors, sortedStudents) {
       const rows = mentorsInClass[mName];
       return `
               <div class="mentor-header">
-                <span>👤 Mentor: <strong>${mName}</strong></span>
+                <span>👤 Mentor: <strong>${escapeHtml(mName)}</strong></span>
                 <span>${rows.length} Assigned Mentees</span>
               </div>
               <table>
@@ -284,10 +285,10 @@ function openPrintableReportWindow(reportRows, mentors, sortedStudents) {
                   ${rows.map(r => `
                     <tr>
                       <td>${r['Sr No']}</td>
-                      <td><strong>${r['Student Name']}</strong></td>
-                      <td>${r['Enrollment No']}</td>
-                      <td>${r['Mentor Dept']}</td>
-                      <td>${r['Student Dept']}</td>
+                      <td><strong>${escapeHtml(r['Student Name'])}</strong></td>
+                      <td>${escapeHtml(r['Enrollment No'])}</td>
+                      <td>${escapeHtml(r['Mentor Dept'])}</td>
+                      <td>${escapeHtml(r['Student Dept'])}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -770,12 +771,12 @@ function openPrintableMultiClassMentorsWindow(mentorsList, relevantStudents, cla
           ${mentorsList.map((m, idx) => `
             <tr>
               <td>${idx + 1}</td>
-              <td><strong>${m.name}</strong></td>
-              <td>${m.email}</td>
-              <td>${m.phone}</td>
-              <td>${m.department}</td>
-              <td>${m.designation}</td>
-              <td>${m.classesBreakdownStr}</td>
+              <td><strong>${escapeHtml(m.name)}</strong></td>
+              <td>${escapeHtml(m.email)}</td>
+              <td>${escapeHtml(m.phone)}</td>
+              <td>${escapeHtml(m.department)}</td>
+              <td>${escapeHtml(m.designation)}</td>
+              <td>${escapeHtml(m.classesBreakdownStr)}</td>
               <td style="text-align:center;font-weight:700;color:#6254e7;">${m.selectedMenteesCount}</td>
               <td style="text-align:center;">${m.totalPlatformMentees}</td>
             </tr>
@@ -788,10 +789,10 @@ function openPrintableMultiClassMentorsWindow(mentorsList, relevantStudents, cla
         <div class="mentor-card">
           <div class="mentor-card-header">
             <div>
-              <span>👤 <strong>${m.name}</strong> (${m.department} &bull; ${m.designation})</span>
-              <span style="font-size:0.8rem;color:#64748b;margin-left:10px;">📧 ${m.email} | 📞 ${m.phone}</span>
+              <span>👤 <strong>${escapeHtml(m.name)}</strong> (${escapeHtml(m.department)} &bull; ${escapeHtml(m.designation)})</span>
+              <span style="font-size:0.8rem;color:#64748b;margin-left:10px;">📧 ${escapeHtml(m.email)} | 📞 ${escapeHtml(m.phone)}</span>
             </div>
-            <span class="badge">${m.selectedMenteesCount} Mentees in ${classesLabel}</span>
+            <span class="badge">${m.selectedMenteesCount} Mentees in ${escapeHtml(classesLabel)}</span>
           </div>
           <table class="mentee-table">
             <thead>
@@ -809,12 +810,12 @@ function openPrintableMultiClassMentorsWindow(mentorsList, relevantStudents, cla
               ${m.mentees.map((s, sIdx) => `
                 <tr>
                   <td>${sIdx + 1}</td>
-                  <td><strong>${s.class ? `Class ${s.class}` : 'Unassigned'}</strong></td>
-                  <td>${s.name || '—'}</td>
-                  <td>${s.enrollmentNumber || '—'}</td>
-                  <td>${s.email || '—'}</td>
-                  <td>${s.mobileNumber || s.phone || s.studentPhone || '—'}</td>
-                  <td>${s.fatherContact || s.parentContact || s.fatherPhoneM || '—'}</td>
+                  <td><strong>${s.class ? `Class ${escapeHtml(s.class)}` : 'Unassigned'}</strong></td>
+                  <td>${escapeHtml(s.name || '—')}</td>
+                  <td>${escapeHtml(s.enrollmentNumber || '—')}</td>
+                  <td>${escapeHtml(s.email || '—')}</td>
+                  <td>${escapeHtml(s.mobileNumber || s.phone || s.studentPhone || '—')}</td>
+                  <td>${escapeHtml(s.fatherContact || s.parentContact || s.fatherPhoneM || '—')}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -890,8 +891,8 @@ export function exportMeetingSessionReport(meeting) {
   const attendanceRows = studentsList.length > 0 ? studentsList.map((s, i) => `
     <tr>
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${i + 1}</td>
-      <td style="border:1px solid #64748b;padding:5px 8px;font-weight:600;">${s.name || s.studentName || '—'}</td>
-      <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${s.enrollment || s.enrollmentNumber || s.rollNumber || '—'}</td>
+      <td style="border:1px solid #64748b;padding:5px 8px;font-weight:600;">${escapeHtml(s.name || s.studentName || '—')}</td>
+      <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${escapeHtml(s.enrollment || s.enrollmentNumber || s.rollNumber || '—')}</td>
       <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;color:#475569;font-size:8pt;font-style:italic;">[Verified Digital Attendance]</td>
     </tr>
   `).join('') : `
