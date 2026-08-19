@@ -1,6 +1,6 @@
 import { db } from '/js/firebase-init.js';
 import { collection, query, where, limit, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-import { getCurrentUser } from '/js/auth.js';
+import { getCurrentUser, getUserProfile } from '/js/auth.js';
 import { NotificationService } from '/js/services.js';
 import { navigateTo } from '/js/router.js';
 import { escapeHtml } from '/js/utils.js';
@@ -92,7 +92,7 @@ export function renderNotifications() {
   }
 
   list.innerHTML = currentNotifications.slice(0, 50).map(n => `
-    <div class="notification-item ${n.isRead ? '' : 'unread'}" data-id="${n.id}">
+    <div class="notification-item ${n.isRead ? '' : 'unread'}" data-id="${n.id}" style="cursor:pointer;">
       <div class="notification-icon">
         <i class="ph ${getIconForType(n.type)}"></i>
       </div>
@@ -128,6 +128,22 @@ document.addEventListener('click', async (e) => {
        await NotificationService.markRead(id);
     }
     dropdown.classList.remove('show');
+
+    // Deep navigation based on notification type and user role
+    const profile = getUserProfile();
+    const role = (profile?.role || '').toUpperCase();
+    if (n) {
+      if (n.type?.startsWith('MEETING')) {
+        if (role === 'STUDENT') navigateTo('/student/meetings');
+        else if (role === 'FACULTY' || role === 'MENTOR') navigateTo('/mentor/meetings');
+      } else if (n.type?.startsWith('ISSUE')) {
+        if (role === 'STUDENT') navigateTo('/student/issues');
+        else if (role === 'FACULTY' || role === 'MENTOR') navigateTo('/mentor/issues');
+        else if (role === 'HOD') navigateTo('/hod/escalations');
+        else if (role === 'DEAN') navigateTo('/dean/escalations');
+        else if (role === 'SECTION_HEAD') navigateTo('/section/escalations');
+      }
+    }
   }
 
   // Click mark all read
