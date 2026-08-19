@@ -233,7 +233,8 @@ export function renderCalendar(container, options = {}) {
     container.querySelectorAll('.cal-event-pill').forEach(el => {
       el.onclick = (e) => {
         e.stopPropagation();
-        const mId = el.dataset.meetingId;
+        const targetPill = e.currentTarget || e.target.closest('.cal-event-pill');
+        const mId = targetPill?.dataset?.meetingId;
         const meeting = meetings.find(m => m.id === mId);
         if (meeting) {
           openMeetingDetailsModal(meeting, isMentor, currentUser, onStatusChange);
@@ -242,8 +243,9 @@ export function renderCalendar(container, options = {}) {
     });
 
     container.querySelectorAll('.calendar-day-cell.current-month').forEach(el => {
-      el.onclick = () => {
-        const dateKey = el.dataset.date;
+      el.onclick = (e) => {
+        const targetCell = e.currentTarget || e.target.closest('.calendar-day-cell');
+        const dateKey = targetCell?.dataset?.date;
         const dayMeetings = dateMeetingMap[dateKey] || [];
         if (dayMeetings.length === 1) {
           openMeetingDetailsModal(dayMeetings[0], isMentor, currentUser, onStatusChange);
