@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { StatsService, StudentService, FacultyService } from '/js/services.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
 import { showToast } from '/js/components/toast.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -128,7 +129,7 @@ export async function render(container) {
                     ${deptRows.map((d, i) => `
                       <tr>
                         <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${i + 1}</td>
-                        <td style="padding:12px;font-weight:600;">${d.name}</td>
+                        <td style="padding:12px;font-weight:600;">${escapeHtml(d.name)}</td>
                         <td style="padding:12px;text-align:center;"><span class="badge badge-accent">${d.mentorCount}</span></td>
                         <td style="padding:12px;text-align:center;"><span class="badge badge-info">${d.studentCount}</span></td>
                         <td style="padding:12px;text-align:center;">
@@ -157,7 +158,7 @@ export async function render(container) {
               <input type="text" id="dean-mentor-search" class="form-input" placeholder="🔍 Search mentor name / dept..." style="padding:7px 12px;font-size:0.83rem;min-width:220px;">
               <select id="dean-dept-filter" class="form-select" style="padding:7px 12px;font-size:0.83rem;">
                 <option value="">All Departments</option>
-                ${[...new Set(mentors.map(m => m.department).filter(Boolean))].sort().map(d => `<option value="${d}">${d}</option>`).join('')}
+                ${[...new Set(mentors.map(m => m.department).filter(Boolean))].sort().map(d => `<option value="${d}">${escapeHtml(d)}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -201,19 +202,19 @@ export async function render(container) {
             ${filtered.map((m, i) => `
               <tr>
                 <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${i + 1}</td>
-                <td style="padding:12px;font-weight:600;">${m.name || '—'}</td>
-                <td style="padding:12px;font-size:0.85rem;color:var(--text-secondary);">${m.department || '—'}</td>
-                <td style="padding:12px;font-size:0.85rem;">${m.designation || 'Faculty'}</td>
+                <td style="padding:12px;font-weight:600;">${escapeHtml(m.name || '—')}</td>
+                <td style="padding:12px;font-size:0.85rem;color:var(--text-secondary);">${escapeHtml(m.department || '—')}</td>
+                <td style="padding:12px;font-size:0.85rem;">${escapeHtml(m.designation || 'Faculty')}</td>
                 <td style="padding:12px;text-align:center;"><span class="badge badge-accent">${m.studentCount}</span></td>
                 <td style="padding:12px;text-align:center;">
                   <span class="badge ${m.highRiskCount > 0 ? 'badge-danger' : 'badge-success'}">${m.highRiskCount}</span>
                 </td>
                 <td style="padding:12px;text-align:center;">
                   <div style="display:flex;gap:6px;justify-content:center;">
-                    <button class="btn btn-xs btn-secondary btn-dean-mentor-excel" data-mentor-id="${m.id}" title="Download Excel for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                    <button class="btn btn-xs btn-secondary btn-dean-mentor-excel" data-mentor-id="${m.id}" title="Download Excel for ${escapeHtml(m.name || '')}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
                       <i class="ph ph-file-xls" style="color:var(--success);"></i> XLS
                     </button>
-                    <button class="btn btn-xs btn-secondary btn-dean-mentor-pdf" data-mentor-id="${m.id}" title="Download PDF for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                    <button class="btn btn-xs btn-secondary btn-dean-mentor-pdf" data-mentor-id="${m.id}" title="Download PDF for ${escapeHtml(m.name || '')}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
                       <i class="ph ph-file-pdf" style="color:var(--danger);"></i> PDF
                     </button>
                   </div>

@@ -3,10 +3,11 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, StatsService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r] || 'badge-muted';
-  return `<span class="badge ${cls}">${r||'N/A'}</span>`;
+  return `<span class="badge ${cls}">${escapeHtml(r||'N/A')}</span>`;
 }
 
 export async function render(container) {
@@ -32,7 +33,7 @@ export async function render(container) {
   }
 
   const risk = StatsService.computeRisk(profile);
-  const initials = (profile.name || 'S').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const initials = escapeHtml((profile.name || 'S').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2));
 
   (container.querySelector('#profile-wrap') || {}).innerHTML = `
     <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
@@ -40,8 +41,8 @@ export async function render(container) {
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="card" style="padding:28px;text-align:center;">
           <div class="avatar avatar-xl" style="margin:0 auto 16px;">${initials}</div>
-          <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">${profile.name || 'Student'}</h3>
-          <p style="color:var(--text-muted);font-size:0.825rem;margin-bottom:12px;">${profile.email || ''}</p>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">${escapeHtml(profile.name || 'Student')}</h3>
+          <p style="color:var(--text-muted);font-size:0.825rem;margin-bottom:12px;">${escapeHtml(profile.email || '')}</p>
           ${riskBadge(profile.riskLevel || risk.riskLevel)}
           <p style="color:var(--text-muted);font-size:0.75rem;margin-top:8px;">Risk Score: ${profile.riskScore || risk.riskScore}/100</p>
         </div>
@@ -55,8 +56,8 @@ export async function render(container) {
             ['Attendance',  (profile.attendance || 0) + '%'],
           ].map(([l,v]) => `
             <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
-              <span style="color:var(--text-secondary);font-size:0.825rem;">${l}</span>
-              <strong style="font-size:0.875rem;">${v}</strong>
+              <span style="color:var(--text-secondary);font-size:0.825rem;">${escapeHtml(l)}</span>
+              <strong style="font-size:0.875rem;">${escapeHtml(String(v))}</strong>
             </div>
           `).join('')}
         </div>
@@ -71,11 +72,11 @@ export async function render(container) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="form-group">
             <label class="form-label">Full Name</label>
-            <input type="text" id="p-name" class="form-input" value="${profile.name || ''}">
+            <input type="text" id="p-name" class="form-input" value="${escapeHtml(profile.name || '')}">
           </div>
           <div class="form-group">
             <label class="form-label">Enrollment Number</label>
-            <input type="text" id="p-roll" class="form-input" value="${profile.enrollmentNumber || ''}" readonly style="opacity:0.6;">
+            <input type="text" id="p-roll" class="form-input" value="${escapeHtml(profile.enrollmentNumber || '')}" readonly style="opacity:0.6;">
           </div>
           <div class="form-group">
             <label class="form-label">CGPA</label>
@@ -87,15 +88,15 @@ export async function render(container) {
           </div>
           <div class="form-group" style="grid-column:1/-1;">
             <label class="form-label">Interests</label>
-            <textarea id="p-interests" class="form-textarea" style="min-height:80px;" placeholder="e.g. Machine Learning, Web Development...">${profile.interests || ''}</textarea>
+            <textarea id="p-interests" class="form-textarea" style="min-height:80px;" placeholder="e.g. Machine Learning, Web Development...">${escapeHtml(profile.interests || '')}</textarea>
           </div>
           <div class="form-group" style="grid-column:1/-1;">
             <label class="form-label">Skills</label>
-            <textarea id="p-skills" class="form-textarea" style="min-height:80px;" placeholder="e.g. Python, React, Data Analysis...">${profile.skills || ''}</textarea>
+            <textarea id="p-skills" class="form-textarea" style="min-height:80px;" placeholder="e.g. Python, React, Data Analysis...">${escapeHtml(profile.skills || '')}</textarea>
           </div>
           <div class="form-group" style="grid-column:1/-1;">
             <label class="form-label">Career Goal</label>
-            <textarea id="p-career" class="form-textarea" style="min-height:80px;" placeholder="Describe your career objectives...">${profile.careerGoal || ''}</textarea>
+            <textarea id="p-career" class="form-textarea" style="min-height:80px;" placeholder="Describe your career objectives...">${escapeHtml(profile.careerGoal || '')}</textarea>
           </div>
         </div>
       </div>

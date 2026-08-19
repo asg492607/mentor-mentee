@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { StatsService } from '/js/services.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
 import { showToast } from '/js/components/toast.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -87,7 +88,7 @@ export async function render(container) {
                 <option value="">-- Select Mentor Name --</option>
                 ${mentors.map(m => {
                   const mCount = students.filter(s => s.mentorId === m.id).length;
-                  return `<option value="${m.id}">${m.name} (${mCount} Mentees)</option>`;
+                  return `<option value="${m.id}">${escapeHtml(m.name)} (${mCount} Mentees)</option>`;
                 }).join('')}
               </select>
               <button class="btn btn-primary btn-sm" id="btn-single-mentor-excel" style="display:flex; align-items:center; gap:6px;">
@@ -137,8 +138,8 @@ export async function render(container) {
                       return `
                         <tr>
                           <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${idx + 1}</td>
-                          <td style="padding:12px; font-weight:600; color:var(--text-primary);">${m.name}</td>
-                          <td style="padding:12px; color:var(--text-secondary); font-size:0.85rem;">${m.designation || 'Faculty'}</td>
+                          <td style="padding:12px; font-weight:600; color:var(--text-primary);">${escapeHtml(m.name)}</td>
+                          <td style="padding:12px; color:var(--text-secondary); font-size:0.85rem;">${escapeHtml(m.designation || 'Faculty')}</td>
                           <td style="padding:12px; text-align:center;"><span class="badge badge-accent" style="font-weight:700;">${assignedCount}</span></td>
                           <td style="padding:12px; text-align:center; font-weight:600;">${maxCapacity}</td>
                           <td style="padding:12px; text-align:center;">
@@ -156,10 +157,10 @@ export async function render(container) {
                           </td>
                           <td style="padding:12px; text-align:center;">
                             <div style="display:flex;gap:6px;justify-content:center;">
-                              <button class="btn btn-xs btn-secondary btn-mentor-dl-excel" data-mentor-id="${m.id}" data-mentor-name="${m.name}" title="Download Excel report for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                              <button class="btn btn-xs btn-secondary btn-mentor-dl-excel" data-mentor-id="${m.id}" data-mentor-name="${escapeHtml(m.name)}" title="Download Excel report for ${escapeHtml(m.name)}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
                                 <i class="ph ph-file-xls" style="color:var(--success);"></i> XLS
                               </button>
-                              <button class="btn btn-xs btn-secondary btn-mentor-dl-pdf" data-mentor-id="${m.id}" data-mentor-name="${m.name}" title="Download PDF report for ${m.name}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
+                              <button class="btn btn-xs btn-secondary btn-mentor-dl-pdf" data-mentor-id="${m.id}" data-mentor-name="${escapeHtml(m.name)}" title="Download PDF report for ${escapeHtml(m.name)}" style="display:flex;align-items:center;gap:4px;font-size:0.75rem;">
                                 <i class="ph ph-file-pdf" style="color:var(--danger);"></i> PDF
                               </button>
                             </div>
@@ -184,13 +185,13 @@ export async function render(container) {
               
               <select id="filter-mentor" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
                 <option value="">All Mentors</option>
-                ${mentors.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+                ${mentors.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
                 <option value="UNASSIGNED">Unassigned Mentees</option>
               </select>
 
               <select id="filter-class" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
                 <option value="">All Classes</option>
-                ${classesList.map(c => `<option value="${c}">Class ${c}</option>`).join('')}
+                ${classesList.map(c => `<option value="${c}">Class ${escapeHtml(c)}</option>`).join('')}
               </select>
 
               <select id="filter-risk" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
@@ -278,20 +279,20 @@ export async function render(container) {
               const rBadge = s.riskLevel === 'HIGH' ? 'badge-danger' : s.riskLevel === 'MEDIUM' ? 'badge-warning' : 'badge-success';
               return `
                 <tr>
-                  <td style="font-weight:600;">${s.name}</td>
-                  <td>${s.enrollmentNumber || s.rollNumber || '—'}</td>
-                  <td><span class="badge badge-muted">${s.class ? `Class ${s.class}` : 'Unassigned'}</span></td>
-                  <td style="color:var(--accent); font-weight:600;">${m ? m.name : '<span style="color:var(--warning);">Unassigned</span>'}</td>
+                  <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+                  <td>${escapeHtml(s.enrollmentNumber || s.rollNumber || '—')}</td>
+                  <td><span class="badge badge-muted">${s.class ? `Class ${escapeHtml(s.class)}` : 'Unassigned'}</span></td>
+                  <td style="color:var(--accent); font-weight:600;">${m ? escapeHtml(m.name) : '<span style="color:var(--warning);">Unassigned</span>'}</td>
                   <td>${s.cgpa || '0'}</td>
                   <td>${s.attendance || 0}%</td>
-                  <td><span class="badge ${rBadge}">${s.riskLevel || 'LOW'}</span></td>
+                  <td><span class="badge ${rBadge}">${escapeHtml(s.riskLevel || 'LOW')}</span></td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
         <div style="padding:10px 16px; border-top:1px solid var(--border); font-size:0.8rem; color:var(--text-muted);">
-          Showing ${filtered.length} of ${students.length} mentees in ${dept || 'Department'}
+          Showing ${filtered.length} of ${students.length} mentees in ${escapeHtml(dept || 'Department')}
         </div>
       `;
     }
@@ -358,14 +359,14 @@ export async function render(container) {
           <tbody>
             ${auditEntries.slice(0, 30).map(a => `
               <tr>
-                <td style="font-weight:600;">${a.studentName}<br><span style="font-size:0.75rem; color:var(--text-muted);">${a.enrollmentNumber}</span></td>
-                <td><span class="badge badge-muted">${a.className}</span></td>
-                <td><span class="badge ${a.type === 'REASSIGNMENT' ? 'badge-warning' : 'badge-info'}">${a.type}</span></td>
-                <td style="color:var(--text-secondary);">${a.prevMentor}</td>
-                <td style="color:var(--accent); font-weight:600;">${a.newMentor}</td>
-                <td><strong>${a.allocatedBy}</strong></td>
+                <td style="font-weight:600;">${escapeHtml(a.studentName)}<br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(a.enrollmentNumber)}</span></td>
+                <td><span class="badge badge-muted">${escapeHtml(a.className)}</span></td>
+                <td><span class="badge ${a.type === 'REASSIGNMENT' ? 'badge-warning' : 'badge-info'}">${escapeHtml(a.type)}</span></td>
+                <td style="color:var(--text-secondary);">${escapeHtml(a.prevMentor)}</td>
+                <td style="color:var(--accent); font-weight:600;">${escapeHtml(a.newMentor)}</td>
+                <td><strong>${escapeHtml(a.allocatedBy)}</strong></td>
                 <td style="font-size:0.75rem; color:var(--text-muted);">${a.timestamp !== '—' ? new Date(a.timestamp).toLocaleString() : '—'}</td>
-                <td style="color:var(--text-secondary);">${a.reason}</td>
+                <td style="color:var(--text-secondary);">${escapeHtml(a.reason)}</td>
               </tr>
             `).join('')}
           </tbody>
