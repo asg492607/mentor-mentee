@@ -5,6 +5,7 @@ import { showToast } from '/js/components/toast.js';
 import { StudentService, StatsService, BookletService, NotificationService } from '/js/services.js';
 import { db } from '/js/firebase-init.js';
 import { doc, getDoc, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { escapeHtml } from '/js/utils.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -22,7 +23,7 @@ export async function render(container) {
         <div class="page-content">
           <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
             <div class="search-box" style="flex:1;min-width:200px;">
-              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 14z"/></svg>
               <input type="text" id="s-search" placeholder="Search by name or enrollment number...">
             </div>
             ${['ALL','HIGH','MEDIUM','LOW'].map((r,i) =>
@@ -89,15 +90,15 @@ export async function render(container) {
       pendingHtml = `
       <div class="card" style="margin-bottom:24px;border-color:var(--warning);">
         <div class="card-header" style="background:var(--warning-light);border-bottom:1px solid var(--warning);">
-          <h3 style="color:var(--warning);">Pending Students (Department: ${user.department || 'All'})</h3>
+          <h3 style="color:var(--warning);">Pending Students (Department: ${escapeHtml(user.department || 'All')})</h3>
         </div>
         <table class="data-table">
           <thead><tr><th>Name</th><th>Email</th><th>Year</th><th>Action</th></tr></thead>
           <tbody>
             ${pendingStudents.map(s => `
               <tr>
-                <td><strong>${s.name}</strong></td>
-                <td>${s.email}</td>
+                <td><strong>${escapeHtml(s.name || '—')}</strong></td>
+                <td>${escapeHtml(s.email || '—')}</td>
                 <td>${s.year ? `Y${s.year}` : '—'}</td>
                 <td><button class="btn btn-xs btn-primary btn-approve-student" data-id="${s.id}">Approve & Assign to me</button></td>
               </tr>
@@ -121,12 +122,12 @@ export async function render(container) {
                 <div style="display:flex;align-items:center;gap:10px;">
                   <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
                   <div>
-                    <p style="font-weight:600;font-size:0.875rem;">${s.name || '—'}</p>
-                    <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber || ''}</p>
+                    <p style="font-weight:600;font-size:0.875rem;">${escapeHtml(s.name || '—')}</p>
+                    <p style="color:var(--text-muted);font-size:0.75rem;">${escapeHtml(s.enrollmentNumber || '')}</p>
                   </div>
                 </div>
               </td>
-              <td style="font-size:0.825rem;">${s.department || '—'}</td>
+              <td style="font-size:0.825rem;">${escapeHtml(s.department || '—')}</td>
               <td>${s.year ? `Y${s.year}` : '—'}</td>
               <td style="font-weight:600;color:${(s.cgpa||0)<6?'var(--danger)':(s.cgpa||0)<7?'var(--warning)':'var(--success)'};">${s.cgpa || '—'}</td>
               <td>
@@ -149,7 +150,7 @@ export async function render(container) {
               <td style="white-space:nowrap;">
                   <button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button>
                   <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary" style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-book-open"></i> Booklet</a>
-                  ${(s.bookletPct||0) < 75 ? `<button class="btn btn-xs btn-secondary btn-remind-booklet" data-id="${s.id}" data-name="${s.name || 'Student'}" title="Send Reminder to Fill Booklet" style="color:var(--warning);border-color:var(--warning);margin-left:4px;"><i class="ph ph-bell"></i> Remind</button>` : ''}
+                  ${(s.bookletPct||0) < 75 ? `<button class="btn btn-xs btn-secondary btn-remind-booklet" data-id="${s.id}" data-name="${escapeHtml(s.name || 'Student')}" title="Send Reminder to Fill Booklet" style="color:var(--warning);border-color:var(--warning);margin-left:4px;"><i class="ph ph-bell"></i> Remind</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -161,21 +162,23 @@ export async function render(container) {
     wrap.innerHTML = pendingHtml + assignedHtml;
 
     document.querySelectorAll('.view-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const s = students.find(x => x.id === btn.dataset.id);
+      btn.addEventListener('click', (e) => {
+        const targetBtn = e.currentTarget || e.target.closest('.view-btn');
+        const s = students.find(x => x.id === targetBtn?.dataset?.id);
+        if (!s) return;
         const panel = document.getElementById('student-detail');
         panel.style.display = 'block';
         panel.style.padding = '24px';
         panel.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
             <div style="display:flex; align-items:center; gap:10px;">
-                <h3 style="font-size:1rem;font-weight:600;margin:0;">${s.name}</h3>
+                <h3 style="font-size:1rem;font-weight:600;margin:0;">${escapeHtml(s.name || 'Student')}</h3>
                 <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-sm btn-primary">Open Mentorship Booklet</a>
             </div>
             <button class="btn btn-sm btn-secondary" id="student-detail-close">Close</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-            ${[['Email',s.email||'—'],['Enrollment No',s.enrollmentNumber||'—'],['Department',s.department||'—'],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',s.interests||'—'],['Skills',s.skills||'—'],['Career Goal',s.careerGoal||'—']].map(([l,v]) => `
+            ${[['Email',escapeHtml(s.email||'—')],['Enrollment No',escapeHtml(s.enrollmentNumber||'—')],['Department',escapeHtml(s.department||'—')],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',escapeHtml(s.interests||'—')],['Skills',escapeHtml(s.skills||'—')],['Career Goal',escapeHtml(s.careerGoal||'—')]].map(([l,v]) => `
               <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;">
                 <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${l}</p>
                 <p style="font-weight:600;font-size:0.825rem;word-break:break-word;">${v}</p>
@@ -197,10 +200,12 @@ export async function render(container) {
     document.querySelectorAll('.btn-remind-booklet').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const sid = btn.dataset.id;
-        const sname = btn.dataset.name;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+        const targetBtn = e.currentTarget || e.target.closest('.btn-remind-booklet');
+        const sid = targetBtn?.dataset?.id;
+        const sname = targetBtn?.dataset?.name || 'Student';
+        if (!sid) return;
+        targetBtn.disabled = true;
+        targetBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
         try {
           await NotificationService.create({
             userId: sid,
@@ -210,34 +215,34 @@ export async function render(container) {
             relatedId: sid
           });
           showToast(`Reminder sent to ${sname} successfully!`, 'success');
-          btn.innerHTML = '✓ Sent';
-          btn.style.color = 'var(--success)';
-          btn.style.borderColor = 'var(--success)';
+          targetBtn.innerHTML = '✓ Sent';
+          targetBtn.style.color = 'var(--success)';
+          targetBtn.style.borderColor = 'var(--success)';
         } catch (err) {
           showToast('Failed to send reminder: ' + err.message, 'error');
-          btn.disabled = false;
-          btn.innerHTML = '<i class="ph ph-bell"></i> Remind';
+          targetBtn.disabled = false;
+          targetBtn.innerHTML = '<i class="ph ph-bell"></i> Remind';
         }
       });
     });
 
     document.querySelectorAll('.btn-approve-student').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-approve-student')?.dataset?.id;
+        const targetBtn = e.currentTarget || e.target.closest('.btn-approve-student');
+        const id = targetBtn?.dataset?.id;
         if (!id) return;
-        btn.disabled = true; btn.textContent = '...';
+        targetBtn.disabled = true; targetBtn.textContent = '...';
         try {
           // Approve and assign in parallel
           await Promise.all([
             StudentService.approve(id),
             StudentService.assignMentor(id, user.id)
           ]);
-          // Increment assigned count for mentor locally/remote could be handled via cloud functions, but we just want UI to work
           showToast('Student approved and assigned!', 'success');
           setTimeout(() => render(container), 1000); // refresh page
         } catch (err) {
           showToast(err.message, 'error');
-          btn.disabled = false; btn.textContent = 'Approve';
+          targetBtn.disabled = false; targetBtn.textContent = 'Approve';
         }
       });
     });
@@ -252,10 +257,13 @@ export async function render(container) {
     }, 150);
   });
   document.querySelectorAll('.rf').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      const targetBtn = e.currentTarget || e.target.closest('.rf');
       document.querySelectorAll('.rf').forEach(b => b.className = 'btn btn-sm btn-secondary rf');
-      btn.className = 'btn btn-sm btn-primary rf';
-      riskFilter = btn.dataset.r;
+      if (targetBtn) {
+        targetBtn.className = 'btn btn-sm btn-primary rf';
+        riskFilter = targetBtn.dataset.r;
+      }
       render_table();
     });
   });
