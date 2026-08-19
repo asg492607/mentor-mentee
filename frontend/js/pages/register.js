@@ -229,25 +229,26 @@ export async function render(container) {
 
     const role = roleSelect.value;
     const data = {
-      email: document.getElementById('email').value,
+      email: document.getElementById('email').value.trim(),
       password: password,
       role: role,
       profile: {
-        name: document.getElementById('name').value
+        name: document.getElementById('name').value.trim()
       }
     };
 
     if (role === 'STUDENT') {
-      data.profile.department = document.getElementById('department').value;
-      data.profile.class = document.getElementById('student-class').value;
-      data.profile.year = parseInt(document.getElementById('year').value);
-      data.profile.enrollmentNumber = document.getElementById('enrollmentNumber').value;
+      data.profile.department = document.getElementById('department')?.value || '';
+      data.profile.class = document.getElementById('student-class')?.value || '';
+      const yearVal = parseInt(document.getElementById('year')?.value);
+      data.profile.year = isNaN(yearVal) ? 1 : yearVal;
+      data.profile.enrollmentNumber = document.getElementById('enrollmentNumber')?.value.trim() || '';
     } else {
       if (role !== 'DEAN' && role !== 'ADMIN') {
-        data.profile.department = document.getElementById('teacher-department').value;
+        data.profile.department = document.getElementById('teacher-department')?.value || '';
       }
-      data.profile.designation = getDefaultDesignation(role, document.getElementById('designation').value);
-      data.profile.employeeId = document.getElementById('employeeId').value;
+      data.profile.designation = getDefaultDesignation(role, document.getElementById('designation')?.value.trim() || 'Faculty');
+      data.profile.employeeId = document.getElementById('employeeId')?.value.trim() || '';
     }
 
     try {
