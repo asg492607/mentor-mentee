@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { DepartmentService, StudentService, FacultyService, ClassService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -76,11 +77,11 @@ export async function render(container) {
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span class="badge badge-accent">${d.type||'Department'}</span>
-                  <span style="background:var(--bg-glass-hover);color:var(--text-secondary);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${d.code||'—'}</span>
+                  <span class="badge badge-accent">${escapeHtml(d.type||'Department')}</span>
+                  <span style="background:var(--bg-glass-hover);color:var(--text-secondary);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${escapeHtml(d.code||'—')}</span>
                 </div>
-                <h3 style="font-size:1rem;font-weight:700;margin:0 0 4px 0;">${d.name}</h3>
-                <p style="color:var(--text-muted);font-size:0.8rem;">Head: ${d.hodName||'—'}</p>
+                <h3 style="font-size:1rem;font-weight:700;margin:0 0 4px 0;">${escapeHtml(d.name)}</h3>
+                <p style="color:var(--text-muted);font-size:0.8rem;">Head: ${escapeHtml(d.hodName||'—')}</p>
               </div>
               <button class="btn btn-xs btn-danger del-dept" data-id="${d.id}">✕</button>
             </div>
@@ -101,14 +102,14 @@ export async function render(container) {
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
                 ${deptClasses.length ? deptClasses.map(c => `
                   <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;padding:4px 8px;">
-                    Class ${c.className}
+                    Class ${escapeHtml(c.className)}
                     <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;" title="Delete class">✕</button>
                   </span>
                 `).join('') : '<span style="font-size:0.75rem;color:var(--text-muted);">No classes defined</span>'}
               </div>
               <div style="display:flex;gap:6px;">
-                <input type="text" class="form-input new-dept-class-input" data-dept="${d.name}" placeholder="e.g. TY-CORE-1" style="font-size:0.8rem;padding:4px 8px;">
-                <button class="btn btn-xs btn-primary btn-add-dept-class" data-dept="${d.name}">+ Add</button>
+                <input type="text" class="form-input new-dept-class-input" data-dept="${escapeHtml(d.name)}" placeholder="e.g. TY-CORE-1" style="font-size:0.8rem;padding:4px 8px;">
+                <button class="btn btn-xs btn-primary btn-add-dept-class" data-dept="${escapeHtml(d.name)}">+ Add</button>
               </div>
             </div>
           </div>
@@ -117,11 +118,14 @@ export async function render(container) {
     }).join('');
 
     document.querySelectorAll('.del-dept').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        const targetBtn = e.currentTarget || e.target.closest('.del-dept');
+        const id = targetBtn?.dataset?.id;
+        if (!id) return;
         if (!confirm('Delete this department? This cannot be undone.')) return;
         try {
-          await DepartmentService.delete(btn.dataset.id);
-          depts = depts.filter(d => d.id !== btn.dataset.id);
+          await DepartmentService.delete(id);
+          depts = depts.filter(d => d.id !== id);
           showToast('Department deleted', 'success');
           renderDepts();
         } catch (err) { showToast(err.message, 'error'); }
@@ -130,9 +134,12 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-del-class').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        if(!confirm('Delete this class?')) return;
+        const targetBtn = e.currentTarget || e.target.closest('.btn-del-class');
+        const id = targetBtn?.dataset?.id;
+        if (!id) return;
+        if (!confirm('Delete this class?')) return;
         try {
-          await ClassService.delete(btn.dataset.id);
+          await ClassService.delete(id);
           showToast('Class deleted', 'success');
           await loadAll();
           renderDepts();
