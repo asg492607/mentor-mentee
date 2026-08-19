@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { StudentService, FacultyService, AdminService, DepartmentService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
+import { escapeHtml } from '/js/utils.js';
 
 function roleBadge(r) {
   const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
@@ -1015,15 +1016,15 @@ export async function render(container) {
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${row.name || '—'}</strong></td>
-        <td>${row.enrollmentNumber || '—'}</td>
-        <td>${row.email || '—'}</td>
-        <td>${row.mobileNumber || '—'}</td>
-        <td>${row.department || '—'}</td>
+        <td><strong>${escapeHtml(row.name || '—')}</strong></td>
+        <td>${escapeHtml(row.enrollmentNumber || '—')}</td>
+        <td>${escapeHtml(row.email || '—')}</td>
+        <td>${escapeHtml(row.mobileNumber || '—')}</td>
+        <td>${escapeHtml(row.department || '—')}</td>
         <td>${roleBadge(activeRole)}</td>
         <td>
           <span class="badge ${isReady ? 'badge-success' : isDup ? 'badge-warning' : 'badge-danger'}">
-            ${isReady ? 'Ready' : row.errorMsg}
+            ${isReady ? 'Ready' : escapeHtml(row.errorMsg || 'Invalid')}
           </span>
         </td>
       `;
@@ -1745,17 +1746,17 @@ export async function render(container) {
       // Student contact info
       const contactInfo = `
         <div style="font-size:0.75rem;">
-          ${row.rawMobile ? `<span title="Student Mobile">📱 ${row.rawMobile}</span><br>` : ''}
-          ${row.rawEmail ? `<span style="color:var(--text-muted);" title="Student Email">✉ ${row.rawEmail}</span>` : '<span style="color:var(--text-muted);font-style:italic;">Email will be auto-generated</span>'}
+          ${row.rawMobile ? `<span title="Student Mobile">📱 ${escapeHtml(row.rawMobile)}</span><br>` : ''}
+          ${row.rawEmail ? `<span style="color:var(--text-muted);" title="Student Email">✉ ${escapeHtml(row.rawEmail)}</span>` : '<span style="color:var(--text-muted);font-style:italic;">Email will be auto-generated</span>'}
         </div>
       `;
 
       // Batch / Roll info
       const batchInfo = [
-        row.rawBatch ? `Batch: ${row.rawBatch}` : '',
-        row.rawPracticalBatch ? `Prac: ${row.rawPracticalBatch}` : '',
-        row.rawRollNo ? `Roll: ${row.rawRollNo}` : '',
-        row.rawRollNoBatch ? `(${row.rawRollNoBatch})` : ''
+        row.rawBatch ? `Batch: ${escapeHtml(row.rawBatch)}` : '',
+        row.rawPracticalBatch ? `Prac: ${escapeHtml(row.rawPracticalBatch)}` : '',
+        row.rawRollNo ? `Roll: ${escapeHtml(row.rawRollNo)}` : '',
+        row.rawRollNoBatch ? `(${escapeHtml(row.rawRollNoBatch)})` : ''
       ].filter(Boolean).join(' · ') || '—';
 
       // Department badge with difference indicator if mentor dept is different
@@ -1764,31 +1765,31 @@ export async function render(container) {
 
       const deptCell = `
         <div>
-          <span class="badge badge-secondary" style="font-weight:600;font-size:0.75rem;">🏛️ ${targetDept}</span>
-          ${isDeptDiff ? `<br><span style="color:var(--warning,#f59e0b);font-size:0.7rem;" title="Mentor belongs to ${mentorDept}">⚠ Mentor in ${mentorDept}</span>` : ''}
+          <span class="badge badge-secondary" style="font-weight:600;font-size:0.75rem;">🏛️ ${escapeHtml(targetDept)}</span>
+          ${isDeptDiff ? `<br><span style="color:var(--warning,#f59e0b);font-size:0.7rem;" title="Mentor belongs to ${escapeHtml(mentorDept)}">⚠ Mentor in ${escapeHtml(mentorDept)}</span>` : ''}
         </div>
       `;
 
       // Mentor info
       const mentorCell = row.matchedMentor
         ? `<div>
-             <span style="color:var(--success,#22c55e);font-weight:600;">${row.matchedMentor.name || '—'}</span>
-             <br><span style="color:var(--text-muted);font-size:0.72rem;">${row.matchedMentor.department || ''}</span>
+             <span style="color:var(--success,#22c55e);font-weight:600;">${escapeHtml(row.matchedMentor.name || '—')}</span>
+             <br><span style="color:var(--text-muted);font-size:0.72rem;">${escapeHtml(row.matchedMentor.department || '')}</span>
            </div>`
         : (row.rawMentorName
-            ? `<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">⚠ "${row.rawMentorName}" (Not found)</span>`
+            ? `<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">⚠ "${escapeHtml(row.rawMentorName)}" (Not found)</span>`
             : `<span style="color:var(--text-muted);">—</span>`);
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="color:var(--text-muted);">${row.sr}</td>
+        <td style="color:var(--text-muted);">${escapeHtml(String(row.sr))}</td>
         <td>
-          <strong>${row.rawStudentName || '—'}</strong>
+          <strong>${escapeHtml(row.rawStudentName || '—')}</strong>
           ${row.matchedStudent ? `<span class="badge badge-info" style="font-size:0.65rem;margin-left:4px;">Existing</span>` : `<span class="badge badge-accent" style="font-size:0.65rem;margin-left:4px;">New</span>`}
         </td>
-        <td style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">${row.rawEnroll || '—'}</td>
+        <td style="font-family:monospace;font-size:0.78rem;color:var(--text-secondary);">${escapeHtml(row.rawEnroll || '—')}</td>
         <td>${contactInfo}</td>
-        <td style="font-size:0.78rem;">${row.rawFatherContact ? `👨 <strong>${row.rawFatherContact}</strong>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+        <td style="font-size:0.78rem;">${row.rawFatherContact ? `👨 <strong>${escapeHtml(row.rawFatherContact)}</strong>` : '<span style="color:var(--text-muted);">—</span>'}</td>
         <td style="font-size:0.75rem;color:var(--text-secondary);">${batchInfo}</td>
         <td>${deptCell}</td>
         <td>${mentorCell}</td>
