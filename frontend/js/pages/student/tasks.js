@@ -134,10 +134,13 @@ export async function render(container) {
   }
 
   document.querySelectorAll('.filt').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      const targetBtn = e.currentTarget || e.target.closest('.filt');
       document.querySelectorAll('.filt').forEach(b => b.className = 'btn btn-sm btn-secondary filt');
-      btn.className = 'btn btn-sm btn-primary filt';
-      filter = btn.dataset.f;
+      if (targetBtn) {
+        targetBtn.className = 'btn btn-sm btn-primary filt';
+        filter = targetBtn.dataset.f;
+      }
       renderTasks();
     });
   });
