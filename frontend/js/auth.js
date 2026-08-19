@@ -9,7 +9,11 @@ import {
 import { 
   doc, 
   getDoc, 
-  setDoc
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
 
@@ -106,7 +110,35 @@ export async function login(email, password) {
 
 export async function register(data) {
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+    const cleanEmail = String(data.email || '').trim().toLowerCase();
+    if (!cleanEmail) throw new Error('Email address is required.');
+
+    // Pre-flight duplicate check across Firestore collections
+    const [stuEmailSnap, facEmailSnap] = await Promise.all([
+      getDocs(query(collection(db, 'students'), where('email', '==', cleanEmail))),
+      getDocs(query(collection(db, 'faculty'), where('email', '==', cleanEmail)))
+    ]);
+
+    if (!stuEmailSnap.empty || !facEmailSnap.empty) {
+      throw new Error(`The email "${cleanEmail}" is already registered in the platform. Please log in instead.`);
+    }
+
+    // Pre-flight duplicate check for Enrollment Number or Employee ID
+    if (data.role === 'STUDENT' && data.profile?.enrollmentNumber) {
+      const cleanEnroll = String(data.profile.enrollmentNumber).trim();
+      const stuEnrollSnap = await getDocs(query(collection(db, 'students'), where('enrollmentNumber', '==', cleanEnroll)));
+      if (!stuEnrollSnap.empty) {
+        throw new Error(`The Enrollment Number "${cleanEnroll}" is already registered. Please log in or contact your department admin.`);
+      }
+    } else if (data.role !== 'STUDENT' && data.profile?.employeeId) {
+      const cleanEmpId = String(data.profile.employeeId).trim();
+      const facEmpSnap = await getDocs(query(collection(db, 'faculty'), where('employeeId', '==', cleanEmpId)));
+      if (!facEmpSnap.empty) {
+        throw new Error(`The Employee ID "${cleanEmpId}" is already registered. Please log in or contact your administrator.`);
+      }
+    }
+
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
     const uid = userCredential.user.uid;
     
     const role = data.role;
@@ -114,7 +146,7 @@ export async function register(data) {
     // Build profile — only include defined (non-undefined) fields
     const profileData = {
       id: uid,
-      email: data.email,
+      email: cleanEmail,
       name: data.profile.name,
       role: role,
       department: data.profile.department || null,

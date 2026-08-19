@@ -1498,6 +1498,8 @@ export async function render(container) {
       let lastSeenMentorName = '';
       const rawSpecCounts = new Map(); // spec string -> count of students
 
+      const seenSheetKeys = new Set();
+
       for (let i = 1; i < rowsMatrix.length; i++) {
         const cols = rowsMatrix[i].map(c => String(c !== null && c !== undefined ? c : '').trim());
         const rowData = {};
@@ -1517,6 +1519,13 @@ export async function render(container) {
 
         // Skip completely empty rows
         if (!rawStudentName && !rawEnroll && !rawMentorName) continue;
+
+        // In-sheet deduplication: prevent identical student rows in the same uploaded workbook
+        const normKey = (rawEnroll || rawEmail || rawStudentName).toLowerCase().trim();
+        if (normKey && seenSheetKeys.has(normKey)) {
+          continue; // Skip duplicate row within same sheet
+        }
+        if (normKey) seenSheetKeys.add(normKey);
 
         // Track specialization count
         const specKey = rawSpec || 'Not Specified';
