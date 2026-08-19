@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { DepartmentService, FacultyService, SettingsService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -71,18 +72,18 @@ export async function render(container) {
         </thead>
         <tbody>
           ${departments.map(d => {
-            const reqRole = d.type === 'Section' ? 'SECTION_HEAD' : 'HOD';
-            const possibleHeads = faculty.filter(f => f.role === reqRole && (f.department === d.name || !f.department));
-            const curHead = faculty.find(f => f.department === d.name && f.role === reqRole);
-            const opts = '<option value="">Select Head</option>' + possibleHeads.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
-            
-            return `
+      const reqRole = d.type === 'Section' ? 'SECTION_HEAD' : 'HOD';
+      const possibleHeads = faculty.filter(f => f.role === reqRole && (f.department === d.name || !f.department));
+      const curHead = faculty.find(f => f.department === d.name && f.role === reqRole);
+      const opts = '<option value="">Select Head</option>' + possibleHeads.map(h => `<option value="${h.id}">${escapeHtml(h.name || 'Faculty')}</option>`).join('');
+
+      return `
             <tr>
-              <td><strong>${d.name}</strong></td>
-              <td><span class="badge ${d.type==='Section'?'badge-warning':'badge-info'}">${d.type}</span></td>
+              <td><strong>${escapeHtml(d.name)}</strong></td>
+              <td><span class="badge ${d.type === 'Section' ? 'badge-warning' : 'badge-info'}">${escapeHtml(d.type || 'Department')}</span></td>
               <td>
-                <select class="form-select head-select" data-dept="${d.name}" style="padding:4px;font-size:0.85rem;">
-                  ${opts.replace(`value="${curHead?.id||''}"`, `value="${curHead?.id||''}" selected`)}
+                <select class="form-select head-select" data-dept="${escapeHtml(d.name)}" style="padding:4px;font-size:0.85rem;">
+                  ${opts.replace(`value="${curHead?.id || ''}"`, `value="${curHead?.id || ''}" selected`)}
                 </select>
                 ${!curHead ? '<br><span style="color:var(--danger);font-size:0.75rem;">No HOD Assigned</span>' : ''}
               </td>
@@ -100,8 +101,8 @@ export async function render(container) {
         const deptName = e.currentTarget?.dataset?.dept || e.target.closest('.head-select')?.dataset?.dept;
         const newHeadId = e.target.value;
         const oldHead = faculty.find(f => f.department === deptName && (f.role === 'HOD' || f.role === 'SECTION_HEAD'));
-        
-        if(!confirm('Are you sure you want to reassign the department head?')) {
+
+        if (!confirm('Are you sure you want to reassign the department head?')) {
           e.target.value = oldHead ? oldHead.id : '';
           return;
         }
@@ -119,7 +120,7 @@ export async function render(container) {
           }
           showToast('Department Head updated successfully', 'success');
           render(container); // reload
-        } catch(err) {
+        } catch (err) {
           showToast(err.message, 'error');
         }
       });
@@ -129,12 +130,12 @@ export async function render(container) {
       btn.addEventListener('click', async (e) => {
         const id = e.currentTarget?.dataset?.id || e.target.closest('.btn-del')?.dataset?.id;
         if (!id) return;
-        if(!confirm('Are you sure you want to delete this department? All associated classes will remain orphaned.')) return;
+        if (!confirm('Are you sure you want to delete this department? All associated classes will remain orphaned.')) return;
         try {
           await DepartmentService.delete(id);
           showToast('Department deleted', 'success');
           render(container); // reload
-        } catch(err) {
+        } catch (err) {
           showToast(err.message, 'error');
         }
       });
@@ -146,7 +147,7 @@ export async function render(container) {
       try {
         sections = await SettingsService.getSections();
         renderSections();
-      } catch(err) {
+      } catch (err) {
         document.getElementById('sections-list').innerHTML = '<p class="text-danger">Failed to load sections</p>';
       }
     }
@@ -156,21 +157,23 @@ export async function render(container) {
       if (!list) return;
       list.innerHTML = sections.map((sec, i) => `
         <span class="badge badge-info" style="display:flex;align-items:center;gap:6px;font-size:0.85rem;padding:6px 12px;">
-          ${sec}
+          ${escapeHtml(sec)}
           <button class="btn-del-section" data-idx="${i}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;">✕</button>
         </span>
       `).join('');
 
       list.querySelectorAll('.btn-del-section').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          if(!confirm('Delete this section?')) return;
-          const idx = parseInt(e.currentTarget.dataset.idx);
+          const targetBtn = e.currentTarget || e.target.closest('.btn-del-section');
+          const idx = parseInt(targetBtn?.dataset?.idx);
+          if (isNaN(idx)) return;
+          if (!confirm('Delete this section?')) return;
           const removed = sections.splice(idx, 1);
           renderSections();
           try {
             await SettingsService.updateSections(sections);
             showToast('Section deleted', 'success');
-          } catch(err) {
+          } catch (err) {
             sections.splice(idx, 0, removed[0]); // revert
             renderSections();
             showToast('Error deleting section', 'error');
@@ -196,7 +199,7 @@ export async function render(container) {
           await SettingsService.updateSections(sections);
           showToast('Section added', 'success');
           input.value = '';
-        } catch(err) {
+        } catch (err) {
           sections.pop(); // revert
           renderSections();
           showToast('Error adding section', 'error');

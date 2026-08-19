@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, ClassService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -41,8 +42,8 @@ export async function render(container) {
       return;
     }
 
-    const classOpts = `<option value="">Unassigned</option>` + classes.map(c => `<option value="${c.className}">Class ${c.className}</option>`).join('');
-    const mentorOpts = `<option value="">Unassigned</option>` + faculty.filter(f => f.role==='FACULTY'||f.role==='MENTOR').map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+    const classOpts = `<option value="">Unassigned</option>` + classes.map(c => `<option value="${escapeHtml(c.className)}">Class ${escapeHtml(c.className)}</option>`).join('');
+    const mentorOpts = `<option value="">Unassigned</option>` + faculty.filter(f => f.role==='FACULTY'||f.role==='MENTOR').map(f => `<option value="${f.id}">${escapeHtml(f.name || 'Faculty')}</option>`).join('');
 
     wrap.innerHTML = `
       <table class="data-table">
@@ -61,16 +62,16 @@ export async function render(container) {
             return `
             <tr>
               <td>
-                <strong>${s.name}</strong><br>
-                <span style="font-size:0.75rem;color:var(--text-muted);">${s.enrollmentNumber || 'N/A'} (Yr ${s.year||'?'})</span>
+                <strong>${escapeHtml(s.name || '—')}</strong><br>
+                <span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(s.enrollmentNumber || 'N/A')} (Yr ${s.year||'?'})</span>
               </td>
-              <td>${s.class ? `Class ${s.class}` : '<span class="badge badge-warning">Unassigned</span>'}</td>
+              <td>${s.class ? `Class ${escapeHtml(s.class)}` : '<span class="badge badge-warning">Unassigned</span>'}</td>
               <td>
                 <select class="form-select class-select" data-id="${s.id}" style="padding:4px;font-size:0.85rem;">
-                  ${classOpts.replace(`value="${s.class||''}"`, `value="${s.class||''}" selected`)}
+                  ${classOpts.replace(`value="${escapeHtml(s.class||'')}"`, `value="${escapeHtml(s.class||'')}" selected`)}
                 </select>
               </td>
-              <td>${curMentor ? curMentor.name : '<span class="badge badge-warning">Unassigned</span>'}</td>
+              <td>${curMentor ? escapeHtml(curMentor.name || 'Mentor') : '<span class="badge badge-warning">Unassigned</span>'}</td>
               <td>
                 <select class="form-select mentor-select" data-id="${s.id}" style="padding:4px;font-size:0.85rem;">
                   ${mentorOpts.replace(`value="${s.mentorId||''}"`, `value="${s.mentorId||''}" selected`)}
