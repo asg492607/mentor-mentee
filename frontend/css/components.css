@@ -190,6 +190,16 @@
 .badge-risk-high { background: var(--danger-light); color: var(--danger); }
 
 /* Tables */
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  scrollbar-width: thin;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -207,13 +217,14 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .data-table tr {
@@ -222,6 +233,29 @@
 
 .data-table tr:hover {
   background: var(--bg-glass-hover);
+}
+
+/* Tabs & Pill Navigation */
+.tabs, .booklet-tabs, .tabs-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+  max-width: 100%;
+}
+
+.tabs::-webkit-scrollbar,
+.booklet-tabs::-webkit-scrollbar,
+.tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
 }
 
 /* Sidebar */
@@ -344,16 +378,20 @@
 }
 
 /* Modals */
-.modal-overlay {
+.modal-overlay,
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   animation: fadeIn var(--transition-fast) forwards;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .modal {
@@ -362,8 +400,11 @@
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 500px;
+  max-height: calc(100vh - 32px);
   box-shadow: var(--shadow-lg);
   animation: scaleIn var(--transition-spring) forwards;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -371,12 +412,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
   margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .modal-close {
@@ -384,9 +428,14 @@
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .modal-close:hover {
@@ -395,16 +444,60 @@
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px 22px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 16px 22px;
   border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+/* Mobile Bottom Sheet Modal Pattern */
+@media (max-width: 640px) {
+  .modal-overlay,
+  .modal-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+    max-height: 90vh !important;
+    animation: slideUp var(--transition-spring) forwards !important;
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .modal-body {
+    padding: 16px 18px;
+    max-height: calc(90vh - 130px);
+  }
+
+  .modal-footer {
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 120px;
+  }
 }
 
 /* Toasts */
@@ -535,57 +628,6 @@
   border-radius: var(--radius-sm);
 }
 
-/* ---------- Guided Tour Engine ---------- */
-.tour-spotlight {
-  position: absolute;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
-  z-index: 9998;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-  border: 2px solid var(--accent);
-}
-
-.tour-beacon {
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border-radius: 50%;
-  box-shadow: 0 0 0 0 rgba(124, 106, 255, 0.7);
-  animation: beacon-pulse 1.5s infinite;
-}
-
-@keyframes beacon-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(124, 106, 255, 0.7); }
-  70% { box-shadow: 0 0 0 14px rgba(124, 106, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(124, 106, 255, 0); }
-}
-
-.tour-popover {
-  position: absolute;
-  width: 320px;
-  z-index: 9999;
-  background: rgba(20, 20, 30, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
-  transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-
-.tour-popover.fade-in {
-  animation: tour-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes tour-slide-up {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
 /* ---------- Interactive Calendar Styles ---------- */
 .calendar-wrapper {
   background: var(--surface, #fff);
@@ -635,6 +677,37 @@
   .cal-event-pill {
     font-size: 0.65rem !important;
     padding: 2px 4px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-wrapper {
+    padding: 12px !important;
+  }
+  .calendar-header {
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+    padding-bottom: 12px !important;
+  }
+  .calendar-header h2 {
+    font-size: 1.1rem !important;
+  }
+  .calendar-day-cell {
+    min-height: 52px !important;
+    padding: 2px !important;
+    border-radius: 6px !important;
+  }
+  .calendar-day-number {
+    font-size: 0.72rem !important;
+  }
+  .calendar-grid-header {
+    font-size: 0.65rem !important;
+    gap: 2px !important;
+  }
+  .calendar-legend {
+    font-size: 0.72rem !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
   }
 }
 
