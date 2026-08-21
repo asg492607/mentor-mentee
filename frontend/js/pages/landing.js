@@ -367,15 +367,40 @@ export async function render(container) {
         @media (max-width: 768px) {
           .role-tab-content {
             grid-template-columns: 1fr;
+            padding: 20px 16px;
           }
           .nav-links {
             display: none;
           }
           .landing-header {
-            padding: 12px 16px;
+            padding: 10px 12px;
           }
           .college-logo-img {
-            height: 34px;
+            height: 32px;
+          }
+          .hero-section {
+            padding: 40px 16px 30px 16px;
+          }
+          .hero-pill {
+            font-size: 0.78rem;
+            padding: 6px 14px;
+          }
+          .brand-subtitle {
+            display: none !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .hero-ctas .btn-gradient,
+          .hero-ctas .btn-glass {
+            width: 100%;
+            justify-content: center;
+          }
+          .landing-footer {
+            padding: 40px 16px 20px 16px;
+          }
+          .pilot-ack-card {
+            padding: 24px 16px;
           }
         }
 
@@ -437,7 +462,7 @@ export async function render(container) {
           <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University Logo" class="college-logo-img" onError="this.style.display='none';">
           <div style="display:flex;flex-direction:column;">
             <span style="font-weight:800;font-size:1.2rem;letter-spacing:-0.02em;">Lumina</span>
-            <span style="font-size:0.68rem;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">MIT-ADT Mentorship Intelligence</span>
+            <span class="brand-subtitle" style="font-size:0.68rem;color:var(--text-muted);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">MIT-ADT Mentorship Intelligence</span>
           </div>
         </a>
 

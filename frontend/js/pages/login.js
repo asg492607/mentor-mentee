@@ -4,12 +4,12 @@ import { showToast } from '../components/toast.js';
 
 export async function render(container) {
   container.innerHTML = `
-    <div class="h-screen flex items-center justify-center relative overflow-hidden" style="background: var(--bg-primary);">
+    <div class="min-h-screen flex items-center justify-center relative overflow-hidden" style="background: var(--bg-primary); min-height: 100vh; min-height: 100dvh; padding: 24px 16px;">
       <!-- Decorative background elements -->
       <div class="absolute" style="top: -10%; left: -5%; width: 40vw; height: 40vw; background: var(--accent); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       <div class="absolute" style="bottom: -10%; right: -5%; width: 30vw; height: 30vw; background: var(--info); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       
-      <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: 40px; z-index: 10;">
+      <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: clamp(20px, 5vw, 36px); z-index: 10;">
         <div class="text-center mb-8">
           <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University" style="height: 60px; width: auto; max-width: 240px; margin: 0 auto 16px; display: block; object-fit: contain; background: white; padding: 6px 12px; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.1);">
           <h1 class="text-gradient mb-2" style="font-size: 2.2rem; letter-spacing: -1px;">Lumina</h1>

@@ -13,11 +13,11 @@ function getDefaultDesignation(role, selectedDesignation) {
 
 export async function render(container) {
   container.innerHTML = `
-    <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style="background: var(--bg-primary); padding: 40px 0;">
+    <div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style="background: var(--bg-primary); min-height: 100vh; min-height: 100dvh; padding: 24px 14px;">
       <!-- Decorative background elements -->
       <div class="absolute" style="top: 20%; right: 10%; width: 30vw; height: 30vw; background: var(--accent); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       
-      <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: 40px; z-index: 10;">
+      <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: clamp(20px, 5vw, 36px); z-index: 10;">
         <div class="text-center mb-8">
           <h2 class="text-gradient mb-2">Join Lumina</h2>
           <p class="text-secondary">Create your student, faculty, HOD, dean, or admin account to get started</p>
