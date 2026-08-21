@@ -22,8 +22,8 @@ export function createHeader(title, user, notificationCount = 0) {
   return `
     <header class="header">
       <div class="header-leading">
-        <button id="sidebar-toggle" class="header-icon-btn" type="button" aria-label="Open navigation" aria-expanded="false">
-          <i class="ph ph-list" style="font-size:1.5rem;"></i>
+        <button id="sidebar-toggle" class="header-icon-btn" type="button" aria-label="Open navigation" aria-expanded="false" style="cursor:pointer;user-select:none;">
+          <i class="ph ph-list" style="font-size:1.5rem;pointer-events:none;"></i>
         </button>
         <div>
           <p class="header-kicker">Lumina workspace</p>
@@ -32,14 +32,11 @@ export function createHeader(title, user, notificationCount = 0) {
       </div>
       <div class="header-actions">
         <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="Report a Web Issue or Bug">
-          <i class="ph ph-bug" style="font-size:1.1rem;"></i> Web Issue
+          <i class="ph ph-bug" style="font-size:1.1rem;"></i><span class="header-web-issue-text"> Web Issue</span>
         </button>
         <a id="global-pdf-guide-btn" href="${guidePdf}" download="${pdfFileName}" target="_blank" title="Download Role Operating Manual (PDF)" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
           <i class="ph ph-file-pdf" style="font-size:1.4rem;"></i>
         </a>
-        <button id="start-tour-btn" class="header-icon-btn" type="button" aria-label="Take a tour" title="Take an interactive tour of this page" style="background: rgba(99, 102, 241, 0.1); color: var(--accent); cursor: pointer;">
-          <i class="ph ph-question" style="font-size:1.5rem;"></i>
-        </button>
         <button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Switch color theme" title="Switch color theme">
           <!-- Sun Icon (visible in light mode) -->
           <i class="ph ph-sun sun-icon" style="font-size:1.5rem; display:${isLight ? 'block' : 'none'};"></i>

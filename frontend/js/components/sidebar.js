@@ -48,6 +48,7 @@ export function createSidebar(role, activePath) {
   } else if (roleUpper === 'ADMIN') {
     navItems = [
       { path: '/admin/dashboard',   label: 'Dashboard',   icon: '<i class="ph ph-squares-four"></i>' },
+      { path: '/admin/compliance',  label: 'Booklet Compliance', icon: '<i class="ph ph-clipboard-text"></i>' },
       { path: '/admin/users',       label: 'Users',   icon: '<i class="ph ph-users"></i>' },
       { path: '/admin/departments', label: 'Departments', icon: '<i class="ph ph-buildings"></i>' },
       { path: '/admin/allocation',  label: 'Allocation',  icon: '<i class="ph ph-users-three"></i>' },
@@ -122,8 +123,8 @@ document.body.addEventListener('click', async (e) => {
     return;
   }
   
-  // Handle Mobile Backdrop Close
-  if (e.target.id === 'sidebar-backdrop') {
+  // Handle Mobile Backdrop & Navigation Item Close
+  if (e.target.id === 'sidebar-backdrop' || (e.target.closest('.sidebar-item') && window.innerWidth <= 992)) {
     const sidebar = document.querySelector('.sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     sidebar?.classList.remove('open');

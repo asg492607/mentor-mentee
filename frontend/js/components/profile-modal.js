@@ -33,7 +33,7 @@ export async function openProfileModal() {
 
   const modalHtml = `
     <div id="global-faculty-profile-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.75);backdrop-filter:blur(5px);position:fixed;inset:0;justify-content:center;align-items:center;padding:16px;">
-      <div class="modal card fade-in" style="max-width:680px;width:100%;max-height:90vh;overflow-y:auto;background:var(--bg-card,#1e293b);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.4);">
+      <div class="modal card fade-in" style="max-width:680px;width:100%;max-height:90vh;overflow-y:auto;background:var(--bg-card,#1e293b);border:1px solid var(--border);border-radius:16px;padding:clamp(16px, 4vw, 28px);box-shadow:0 20px 50px rgba(0,0,0,0.4);">
         
         <!-- Modal Header -->
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:16px;">
