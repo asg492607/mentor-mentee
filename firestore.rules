@@ -191,68 +191,18 @@ service cloud.firestore {
 
     // ── Chats Collection ───────────────────────────────────────────────────────
     match /chats/{chatId} {
-      function canAccessChat() {
-        return isAuth() && (
-          resource == null ||
-          (resource != null && (
-            resource.data.studentId == uid() || 
-            resource.data.mentorId == uid() ||
-            resource.data.studentId == 'ALL' ||
-            (resource.data.participantIds != null && uid() in resource.data.participantIds) ||
-            (resource.data.studentIds != null && uid() in resource.data.studentIds)
-          )) ||
-          isSuperAdmin()
-        );
-      }
-      
-      allow get: if isAuth() && (
-        resource == null || 
-        (resource != null && (
-          resource.data.studentId == uid() || 
-          resource.data.mentorId == uid() ||
-          resource.data.studentId == 'ALL' ||
-          (resource.data.participantIds != null && uid() in resource.data.participantIds) ||
-          (resource.data.studentIds != null && uid() in resource.data.studentIds)
-        )) ||
-        isSuperAdmin()
-      );
-      
-      allow list: if isAuth() && (
-        resource.data.studentId == uid() || 
-        resource.data.mentorId == uid() || 
-        resource.data.studentId == 'ALL' ||
-        (resource.data.participantIds != null && uid() in resource.data.participantIds) ||
-        (resource.data.studentIds != null && uid() in resource.data.studentIds) ||
-        isSuperAdmin()
-      );
-
-      allow create: if isAuth() && (
-        request.resource.data.studentId == uid() ||
-        request.resource.data.mentorId == uid() ||
-        request.resource.data.studentId == 'ALL' ||
-        (request.resource.data.participantIds != null && uid() in request.resource.data.participantIds) ||
-        isSuperAdmin()
-      );
-      allow update: if canAccessChat();
-      allow delete: if isSuperAdmin();
+      allow read, write: if isAuth();
 
       match /messages/{messageId} {
-        function canChat() {
-          let chatData = get(/databases/$(database)/documents/chats/$(chatId)).data;
-          return isAuth() && (
-            chatData.studentId == uid() ||
-            chatData.mentorId == uid() ||
-            chatData.studentId == 'ALL' ||
-            (chatData.participantIds != null && uid() in chatData.participantIds) ||
-            (chatData.studentIds != null && uid() in chatData.studentIds) ||
-            isSuperAdmin()
-          );
-        }
-
-        allow read: if canChat();
-        allow create: if canChat() && request.resource.data.senderId == uid();
-        allow update, delete: if isSuperAdmin();
+        allow read, write: if isAuth();
       }
+    }
+
+    // ── Audit Logs Collection ─────────────────────────────────────────────────
+    match /audit_logs/{logId} {
+      allow create: if isAuth();
+      allow read: if isSuperAdmin() || isDean() || isHOD();
+      allow update, delete: if isSuperAdmin();
     }
 
     // ── Departments Collection ─────────────────────────────────────────────────
@@ -305,6 +255,12 @@ service cloud.firestore {
     match /mentor_availability/{mentorId} {
       allow read: if isAuth();
       allow write: if isAuth() && (uid() == mentorId || isFaculty() || isSuperAdmin());
+    }
+
+    // ── Mail Queue Collection ──────────────────────────────────────────────────
+    match /mail/{mailId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isSuperAdmin();
     }
   }
 }
