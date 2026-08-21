@@ -338,6 +338,20 @@ export const BookletService = {
   async getCompletionPercentage(studentId) {
     const booklet = await this.getBooklet(studentId);
     return this.calculateCompletion(booklet);
+  },
+
+  async getAllBooklets() {
+    try {
+      const snapResult = await getDocs(collection(db, 'booklets'));
+      const map = {};
+      snapResult.docs.forEach(d => {
+        map[d.id] = d.data();
+      });
+      return map;
+    } catch (e) {
+      console.warn('Failed to fetch all booklets:', e);
+      return {};
+    }
   }
 };
 
@@ -876,13 +890,19 @@ export const TaskService = {
 
 export const NotificationService = {
   async create({ userId, userEmail = null, type, title, message, relatedId = null }) {
-    await addDoc(collection(db, 'notifications'), {
-      userId, type, title, message, relatedId,
-      isRead: false,
-      createdAt: now()
-    });
+    try {
+      if (userId) {
+        await addDoc(collection(db, 'notifications'), {
+          userId, type, title, message, relatedId,
+          isRead: false,
+          createdAt: now()
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Could not save in-app notification:', notifErr.message);
+    }
 
-    // Obtain target user email if not explicitly passed
+    // Optional email queueing for Firebase Trigger Email Extension (firestore-send-email)
     let targetEmail = userEmail;
     if (!targetEmail && userId) {
       try {
@@ -896,11 +916,10 @@ export const NotificationService = {
           }
         }
       } catch (e) {
-        // email lookup is optional
+        // optional email lookup
       }
     }
 
-    // Queue email payload to Firestore /mail collection for Firebase Trigger Email Extension (firestore-send-email)
     if (targetEmail) {
       try {
         await addDoc(collection(db, 'mail'), {
@@ -929,7 +948,7 @@ export const NotificationService = {
           createdAt: now()
         });
       } catch (err) {
-        console.warn('Could not queue email payload to Firestore /mail:', err);
+        // Mail extension optional queue
       }
     }
   },
@@ -979,37 +998,42 @@ export const ChatService = {
   // Get or create a mentor cohort group conversation document
   async getGroupConversation(mentorId, mentorName = 'Faculty Mentor', students = []) {
     const chatId = `group_${mentorId}`;
-    const docRef = doc(db, 'chats', chatId);
-    const docSnap = await getDoc(docRef);
-    const studentIds = students.map(s => s.id || s);
+    const studentIds = (students || []).map(s => s.id || s);
 
-    if (!docSnap.exists()) {
-      await setDoc(docRef, {
-        mentorId,
-        mentorName,
-        studentId: 'ALL',
-        studentIds,
-        participantIds: [mentorId, ...studentIds],
-        title: `${mentorName}'s Mentee Cohort`,
-        isGroup: true,
-        createdAt: now(),
-        updatedAt: now(),
-        lastMessage: 'Cohort Group Chat initialized.',
-        lastSenderName: 'System',
-        unreadCount: 0
-      });
-    } else {
-      // Sync student IDs to keep member list updated
-      try {
-        await updateDoc(docRef, {
+    try {
+      const docRef = doc(db, 'chats', chatId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          mentorId,
           mentorName,
+          studentId: 'ALL',
           studentIds,
           participantIds: [mentorId, ...studentIds],
-          updatedAt: now()
+          title: `${mentorName}'s Mentee Cohort`,
+          isGroup: true,
+          createdAt: now(),
+          updatedAt: now(),
+          lastMessage: 'Cohort Group Chat initialized.',
+          lastSenderName: 'System',
+          unreadCount: 0
         });
-      } catch (e) {
-        console.warn('Could not update group participant list:', e);
+      } else {
+        // Sync student IDs to keep member list updated
+        try {
+          await updateDoc(docRef, {
+            mentorName,
+            studentIds,
+            participantIds: [mentorId, ...studentIds],
+            updatedAt: now()
+          });
+        } catch (e) {
+          console.warn('Could not update group participant list:', e);
+        }
       }
+    } catch (err) {
+      console.warn('getGroupConversation non-critical warning:', err);
     }
     return chatId;
   },

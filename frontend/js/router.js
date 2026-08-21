@@ -40,6 +40,7 @@ const routes = {
   '/admin/users': './pages/admin/users.js',
   '/admin/departments': './pages/admin/departments.js',
   '/admin/allocation': './pages/admin/allocation.js',
+  '/admin/compliance': './pages/admin/compliance.js',
   '/admin/settings': './pages/admin/settings.js',
   '/admin/infrastructure': './pages/admin/infrastructure.js',
   '/meeting-room': './pages/meeting-room.js'
@@ -134,14 +135,14 @@ async function handleRoute() {
     const role = String(profile.role).toUpperCase();
     const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
 
-    // 🔒 Mandatory 75% Booklet Lock for Students: Block all other pages until 75% filled!
+    // 🔒 Mandatory 60% Booklet Lock for Students: Block all other pages until 60% filled!
     if (role === 'STUDENT') {
       try {
         const { BookletService } = await import('./services.js');
         const { showToast } = await import('./components/toast.js');
         const completionPct = await BookletService.getCompletionPercentage(profile.id || user.uid);
-        if (completionPct < 75 && path !== '/student/booklet') {
-          showToast(`⚠️ Mandatory Action: You must fill at least 75% of your Mentorship Booklet across all sections before accessing other pages (${completionPct}% / 75%).`, 'warning');
+        if (completionPct < 60 && path !== '/student/booklet') {
+          showToast(`⚠️ Mandatory Action: You must fill at least 60% of your Mentorship Booklet across all sections before accessing other pages (${completionPct}% / 60%).`, 'warning');
           navigateTo('/student/booklet');
           return;
         }
@@ -275,82 +276,29 @@ document.addEventListener('click', (e) => {
         }
     }
 
-    if (e.target.closest('#start-tour-btn')) {
-        e.preventDefault();
-        import('./components/tour.js').then(({ startTour }) => {
-            const user = getUserProfile();
-            const path = getCurrentRoute();
-            const role = (user?.role || 'STUDENT').toUpperCase();
-
-            let tourSteps = [
-                { selector: '.sidebar', title: 'Navigation Sidebar', desc: 'Use this sidebar to access your dashboard, student rosters, meetings, booklet, issues, and reports.', position: 'right' },
-                { selector: '.header-actions', title: 'Action Bar', desc: 'Access web bug reporting, role guide PDF, interactive tours, dark/light theme, and live notifications.', position: 'bottom' },
-                { selector: '.page-content, .main-content', title: 'Workspace View', desc: 'Manage your active records, schedule sessions, view metrics, and track student outcomes.', position: 'top' }
-            ];
-
-            if (path.includes('/mentor/dashboard') || (role === 'MENTOR' && path === '/mentor/dashboard')) {
-                tourSteps = [
-                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to view all your students, schedule meetings, and resolve issues.', position: 'right' },
-                    { selector: '.stats-grid, .stat-card', title: 'Key Performance Indicators', desc: 'Track your assigned student count, pending meeting requests, high-risk flags, and completed sessions.', position: 'bottom' },
-                    { selector: '.card, .data-table', title: 'Assigned Mentees', desc: 'Monitor mentee CGPA, attendance, booklet completion, and risk levels.', position: 'top' },
-                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Switch theme, download the Mentor Operating Manual, or report web issues.', position: 'bottom' }
-                ];
-            } else if (path.includes('/student/dashboard')) {
-                tourSteps = [
-                    { selector: '.sidebar', title: 'Navigation', desc: 'Use this sidebar to access your profile, booklet, book meetings, and raise grievances.', position: 'right' },
-                    { selector: '.stats-grid, .stat-card', title: 'Overview Metrics', desc: 'Keep track of upcoming meetings, pending action tasks, open grievances, and CGPA.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Quick Actions', desc: 'Switch themes, download your Student Mentee Guide PDF, or report web issues.', position: 'bottom' }
-                ];
-            } else if (path.includes('/hod/dashboard')) {
-                tourSteps = [
-                    { selector: '.sidebar', title: 'HOD Department Controls', desc: 'Oversee department faculty allocations, high-risk students, grievances, and mentorship reports.', position: 'right' },
-                    { selector: '.stats-grid, .stat-card', title: 'Department Analytics', desc: 'Monitor total students, active mentors, open issues, and resolved cases.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the HOD Operations Manual, theme toggle, and live department alerts.', position: 'bottom' }
-                ];
-            } else if (path.includes('/dean/dashboard')) {
-                tourSteps = [
-                    { selector: '.sidebar', title: 'Dean Leadership Overview', desc: 'Monitor university-wide mentoring coverage, risk distributions, and institutional reports.', position: 'right' },
-                    { selector: '.stats-grid, .stat-card', title: 'Institutional KPIs', desc: 'Track university-wide student rosters, total faculty, active departments, and high-risk totals.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the Dean Operations Guide, dark/light theme, and platform notifications.', position: 'bottom' }
-                ];
-            } else if (path.includes('/admin/dashboard') || path.includes('/admin/users')) {
-                tourSteps = [
-                    { selector: '.sidebar', title: 'Admin Controls', desc: 'Manage system users, departments, classes, automated allocations, and audits.', position: 'right' },
-                    { selector: '.stats-grid, .stat-card', title: 'Platform Health Metrics', desc: 'View global student registrations, faculty allocations, and database status.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Quick Action Bar', desc: 'Access the Administrator Operations Manual, color themes, and system alerts.', position: 'bottom' }
-                ];
-            } else if (path.includes('/meetings')) {
-                tourSteps = [
-                    { selector: '#btn-schedule-meeting, .page-content', title: 'Schedule & Manage Meetings', desc: 'Schedule mentorship meetings, approve pending requests, and enter meeting notes.', position: 'bottom' },
-                    { selector: '.tabs-nav, #tab-bar', title: 'Meeting Filters', desc: 'Filter your meetings by Pending, Approved, Completed, or All.', position: 'bottom' },
-                    { selector: '.header-actions', title: 'Action Bar', desc: 'Access your user guide, switch color themes, and view alerts.', position: 'bottom' }
-                ];
-            }
-
-            startTour(`page_tour_${path.replace(/[^a-zA-Z0-9]/g, '_')}`, tourSteps, true);
-        }).catch(err => console.warn('Could not start tour:', err));
-    }
-
     const sidebar = document.querySelector('.sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const menuButton = document.getElementById('sidebar-toggle');
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = window.innerWidth <= 992;
 
     if (e.target.closest('#sidebar-toggle')) {
+        e.preventDefault();
+        e.stopPropagation();
         if (isMobile) {
             const isOpen = sidebar?.classList.toggle('open') || false;
             backdrop?.classList.toggle('visible', isOpen);
+            document.body.classList.toggle('sidebar-open', isOpen);
             menuButton?.setAttribute('aria-expanded', String(isOpen));
         } else {
             const isCollapsed = sidebar?.classList.toggle('collapsed') || false;
             menuButton?.setAttribute('aria-expanded', String(!isCollapsed));
         }
     }
-    if (e.target.closest('#sidebar-backdrop') || e.target.closest('.sidebar-item')) {
-        if (isMobile) {
-            sidebar?.classList.remove('open');
-            backdrop?.classList.remove('visible');
-            menuButton?.setAttribute('aria-expanded', 'false');
-        }
+    
+    if (e.target.closest('#sidebar-backdrop') || (isMobile && e.target.closest('.sidebar-item'))) {
+        sidebar?.classList.remove('open');
+        backdrop?.classList.remove('visible');
+        document.body.classList.remove('sidebar-open');
+        menuButton?.setAttribute('aria-expanded', 'false');
     }
 });
