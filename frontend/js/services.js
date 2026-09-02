@@ -101,9 +101,25 @@ export const StudentService = {
     const cacheKey = `students_mentor_${mentorId}`;
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
-    const res = snaps(await getDocs(query(collection(db, 'students'), where('mentorId', '==', mentorId))));
-    CacheManager.set(cacheKey, res, 5 * 60 * 1000);
-    return res;
+    try {
+      const [p1, p2, p3] = await Promise.all([
+        getDocs(query(collection(db, 'students'), where('mentorId', '==', mentorId))),
+        getDocs(query(collection(db, 'students'), where('secondaryMentorId', '==', mentorId))),
+        getDocs(query(collection(db, 'students'), where('mentorIds', 'array-contains', mentorId))).catch(() => ({ docs: [] }))
+      ]);
+      const map = new Map();
+      [...p1.docs, ...p2.docs, ...(p3?.docs || [])].forEach(d => {
+        map.set(d.id, { id: d.id, ...d.data() });
+      });
+      const res = Array.from(map.values());
+      CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+      return res;
+    } catch (e) {
+      console.warn('Error fetching students by mentor:', e);
+      const res = snaps(await getDocs(query(collection(db, 'students'), where('mentorId', '==', mentorId))));
+      CacheManager.set(cacheKey, res, 5 * 60 * 1000);
+      return res;
+    }
   },
 
   async getByDepartment(dept) {
@@ -128,30 +144,53 @@ export const StudentService = {
     CacheManager.invalidatePrefix('students_');
   },
 
-  async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL') {
+  async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL', secondaryMentorId = undefined) {
     const time = now();
     const batch = writeBatch(db);
+    const sDoc = await getDoc(doc(db, 'students', studentId));
+    const sData = sDoc.exists() ? sDoc.data() : {};
+    
+    const oldPrimary = sData.mentorId || null;
+    const oldSecondary = sData.secondaryMentorId || null;
+    const newPrimary = mentorId !== undefined ? (mentorId || null) : oldPrimary;
+    const newSecondary = secondaryMentorId !== undefined ? (secondaryMentorId || null) : oldSecondary;
+    
+    const mentorIds = [newPrimary, newSecondary].filter(Boolean);
+
     batch.update(doc(db, 'students', studentId), {
-      mentorId,
+      mentorId: newPrimary,
+      secondaryMentorId: newSecondary,
+      mentorIds: mentorIds,
       allocatedBy,
       allocatedAt: time,
       allocationType,
       updatedAt: time
     });
-    if (mentorId) {
-      batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(1) });
+
+    if (oldPrimary && oldPrimary !== newPrimary) {
+      batch.update(doc(db, 'faculty', oldPrimary), { assignedStudentCount: increment(-1) });
     }
+    if (newPrimary && oldPrimary !== newPrimary) {
+      batch.update(doc(db, 'faculty', newPrimary), { assignedStudentCount: increment(1) });
+    }
+    if (oldSecondary && oldSecondary !== newSecondary) {
+      batch.update(doc(db, 'faculty', oldSecondary), { assignedStudentCount: increment(-1) });
+    }
+    if (newSecondary && oldSecondary !== newSecondary) {
+      batch.update(doc(db, 'faculty', newSecondary), { assignedStudentCount: increment(1) });
+    }
+
     await batch.commit();
     CacheManager.invalidate(`student_${studentId}`);
     CacheManager.invalidatePrefix('students_');
     CacheManager.invalidatePrefix('faculty_');
   },
 
-  async reassignMentor(studentId, newMentorId, reassignedBy = 'HOD', reason = 'Reassigned by HOD') {
+  async reassignMentor(studentId, newMentorId, reassignedBy = 'HOD', reason = 'Reassigned by HOD', isSecondary = false) {
     const studentSnap = await getDoc(doc(db, 'students', studentId));
     if (!studentSnap.exists()) throw new Error('Student not found');
     const sData = studentSnap.data();
-    const oldMentorId = sData.mentorId || null;
+    const oldMentorId = (isSecondary ? sData.secondaryMentorId : sData.mentorId) || null;
 
     let oldMentorName = 'Unassigned';
     let newMentorName = 'Unassigned';
@@ -167,6 +206,7 @@ export const StudentService = {
 
     const time = now();
     const historyEntry = {
+      role: isSecondary ? 'Secondary Mentor' : 'Primary Mentor',
       previousMentorId: oldMentorId,
       previousMentorName: oldMentorName,
       newMentorId,
@@ -176,9 +216,15 @@ export const StudentService = {
       reason
     };
 
+    const newPrimary = isSecondary ? (sData.mentorId || null) : (newMentorId || null);
+    const newSecondary = isSecondary ? (newMentorId || null) : (sData.secondaryMentorId || null);
+    const mentorIds = [newPrimary, newSecondary].filter(Boolean);
+
     const batch = writeBatch(db);
     batch.update(doc(db, 'students', studentId), {
-      mentorId: newMentorId,
+      mentorId: newPrimary,
+      secondaryMentorId: newSecondary,
+      mentorIds: mentorIds,
       allocatedBy: reassignedBy,
       allocatedAt: time,
       allocationType: 'MANUAL',
@@ -206,15 +252,38 @@ export const StudentService = {
     CacheManager.invalidatePrefix('students_');
   },
 
-  async unassignMentor(studentId) {
+  async unassignMentor(studentId, which = 'all') {
     const studentSnap = await getDoc(doc(db, 'students', studentId));
     if (!studentSnap.exists()) throw new Error('Student not found');
-    const mentorId = studentSnap.data().mentorId;
+    const sData = studentSnap.data();
+    const oldPrimary = sData.mentorId || null;
+    const oldSecondary = sData.secondaryMentorId || null;
+    
     const batch = writeBatch(db);
-    batch.update(doc(db, 'students', studentId), { mentorId: null, updatedAt: now() });
-    if (mentorId) {
-      batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
+    let newPrimary = oldPrimary;
+    let newSecondary = oldSecondary;
+
+    if (which === 'all') {
+      newPrimary = null;
+      newSecondary = null;
+      if (oldPrimary) batch.update(doc(db, 'faculty', oldPrimary), { assignedStudentCount: increment(-1) });
+      if (oldSecondary) batch.update(doc(db, 'faculty', oldSecondary), { assignedStudentCount: increment(-1) });
+    } else if (which === 'primary') {
+      newPrimary = null;
+      if (oldPrimary) batch.update(doc(db, 'faculty', oldPrimary), { assignedStudentCount: increment(-1) });
+    } else if (which === 'secondary') {
+      newSecondary = null;
+      if (oldSecondary) batch.update(doc(db, 'faculty', oldSecondary), { assignedStudentCount: increment(-1) });
     }
+
+    const mentorIds = [newPrimary, newSecondary].filter(Boolean);
+    batch.update(doc(db, 'students', studentId), {
+      mentorId: newPrimary,
+      secondaryMentorId: newSecondary,
+      mentorIds: mentorIds,
+      updatedAt: now()
+    });
+
     await batch.commit();
     CacheManager.invalidate(`student_${studentId}`);
     CacheManager.invalidatePrefix('students_');
@@ -224,11 +293,16 @@ export const StudentService = {
   async deleteStudent(studentId) {
     const studentSnap = await getDoc(doc(db, 'students', studentId));
     if (!studentSnap.exists()) throw new Error('Student not found');
-    const mentorId = studentSnap.data().mentorId;
+    const sData = studentSnap.data();
+    const mentorId = sData.mentorId;
+    const secondaryMentorId = sData.secondaryMentorId;
     const batch = writeBatch(db);
     batch.delete(doc(db, 'students', studentId));
     if (mentorId) {
       batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(-1) });
+    }
+    if (secondaryMentorId) {
+      batch.update(doc(db, 'faculty', secondaryMentorId), { assignedStudentCount: increment(-1) });
     }
     await batch.commit();
     CacheManager.invalidate(`student_${studentId}`);
@@ -1124,6 +1198,39 @@ export const DepartmentService = {
     CacheManager.invalidate('departments');
   },
 
+  async changeHOD(departmentId, deptName, newHodFacultyId = null, previousHodFacultyId = null, newHodName = '') {
+    const batch = writeBatch(db);
+    const time = now();
+
+    // 1. Promote new faculty to HOD if specified
+    if (newHodFacultyId) {
+      batch.update(doc(db, 'faculty', newHodFacultyId), {
+        role: 'HOD',
+        department: deptName,
+        updatedAt: time
+      });
+    }
+
+    // 2. Safely revert previous HOD to FACULTY role (leaving their mentees and tasks untouched)
+    if (previousHodFacultyId && previousHodFacultyId !== newHodFacultyId) {
+      batch.update(doc(db, 'faculty', previousHodFacultyId), {
+        role: 'FACULTY',
+        updatedAt: time
+      });
+    }
+
+    // 3. Update department document with new HOD info
+    batch.update(doc(db, 'departments', departmentId), {
+      hodName: newHodName || '—',
+      hodId: newHodFacultyId || null,
+      updatedAt: time
+    });
+
+    await batch.commit();
+    CacheManager.invalidate('departments');
+    CacheManager.invalidatePrefix('faculty_');
+  },
+
   async delete(id) {
     await deleteDoc(doc(db, 'departments', id));
     CacheManager.invalidate('departments');
@@ -1184,16 +1291,21 @@ export const ClassService = {
 // ─── ALLOCATION ───────────────────────────────────────────────────────────────
 
 export const AllocationService = {
-  async assign(studentId, mentorId, mentorName) {
+  async assign(studentId, mentorId, mentorName, secondaryMentorId = undefined) {
     // Update student and increment faculty counter atomically via StudentService
-    await StudentService.assignMentor(studentId, mentorId);
+    await StudentService.assignMentor(studentId, mentorId, 'Admin', 'MANUAL', secondaryMentorId);
   },
 
-  async batchAssign(studentIds, mentorId) {
-    if (!studentIds || studentIds.length === 0) return;
+  async batchAssign(studentIds, mentorId, isSecondary = false) {
+    if (!studentIds || studentIds.length === 0 || !mentorId) return;
     const batch = writeBatch(db);
     studentIds.forEach(id => {
-      batch.update(doc(db, 'students', id), { mentorId: mentorId, updatedAt: new Date().toISOString() });
+      const field = isSecondary ? 'secondaryMentorId' : 'mentorId';
+      batch.update(doc(db, 'students', id), {
+        [field]: mentorId,
+        mentorIds: arrayUnion(mentorId),
+        updatedAt: new Date().toISOString()
+      });
     });
     batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(studentIds.length) });
     await batch.commit();
@@ -1235,7 +1347,11 @@ export const AllocationService = {
       const student = students[i];
       const mentor = available[mentorIdx];
 
-      currentBatch.update(doc(db, 'students', student.id), { mentorId: mentor.id, updatedAt: now() });
+      currentBatch.update(doc(db, 'students', student.id), {
+        mentorId: mentor.id,
+        mentorIds: [mentor.id],
+        updatedAt: now()
+      });
       batchCount++;
       mentorIncrements[mentor.id] = (mentorIncrements[mentor.id] || 0) + 1;
       results.push({ studentId: student.id, mentorId: mentor.id });
@@ -1266,7 +1382,7 @@ export const AllocationService = {
     let students = department
       ? await StudentService.getByDepartment(department)
       : await StudentService.getAll();
-    const assignedStudents = students.filter(s => s.mentorId);
+    const assignedStudents = students.filter(s => s.mentorId || s.secondaryMentorId);
 
     let mentors = department
       ? await FacultyService.getByDepartment(department)
@@ -1276,10 +1392,15 @@ export const AllocationService = {
     let batchCount = 0;
     let processed = 0;
 
-    // Reset student mentorId assignments
+    // Reset student mentorId & secondaryMentorId assignments
     for (let i = 0; i < assignedStudents.length; i++) {
       const student = assignedStudents[i];
-      currentBatch.update(doc(db, 'students', student.id), { mentorId: null, updatedAt: now() });
+      currentBatch.update(doc(db, 'students', student.id), {
+        mentorId: null,
+        secondaryMentorId: null,
+        mentorIds: [],
+        updatedAt: now()
+      });
       batchCount++;
       processed++;
 
