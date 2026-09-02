@@ -80,10 +80,11 @@ export async function render(container) {
     let mentorObj = null;
 
     if (isStudent) {
-      if (user.mentorId) {
-        mentorObj = await FacultyService.get(user.mentorId);
+      const freshUser = await StudentService.get(user.id).catch(() => user) || user;
+      if (freshUser.mentorId) {
+        mentorObj = await FacultyService.get(freshUser.mentorId).catch(() => null);
         if (mentorObj) {
-          directContacts.push({ id: mentorObj.id, name: mentorObj.name, role: 'FACULTY MENTOR' });
+          directContacts.push({ id: mentorObj.id, name: mentorObj.name, role: 'PRIMARY MENTOR' });
           // Fetch cohort peers
           try {
             cohortStudents = await StudentService.getByMentor(mentorObj.id);
@@ -98,6 +99,12 @@ export async function render(container) {
             students: cohortStudents,
             memberCount: (cohortStudents.length || 1) + 1
           };
+        }
+      }
+      if (freshUser.secondaryMentorId) {
+        const coMentorObj = await FacultyService.get(freshUser.secondaryMentorId).catch(() => null);
+        if (coMentorObj) {
+          directContacts.push({ id: coMentorObj.id, name: coMentorObj.name, role: 'CO-MENTOR' });
         }
       }
     } else {
