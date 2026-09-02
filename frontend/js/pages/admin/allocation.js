@@ -31,6 +31,7 @@ export async function render(container) {
   // Classwise Allocation state
   let selectedClasswiseMentorId = '';
   let selectedClasswiseClass = '';
+  let selectedAllocationRole = 'PRIMARY'; // 'PRIMARY' | 'SECONDARY'
   let classwiseSearchQuery = '';
   let tickedStudentIds = new Set();
   let allocFilterClass = '';
@@ -54,14 +55,18 @@ export async function render(container) {
     allStudents = fullStudentList;
 
     assignedPairs = allStudents
-      .filter(s => s.mentorId)
+      .filter(s => s.mentorId || s.secondaryMentorId)
       .map(s => {
-        const m = mentors.find(x => x.id === s.mentorId);
+        const m1 = mentors.find(x => x.id === s.mentorId);
+        const m2 = mentors.find(x => x.id === s.secondaryMentorId);
         return {
           studentId: s.id,
           studentName: s.name,
           enrollmentNumber: s.enrollmentNumber || '—',
-          mentorName: m?.name || 'Unknown',
+          mentorId: s.mentorId || null,
+          mentorName: m1?.name || (s.mentorId ? 'Unknown' : '—'),
+          secondaryMentorId: s.secondaryMentorId || null,
+          secondaryMentorName: m2?.name || (s.secondaryMentorId ? 'Unknown' : '—'),
           department: s.department || '—',
           className: s.class ? `${s.class}` : 'Unassigned'
         };
@@ -134,7 +139,7 @@ export async function render(container) {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px;margin-bottom:20px;">
           <!-- Step 1: Select Mentor -->
           <div>
             <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;">1. Select Mentor Name</label>
@@ -159,6 +164,15 @@ export async function render(container) {
                 return `<option value="${c}" ${sel}>Class ${c} (${count} students)</option>`;
               }).join('')}
               <option value="UNASSIGNED_CLASS" ${selectedClasswiseClass === 'UNASSIGNED_CLASS' ? 'selected' : ''}>Unassigned Class (${allStudents.filter(s => !s.class).length} students)</option>
+            </select>
+          </div>
+
+          <!-- Step 3: Allocation Role -->
+          <div>
+            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;">3. Allocation Type / Role</label>
+            <select id="classwise-role-select" class="form-select" style="width:100%;padding:10px;">
+              <option value="PRIMARY" ${selectedAllocationRole === 'PRIMARY' ? 'selected' : ''}>🎖️ Primary Mentor</option>
+              <option value="SECONDARY" ${selectedAllocationRole === 'SECONDARY' ? 'selected' : ''}>👥 Secondary / Co-Mentor</option>
             </select>
           </div>
         </div>
@@ -193,7 +207,8 @@ export async function render(container) {
                     <th>Enrollment No</th>
                     <th>Department</th>
                     <th>Class</th>
-                    <th>Current Mentor Status</th>
+                    <th>Primary Mentor</th>
+                    <th>Co-Mentor (2nd)</th>
                   </tr>
                 </thead>
                 <tbody id="classwise-students-tbody">
@@ -204,10 +219,10 @@ export async function render(container) {
 
             <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
               <span style="font-size:0.75rem;color:var(--text-muted);">
-                Each batch can allocate up to 50 students at once to the selected mentor. Use search to filter students instantly.
+                Allocate up to 50 students at once as <strong>${selectedAllocationRole === 'SECONDARY' ? 'Secondary / Co-Mentor' : 'Primary Mentor'}</strong>.
               </span>
               <button class="btn btn-primary" id="btn-classwise-allocate" ${(!selectedClasswiseMentorId || tickedStudentIds.size === 0) ? 'disabled' : ''}>
-                Allocate ${tickedStudentIds.size} Ticked Student(s) →
+                Allocate ${tickedStudentIds.size} Ticked Student(s) as ${selectedAllocationRole === 'SECONDARY' ? 'Co-Mentor' : 'Primary Mentor'} →
               </button>
             </div>
           </div>
@@ -412,13 +427,14 @@ export async function render(container) {
     }
 
     if (classFilteredStudents.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">${classwiseSearchQuery ? 'No matching students found.' : 'No students found in this class.'}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">${classwiseSearchQuery ? 'No matching students found.' : 'No students found in this class.'}</td></tr>`;
       return;
     }
 
     tbody.innerHTML = classFilteredStudents.map(s => {
       const isTicked = tickedStudentIds.has(s.id);
-      const curMentor = s.mentorId ? mentors.find(m => m.id === s.mentorId) : null;
+      const curPrimary = s.mentorId ? mentors.find(m => m.id === s.mentorId) : null;
+      const curSecondary = s.secondaryMentorId ? mentors.find(m => m.id === s.secondaryMentorId) : null;
       return `
         <tr style="${isTicked ? 'background:var(--accent-light);' : ''}">
           <td style="text-align:center;">
@@ -429,7 +445,10 @@ export async function render(container) {
           <td>${s.department || '—'}</td>
           <td>${s.class ? `Class ${s.class}` : 'Unassigned'}</td>
           <td>
-            ${curMentor ? `<span class="badge badge-info">Mentor: ${curMentor.name}</span>` : '<span class="badge badge-warning">Unassigned</span>'}
+            ${curPrimary ? `<span class="badge badge-info">${curPrimary.name}</span>` : '<span class="badge badge-warning">Unassigned</span>'}
+          </td>
+          <td>
+            ${curSecondary ? `<span class="badge badge-accent">${curSecondary.name}</span>` : '<span style="color:var(--text-muted);font-size:0.75rem;">—</span>'}
           </td>
         </tr>
       `;
@@ -448,7 +467,7 @@ export async function render(container) {
     const btnAllocate = container.querySelector('#btn-classwise-allocate');
     if (btnAllocate) {
       btnAllocate.disabled = !selectedClasswiseMentorId || tickedStudentIds.size === 0;
-      btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) →`;
+      btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) as ${selectedAllocationRole === 'SECONDARY' ? 'Co-Mentor' : 'Primary Mentor'} →`;
     }
 
     const selectAllCb = container.querySelector('#classwise-select-all');
@@ -514,20 +533,32 @@ export async function render(container) {
         <thead>
           <tr>
             <th>Class</th>
-            <th>Assigned Mentor</th>
             <th>Student Name</th>
             <th>Enrollment No</th>
+            <th>Primary Mentor</th>
+            <th>Co-Mentor (2nd)</th>
             <th>Department</th>
+            <th style="text-align:right;">Actions</th>
           </tr>
         </thead>
         <tbody>
           ${visiblePairs.map(a => `
             <tr>
               <td><span class="badge badge-accent" style="font-weight:600;">Class ${a.className}</span></td>
-              <td style="color:var(--accent);font-weight:600;">${a.mentorName}</td>
               <td style="font-weight:600;">${a.studentName}</td>
               <td>${a.enrollmentNumber}</td>
+              <td style="color:var(--accent);font-weight:600;">${a.mentorName}</td>
+              <td style="color:var(--text-secondary);font-weight:600;">
+                ${a.secondaryMentorId ? `<span class="badge badge-info">${a.secondaryMentorName}</span>` : '<span style="color:var(--text-muted);font-size:0.75rem;">—</span>'}
+              </td>
               <td style="color:var(--text-muted);font-size:0.825rem;">${a.department}</td>
+              <td style="text-align:right;">
+                <div style="display:inline-flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+                  ${a.mentorId ? `<button class="btn btn-xs btn-secondary btn-unassign-primary" data-id="${a.studentId}" title="Unassign Primary Mentor">Unassign 1st</button>` : ''}
+                  ${a.secondaryMentorId ? `<button class="btn btn-xs btn-secondary btn-unassign-secondary" data-id="${a.studentId}" title="Unassign Secondary Mentor">Unassign 2nd</button>` : ''}
+                  ${(a.mentorId && a.secondaryMentorId) ? `<button class="btn btn-xs btn-danger btn-unassign-both" data-id="${a.studentId}" style="background:var(--danger);color:#fff;" title="Unassign Both Mentors">Unassign All</button>` : ''}
+                </div>
+              </td>
             </tr>
           `).join('')}
         </tbody>
@@ -548,6 +579,58 @@ export async function render(container) {
     document.getElementById('btn-alloc-next')?.addEventListener('click', () => {
       if (allocPage < totalAllocPages) { allocPage++; renderAllocationsTable(); }
     });
+
+    // Wire unassign listeners
+    tableWrap.querySelectorAll('.btn-unassign-primary').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (!confirm('Unassign Primary Mentor from this student?')) return;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await StudentService.unassignMentor(id, 'primary');
+          showToast('Primary mentor unassigned', 'success');
+          await loadData();
+          buildUI();
+        } catch (err) {
+          showToast('Failed to unassign: ' + err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Unassign 1st';
+        }
+      });
+    });
+
+    tableWrap.querySelectorAll('.btn-unassign-secondary').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (!confirm('Unassign Co-Mentor from this student?')) return;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await StudentService.unassignMentor(id, 'secondary');
+          showToast('Co-mentor unassigned', 'success');
+          await loadData();
+          buildUI();
+        } catch (err) {
+          showToast('Failed to unassign: ' + err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Unassign 2nd';
+        }
+      });
+    });
+
+    tableWrap.querySelectorAll('.btn-unassign-both').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        if (!confirm('Unassign ALL mentors from this student?')) return;
+        btn.disabled = true; btn.textContent = '...';
+        try {
+          await StudentService.unassignMentor(id, 'all');
+          showToast('All mentors unassigned', 'success');
+          await loadData();
+          buildUI();
+        } catch (err) {
+          showToast('Failed to unassign: ' + err.message, 'error');
+          btn.disabled = false; btn.textContent = 'Unassign All';
+        }
+      });
+    });
   }
 
   function attachEventListeners() {
@@ -560,6 +643,7 @@ export async function render(container) {
         renderAllocationsTable();
       });
     }
+
     // Step 1: Mentor Selection
     const mentorSelect = container.querySelector('#classwise-mentor-select');
     if (mentorSelect) {
@@ -578,6 +662,15 @@ export async function render(container) {
         classwiseSearchQuery = '';
         tickedStudentIds.clear();
         buildUI();
+      });
+    }
+
+    // Step 3: Role Selection
+    const roleSelect = container.querySelector('#classwise-role-select');
+    if (roleSelect) {
+      roleSelect.addEventListener('change', (e) => {
+        selectedAllocationRole = e.target.value;
+        updateTickedUI();
       });
     }
 
@@ -630,9 +723,10 @@ export async function render(container) {
 
         try {
           const studentIdsArray = Array.from(tickedStudentIds);
-          await AllocationService.batchAssign(studentIdsArray, selectedMentor.id);
+          const isSecondary = selectedAllocationRole === 'SECONDARY';
+          await AllocationService.batchAssign(studentIdsArray, selectedMentor.id, isSecondary);
 
-          showToast(`Successfully allocated ${studentIdsArray.length} student(s) to ${selectedMentor.name}!`, 'success');
+          showToast(`Successfully allocated ${studentIdsArray.length} student(s) to ${selectedMentor.name} as ${isSecondary ? 'Co-Mentor' : 'Primary Mentor'}!`, 'success');
 
           // Reset selection state & refresh
           tickedStudentIds.clear();
@@ -642,7 +736,7 @@ export async function render(container) {
           console.error("Allocation error:", err);
           showToast(err.message || 'Failed to allocate students', 'error');
           btnAllocate.disabled = false;
-          btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) →`;
+          btnAllocate.textContent = `Allocate ${tickedStudentIds.size} Ticked Student(s) as ${selectedAllocationRole === 'SECONDARY' ? 'Co-Mentor' : 'Primary Mentor'} →`;
         }
       });
     }
