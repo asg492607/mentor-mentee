@@ -65,7 +65,7 @@ service cloud.firestore {
       allow create: if (isAuth() && uid() == studentId && request.resource.data.role == 'STUDENT') || isSuperAdmin();
       allow update: if isAuth() && (
         (uid() == studentId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'interests', 'skills', 'careerGoal', 'updatedAt'])) ||
-        (isFaculty() && resource.data.mentorId == uid()) || 
+        (isFaculty() && (resource.data.mentorId == uid() || resource.data.secondaryMentorId == uid() || (resource.data.mentorIds != null && uid() in resource.data.mentorIds))) || 
         isHODForDept(resource.data.department) ||
         isDean() ||
         isSuperAdmin()
@@ -118,14 +118,14 @@ service cloud.firestore {
       match /signaling/{docId} {
         allow read, write: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == uid() ||
                               get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
-                              (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId) ||
+                              (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && (get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId || get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().secondaryMentorId)) ||
                               isDean() || isSuperAdmin();
       }
 
       match /controls/{docId} {
         allow read: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == uid() ||
                        get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
-                       (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId) ||
+                       (isStudent() && get(/databases/$(database)/documents/meetings/$(meetingId)).data.studentId == 'ALL' && (get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().mentorId || get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == getUserDoc().secondaryMentorId)) ||
                        isDean() || isSuperAdmin();
         allow write: if get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid() ||
                         isFaculty() || isDean() || isSuperAdmin();
