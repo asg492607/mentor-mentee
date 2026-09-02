@@ -55,6 +55,7 @@ export async function render(container) {
 
     // Load mentor info if assigned
     let mentor = null;
+    let coMentor = null;
     if (fullProfile.mentorId) {
       try {
         mentor = await FacultyService.get(fullProfile.mentorId);
@@ -62,8 +63,16 @@ export async function render(container) {
         console.warn('Could not load mentor info:', mErr);
       }
     }
+    if (fullProfile.secondaryMentorId) {
+      try {
+        coMentor = await FacultyService.get(fullProfile.secondaryMentorId);
+      } catch (mErr) {
+        console.warn('Could not load co-mentor info:', mErr);
+      }
+    }
 
     const initials = (mentor?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const coInitials = (coMentor?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
     const content = container.querySelector('#dash-content');
     if (!content) return;
 
@@ -162,21 +171,37 @@ export async function render(container) {
         <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;">
           <!-- Left Column -->
           <div style="display:flex;flex-direction:column;gap:16px;">
-            <!-- My Mentor Card -->
-            <div class="card" style="padding:24px;text-align:center;">
-              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:16px;">My Mentor</p>
+            <!-- My Mentors Card -->
+            <div class="card" style="padding:20px;text-align:center;">
+              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">Assigned Mentors</p>
               ${mentor ? `
-                <div class="avatar avatar-xl" style="margin:0 auto 12px; background:var(--accent-gradient); color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(124,106,255,0.3);">${initials}</div>
-                <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px;color:var(--text-primary);">${mentor.name}</h3>
-                <p style="color:var(--text-muted);font-size:0.825rem;margin-bottom:2px;">${mentor.designation || 'Faculty Mentor'}</p>
-                <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:18px;">${mentor.department || ''}</p>
-                <button class="btn btn-primary w-full" id="btn-req-meeting" style="border-radius:20px; font-weight:600;">Request Meeting</button>
+                <div style="padding-bottom:12px;border-bottom:${coMentor ? '1px solid var(--border)' : 'none'};">
+                  <span class="badge badge-accent" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">Primary Mentor</span>
+                  <div class="avatar avatar-lg" style="margin:0 auto 8px; background:var(--accent-gradient); color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(124,106,255,0.3);">${initials}</div>
+                  <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:2px;color:var(--text-primary);">${mentor.name}</h3>
+                  <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:2px;">${mentor.designation || 'Faculty Mentor'}</p>
+                  <p style="color:var(--text-muted);font-size:0.75rem;margin:0;">${mentor.department || ''}</p>
+                </div>
               ` : `
-                <div style="color:var(--text-muted);padding:20px;">
-                  <i class="ph ph-user-minus" style="font-size:2.8rem; margin-bottom:8px; opacity:0.4; display:block;"></i>
-                  <p style="font-size:0.875rem;">No mentor assigned yet</p>
+                <div style="color:var(--text-muted);padding:14px;">
+                  <i class="ph ph-user-minus" style="font-size:2.2rem; margin-bottom:6px; opacity:0.4; display:block;"></i>
+                  <p style="font-size:0.85rem;">No primary mentor assigned</p>
                 </div>
               `}
+
+              ${coMentor ? `
+                <div style="padding-top:12px;">
+                  <span class="badge badge-info" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">Co-Mentor</span>
+                  <div class="avatar avatar-lg" style="margin:0 auto 8px; background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; font-weight:700;">${coInitials}</div>
+                  <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:2px;color:var(--text-primary);">${coMentor.name}</h3>
+                  <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:2px;">${coMentor.designation || 'Co-Mentor'}</p>
+                  <p style="color:var(--text-muted);font-size:0.75rem;margin:0;">${coMentor.department || ''}</p>
+                </div>
+              ` : ''}
+
+              ${(mentor || coMentor) ? `
+                <button class="btn btn-primary w-full" id="btn-req-meeting" style="border-radius:20px; font-weight:600;margin-top:14px;">Request Meeting</button>
+              ` : ''}
             </div>
 
             <!-- Academic Status Card -->
