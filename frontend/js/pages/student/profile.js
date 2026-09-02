@@ -26,8 +26,19 @@ export async function render(container) {
   `;
 
   let profile = {};
+  let mentorName = '—';
+  let coMentorName = '—';
   try {
     profile = await StudentService.get(user.id) || { ...user };
+    const { FacultyService } = await import('/js/services.js');
+    if (profile.mentorId) {
+      const m1 = await FacultyService.get(profile.mentorId).catch(() => null);
+      if (m1) mentorName = m1.name;
+    }
+    if (profile.secondaryMentorId) {
+      const m2 = await FacultyService.get(profile.secondaryMentorId).catch(() => null);
+      if (m2) coMentorName = m2.name;
+    }
   } catch {
     profile = { ...user };
   }
@@ -51,7 +62,9 @@ export async function render(container) {
           ${[
             ['Enrollment Number', profile.enrollmentNumber || '—'],
             ['Department',  profile.department || '—'],
-            ['Year',        profile.year ? `Year ${profile.year}` : '—'],
+            ['Class',       profile.class ? `Class ${profile.class}` : '—'],
+            ['Primary Mentor', mentorName],
+            ['Co-Mentor',   coMentorName],
             ['CGPA',        profile.cgpa || '—'],
             ['Attendance',  (profile.attendance || 0) + '%'],
           ].map(([l,v]) => `
