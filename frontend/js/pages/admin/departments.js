@@ -38,12 +38,69 @@ export async function render(container) {
         </div>
       </div>
     </div>
+
+    <!-- Change HOD Modal -->
+    <div id="change-hod-modal" class="modal-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+      <div class="modal card" style="max-width:540px;width:100%;padding:28px;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,0.35);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:14px;">
+          <div>
+            <h3 style="margin:0;font-size:1.15rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+              👑 Change Head of Department (HOD)
+            </h3>
+            <p id="modal-dept-sub" style="margin:4px 0 0 0;font-size:0.825rem;color:var(--text-secondary);">
+              Update leadership for department
+            </p>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-close-hod-modal" style="font-size:1.2rem;padding:4px 8px;">✕</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="background:var(--bg-secondary);padding:14px;border-radius:10px;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:6px;">
+              <span style="color:var(--text-secondary);">Department:</span>
+              <strong id="modal-dept-name">—</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+              <span style="color:var(--text-secondary);">Current HOD:</span>
+              <strong id="modal-current-hod" style="color:var(--warning);">—</strong>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-weight:600;font-size:0.85rem;">Select Faculty Member to Appoint as HOD</label>
+            <select id="modal-new-hod-select" class="form-select" style="width:100%;padding:10px;">
+              <option value="">-- Choose from Registered Faculty --</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-weight:600;font-size:0.85rem;">Or Enter Custom HOD Name</label>
+            <input type="text" id="modal-new-hod-custom" class="form-input" placeholder="e.g. Dr. Jane Doe" style="padding:10px;">
+          </div>
+
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:12px;font-size:0.8rem;color:var(--text-secondary);line-height:1.45;">
+            🛡️ <strong>Safe Transition Guarantee:</strong> Changing the HOD updates administrative roles without disrupting any student allocations, active mentorship pairs, or scheduled meetings. The previous HOD will smoothly revert to standard Faculty status.
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-hod-modal">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-save-new-hod" style="padding:8px 20px;font-weight:600;">
+            Save &amp; Update HOD
+          </button>
+        </div>
+      </div>
+    </div>
   `;
 
   let depts = [];
   let students = [];
   let faculty  = [];
   let allClasses = [];
+
+  let activeChangeDeptId = null;
+  let activeChangeDeptName = null;
+  let activePreviousHodId = null;
 
   async function loadAll() {
     [depts, students, faculty, allClasses] = await Promise.all([
@@ -71,6 +128,9 @@ export async function render(container) {
       const mentorCount  = faculty.filter(f => f.department === d.name).length;
       const deptClasses  = allClasses.filter(c => c.department === d.name);
 
+      // Find current HOD faculty doc if any
+      const curHodFaculty = faculty.find(f => f.id === d.hodId || (f.department === d.name && f.role === 'HOD'));
+
       return `
         <div class="card" style="padding:24px;display:flex;flex-direction:column;justify-content:space-between;">
           <div>
@@ -81,9 +141,21 @@ export async function render(container) {
                   <span style="background:var(--bg-glass-hover);color:var(--text-secondary);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${escapeHtml(d.code||'—')}</span>
                 </div>
                 <h3 style="font-size:1rem;font-weight:700;margin:0 0 4px 0;">${escapeHtml(d.name)}</h3>
-                <p style="color:var(--text-muted);font-size:0.8rem;">Head: ${escapeHtml(d.hodName||'—')}</p>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">
+                  <span style="color:var(--text-muted);font-size:0.8rem;">
+                    Head: <strong style="color:var(--text-primary);">${escapeHtml(d.hodName || curHodFaculty?.name || 'Unassigned')}</strong>
+                  </span>
+                  <button class="btn btn-xs btn-secondary btn-open-change-hod" 
+                    data-id="${d.id}" 
+                    data-dept="${escapeHtml(d.name)}" 
+                    data-hodname="${escapeHtml(d.hodName || curHodFaculty?.name || '')}"
+                    data-hodid="${curHodFaculty?.id || d.hodId || ''}"
+                    style="padding:2px 8px;font-size:0.75rem;border-radius:6px;gap:4px;display:inline-flex;align-items:center;">
+                    🔄 Change HOD
+                  </button>
+                </div>
               </div>
-              <button class="btn btn-xs btn-danger del-dept" data-id="${d.id}">✕</button>
+              <button class="btn btn-xs btn-danger del-dept" data-id="${d.id}" title="Delete Department">✕</button>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
               <div style="text-align:center;background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;">
@@ -116,6 +188,47 @@ export async function render(container) {
         </div>
       `;
     }).join('');
+
+    attachDeptEventListeners();
+  }
+
+  function attachDeptEventListeners() {
+    // Open Change HOD Modal Listener
+    document.querySelectorAll('.btn-open-change-hod').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const targetBtn = e.currentTarget || e.target.closest('.btn-open-change-hod');
+        activeChangeDeptId = targetBtn?.dataset?.id;
+        activeChangeDeptName = targetBtn?.dataset?.dept;
+        const curHodName = targetBtn?.dataset?.hodname || 'Unassigned';
+        activePreviousHodId = targetBtn?.dataset?.hodid || null;
+
+        const modal = document.getElementById('change-hod-modal');
+        const deptNameEl = document.getElementById('modal-dept-name');
+        const deptSubEl = document.getElementById('modal-dept-sub');
+        const curHodEl = document.getElementById('modal-current-hod');
+        const selEl = document.getElementById('modal-new-hod-select');
+        const customInp = document.getElementById('modal-new-hod-custom');
+
+        if (deptNameEl) deptNameEl.textContent = activeChangeDeptName || '—';
+        if (deptSubEl) deptSubEl.textContent = `Update leadership for ${activeChangeDeptName}`;
+        if (curHodEl) curHodEl.textContent = curHodName || 'Unassigned';
+        if (customInp) customInp.value = '';
+
+        // Populate faculty select
+        if (selEl) {
+          const eligibleFaculty = faculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR' || f.role === 'HOD');
+          selEl.innerHTML = '<option value="">-- Choose from Registered Faculty --</option>' +
+            eligibleFaculty.map(f => {
+              const isSameDept = f.department === activeChangeDeptName;
+              return `<option value="${f.id}" data-name="${escapeHtml(f.name || '')}">
+                ${escapeHtml(f.name || 'Faculty')} (${f.role}) — ${escapeHtml(f.department || 'No Dept')} ${isSameDept ? '⭐' : ''}
+              </option>`;
+            }).join('');
+        }
+
+        if (modal) modal.style.display = 'flex';
+      });
+    });
 
     document.querySelectorAll('.del-dept').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -179,6 +292,54 @@ export async function render(container) {
       });
     });
   }
+
+  // Modal event listeners
+  const closeHodModal = () => {
+    const modal = document.getElementById('change-hod-modal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  document.getElementById('btn-close-hod-modal')?.addEventListener('click', closeHodModal);
+  document.getElementById('btn-cancel-hod-modal')?.addEventListener('click', closeHodModal);
+
+  document.getElementById('btn-save-new-hod')?.addEventListener('click', async () => {
+    const selEl = document.getElementById('modal-new-hod-select');
+    const customInp = document.getElementById('modal-new-hod-custom');
+    const selectedFacId = selEl?.value || null;
+    const selectedFacName = selEl?.selectedOptions?.[0]?.dataset?.name || '';
+    const customName = customInp?.value.trim() || '';
+
+    const newHodName = customName || selectedFacName;
+    if (!newHodName && !selectedFacId) {
+      showToast('Please select a faculty member or enter a name for the new HOD', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btn-save-new-hod');
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+
+    try {
+      await DepartmentService.changeHOD(
+        activeChangeDeptId,
+        activeChangeDeptName,
+        selectedFacId,
+        activePreviousHodId,
+        newHodName
+      );
+
+      showToast(`HOD for "${activeChangeDeptName}" updated to ${newHodName} successfully!`, 'success');
+      closeHodModal();
+      await loadAll();
+      renderDepts();
+    } catch (err) {
+      console.error('Change HOD error:', err);
+      showToast('Failed to update HOD: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save & Update HOD';
+    }
+  });
 
   container.querySelector('#btn-add-dept').addEventListener('click', async () => {
     const type    = container.querySelector('#d-type').value;
