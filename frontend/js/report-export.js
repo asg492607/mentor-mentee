@@ -39,15 +39,17 @@ export async function exportMentorStudentReport(format = 'excel') {
 
     // Build flat row list ordered Classwise -> Mentorwise -> Studentwise
     const reportRows = sortedStudents.map((s, idx) => {
-      const m = mentors.find(x => x.id === s.mentorId);
+      const m1 = mentors.find(x => x.id === s.mentorId);
+      const m2 = mentors.find(x => x.id === s.secondaryMentorId);
       return {
         'Sr No': idx + 1,
         'Class': s.class ? `Class ${s.class}` : 'Unassigned Class',
-        'Assigned Mentor': m ? m.name : 'Unassigned',
+        'Primary Mentor': m1 ? m1.name : 'Unassigned',
+        'Co-Mentor (2nd)': m2 ? m2.name : 'None',
         'Student Name': s.name || '—',
         'Enrollment No': s.enrollmentNumber || '—',
-        'Mentor Dept': m ? (m.department || '—') : '—',
-        'Mentor Designation': m ? (m.designation || 'Faculty') : '—',
+        'Primary Mentor Dept': m1 ? (m1.department || '—') : '—',
+        'Primary Mentor Designation': m1 ? (m1.designation || 'Faculty') : '—',
         'Student Dept': s.department || '—'
       };
     });
