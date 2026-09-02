@@ -81,6 +81,13 @@ export async function render(container) {
               </button>
             </div>
 
+            <div class="form-group" style="margin-bottom:14px;" id="target-mentor-group">
+              <label class="form-label" style="font-weight:600;">Choose Mentor to Meet With</label>
+              <select id="m-target-mentor" class="form-select" style="border-radius:10px;">
+                <option value="">Loading assigned mentors...</option>
+              </select>
+            </div>
+
             <div class="form-group" style="margin-bottom:14px;">
               <label class="form-label" style="font-weight:600;">Meeting Topic / Scope</label>
               <select id="m-type" class="form-select" style="border-radius:10px;">${TYPES.map(t=>`<option>${t}</option>`).join('')}</select>
@@ -124,10 +131,43 @@ export async function render(container) {
     </div>
   `;
 
-  const toggle = () => {
+  let studentProfile = null;
+  let assignedMentorsList = [];
+
+  async function populateMentorSelect() {
+    studentProfile = await StudentService.get(user.id);
+    const mentorSel = container.querySelector('#m-target-mentor');
+    if (!mentorSel) return;
+
+    assignedMentorsList = [];
+    const { FacultyService } = await import('/js/services.js');
+    if (studentProfile?.mentorId) {
+      try {
+        const m1 = await FacultyService.get(studentProfile.mentorId);
+        if (m1) assignedMentorsList.push({ ...m1, roleLabel: 'Primary Mentor' });
+      } catch (e) {}
+    }
+    if (studentProfile?.secondaryMentorId) {
+      try {
+        const m2 = await FacultyService.get(studentProfile.secondaryMentorId);
+        if (m2) assignedMentorsList.push({ ...m2, roleLabel: 'Co-Mentor' });
+      } catch (e) {}
+    }
+
+    if (assignedMentorsList.length === 0) {
+      mentorSel.innerHTML = '<option value="">No mentor assigned yet</option>';
+    } else {
+      mentorSel.innerHTML = assignedMentorsList.map(m =>
+        `<option value="${m.id}">${m.name} (${m.roleLabel} — ${m.department || ''})</option>`
+      ).join('');
+    }
+  }
+
+  const toggle = async () => {
     const f = container.querySelector('#req-form');
     f.style.display = f.style.display === 'none' ? 'block' : 'none';
     if (f.style.display === 'block') {
+      await populateMentorSelect();
       // Set default tomorrow date
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -143,6 +183,11 @@ export async function render(container) {
   container.querySelector('#btn-new').addEventListener('click', toggle);
   container.querySelector('#btn-cancel').addEventListener('click', toggle);
   container.querySelector('#btn-close-form').addEventListener('click', toggle);
+
+  container.querySelector('#m-target-mentor')?.addEventListener('change', () => {
+    const dateInput = container.querySelector('#slot-date-picker');
+    if (dateInput?.value) loadMentorSlots(dateInput.value);
+  });
 
   // Booking mode toggles
   container.querySelector('#btn-mode-slot').addEventListener('click', () => {
@@ -168,14 +213,13 @@ export async function render(container) {
     slotsDiv.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Loading open slots...';
 
     try {
-      const freshUser = await StudentService.get(user.id);
-      const mentorId = freshUser?.mentorId || user.mentorId;
-      if (!mentorId) {
-        slotsDiv.innerHTML = '<div style="color:var(--danger);font-size:0.825rem;">No assigned mentor found.</div>';
+      const targetMentorId = container.querySelector('#m-target-mentor')?.value || studentProfile?.mentorId || user.mentorId;
+      if (!targetMentorId) {
+        slotsDiv.innerHTML = '<div style="color:var(--danger);font-size:0.825rem;">No assigned mentor selected.</div>';
         return;
       }
 
-      const slots = await AvailabilityService.getAvailableSlots(mentorId, dateStr, meetings);
+      const slots = await AvailabilityService.getAvailableSlots(targetMentorId, dateStr, meetings);
       if (!slots || slots.length === 0) {
         slotsDiv.innerHTML = '<div style="font-size:0.825rem; color:var(--text-muted);">No open office hours slots on this date. Try another day or switch to Custom Request.</div>';
         return;
@@ -215,6 +259,7 @@ export async function render(container) {
   container.querySelector('#btn-submit').addEventListener('click', async () => {
     const type = container.querySelector('#m-type').value;
     const description = container.querySelector('#m-desc').value.trim();
+    const targetMentorId = container.querySelector('#m-target-mentor')?.value || user.mentorId;
     let scheduledDate = null;
     let autoApprove = false;
 
@@ -234,6 +279,8 @@ export async function render(container) {
     }
 
     if (!description) { showToast('Please enter an agenda / description', 'warning'); return; }
+    if (!targetMentorId) { showToast('Please select a mentor to meet with', 'warning'); return; }
+
     try {
       const btn = container.querySelector('#btn-submit');
       btn.disabled = true;
@@ -245,15 +292,10 @@ export async function render(container) {
         localStorage.setItem('lumina_profile', JSON.stringify(user));
       }
 
-      if (!user.mentorId) {
-        showToast('You have no mentor assigned yet', 'error');
-        return;
-      }
-
       const mId = await MeetingService.create({
         studentId: user.id,
         studentName: user.name,
-        mentorId: user.mentorId,
+        mentorId: targetMentorId,
         type,
         topic: type,
         description,
@@ -263,7 +305,7 @@ export async function render(container) {
       });
 
       await NotificationService.create({
-        userId: user.mentorId,
+        userId: targetMentorId,
         type: autoApprove ? 'MEETING_APPROVED' : 'MEETING_REQUEST',
         title: autoApprove ? `Instant Slot Booked: ${type}` : `New Meeting Request: ${type}`,
         message: `${user.name} booked a session for ${fmt(scheduledDate)}. Agenda: ${description}`,
