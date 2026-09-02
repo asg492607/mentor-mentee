@@ -79,6 +79,19 @@ export async function render(container) {
                 </label>
               </div>
 
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div>
+                  <p style="font-weight:500;font-size:0.875rem;">Allow Dual Mentors per Student</p>
+                  <p style="color:var(--text-muted);font-size:0.78rem;">Enable assigning up to 2 mentors (Primary &amp; Co-Mentor) to a single student</p>
+                </div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
+                  <input type="checkbox" id="setting-dual-mentors" ${getSetting('allowDualMentors',true)?'checked':''} style="opacity:0;width:0;height:0;">
+                  <span id="toggle-dual-mentors" style="position:absolute;inset:0;background:${getSetting('allowDualMentors',true)?'var(--accent)':'var(--bg-glass-hover)'};border-radius:24px;transition:0.2s;">
+                    <span style="position:absolute;left:${getSetting('allowDualMentors',true)?'22':'2'}px;top:2px;width:20px;height:20px;background:white;border-radius:50%;transition:0.2s;"></span>
+                  </span>
+                </label>
+              </div>
+
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
                 <div>
                   <p style="font-weight:500;font-size:0.875rem;">Email Notifications</p>
@@ -301,6 +314,7 @@ export async function render(container) {
   }
 
   wireToggle('setting-auto-alloc', 'toggle-auto',  'autoAlloc');
+  wireToggle('setting-dual-mentors', 'toggle-dual-mentors', 'allowDualMentors');
   wireToggle('setting-email-notif','toggle-email', 'emailNotif');
 
   document.getElementById('btn-save-settings').addEventListener('click', () => {
