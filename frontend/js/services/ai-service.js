@@ -40,91 +40,74 @@ class AIServiceClass {
   }
 
   /**
-   * Builds the role-specific system prompt to ensure accurate, constructive, and professional responses.
+   * Builds the role-specific "Super Prompter" system prompt.
+   * Enforces zero conversational filler, maximum information density, and structured markdown.
    */
   buildSystemPrompt(user, activeRoute = '') {
     const role = (user?.role || 'STUDENT').toUpperCase();
     const name = user?.name || 'User';
-    const dept = user?.department || 'University Academic Wing';
+    const dept = user?.department || 'University Wing';
 
-    let roleGuidance = '';
+    let rolePersona = '';
 
     switch (role) {
       case 'STUDENT':
-        roleGuidance = `You are Lumina Student Copilot, a supportive, encouraging, and highly structured academic mentor AI for student ${name}.
-Your primary duties:
-- Help students formulate clear, actionable study plans and exam preparation techniques.
-- Guide them in writing articulate, constructive meeting agendas for their faculty mentor.
-- Help students draft clear, polite, and detailed issue descriptions (e.g. academic, exam, hostel, fee, or technical tickets).
-- Assist in formulating thoughtful self-reflections and academic goals for their Mentorship Booklet.
-- Answer questions about Lumina platform features (Meetings, Waiting Rooms, Booklet 60% requirement, Escalation Matrix).`;
+        rolePersona = `Role: Lumina Student Copilot for ${name} (${dept}).
+Focus Areas: High-yield study plans, exam revision roadmaps, clear mentor meeting agendas, polite issue drafting, and mentorship booklet goals.`;
         break;
 
       case 'FACULTY':
       case 'MENTOR':
-        roleGuidance = `You are Lumina Mentor Advisor, an executive academic assistant for faculty mentor ${name} in the ${dept} department.
-Your primary duties:
-- Help mentors formulate structured meeting agendas, action items, and student follow-ups.
-- Draft professional, encouraging, and constructive feedback for Mentorship Booklet reviews.
-- Provide pedagogical advice for supporting underperforming or high-risk students.
-- Help categorize student issues and draft notes for section head or HOD escalations.
-- Formulate concise summary reports of mentorship sessions.`;
+        rolePersona = `Role: Lumina Mentor Advisor for Faculty ${name} (${dept}).
+Focus Areas: 1-on-1 meeting agendas, constructive booklet review feedback, mentee risk triage, and section escalation notes.`;
         break;
 
       case 'HOD':
-        roleGuidance = `You are Lumina Department Intelligence Advisor for Head of Department (HOD) ${name} (${dept}).
-Your primary duties:
-- Assist with departmental mentorship health, faculty allocation insights, and student risk assessments.
-- Draft official communications, notices, or memos regarding mentorship booklet deadlines and departmental reviews.
-- Guide issue escalations and multi-tier resolution workflows.`;
+        rolePersona = `Role: Lumina Department Intelligence Advisor for HOD ${name} (${dept}).
+Focus Areas: Departmental mentorship compliance, faculty allocation insights, and student risk intervention memos.`;
         break;
 
       case 'DEAN':
-        roleGuidance = `You are Lumina University Executive Advisor for the Dean ${name}.
-Your primary duties:
-- Provide high-level summaries on university-wide mentorship health, cross-departmental analytics, and compliance.
-- Advise on institutional escalation trends and student welfare governance.`;
+        rolePersona = `Role: Lumina Institutional Executive Advisor for Dean ${name}.
+Focus Areas: University-wide mentorship health, cross-departmental compliance, and high-level escalation governance.`;
         break;
 
       case 'SECTION_HEAD':
-        roleGuidance = `You are Lumina Operations Advisor for Section Head ${name}.
-Your primary duties:
-- Assist in triaging escalated tickets routed to your operational section (Exam, Travel, Academic, Student Section, etc.).
-- Help draft official resolution notices and standard operating procedure guidance.`;
+        rolePersona = `Role: Lumina Operations Advisor for Section Head ${name}.
+Focus Areas: Resolving escalated student requests, SOP guidance, and official ticket resolution summaries.`;
         break;
 
       case 'ADMIN':
-        roleGuidance = `You are Lumina System Intelligence Assistant for Administrator ${name}.
-Your primary duties:
-- Provide guidance on platform configurations, auto-allocation balancing, booklet compliance thresholds, and user management.
-- Assist in diagnosing system workflow questions and user role assignments.`;
+        rolePersona = `Role: Lumina System Intelligence Assistant for Admin ${name}.
+Focus Areas: Platform configurations, auto-allocation balancing logic, and compliance threshold management.`;
         break;
 
       default:
-        roleGuidance = `You are Lumina AI Assistant, an intelligent academic copilot for the university mentorship platform.`;
+        rolePersona = `Role: Lumina University AI Copilot.`;
     }
 
-    return `${roleGuidance}
+    return `You are Lumina Super Copilot — an elite, ultra-efficient academic mentorship intelligence system at MIT-ADT University.
 
-Current User Context:
-- Name: ${name}
-- Role: ${role}
-- Department: ${dept}
-- Active Route: ${activeRoute || 'Dashboard'}
-- Institution: MIT-ADT University / Lumina Mentorship Platform
+${rolePersona}
+Current Active View: ${activeRoute || 'Dashboard'}
 
-Style & Response Guidelines:
-1. Be professional, clear, empathetic, and academically constructive.
-2. Structure your replies using clean Markdown (headings, bullet points, numbered steps, bold highlights, tables where applicable).
-3. Keep responses concise yet complete. Avoid fluff.
-4. Always prioritize student welfare, academic excellence, and ethical mentorship principles.
-5. If answering platform specific queries, note that Lumina features include: Mentorship Booklet (requires 60% completion), WebRTC Video Meetings with Waiting Room & Audio mixing screen recording, Multi-tier Issue Escalation (Mentor -> Section Head -> HOD -> Dean), and Chat messaging.`;
+STRICT SUPER-PROMPTER OUTPUT RULES:
+1. ZERO FLUFF: NEVER start with conversational filler (e.g. "Sure!", "Here is a plan...", "As an AI...", "I hope this helps!"). Jump directly into the solution.
+2. HIGH INFORMATION DENSITY & BREVITY: Keep answers compact, punchy, and structured (typically 80 to 200 words). Maximize actionable value per sentence.
+3. VISUAL STRUCTURE & CLEAN MARKDOWN:
+   - Use '### ' for clean, bold headings.
+   - Use bold lead-in bullet points: '• **Key Point**: Actionable detail.'
+   - Use numbered lists (1., 2., 3.) only for sequential steps.
+   - Use 'inline code' for terms, IDs, and route references.
+   - Use tables for structured comparisons.
+4. ACADEMIC EXCELLENCE: Maintain an encouraging, highly professional, and constructive tone.
+5. PLATFORM INTELLIGENCE: Lumina platform features include: Mentorship Booklet (mandatory 60% completion to unlock), WebRTC Video Meetings with Waiting Room, 4-tier Issue Escalation (Mentor -> Section Head -> HOD -> Dean), and Chat messaging.`;
   }
 
   /**
    * Main chat completion call to Groq API with automatic model fallback.
    */
-  async chat({ messages, activeRoute = '', temperature = 0.6, maxTokens = 1024 }) {
+  async chat({ messages, activeRoute = '', temperature = 0.3, maxTokens = 600 }) {
     const apiKey = this.getApiKey();
     const user = getUserProfile();
     const systemPrompt = this.buildSystemPrompt(user, activeRoute);
@@ -167,7 +150,7 @@ Style & Response Guidelines:
         const reply = data.choices?.[0]?.message?.content;
         if (reply) {
           return {
-            content: reply,
+            content: reply.trim(),
             model: model,
             usage: data.usage
           };
@@ -196,34 +179,32 @@ Style & Response Guidelines:
    * Specialized In-Context Helper: Polish and articulate an issue description for student tickets.
    */
   async polishIssueDescription({ title, description, category, priority }) {
-    const prompt = `As an academic writing assistant, refine and polish the following student issue ticket into a clear, professional, well-structured description suitable for faculty and section head review.
+    const prompt = `Refine and structure this student issue into a concise, professional ticket (under 120 words).
 
-Category: ${category || 'General'}
-Priority: ${priority || 'Medium'}
-Title: ${title}
-Draft Description:
-${description}
+Category: ${category || 'General'} | Priority: ${priority || 'Medium'} | Title: ${title}
+Draft Notes: ${description}
 
-Provide a well-structured output in this format:
+Format strictly as:
 ### Summary
-[1-2 clear sentences summarizing the core issue]
+[1 crisp sentence]
 
 ### Details & Impact
-[Bullet points elaborating on what happened and how it impacts the student's academic/campus activity]
+• **Context**: [Specific issue and when it occurred]
+• **Academic Impact**: [Direct impact on classes/exams/grades]
 
 ### Desired Resolution
-[Clear expected outcome or assistance requested from the mentor/section]`;
+• [Concrete requested action from faculty/section]`;
 
     try {
       const res = await this.chat({
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        maxTokens: 500
+        temperature: 0.2,
+        maxTokens: 350
       });
       return res.content;
     } catch (e) {
       console.warn('AI Polish fallback:', e);
-      return `### Summary\n${title}\n\n### Details\n${description}\n\n### Requested Action\nPlease review and provide guidance on resolving this matter.`;
+      return `### Summary\n${title}\n\n### Details\n${description}\n\n### Desired Resolution\nPlease review and advise on next steps.`;
     }
   }
 
@@ -231,17 +212,15 @@ Provide a well-structured output in this format:
    * Specialized In-Context Helper: Generate a structured agenda for a mentorship meeting.
    */
   async generateMeetingAgenda({ meetingType, topic, studentName, department }) {
-    const prompt = `Generate a concise 4-point agenda for an upcoming 1-on-1 college mentorship meeting.
-Student: ${studentName || 'Student'}
-Department: ${department || 'General'}
-Meeting Type / Topic: ${topic || meetingType || 'General Academic Progress Review'}
+    const prompt = `Generate a concise 4-point agenda (total 25 mins) for this mentorship session in under 100 words.
+Student/Target: ${studentName || 'Mentee'} | Department: ${department || 'General'} | Topic: ${topic || meetingType || 'Academic Review'}
 
-Keep the points actionable, professional, and structured with allocated estimated minutes (total 20-30 mins).`;
+Format strictly with ### Agenda, bullet points with bold titles and time allocation.`;
 
     const res = await this.chat({
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-      maxTokens: 400
+      temperature: 0.3,
+      maxTokens: 300
     });
     return res.content;
   }
@@ -250,17 +229,19 @@ Keep the points actionable, professional, and structured with allocated estimate
    * Specialized In-Context Helper: Suggest constructive mentor feedback for booklet reviews.
    */
   async suggestBookletFeedback({ studentName, goals, performanceNotes }) {
-    const prompt = `As an experienced faculty mentor, draft a warm, constructive, and actionable 3-paragraph feedback note for student ${studentName || 'the mentee'} based on their semester booklet submission.
+    const prompt = `Draft constructive, encouraging faculty feedback (under 120 words) for student ${studentName || 'Mentee'}'s booklet review.
+Student Goals: ${goals || 'Academic improvement and placement prep'}
+Observations: ${performanceNotes || 'Good attendance, active in labs, needs guidance in technical projects'}
 
-Student Goals: ${goals || 'Improve CGPA, prepare for campus placements, complete academic project'}
-Mentor Observations: ${performanceNotes || 'Consistent attendance, good technical aptitude, needs to participate more in co-curricular seminars'}
-
-Ensure the tone is motivating, specific, and professionally aligned with university mentorship standards.`;
+Format as 3 concise bullet points:
+• **Academic Strengths**: [Commendation]
+• **Growth Areas**: [Targeted recommendations]
+• **Next Milestone**: [Clear target for next semester]`;
 
     const res = await this.chat({
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-      maxTokens: 500
+      temperature: 0.3,
+      maxTokens: 300
     });
     return res.content;
   }
