@@ -5,6 +5,7 @@ import { showToast } from '/js/components/toast.js';
 import { SettingsService, WebIssueService } from '/js/services.js';
 import { AIService } from '/js/services/ai-service.js';
 import { GROQ_CONFIG } from '/js/config.js';
+import { MIT_UNIVERSITY_CELLS, getCellsByCategory } from '/js/utils/mit-cells-data.js';
 import { db } from '/js/firebase-init.js';
 import {
   collection, getDocs, deleteDoc, doc, query, orderBy,
@@ -158,6 +159,49 @@ export async function render(container) {
                   </button>
                 </div>
                 <div id="ai-test-status" style="font-size:0.8rem;color:var(--text-secondary);"></div>
+              </div>
+            </div>
+
+            <!-- MIT-ADT University Statutory & Mandatory Welfare Cells Manager -->
+            <div class="card" style="padding:24px;border-color:rgba(59,130,246,0.35);background:linear-gradient(180deg, rgba(59,130,246,0.03) 0%, var(--bg-card) 100%);">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <div>
+                  <h3 style="font-size:1.1rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;color:var(--text-primary);">
+                    🏛️ MIT-ADT University Statutory Cells &amp; Section Head Accounts
+                    <span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;">20 OFFICIAL CELLS</span>
+                  </h3>
+                  <p style="color:var(--text-secondary);font-size:0.84rem;margin-top:4px;line-height:1.5;">
+                    Central directory for Statutory &amp; Welfare (ICC, WDC, Anti-Ragging, EOC, GRC), Innovation &amp; Skill (EDC, IIC, TBI, IPR, T&amp;P, IIIC), and Student Growth Cells (NSS, NCC, Counseling, Alumni, IQAC).
+                  </p>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <button class="btn btn-secondary btn-sm" id="btn-export-cells-csv" style="gap:6px;">
+                    📥 Export CSV
+                  </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-copy-all-cells" style="gap:6px;">
+                    📋 Copy All Credentials
+                  </button>
+                  <button class="btn btn-primary btn-sm" id="btn-seed-cells-firestore" style="gap:6px;background:linear-gradient(135deg, #2563eb, #7c3aed);font-weight:700;">
+                    ⚡ Auto-Provision All 20 Cells
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filter Tabs & Search -->
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;" id="mit-cell-filter-tabs">
+                  <button class="btn btn-sm btn-primary cell-tab-btn" data-cat="ALL">All (20)</button>
+                  <button class="btn btn-sm btn-ghost cell-tab-btn" data-cat="Statutory & Mandatory Welfare">🛡️ Statutory &amp; Welfare (5)</button>
+                  <button class="btn btn-sm btn-ghost cell-tab-btn" data-cat="Innovation, Business & Skill">💡 Innovation &amp; Skill (6)</button>
+                  <button class="btn btn-sm btn-ghost cell-tab-btn" data-cat="Student Growth & Community Service">🌱 Student Growth (5)</button>
+                  <button class="btn btn-sm btn-ghost cell-tab-btn" data-cat="Campus Operational Sections">🏢 Operational (4)</button>
+                </div>
+                <input type="text" id="mit-cell-search" class="form-input" placeholder="Search cell or officer..." style="max-width:220px;padding:6px 12px;font-size:0.82rem;">
+              </div>
+
+              <!-- Cells Grid -->
+              <div id="mit-cells-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:14px;max-height:480px;overflow-y:auto;padding-right:4px;">
+                <!-- Dynamically rendered via renderMitCells() -->
               </div>
             </div>
 
@@ -421,6 +465,195 @@ export async function render(container) {
       if (testBtn) testBtn.disabled = false;
     }
   });
+
+  // ─── MIT-ADT Cells & Section Head Directory Engine ────────────────────────
+  let activeCellCategory = 'ALL';
+  let cellSearchQuery = '';
+
+  function renderMitCells() {
+    const grid = document.getElementById('mit-cells-grid');
+    if (!grid) return;
+
+    let filtered = MIT_UNIVERSITY_CELLS;
+    if (activeCellCategory !== 'ALL') {
+      filtered = filtered.filter(c => c.category === activeCellCategory);
+    }
+    if (cellSearchQuery) {
+      const q = cellSearchQuery.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.name.toLowerCase().includes(q) || 
+        c.headName.toLowerCase().includes(q) || 
+        c.email.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q)
+      );
+    }
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--text-muted);">No matching university cells found.</div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(cell => `
+      <div class="card" style="padding:16px;border-left:4px solid ${cell.color};display:flex;flex-direction:column;justify-content:space-between;gap:10px;background:var(--bg-card);">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:30px;height:30px;border-radius:8px;background:${cell.color}22;display:flex;align-items:center;justify-content:center;color:${cell.color};font-size:1.1rem;">
+                <i class="ph-bold ${cell.icon}"></i>
+              </div>
+              <h4 style="font-size:0.92rem;font-weight:700;margin:0;color:var(--text-primary);">${escapeHtml(cell.name)}</h4>
+            </div>
+            <span class="badge" style="font-size:0.68rem;background:var(--bg-secondary);color:var(--text-secondary);white-space:nowrap;">${cell.shortCode}</span>
+          </div>
+
+          <p style="font-size:0.78rem;color:var(--text-secondary);line-height:1.45;margin-bottom:10px;">${escapeHtml(cell.description)}</p>
+        </div>
+
+        <div style="background:var(--bg-secondary);padding:10px;border-radius:8px;font-size:0.78rem;display:flex;flex-direction:column;gap:5px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);">Officer:</span>
+            <strong style="color:var(--text-primary);">${escapeHtml(cell.headName)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-muted);">Designation:</span>
+            <span style="color:var(--text-secondary);">${escapeHtml(cell.designation)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <span style="color:var(--text-muted);">Email:</span>
+            <code style="font-size:0.74rem;color:#38bdf8;cursor:pointer;" class="copy-cell-val" data-val="${escapeHtml(cell.email)}" title="Click to copy">${escapeHtml(cell.email)}</code>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <span style="color:var(--text-muted);">Password:</span>
+            <code style="font-size:0.74rem;color:#a855f7;cursor:pointer;" class="copy-cell-val" data-val="${escapeHtml(cell.defaultPassword)}" title="Click to copy">${escapeHtml(cell.defaultPassword)}</code>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.copy-cell-val').forEach(el => {
+      el.addEventListener('click', () => {
+        const val = el.dataset.val;
+        if (val) {
+          navigator.clipboard.writeText(val);
+          showToast(`Copied: ${val}`, 'info');
+        }
+      });
+    });
+  }
+
+  // Filter tabs click delegation
+  document.getElementById('mit-cell-filter-tabs')?.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.cell-tab-btn');
+    if (tabBtn) {
+      document.querySelectorAll('.cell-tab-btn').forEach(b => {
+        b.className = 'btn btn-sm btn-ghost cell-tab-btn';
+      });
+      tabBtn.className = 'btn btn-sm btn-primary cell-tab-btn';
+      activeCellCategory = tabBtn.dataset.cat;
+      renderMitCells();
+    }
+  });
+
+  // Search input
+  document.getElementById('mit-cell-search')?.addEventListener('input', (e) => {
+    cellSearchQuery = e.target.value.trim();
+    renderMitCells();
+  });
+
+  // Export CSV
+  document.getElementById('btn-export-cells-csv')?.addEventListener('click', () => {
+    let csv = 'Category,Cell Name,Short Code,Designation,Officer Name,Official Email,Default Password,Role\n';
+    MIT_UNIVERSITY_CELLS.forEach(c => {
+      csv += `"${c.category}","${c.name}","${c.shortCode}","${c.designation}","${c.headName}","${c.email}","${c.defaultPassword}","${c.role}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'MIT_ADT_University_Cells_Directory_Credentials.csv';
+    link.click();
+    showToast('Credentials CSV exported successfully!', 'success');
+  });
+
+  // Copy all credentials
+  document.getElementById('btn-copy-all-cells')?.addEventListener('click', () => {
+    let text = '=== MIT-ADT UNIVERSITY STATUTORY & WELFARE CELLS DIRECTORY ===\n\n';
+    MIT_UNIVERSITY_CELLS.forEach(c => {
+      text += `• ${c.name} (${c.category})\n  Officer: ${c.headName} (${c.designation})\n  Email: ${c.email}\n  Password: ${c.defaultPassword}\n  Role: ${c.role}\n\n`;
+    });
+    navigator.clipboard.writeText(text);
+    showToast('All 20 Cell credentials copied to clipboard!', 'success');
+  });
+
+  // Auto-provision all 20 cells in Firestore
+  document.getElementById('btn-seed-cells-firestore')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-seed-cells-firestore');
+    if (!confirm('Auto-provision and approve all 20 MIT-ADT Statutory & Welfare Cell accounts in Firestore?')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner spinner-xs" style="width:14px;height:14px;border-width:2px;"></div> Provisioning...';
+
+    try {
+      // 1. Sync sections in settings
+      const allNames = MIT_UNIVERSITY_CELLS.map(c => c.name);
+      await SettingsService.updateSections(allNames);
+
+      // 2. Provision each cell into faculty collection
+      const batch = writeBatch(db);
+      const existingFacultySnap = await getDocs(collection(db, 'faculty'));
+      const existingEmailMap = new Map();
+      existingFacultySnap.forEach(d => {
+        const data = d.data();
+        if (data.email) existingEmailMap.set(data.email.toLowerCase(), d.id);
+      });
+
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      for (const cell of MIT_UNIVERSITY_CELLS) {
+        const emailLower = cell.email.toLowerCase();
+        const payload = {
+          name: cell.headName,
+          email: emailLower,
+          role: 'SECTION_HEAD',
+          department: cell.name,
+          designation: cell.designation,
+          employeeId: `EMP-${cell.shortCode}`,
+          status: 'approved',
+          isApproved: true,
+          cellId: cell.id,
+          category: cell.category,
+          updatedAt: new Date().toISOString()
+        };
+
+        if (existingEmailMap.has(emailLower)) {
+          const docId = existingEmailMap.get(emailLower);
+          batch.set(doc(db, 'faculty', docId), payload, { merge: true });
+          updatedCount++;
+        } else {
+          const newDocRef = doc(collection(db, 'faculty'));
+          batch.set(newDocRef, {
+            id: newDocRef.id,
+            ...payload,
+            createdAt: new Date().toISOString()
+          });
+          addedCount++;
+        }
+      }
+
+      await batch.commit();
+      showToast(`⚡ Successfully provisioned all 20 MIT-ADT Cells! (${addedCount} added, ${updatedCount} synced)`, 'success');
+      loadSections();
+      renderMitCells();
+    } catch (err) {
+      console.error('Error seeding MIT cells:', err);
+      showToast('Failed to auto-provision cells: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '⚡ Auto-Provision All 20 Cells';
+    }
+  });
+
+  renderMitCells();
 
   document.getElementById('btn-reset-alloc').addEventListener('click', () => {
     if (confirm('Are you sure you want to reset ALL mentor allocations? This cannot be undone.')) {
