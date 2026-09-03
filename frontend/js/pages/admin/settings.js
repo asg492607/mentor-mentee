@@ -482,7 +482,7 @@ export async function render(container) {
       const q = cellSearchQuery.toLowerCase();
       filtered = filtered.filter(c => 
         c.name.toLowerCase().includes(q) || 
-        c.headName.toLowerCase().includes(q) || 
+        c.shortCode.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q) ||
         c.description.toLowerCase().includes(q)
       );
@@ -511,15 +511,11 @@ export async function render(container) {
 
         <div style="background:var(--bg-secondary);padding:10px;border-radius:8px;font-size:0.78rem;display:flex;flex-direction:column;gap:5px;border:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:var(--text-muted);">Officer:</span>
-            <strong style="color:var(--text-primary);">${escapeHtml(cell.headName)}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:var(--text-muted);">Designation:</span>
-            <span style="color:var(--text-secondary);">${escapeHtml(cell.designation)}</span>
+            <span style="color:var(--text-muted);">Role:</span>
+            <span class="badge badge-info" style="font-size:0.7rem;padding:2px 6px;">SECTION_HEAD</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-            <span style="color:var(--text-muted);">Email:</span>
+            <span style="color:var(--text-muted);">Official Email:</span>
             <code style="font-size:0.74rem;color:#38bdf8;cursor:pointer;" class="copy-cell-val" data-val="${escapeHtml(cell.email)}" title="Click to copy">${escapeHtml(cell.email)}</code>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
@@ -562,9 +558,9 @@ export async function render(container) {
 
   // Export CSV
   document.getElementById('btn-export-cells-csv')?.addEventListener('click', () => {
-    let csv = 'Category,Cell Name,Short Code,Designation,Officer Name,Official Email,Default Password,Role\n';
+    let csv = 'Category,Cell Name,Short Code,Official Email,Default Password,Role\n';
     MIT_UNIVERSITY_CELLS.forEach(c => {
-      csv += `"${c.category}","${c.name}","${c.shortCode}","${c.designation}","${c.headName}","${c.email}","${c.defaultPassword}","${c.role}"\n`;
+      csv += `"${c.category}","${c.name}","${c.shortCode}","${c.email}","${c.defaultPassword}","${c.role}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -578,7 +574,7 @@ export async function render(container) {
   document.getElementById('btn-copy-all-cells')?.addEventListener('click', () => {
     let text = '=== MIT-ADT UNIVERSITY STATUTORY & WELFARE CELLS DIRECTORY ===\n\n';
     MIT_UNIVERSITY_CELLS.forEach(c => {
-      text += `• ${c.name} (${c.category})\n  Officer: ${c.headName} (${c.designation})\n  Email: ${c.email}\n  Password: ${c.defaultPassword}\n  Role: ${c.role}\n\n`;
+      text += `• ${c.name} (${c.category})\n  Email: ${c.email}\n  Password: ${c.defaultPassword}\n  Role: ${c.role}\n\n`;
     });
     navigator.clipboard.writeText(text);
     showToast('All 20 Cell credentials copied to clipboard!', 'success');
@@ -612,11 +608,11 @@ export async function render(container) {
       for (const cell of MIT_UNIVERSITY_CELLS) {
         const emailLower = cell.email.toLowerCase();
         const payload = {
-          name: cell.headName,
+          name: cell.name,
           email: emailLower,
           role: 'SECTION_HEAD',
           department: cell.name,
-          designation: cell.designation,
+          designation: 'Section Head / Incharge',
           employeeId: `EMP-${cell.shortCode}`,
           status: 'approved',
           isApproved: true,
