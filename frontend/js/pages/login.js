@@ -35,8 +35,12 @@ export async function render(container) {
           </button>
         </form>
 
-        <div class="text-center mt-6">
-          <p class="text-muted text-sm">Contact Administrator for login credentials.</p>
+        <div class="text-center mt-6 flex flex-col gap-2">
+          <p class="text-secondary text-sm">
+            Don't have an account? 
+            <a href="#/register" style="color:var(--accent);font-weight:600;text-decoration:none;">Create Account</a>
+          </p>
+          <p class="text-muted text-xs">Forgot your password? Use "Forgot Password?" above.</p>
         </div>
       </div>
 
@@ -108,8 +112,13 @@ export async function render(container) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+      showToast('Please enter both email and password.', 'warning');
+      return;
+    }
 
     try {
       loginBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>';
