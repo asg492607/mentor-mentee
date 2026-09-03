@@ -55,7 +55,7 @@ class AIAssistantWidget {
           { icon: 'ph-pencil-simple-line', text: 'Help me write my academic goals for this semester' },
           { icon: 'ph-warning-circle', text: 'Help me draft a clear issue description for exam section' },
           { icon: 'ph-clock-countdown', text: 'Create a 2-week revision plan for exams' },
-          { icon: 'ph-book-open', text: 'How does the 60% Mentorship Booklet requirement work?' }
+          { icon: 'ph-book-open', text: 'How does the 25% Mentorship Booklet requirement work?' }
         ];
 
       case 'FACULTY':

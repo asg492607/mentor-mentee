@@ -57,11 +57,11 @@ export async function render(container) {
     const deansOnly  = faculty.filter(f => (f.role || '').toUpperCase() === 'DEAN');
     const adminsOnly = faculty.filter(f => (f.role || '').toUpperCase() === 'ADMIN');
 
-    // Count how many students have filled at least 75% of their booklet
+    // Count how many students have filled at least 25% of their booklet
     let filledBookletCount = 0;
     bookletSnap.docs.forEach(d => {
       const pct = BookletService.calculateCompletion(d.data());
-      if (pct >= 75) filledBookletCount++;
+      if (pct >= 25) filledBookletCount++;
     });
 
     const unassigned = uniqueStudents.filter(s => !s.mentorId).length;
@@ -121,7 +121,7 @@ export async function render(container) {
             <div style="font-size:0.72rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Students</div>
             <div style="font-size:1.3rem;font-weight:800;color:var(--info);margin-top:2px;">${uniqueStudents.length}</div>
             <div style="font-size:0.72rem;color:var(--success);margin-top:4px;font-weight:600;">
-              📑 ${filledBookletCount} filled (≥50%)
+              📑 ${filledBookletCount} filled (≥25%)
             </div>
           </div>
           <div style="background:var(--bg-primary);padding:12px;border-radius:10px;border:1px solid var(--border);">

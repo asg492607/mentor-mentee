@@ -101,7 +101,7 @@ STRICT SUPER-PROMPTER OUTPUT RULES:
    - Use 'inline code' for terms, IDs, and route references.
    - Use tables for structured comparisons.
 4. ACADEMIC EXCELLENCE: Maintain an encouraging, highly professional, and constructive tone.
-5. PLATFORM INTELLIGENCE: Lumina platform features include: Mentorship Booklet (mandatory 60% completion to unlock), WebRTC Video Meetings with Waiting Room, 4-tier Issue Escalation (Mentor -> Section Head -> HOD -> Dean), and Chat messaging.`;
+5. PLATFORM INTELLIGENCE: Lumina platform features include: Mentorship Booklet (mandatory 25% completion to unlock), WebRTC Video Meetings with Waiting Room, 4-tier Issue Escalation (Mentor -> Section Head -> HOD -> Dean), and Chat messaging.`;
   }
 
   /**
@@ -252,12 +252,12 @@ Format as 3 concise bullet points:
   getOfflineKnowledgeResponse(query, role = 'STUDENT') {
     const q = query.toLowerCase();
 
-    if (q.includes('booklet') || q.includes('60%') || q.includes('lock')) {
+    if (q.includes('booklet') || q.includes('25%') || q.includes('lock')) {
       return `### 📘 Mentorship Booklet Guide
 The **Mentorship Booklet** is a comprehensive record of your academic journey, co-curricular achievements, and mentorship reviews.
 
 **Key Requirements:**
-1. **Mandatory 60% Completion:** Students must complete at least 60% of all booklet sections (Basic Details, Academic History, Career Goals, Strengths & Weaknesses) to unlock other dashboard features.
+1. **Mandatory 25% Completion:** Students must complete at least 25% of all booklet sections (Basic Details, Academic History, Career Goals, Strengths & Weaknesses) to unlock other dashboard features.
 2. **Mentor Review:** Once filled, your mentor reviews and signs off on your entries with structured qualitative feedback.
 3. **Exporting:** Mentors, HODs, and Admins can export completed booklets into official university PDFs with a single click.`;
     }

@@ -76,7 +76,7 @@ export async function render(container) {
     const content = container.querySelector('#dash-content');
     if (!content) return;
 
-    const isBookletIncomplete = bookletCompletionPct < 75;
+    const isBookletIncomplete = bookletCompletionPct < 25;
 
     content.innerHTML = `
       <div class="dashboard-container">
@@ -115,10 +115,10 @@ export async function render(container) {
               </div>
               <div>
                 <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--text-primary);">
-                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 75%)
+                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 25%)
                 </h4>
                 <p style="margin:4px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
-                  First-time setup requirement: You must complete at least <strong>75% of your Mentorship Booklet</strong> across all sections to unlock full account features.
+                  First-time setup requirement: You must complete at least <strong>25% of your Mentorship Booklet</strong> across all sections to unlock full account features.
                 </p>
               </div>
             </div>
@@ -289,7 +289,7 @@ export async function render(container) {
       });
     });
 
-    // Render Mandatory Booklet Modal Popup if < 50% completed
+    // Render Mandatory Booklet Modal Popup if < 25% completed
     if (isBookletIncomplete) {
       const modalHtml = `
         <div id="mandatory-booklet-modal" class="modal-backdrop" style="display:flex;z-index:10000;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);">
@@ -301,13 +301,13 @@ export async function render(container) {
               Welcome to Lumina!
             </h2>
             <p style="color:var(--text-secondary);font-size:0.9rem;line-height:1.55;margin:0 0 22px 0;">
-              As a mandatory requirement for first-time account setup, you must complete <strong>at least 50% of your Mentorship Booklet</strong> before accessing full features.
+              As a mandatory requirement for first-time account setup, you must complete <strong>at least 25% of your Mentorship Booklet</strong> before accessing full features.
             </p>
 
             <div style="background:var(--bg-secondary);padding:16px;border-radius:12px;margin-bottom:24px;border:1px solid var(--border);">
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;margin-bottom:8px;font-weight:700;">
                 <span style="color:var(--text-secondary);">Current Progress</span>
-                <span style="color:var(--warning);font-size:0.95rem;">${bookletCompletionPct}% / 50% Required</span>
+                <span style="color:var(--warning);font-size:0.95rem;">${bookletCompletionPct}% / 25% Required</span>
               </div>
               <div style="height:12px;background:var(--bg-primary);border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.15);">
                 <div style="height:100%;width:${bookletCompletionPct}%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:6px;transition:width 0.3s ease;"></div>

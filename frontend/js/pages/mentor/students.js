@@ -114,7 +114,7 @@ export async function render(container) {
       assignedHtml = `<div class="card">
         <div class="card-header"><h3>My Assigned Students</h3></div>
       <table class="data-table">
-        <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Booklet (75% Min)</th><th>Risk</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Booklet (25% Min)</th><th>Risk</th><th>Actions</th></tr></thead>
         <tbody>
           ${list.map(s => `
             <tr>
@@ -141,16 +141,16 @@ export async function render(container) {
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div style="flex:1;max-width:60px;" class="progress-bar-wrap">
-                    <div class="progress-bar-fill ${(s.bookletPct||0)<75?'fill-warning':'fill-success'}" style="width:${s.bookletPct||0}%"></div>
+                    <div class="progress-bar-fill ${(s.bookletPct||0)<25?'fill-warning':'fill-success'}" style="width:${s.bookletPct||0}%"></div>
                   </div>
-                  <span style="font-size:0.78rem;font-weight:700;color:${(s.bookletPct||0)<75?'var(--warning)':'var(--success)'};">${s.bookletPct||0}%</span>
+                  <span style="font-size:0.78rem;font-weight:700;color:${(s.bookletPct||0)<25?'var(--warning)':'var(--success)'};">${s.bookletPct||0}%</span>
                 </div>
               </td>
               <td>${riskBadge(s.riskLevel)}</td>
               <td style="white-space:nowrap;">
                   <button class="btn btn-xs btn-secondary view-btn" data-id="${s.id}">View</button>
                   <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary" style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-book-open"></i> Booklet</a>
-                  ${(s.bookletPct||0) < 75 ? `<button class="btn btn-xs btn-secondary btn-remind-booklet" data-id="${s.id}" data-name="${escapeHtml(s.name || 'Student')}" title="Send Reminder to Fill Booklet" style="color:var(--warning);border-color:var(--warning);margin-left:4px;"><i class="ph ph-bell"></i> Remind</button>` : ''}
+                  ${(s.bookletPct||0) < 25 ? `<button class="btn btn-xs btn-secondary btn-remind-booklet" data-id="${s.id}" data-name="${escapeHtml(s.name || 'Student')}" title="Send Reminder to Fill Booklet" style="color:var(--warning);border-color:var(--warning);margin-left:4px;"><i class="ph ph-bell"></i> Remind</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -211,7 +211,7 @@ export async function render(container) {
             userId: sid,
             type: 'REMINDER',
             title: '⚠️ Mentorship Booklet Incomplete',
-            message: `Please complete at least 75% of your Mentorship Booklet as requested by your mentor Prof. ${user.name}.`,
+            message: `Please complete at least 25% of your Mentorship Booklet as requested by your mentor Prof. ${user.name}.`,
             relatedId: sid
           });
           showToast(`Reminder sent to ${sname} successfully!`, 'success');

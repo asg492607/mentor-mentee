@@ -16,7 +16,7 @@ function renderStats(totalStudents, pendingRequests, highRisk, completedMeetings
     { label: 'Pending Requests', value: pendingRequests, color: 'var(--warning)', icon: 'ph-calendar-plus' },
     { label: 'High Risk', value: highRisk, color: 'var(--danger)', icon: 'ph-warning-circle' },
     { label: 'Completed Meets', value: completedMeetings, color: 'var(--success)', icon: 'ph-calendar-check' },
-    { label: 'Booklets (≥75%)', value: `${compliantBooklets}/${totalStudents}`, color: 'var(--accent)', icon: 'ph-book-open' },
+    { label: 'Booklets (≥25%)', value: `${compliantBooklets}/${totalStudents}`, color: 'var(--accent)', icon: 'ph-book-open' },
   ].map(c => `
     <div class="stat-card">
       <div class="stat-icon" style="background:${c.color}22; color:${c.color}; font-size:1.5rem; display:flex; align-items:center; justify-content:center;">
@@ -148,7 +148,7 @@ export async function render(container) {
     const pendingRequests = data.pendingRequests ?? meetings.filter(m => m.status === 'REQUESTED').length;
     const highRisk = data.highRiskStudents ?? students.filter(s => s.riskLevel === 'HIGH').length;
     const completedMeetings = data.completedMeetings ?? meetings.filter(m => m.status === 'COMPLETED').length;
-    const compliantBooklets = students.filter(s => BookletService.calculateCompletion(s.booklet) >= 75).length;
+    const compliantBooklets = students.filter(s => BookletService.calculateCompletion(s.booklet) >= 25).length;
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
     const dash = container.querySelector('#mentor-dash');
     if (!dash) return;

@@ -136,14 +136,14 @@ async function handleRoute() {
     const role = String(profile.role).toUpperCase();
     const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
 
-    // 🔒 Mandatory 60% Booklet Lock for Students: Block all other pages until 60% filled!
+    // 🔒 Mandatory 25% Booklet Lock for Students: Block all other pages until 25% filled!
     if (role === 'STUDENT') {
       try {
         const { BookletService } = await import('./services.js');
         const { showToast } = await import('./components/toast.js');
         const completionPct = await BookletService.getCompletionPercentage(profile.id || user.uid);
-        if (completionPct < 60 && path !== '/student/booklet') {
-          showToast(`⚠️ Mandatory Action: You must fill at least 60% of your Mentorship Booklet across all sections before accessing other pages (${completionPct}% / 60%).`, 'warning');
+        if (completionPct < 25 && path !== '/student/booklet') {
+          showToast(`⚠️ Mandatory Action: You must fill at least 25% of your Mentorship Booklet across all sections before accessing other pages (${completionPct}% / 25%).`, 'warning');
           navigateTo('/student/booklet');
           return;
         }

@@ -35,24 +35,24 @@ export async function render(container) {
                 <div class="page-content" style="max-width: 1200px; margin: 0 auto;">
 
                     <!-- Booklet Progress Header Banner -->
-                    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:var(--bg-secondary);border:1px solid ${completionPct < 75 ? 'var(--warning)' : 'var(--success)'};border-radius:12px;">
+                    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:var(--bg-secondary);border:1px solid ${completionPct < 25 ? 'var(--warning)' : 'var(--success)'};border-radius:12px;">
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
                         <div>
                           <h4 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:8px;">
-                            ${completionPct < 75 ? '⚠️ Booklet Completion Required (Min. 75%)' : '✅ Mentorship Booklet Status'}
+                            ${completionPct < 25 ? '⚠️ Booklet Completion Required (Min. 25%)' : '✅ Mentorship Booklet Status'}
                           </h4>
                           <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
-                            ${completionPct < 75
-                              ? 'Please fill in your details across all sections (Personal, Health, Previous Performance, Activities & Academics) to reach at least 75% completion.'
-                              : 'Great job! You have satisfied the minimum 75% booklet requirement.'}
+                            ${completionPct < 25
+                              ? 'Please fill in your details across all sections (Personal, Health, Previous Performance, Activities & Academics) to reach at least 25% completion.'
+                              : 'Great job! You have satisfied the minimum 25% booklet requirement.'}
                           </p>
                         </div>
-                        <span class="badge ${completionPct < 75 ? 'badge-warning' : 'badge-success'}" id="booklet-pct-badge" style="font-size:0.85rem;padding:6px 12px;font-weight:700;">
-                          ${completionPct}% Completed ${completionPct < 75 ? '(Min 75% Needed)' : ''}
+                        <span class="badge ${completionPct < 25 ? 'badge-warning' : 'badge-success'}" id="booklet-pct-badge" style="font-size:0.85rem;padding:6px 12px;font-weight:700;">
+                          ${completionPct}% Completed ${completionPct < 25 ? '(Min 25% Needed)' : ''}
                         </span>
                       </div>
                       <div style="height:10px;background:var(--bg-primary);border-radius:5px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">
-                        <div id="booklet-progress-bar-fill" style="height:100%;width:${completionPct}%;background:${completionPct < 75 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)'};transition:width 0.3s ease;"></div>
+                        <div id="booklet-progress-bar-fill" style="height:100%;width:${completionPct}%;background:${completionPct < 25 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)'};transition:width 0.3s ease;"></div>
                       </div>
                     </div>
 
@@ -574,18 +574,18 @@ export async function render(container) {
             const badge = document.getElementById('booklet-pct-badge');
             const barFill = document.getElementById('booklet-progress-bar-fill');
             if (badge) {
-              badge.textContent = `${newPct}% Completed ${newPct < 75 ? '(Min 75% Needed)' : ''}`;
-              badge.className = `badge ${newPct < 75 ? 'badge-warning' : 'badge-success'}`;
+              badge.textContent = `${newPct}% Completed ${newPct < 25 ? '(Min 25% Needed)' : ''}`;
+              badge.className = `badge ${newPct < 25 ? 'badge-warning' : 'badge-success'}`;
             }
             if (barFill) {
               barFill.style.width = `${newPct}%`;
-              barFill.style.background = newPct < 75 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)';
+              barFill.style.background = newPct < 25 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)';
             }
 
-            if (newPct >= 75) {
+            if (newPct >= 25) {
               showToast(`Booklet saved! Completion: ${newPct}% (Requirement Met ✅)`, 'success');
             } else {
-              showToast(`Booklet saved! Current Completion: ${newPct}%. Fill details across other sections to reach 75%.`, 'warning');
+              showToast(`Booklet saved! Current Completion: ${newPct}%. Fill details across other sections to reach 25%.`, 'warning');
             }
         } catch (error) {
             console.error(error);

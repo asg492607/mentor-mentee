@@ -52,3 +52,6 @@ android/local.properties
 android/.idea/
 android/.gradle/
 *.iml
+
+# Scratch scripts
+update_nay.js

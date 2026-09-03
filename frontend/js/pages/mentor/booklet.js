@@ -53,24 +53,24 @@ export async function render(container) {
                     </div>
 
                     <!-- Booklet Progress Header Banner -->
-                    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:var(--bg-secondary);border:1px solid ${completionPct < 75 ? 'var(--warning)' : 'var(--success)'};border-radius:12px;">
+                    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:var(--bg-secondary);border:1px solid ${completionPct < 25 ? 'var(--warning)' : 'var(--success)'};border-radius:12px;">
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
                         <div>
                           <h4 style="margin:0;font-size:0.95rem;font-weight:700;display:flex;align-items:center;gap:8px;">
-                            ${completionPct < 75 ? '⚠️ Mentee Booklet Incomplete (Min. 75% Required)' : '✅ Mentee Booklet Verified (75%+ Completed)'}
+                            ${completionPct < 25 ? '⚠️ Mentee Booklet Incomplete (Min. 25% Required)' : '✅ Mentee Booklet Verified (25%+ Completed)'}
                           </h4>
                           <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
-                            ${completionPct < 75
-                              ? `Mentee has filled ${completionPct}% across all sections. Student must reach at least 75% for full portal compliance.`
+                            ${completionPct < 25
+                              ? `Mentee has filled ${completionPct}% across all sections. Student must reach at least 25% for full portal compliance.`
                               : `Student has achieved ${completionPct}% whole-booklet completion, satisfying institutional requirements.`}
                           </p>
                         </div>
-                        <span class="badge ${completionPct < 75 ? 'badge-warning' : 'badge-success'}" id="mentor-booklet-pct-badge" style="font-size:0.85rem;padding:6px 12px;font-weight:700;">
-                          ${completionPct}% Completed ${completionPct < 75 ? '(Below 75%)' : '(Compliant)'}
+                        <span class="badge ${completionPct < 25 ? 'badge-warning' : 'badge-success'}" id="mentor-booklet-pct-badge" style="font-size:0.85rem;padding:6px 12px;font-weight:700;">
+                          ${completionPct}% Completed ${completionPct < 25 ? '(Below 25%)' : '(Compliant)'}
                         </span>
                       </div>
                       <div style="height:10px;background:var(--bg-primary);border-radius:5px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.1);">
-                        <div style="height:100%;width:${completionPct}%;background:${completionPct < 75 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)'};transition:width 0.3s ease;"></div>
+                        <div style="height:100%;width:${completionPct}%;background:${completionPct < 25 ? 'linear-gradient(90deg,#ef4444,#f59e0b)' : 'linear-gradient(90deg,#f59e0b,#22c55e)'};transition:width 0.3s ease;"></div>
                       </div>
                     </div>
                     
