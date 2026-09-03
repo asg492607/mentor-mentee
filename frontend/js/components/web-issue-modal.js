@@ -1,5 +1,6 @@
 import { showModal, hideModal } from './modal.js';
 import { WebIssueService } from '../services.js';
+import { AIService } from '../services/ai-service.js';
 import { getUserProfile } from '../auth.js';
 import { showToast } from './toast.js';
 import { escapeHtml } from '../utils.js';
@@ -40,7 +41,12 @@ export function openWebIssueModal() {
       </div>
 
       <div class="form-group">
-        <label class="form-label" style="font-weight:600;">Issue Description / Steps to Reproduce <span style="color:#ef4444;">*</span></label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label class="form-label" style="font-weight:600;margin:0;">Issue Description / Steps <span style="color:#ef4444;">*</span></label>
+          <button type="button" class="btn-ai-sparkle" id="btn-web-issue-ai-polish">
+            <i class="ph-bold ph-sparkle"></i> ✨ AI Polish
+          </button>
+        </div>
         <textarea id="web-issue-desc" class="form-textarea" rows="4" placeholder="Explain what happened, expected result, and steps to reproduce..." required></textarea>
       </div>
 
@@ -90,4 +96,45 @@ export function openWebIssueModal() {
       }
     }
   });
+
+  // Attach AI Polish listener
+  setTimeout(() => {
+    document.getElementById('btn-web-issue-ai-polish')?.addEventListener('click', async () => {
+      const title = document.getElementById('web-issue-title')?.value.trim();
+      const desc = document.getElementById('web-issue-desc')?.value.trim();
+      const category = document.getElementById('web-issue-category')?.value;
+      const priority = document.getElementById('web-issue-priority')?.value;
+
+      if (!title && !desc) {
+        showToast('Please enter an issue title or rough description first.', 'warning');
+        return;
+      }
+
+      const aiBtn = document.getElementById('btn-web-issue-ai-polish');
+      if (aiBtn) {
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = 'Polishing...';
+      }
+
+      try {
+        const polished = await AIService.polishIssueDescription({
+          title: title || 'Web Platform Issue',
+          description: desc || title,
+          category,
+          priority
+        });
+        const descEl = document.getElementById('web-issue-desc');
+        if (descEl) descEl.value = polished;
+        showToast('✨ Issue description polished with AI!', 'success');
+      } catch (err) {
+        console.error('AI Polish error:', err);
+        showToast('Could not polish with AI.', 'error');
+      } finally {
+        if (aiBtn) {
+          aiBtn.disabled = false;
+          aiBtn.innerHTML = '<i class="ph-bold ph-sparkle"></i> ✨ AI Polish';
+        }
+      }
+    });
+  }, 100);
 }
