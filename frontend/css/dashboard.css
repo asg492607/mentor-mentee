@@ -41,6 +41,7 @@
   width: 260px;
   flex-shrink: 0;
   background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   border-right: 1px solid var(--border);
   display: flex;
@@ -170,6 +171,7 @@
   padding: 0 32px;
   height: 64px;
   background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -350,8 +352,8 @@
   background: var(--bg-glass);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .card-header {
@@ -801,6 +803,7 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -867,6 +870,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -981,8 +985,8 @@
     z-index: 490;
     border: 0;
     background: rgba(4, 5, 15, 0.65);
-    backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     opacity: 0;
     pointer-events: none;
     display: block;
@@ -2168,8 +2172,8 @@
   align-items: center;
   padding: 16px 40px;
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -2369,8 +2373,8 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     z-index: 1040;
     border: none;
     cursor: pointer;
@@ -2458,7 +2462,6 @@
   .table-responsive, .table-container {
     width: 100%;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   table {
