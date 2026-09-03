@@ -2336,3 +2336,160 @@
     font-size: 1.65rem;
   }
 }
+
+/* ==========================================================================
+   Comprehensive Mobile & Tablet UI/UX Enhancements (Lumina 2.0)
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .dashboard-layout {
+    position: relative;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px !important;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 1050;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sidebar.open {
+    transform: translateX(280px);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1040;
+    border: none;
+    cursor: pointer;
+  }
+
+  .sidebar-backdrop.visible {
+    display: block;
+  }
+
+  .header {
+    padding: 0 16px;
+    height: 58px;
+  }
+
+  .page-content {
+    padding: 16px 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-kicker {
+    display: none;
+  }
+
+  .header-title {
+    font-size: 0.95rem;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .header-web-issue-text,
+  .header-ai-text {
+    display: none;
+  }
+
+  #global-ai-copilot-btn,
+  #global-web-issue-btn {
+    padding: 6px 8px;
+  }
+
+  .header-user-profile-btn {
+    padding: 3px 8px 3px 4px !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .card {
+    padding: 16px !important;
+    border-radius: 14px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .section-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal, .modal.card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    max-height: 92dvh !important;
+    padding: 16px !important;
+    border-radius: 16px;
+  }
+
+  .table-responsive, .table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 580px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-user-name,
+  .header-user-profile-btn i.ph-caret-down {
+    display: none;
+  }
+
+  .header-user-profile-btn {
+    border-radius: 50% !important;
+    padding: 2px !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .page-content {
+    padding: 14px 10px;
+  }
+
+  .btn {
+    font-size: 0.82rem;
+    padding: 8px 14px;
+  }
+
+  .tab-btn {
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+  }
+}
