@@ -1,6 +1,7 @@
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
 import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
 import { openWebIssueModal } from './components/web-issue-modal.js';
+import { initAIAssistant, aiAssistantWidget } from './components/ai-assistant-widget.js';
 
 const routes = {
   '/landing': './pages/landing.js',
@@ -190,6 +191,11 @@ async function handleRoute() {
       await module.render(appContainer);
       updateThemeToggleUI();
       renderNotifications();
+      if (user && !authFreeRoutes.includes(path)) {
+        initAIAssistant();
+      } else {
+        aiAssistantWidget.unmount();
+      }
     } else {
       throw new Error(`Module ${modulePath} does not export a render function`);
     }
@@ -213,8 +219,10 @@ let isInitialLoad = true;
 onAuthChange((user) => {
     if (user) {
         initNotificationListener();
+        initAIAssistant();
     } else {
         stopNotificationListener();
+        aiAssistantWidget.unmount();
     }
 
     if (isInitialLoad) {
@@ -256,6 +264,10 @@ document.addEventListener('click', (e) => {
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeToggleUI(newTheme);
+    }
+
+    if (e.target.closest('#global-ai-copilot-btn')) {
+        aiAssistantWidget.toggleWindow();
     }
 
     if (e.target.closest('#global-web-issue-btn')) {
