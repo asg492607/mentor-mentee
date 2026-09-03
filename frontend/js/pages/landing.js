@@ -501,8 +501,8 @@ export async function render(container) {
         </h1>
 
         <p class="hero-desc">
-          Lumina unifies Students, Mentors, HODs, Deans, and Admins into one seamless platform.
-          Featuring automated capacity allocation, paperless mentorship booklets, real-time risk intelligence, and WebRTC video meeting rooms.
+          Lumina unifies Students, Faculty Mentors, Heads of Department, Deans, and Statutory Cells into one intelligent institutional ecosystem.
+          Accelerate student development through automated capacity balancing, paperless mentorship booklets, real-time risk intelligence, serverless WebRTC video meeting rooms, and 24/7 Gemini-powered AI mentorship assistance.
         </p>
 
         <div class="hero-ctas">
@@ -518,6 +518,30 @@ export async function render(container) {
           <a href="/downloads/MIT_ADT_Mentor_Mentee.apk" download="MIT_ADT_Mentor_Mentee.apk" class="btn-gradient" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 24px rgba(16,185,129,0.35);padding:14px 28px;font-size:1.05rem;">
             <i class="ph ph-android-logo" style="font-size:1.3rem;"></i> Download Android APK
           </a>
+        </div>
+
+        <!-- Institutional Metrics Showcase -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-val">1,200+</div>
+            <div class="metric-lbl">Students Guided</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val">20 : 1</div>
+            <div class="metric-lbl">Equitable Mentee Ratio</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val">100%</div>
+            <div class="metric-lbl">Paperless Booklets</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val">4-Tier</div>
+            <div class="metric-lbl">Grievance Escalation</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val">24/7</div>
+            <div class="metric-lbl">AI Academic Copilot</div>
+          </div>
         </div>
 
       </section>
@@ -626,7 +650,7 @@ export async function render(container) {
           <span class="section-tag">Platform Excellence</span>
           <h2 class="section-title">Built for Modern Institutional Needs</h2>
           <p class="section-desc">
-            Everything your university needs to run a high-performing mentorship framework from day one.
+            A battle-tested architecture providing everything your university needs to administer a high-performing, data-driven mentorship framework.
           </p>
         </div>
 
@@ -635,7 +659,7 @@ export async function render(container) {
             <div class="feature-icon-wrap"><i class="ph ph-git-merge"></i></div>
             <h3 class="feature-card-title">Smart Capacity Auto-Allocation</h3>
             <p class="feature-card-desc">
-              Sequentially allocates unassigned students to available faculty mentors based on enrollment numbers and capacity limits (max 20 students per mentor).
+              Sequentially allocates unassigned students to available faculty mentors based on enrollment PRN and strict quota caps (max 20 students per mentor), preventing faculty burnout and ensuring fair attention.
             </p>
           </div>
 
@@ -643,39 +667,63 @@ export async function render(container) {
             <div class="feature-icon-wrap"><i class="ph ph-book-open"></i></div>
             <h3 class="feature-card-title">Paperless Mentorship Booklet</h3>
             <p class="feature-card-desc">
-              Digitized booklet tracking Personal Profile, Health Records, Family Details, Academic Marks, and Co-curricular Activities with mandatory 50% completion enforcement.
+              Comprehensive digitized cumulative dossier tracking Personal Profile, Health Records, Family Background, Academic Performance, and Co-curricular Milestones with an enforced 25% minimum onboarding requirement.
             </p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon-wrap"><i class="ph ph-warning-circle"></i></div>
-            <h3 class="feature-card-title">Institutional Risk Engine</h3>
+            <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.15);color:#a855f7;"><i class="ph ph-sparkle"></i></div>
+            <h3 class="feature-card-title">Gemini AI Academic Copilot</h3>
             <p class="feature-card-desc">
-              Automatic early-warning risk evaluation (High, Medium, Low) based on CGPA, attendance thresholds, and booklet filing status.
+              Integrated AI mentorship assistant engineered with institutional prompt safety to guide mentees in defining semester goals, structuring grievance narratives, and generating personalized study schedules.
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-video-camera"></i></div>
-            <h3 class="feature-card-title">Real-Time Chat &amp; Video Calls</h3>
+            <h3 class="feature-card-title">Serverless WebRTC Video Meetings</h3>
             <p class="feature-card-desc">
-              Integrated 1-on-1 and group video meeting rooms powered by WebRTC signaling, plus real-time instant messaging between mentors and mentees.
+              Broadcast-quality 1-on-1 and cohort video conferencing with real-time Firestore signaling, waiting room guest moderation, host controls, screen sharing, and synchronized audio recording.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-tree-structure"></i></div>
+            <h3 class="feature-card-title">4-Tier Grievance Escalation</h3>
+            <p class="feature-card-desc">
+              Structured multi-tier dispute and academic issue resolution hierarchy routing student tickets through Mentor → Section Head → HOD → Dean, featuring immutable audit trails and real-time status updates.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap" style="background:rgba(236,72,153,0.15);color:#ec4899;"><i class="ph ph-shield-check"></i></div>
+            <h3 class="feature-card-title">Statutory Cells &amp; Student Welfare</h3>
+            <p class="feature-card-desc">
+              Institutional statutory portals for Anti-Ragging, Internal Complaints Committee (ICC), SC/ST Cell, and Student Grievance Redressal with dedicated case workflows and confidential escalation channels.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap"><i class="ph ph-warning-circle"></i></div>
+            <h3 class="feature-card-title">Institutional Risk &amp; Early Warning</h3>
+            <p class="feature-card-desc">
+              Continuous automated risk evaluation (High, Medium, Low) analyzing real-time CGPA trends, attendance alerts, and booklet submission milestones to trigger timely faculty and counselor interventions.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="ph ph-file-pdf"></i></div>
+            <h3 class="feature-card-title">NAAC &amp; NIRF Accreditation Reporting</h3>
+            <p class="feature-card-desc">
+              One-click compilation of university-grade PDF and Excel compliance dossiers, capturing mentor-mentee interaction logs, attendance ratios, and academic progression sheets ready for regulatory audits.
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-file-csv"></i></div>
-            <h3 class="feature-card-title">Bulk Import &amp; Assignment Sheets</h3>
+            <h3 class="feature-card-title">Bulk Ingestion &amp; Data Hygiene</h3>
             <p class="feature-card-desc">
-              Import hundreds of students/mentors from CSV/Excel in seconds. Automatically parses columns, cleans titles, and forward-fills mentor names.
-            </p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon-wrap"><i class="ph ph-broom"></i></div>
-            <h3 class="feature-card-title">Data Cleanup &amp; Standardization</h3>
-            <p class="feature-card-desc">
-              Built-in duplicate record cleaner and department name migration tool (e.g., standardizing CSE-CORE into BTech CSE - Core with 1 click).
+              Rapid onboarding of hundreds of student and mentor profiles from CSV or Excel sheets with automated column parsing, honorific trimming, and a built-in 1-click duplicate record purger.
             </p>
           </div>
         </div>
@@ -687,7 +735,7 @@ export async function render(container) {
           <span class="section-tag">Tailored Workspaces</span>
           <h2 class="section-title">Designed for Every Stakeholder</h2>
           <p class="section-desc">
-            Custom interfaces and permissions tailored specifically for Students, Mentors, HODs, Deans, and Admins.
+            Custom interfaces and permissions tailored specifically for Students, Mentors, HODs, Deans, Section Heads, and Administrators.
           </p>
         </div>
 
@@ -697,6 +745,7 @@ export async function render(container) {
             <button class="role-tab-btn" data-role="mentor">👨‍🏫 Mentor / Faculty</button>
             <button class="role-tab-btn" data-role="hod">🏛 HOD</button>
             <button class="role-tab-btn" data-role="dean">🎓 Dean</button>
+            <button class="role-tab-btn" data-role="section">📋 Section Head</button>
             <button class="role-tab-btn" data-role="admin">⚙️ Admin</button>
           </div>
 
@@ -832,41 +881,61 @@ export async function render(container) {
         <div class="faq-wrap">
           <div class="faq-item active">
             <div class="faq-question">
-              <span>What is the 50% Booklet Completion requirement?</span>
+              <span>What is the 25% Booklet Completion requirement?</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              To ensure data completeness, students logging into Lumina must fill at least 50% of their Mentorship Booklet (personal, family, academic details) during initial setup.
+              To guarantee data fidelity for institutional records, students must fill at least 25% of their Mentorship Booklet (Personal Info, Academic History, Health, and Goals) during initial onboarding before unlocking full dashboard modules.
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>How does Auto-Allocation work?</span>
+              <span>How does Smart Capacity Auto-Allocation work?</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Auto-allocation sorts unassigned students by enrollment number and matches them to available mentors in their department based on remaining capacity (up to 20 students per mentor).
+              The allocation engine sorts unassigned students by enrollment PRN and sequentially pairs them with available faculty mentors within their department. It strictly enforces a 20-student maximum capacity per mentor to ensure fair distribution and dedicated attention.
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>Can HODs and Deans inspect student booklets?</span>
+              <span>How does the Gemini AI Academic Copilot help students and faculty?</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Yes! HODs, Deans, and Admins have full read access to inspect any student's mentorship booklet, risk level, and meeting history.
+              Lumina integrates Gemini AI with tailored super-prompts grounded in academic mentorship. Students can draft semester milestones, structure grievance statements, or request revision plans, while faculty can generate meeting agendas and qualitative guidance.
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>Can we bulk import user lists from Excel/CSV?</span>
+              <span>How do WebRTC Video Meetings ensure privacy and host controls?</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Absoluely. Admins and HODs can upload Excel or CSV sheets containing user profiles or mentor assignments. Duplicate emails and IDs are automatically skipped.
+              Video sessions run entirely peer-to-peer using native WebRTC with Firestore signaling. Mentors enter as Hosts with full controls—including an active Waiting Room, Admit/Deny permissions, participant kicking, and local audio/screen recording.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>How does the 4-Tier Issue Escalation process operate?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the Section Head (e.g., Exam Section), then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log throughout.
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>Can HODs and Deans export data for NAAC and NIRF accreditations?</span>
+              <span class="faq-chevron">▼</span>
+            </div>
+            <div class="faq-answer">
+              Yes. HODs, Deans, and Admins can export comprehensive Excel spreadsheets and university-formatted PDF dossiers containing booklet logs, meeting records, attendance correlations, and grievance resolution metrics.
             </div>
           </div>
         </div>
@@ -881,7 +950,7 @@ export async function render(container) {
               <span style="font-weight:800;font-size:1.2rem;color:#fff;">Lumina</span>
             </div>
             <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
-              Comprehensive Institutional Mentorship &amp; Analytics Ecosystem. Developed for MIT ADT University &amp; Academic Institutions.
+              Comprehensive Institutional Mentorship, Academic Intelligence &amp; Analytics Ecosystem. Pioneered at MIT-ADT University for modern higher education.
             </p>
           </div>
 
@@ -892,6 +961,8 @@ export async function render(container) {
               <li><a href="#special-thanks" style="color:#94a3b8;text-decoration:none;">TY CSE Core Pilot Recognition</a></li>
               <li><a href="#contributors" style="color:#94a3b8;text-decoration:none;">Project Guidance &amp; Contributors</a></li>
               <li><a href="#features" style="color:#94a3b8;text-decoration:none;">Platform Features</a></li>
+              <li><a href="#roles" style="color:#94a3b8;text-decoration:none;">Role Workspaces</a></li>
+              <li><a href="#download-app" style="color:#94a3b8;text-decoration:none;">Android Mobile App</a></li>
             </ul>
           </div>
 
@@ -899,6 +970,7 @@ export async function render(container) {
             <h4 style="color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:14px;">Institution</h4>
             <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
               MIT ADT University, Pune<br>
+              School of Computing — TY CSE Core Pilot<br>
               Mentorship Framework &amp; NAAC / NIRF Analytics
             </p>
           </div>
@@ -915,60 +987,74 @@ export async function render(container) {
   const roleData = {
     student: {
       title: '🎓 Student Portal Experience',
-      desc: 'Fill digital mentorship booklets, track CGPA and attendance, request 1-on-1 meetings with mentors, report issues, and join live video sessions.',
+      desc: 'Fill digital mentorship booklets, track CGPA and attendance, request 1-on-1 meetings with mentors, report issues, and access the Gemini AI academic copilot.',
       bullets: [
-        '50% Mandatory Booklet Completion tracker',
-        'Request & Join WebRTC Video Meetings',
-        'Direct Messaging with assigned Mentor',
-        'Track Academic Tasks & Issue Status'
+        '25% Mandatory Booklet Completion tracker & profile manager',
+        'Request & Join high-definition WebRTC Video Meetings',
+        'Direct real-time messaging with your assigned faculty mentor',
+        'Submit academic grievances with 4-tier escalation visibility',
+        'Gemini AI Copilot for study timetables and milestone planning'
       ],
       ctaText: 'Login as Student →',
       ctaHref: '#/login'
     },
     mentor: {
       title: '👨‍🏫 Mentor & Faculty Hub',
-      desc: 'Manage your assigned mentee quota (up to 20 students), inspect student booklets, schedule meeting slots, log notes, and flag high-risk students.',
+      desc: 'Manage your assigned mentee quota (up to 20 students), review digital booklets, host video calls, log meeting notes, and flag high-risk students.',
       bullets: [
-        'Real-time Mentee Directory & Capacity counter',
-        'Inspect Student Digital Booklets',
-        'Approve Meeting Requests & Host Video Calls',
-        'Raise & Monitor Student Risk Status'
+        'Real-time Mentee Directory & capacity monitoring (max 20 students)',
+        'Review, sign off, and provide qualitative feedback on digital booklets',
+        'Host WebRTC video calls with waiting room moderation & recording',
+        'Early risk detection engine to flag academically vulnerable students',
+        'Escalate unresolved issues directly to Section Heads or HODs'
       ],
       ctaText: 'Login as Mentor →',
       ctaHref: '#/login'
     },
     hod: {
-      title: '🏛 HOD Departmental Control',
+      title: '🏛 HOD Departmental Governance',
       desc: 'Department-wide mentorship governance, auto-allocate unassigned students, inspect risk matrices, generate departmental reports, and re-assign mentors.',
       bullets: [
-        'Auto-Allocate Unassigned Department Students',
-        'Department High-Risk Matrix & Escalations',
-        'Inspect Student Booklets across Department',
-        'Export Excel / PDF Mentorship Reports'
+        'Auto-allocate unassigned students based on enrollment PRN order',
+        'Department High-Risk Matrix & multi-tier issue escalations',
+        'Inspect Student Booklets across all department batches',
+        'Export university-compliant Excel and PDF Mentorship Reports'
       ],
       ctaText: 'HOD Dashboard →',
       ctaHref: '#/login'
     },
     dean: {
-      title: '🎓 Dean Institution Analytics',
+      title: '🎓 Dean Institutional Analytics',
       desc: 'Institution-level analytics dashboard, department performance comparison, high-risk student overview, and executive accreditation reporting.',
       bullets: [
-        'Cross-Department Mentorship Analytics',
-        'Institutional Risk & Escalation Overview',
-        'Executive PDF & Excel Report Generator',
-        'Monitor Mentorship Coverage'
+        'Cross-Department Mentorship Analytics and faculty load index',
+        'Institutional Risk & Escalation Overview across all branches',
+        'Executive PDF & Excel Report Generator for NAAC/NIRF audits',
+        'Direct apex issue resolution and statutory cell coordination'
       ],
       ctaText: 'Dean Portal →',
       ctaHref: '#/login'
     },
+    section: {
+      title: '📋 Section Head Operations',
+      desc: 'Specialized domain management (Exam Cell, Accounts, Hostel, Transport) to swiftly investigate and resolve forwarded student grievances.',
+      bullets: [
+        'Dedicated queue for section-specific escalated student issues',
+        'Direct resolution workflows with audit logging and student notifications',
+        'Cross-functional coordination with Faculty Mentors and HODs',
+        'Operational bottleneck identification and performance analytics'
+      ],
+      ctaText: 'Section Portal →',
+      ctaHref: '#/login'
+    },
     admin: {
       title: '⚙️ Admin System Operations',
-      desc: 'Complete control over user registration, bulk imports, duplicate data cleaning, department name standardization, and platform configuration.',
+      desc: 'Master control center for user registration, bulk imports, duplicate data cleaning, department name standardization, and platform configuration.',
       bullets: [
-        'Bulk CSV/Excel User & Assignment Imports',
-        '1-Click Duplicate Database Record Cleaner',
-        'Department Name Standardization & Class Creator',
-        'Full Role & Permission Management'
+        'Bulk CSV/Excel User & Assignment Imports with auto column mapping',
+        '1-Click Duplicate Database Record Cleaner and data normalizer',
+        'Statutory Cells account manager & institutional escalation wiring',
+        'Full Role & Permission Management with audit log tracking'
       ],
       ctaText: 'Admin Operations →',
       ctaHref: '#/login'
