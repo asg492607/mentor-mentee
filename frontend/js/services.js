@@ -43,11 +43,17 @@ function now() {
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 
+import { getAllCellNames } from '/js/utils/mit-cells-data.js';
+
 export const SettingsService = {
   async getSections() {
+    const defaultSections = getAllCellNames();
     const snap = await getDoc(doc(db, 'settings', 'general'));
-    if (!snap.exists()) return ['Exam Section', 'Student Section', 'Academic Section', 'Teaching (Mentor-mentee)', 'Non-Teaching', 'Travel Section', 'Non-Academic Section'];
-    return snap.data().sections || ['Exam Section', 'Student Section', 'Academic Section', 'Teaching (Mentor-mentee)', 'Non-Teaching', 'Travel Section', 'Non-Academic Section'];
+    if (!snap.exists()) return defaultSections;
+    const existing = snap.data().sections || [];
+    // Ensure all official cells are included without duplicates
+    const combined = Array.from(new Set([...defaultSections, ...existing]));
+    return combined;
   },
   async updateSections(sections) {
     await setDoc(doc(db, 'settings', 'general'), { sections }, { merge: true });
