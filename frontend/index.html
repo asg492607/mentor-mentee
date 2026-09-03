@@ -5,10 +5,13 @@
         const savedTheme = localStorage.getItem('theme');
         const theme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
+        const metaTheme = document.createElement('meta');
+        metaTheme.name = 'theme-color';
+        metaTheme.content = theme === 'dark' ? '#0f172a' : '#6254e7';
+        document.head.appendChild(metaTheme);
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#6254e7">
     <meta name="description" content="Lumina — Institutional Mentorship & Student Intelligence Platform for MIT-ADT University. Featuring paperless mentorship booklets, AI academic copilot, WebRTC video meeting rooms, 4-tier grievance escalation, and NAAC/NIRF reporting.">
     <title>Lumina — Next-Gen Mentorship & Student Intelligence Platform | MIT-ADT University</title>
 
