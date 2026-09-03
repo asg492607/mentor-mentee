@@ -3,6 +3,8 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { SettingsService, WebIssueService } from '/js/services.js';
+import { AIService } from '/js/services/ai-service.js';
+import { GROQ_CONFIG } from '/js/config.js';
 import { db } from '/js/firebase-init.js';
 import {
   collection, getDocs, deleteDoc, doc, query, orderBy,
@@ -106,6 +108,57 @@ export async function render(container) {
               </div>
 
               <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+            </div>
+
+            <!-- Lumina AI Assistant Configuration -->
+            <div class="card" style="padding:24px;border-color:rgba(124,58,237,0.3);background:linear-gradient(180deg, rgba(124,58,237,0.04) 0%, var(--bg-card) 100%);">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <div>
+                  <h3 style="font-size:1.05rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;color:var(--text-primary);">
+                    <i class="ph-bold ph-sparkle" style="color:#c084fc;"></i> Lumina AI Copilot Engine Settings
+                    <span class="badge badge-accent" style="font-size:0.7rem;padding:2px 8px;">GROQ CORE</span>
+                  </h3>
+                  <p style="color:var(--text-secondary);font-size:0.82rem;margin-top:4px;line-height:1.5;">
+                    Configure the generative AI core powering student study planning, mentor agenda generation, issue polishing, and natural language platform assistance.
+                  </p>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="badge badge-success" style="font-size:0.75rem;padding:4px 10px;">● API ACTIVE</span>
+                </div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:16px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">Active AI Model</label>
+                  <select id="setting-ai-model" class="form-select">
+                    <option value="openai/gpt-oss-120b" ${AIService.getModel()==='openai/gpt-oss-120b'?'selected':''}>GPT OSS 120B (Recommended &amp; Highly Intelligent)</option>
+                    <option value="openai/gpt-oss-20b" ${AIService.getModel()==='openai/gpt-oss-20b'?'selected':''}>GPT OSS 20B (Ultra-fast response time)</option>
+                    <option value="qwen/qwen3.8-27b" ${AIService.getModel()==='qwen/qwen3.8-27b'?'selected':''}>Qwen 3.8 27B (High-accuracy reasoning)</option>
+                  </select>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Free tier models executed on Groq ultra low-latency hardware</p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">Groq API Key Override</label>
+                  <div style="display:flex;gap:8px;">
+                    <input type="password" id="setting-ai-key" class="form-input" placeholder="gsk_..." value="${escapeHtml(AIService.getApiKey())}">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-ai-key-vis" title="Toggle visibility">👁</button>
+                  </div>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Leave as default or provide a custom key</p>
+                </div>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid var(--border);padding-top:16px;">
+                <div style="display:flex;gap:10px;">
+                  <button class="btn btn-primary" id="btn-save-ai-settings" style="gap:6px;">
+                    <i class="ph-bold ph-floppy-disk"></i> Save AI Settings
+                  </button>
+                  <button class="btn btn-secondary" id="btn-test-ai-connection" style="gap:6px;">
+                    <i class="ph-bold ph-plug"></i> Test Connection
+                  </button>
+                </div>
+                <div id="ai-test-status" style="font-size:0.8rem;color:var(--text-secondary);"></div>
+              </div>
             </div>
 
             <!-- Issue Sections -->
@@ -320,6 +373,53 @@ export async function render(container) {
   document.getElementById('btn-save-settings').addEventListener('click', () => {
     setSetting('maxStudents', parseInt(document.getElementById('setting-max-students').value) || 20);
     showToast('Settings saved!', 'success');
+  });
+
+  // AI Settings Event Listeners
+  const keyInput = document.getElementById('setting-ai-key');
+  const visBtn = document.getElementById('btn-toggle-ai-key-vis');
+  visBtn?.addEventListener('click', () => {
+    if (keyInput) {
+      keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+      visBtn.textContent = keyInput.type === 'password' ? '👁' : '🔒';
+    }
+  });
+
+  document.getElementById('btn-save-ai-settings')?.addEventListener('click', () => {
+    const model = document.getElementById('setting-ai-model')?.value;
+    const customKey = keyInput?.value?.trim();
+    AIService.setModel(model);
+    if (customKey) {
+      AIService.setApiKey(customKey);
+    }
+    showToast('✨ Lumina AI Copilot settings updated successfully!', 'success');
+  });
+
+  document.getElementById('btn-test-ai-connection')?.addEventListener('click', async () => {
+    const testStatus = document.getElementById('ai-test-status');
+    const testBtn = document.getElementById('btn-test-ai-connection');
+    if (testBtn) testBtn.disabled = true;
+    if (testStatus) testStatus.innerHTML = '<span style="color:var(--info);">⏳ Testing Groq API connection...</span>';
+
+    try {
+      const response = await AIService.chat({
+        messages: [{ role: 'user', content: 'Reply in one short sentence: Connection successful!' }],
+        temperature: 0.1,
+        maxTokens: 50
+      });
+      if (testStatus) {
+        testStatus.innerHTML = `<span style="color:var(--success);">✅ Connected to <strong>${escapeHtml(response.model)}</strong>! (${escapeHtml(response.content.trim())})</span>`;
+      }
+      showToast('AI API Connection Verified!', 'success');
+    } catch (err) {
+      console.error('AI Test Error:', err);
+      if (testStatus) {
+        testStatus.innerHTML = `<span style="color:var(--danger);">❌ Test failed: ${escapeHtml(err.message)}</span>`;
+      }
+      showToast('Connection test failed: ' + err.message, 'error');
+    } finally {
+      if (testBtn) testBtn.disabled = false;
+    }
   });
 
   document.getElementById('btn-reset-alloc').addEventListener('click', () => {
