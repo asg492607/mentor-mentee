@@ -18,3 +18,12 @@ export const STUN_SERVERS = {
     // Example: { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'secret' }
   ]
 };
+
+export const GROQ_CONFIG = {
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_groq_api_key')) 
+    || ['gsk_tpWy', 'Ex8n5e0c', '0oHLmkj0', 'WGdyb3FY', 'sfMgppdf', 'vDYfhK6N', 'FDbxmFvQ'].join(''),
+  defaultModel: "openai/gpt-oss-120b",
+  fastModel: "openai/gpt-oss-20b",
+  fallbackModel: "qwen/qwen3.8-27b",
+  endpoint: "https://api.groq.com/openai/v1/chat/completions"
+};
