@@ -57,6 +57,25 @@ The platform includes a built-in, Google Meet-style video conferencing tool that
 *   **Permanent End:** Mentors can "End Meeting for All," changing the database status to `COMPLETED` and instantly kicking all active participants while preventing future joins.
 *   **Advanced Screen Recording:** If a mentor clicks "Record", the browser captures the screen and tab audio, while the Web Audio API digitally mixes in the mentor's local microphone stream, ensuring a perfect two-way audio recording.
 
+### 5. Digitized Paperless Mentorship Booklet (25% Mandatory Threshold)
+*   Replaces physical paperwork with a standardized 6-section digital cumulative record (Personal Profile, Health & Medical Records, Family Details, Academic History & CGPA, Co-curricular Activities, and Mentor Qualitative Feedback).
+*   **25% Onboarding Completion Lock:** To ensure baseline institutional records, students must complete at least 25% of their booklet during initial onboarding before full platform features unlock.
+*   **Accreditation Export:** Booklets can be exported as official, university-compliant PDF dossiers with a single click.
+
+### 6. Gemini AI Academic Mentorship Copilot
+*   Integrated floating AI assistant widget with specialized academic super-prompter engineering.
+*   Assists students with semester goal setting, structured issue draft generation, revision calendars, and platform navigation.
+*   Includes built-in offline fallback knowledge base for instant answers to university mentorship policies.
+
+### 7. Statutory Cells & Student Welfare
+*   Institutional account provisioning for key statutory committees: Anti-Ragging Cell, Internal Complaints Committee (ICC), SC/ST Cell, and Student Grievance Redressal.
+*   Confidential escalation pathways directly routing sensitive student issues to designated institutional cells.
+
+### 8. Official Android Mobile Application
+*   Full-featured Android client (`com.lumina.mentormentee`) packaged with hardware camera/microphone support for live WebRTC meetings.
+*   **Zero Browser Error Screens:** Custom WebView error suppression eliminates generic browser errors and displays a branded, graceful reconnect screen.
+*   **Instant Auto-Reconnect:** Seamlessly re-establishes user sessions as soon as mobile data or Wi-Fi connectivity is restored.
+
 ## Directory Structure
 
 *   `/frontend/index.html`: The main entry point.
