@@ -4,6 +4,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { MeetingService, NotificationService, StudentService, AvailabilityService } from '/js/services.js';
+import { AIService } from '/js/services/ai-service.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 import { renderCalendar } from '/js/components/calendar-view.js';
 
@@ -94,7 +95,12 @@ export async function render(container) {
             </div>
 
             <div class="form-group" style="margin-bottom:14px;">
-              <label class="form-label" style="font-weight:600;">Why / Agenda Description</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label class="form-label" style="font-weight:600; margin:0;">Why / Agenda Description</label>
+                <button type="button" class="btn-ai-sparkle" id="btn-student-ai-agenda">
+                  <i class="ph-bold ph-sparkle"></i> ✨ AI Suggest Questions &amp; Topics
+                </button>
+              </div>
               <textarea id="m-desc" class="form-textarea" placeholder="Explain the context, problems or questions you wish to discuss with your mentor..." style="border-radius:10px; min-height:80px;"></textarea>
             </div>
 
@@ -183,6 +189,46 @@ export async function render(container) {
   container.querySelector('#btn-new').addEventListener('click', toggle);
   container.querySelector('#btn-cancel').addEventListener('click', toggle);
   container.querySelector('#btn-close-form').addEventListener('click', toggle);
+
+  container.querySelector('#btn-student-ai-agenda')?.addEventListener('click', async () => {
+    const type = container.querySelector('#m-type')?.value || '1-on-1 Mentorship Session';
+    const mentorSel = container.querySelector('#m-target-mentor');
+    const selectedMentorName = mentorSel?.options[mentorSel.selectedIndex]?.text || 'Faculty Mentor';
+    const dept = user?.department || 'Department';
+
+    const aiBtn = container.querySelector('#btn-student-ai-agenda');
+    if (aiBtn) {
+      aiBtn.disabled = true;
+      aiBtn.innerHTML = '<div class="spinner spinner-xs" style="width:12px;height:12px;border-width:2px;"></div> Generating...';
+    }
+
+    try {
+      const prompt = `As an academic mentorship assistant, formulate a concise, respectful 3-point agenda / list of questions for a college student requesting a meeting with their faculty mentor.
+Meeting Topic: ${type}
+Target Mentor: ${selectedMentorName}
+Student: ${user?.name || 'Student'} (${dept})
+
+Keep it structured, polite, and student-focused with clear discussion questions.`;
+
+      const res = await AIService.chat({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.5,
+        maxTokens: 350
+      });
+
+      const descEl = container.querySelector('#m-desc');
+      if (descEl) descEl.value = res.content;
+      showToast('✨ Discussion agenda and questions drafted with AI!', 'success');
+    } catch (e) {
+      console.error('Student AI Agenda error:', e);
+      showToast('Could not generate agenda with AI.', 'error');
+    } finally {
+      if (aiBtn) {
+        aiBtn.disabled = false;
+        aiBtn.innerHTML = '<i class="ph-bold ph-sparkle"></i> ✨ AI Suggest Questions &amp; Topics';
+      }
+    }
+  });
 
   container.querySelector('#m-target-mentor')?.addEventListener('change', () => {
     const dateInput = container.querySelector('#slot-date-picker');
