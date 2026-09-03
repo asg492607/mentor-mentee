@@ -31,6 +31,9 @@ export function createHeader(title, user, notificationCount = 0) {
         </div>
       </div>
       <div class="header-actions">
+        <button id="global-ai-copilot-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(219,39,119,0.15)); color:#c084fc; border:1px solid rgba(168,85,247,0.35); display:inline-flex; align-items:center;" title="Open Lumina AI Copilot (Ctrl + /)">
+          <i class="ph-bold ph-sparkle" style="font-size:1.1rem;color:#c084fc;"></i><span class="header-ai-text"> Copilot</span>
+        </button>
         <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="Report a Web Issue or Bug">
           <i class="ph ph-bug" style="font-size:1.1rem;"></i><span class="header-web-issue-text"> Web Issue</span>
         </button>
