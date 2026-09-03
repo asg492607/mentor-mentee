@@ -64,6 +64,9 @@ export function createSidebar(role, activePath) {
     ];
   }
 
+  // Add AI Copilot quick trigger
+  navItems.push({ path: '#ai-copilot-trigger', label: 'AI Copilot ✨', icon: '<i class="ph-bold ph-sparkle" style="color:#c084fc;"></i>' });
+
   // Always append Landing Page link for quick access
   navItems.push({ path: '/landing', label: 'Landing Page', icon: '<i class="ph ph-house"></i>' });
 
@@ -106,6 +109,19 @@ document.body.addEventListener('click', async (e) => {
       await logout();
     } catch (err) {
       window.location.hash = '/login';
+    }
+    return;
+  }
+
+  // Handle AI Copilot click from sidebar
+  const aiCopilotItem = e.target.closest('a[href="#ai-copilot-trigger"]');
+  if (aiCopilotItem) {
+    e.preventDefault();
+    try {
+      const { aiAssistantWidget } = await import('/js/components/ai-assistant-widget.js');
+      aiAssistantWidget.toggleWindow(true);
+    } catch (err) {
+      console.error('Failed to open AI Copilot:', err);
     }
     return;
   }
