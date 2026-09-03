@@ -3,6 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, IssueService, NotificationService, SettingsService } from '/js/services.js';
+import { AIService } from '/js/services/ai-service.js';
 import { escapeHtml } from '/js/utils.js';
 
 function statusBadge(s) {
@@ -48,7 +49,15 @@ export async function render(container) {
                 <select id="i-pri" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
               </div>
             </div>
-            <div class="form-group"><label class="form-label">Description</label><textarea id="i-desc" class="form-textarea" placeholder="Describe your issue in detail..."></textarea></div>
+            <div class="form-group">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <label class="form-label" style="margin:0;">Description</label>
+                <button type="button" class="btn-ai-sparkle" id="btn-ai-polish-issue" title="Structure and refine your issue with AI">
+                  <i class="ph-bold ph-sparkle"></i> ✨ AI Polish Description
+                </button>
+              </div>
+              <textarea id="i-desc" class="form-textarea" rows="4" placeholder="Describe your issue in detail..."></textarea>
+            </div>
             <div style="display:flex;gap:10px;">
               <button class="btn btn-primary" id="btn-submit-issue">Submit</button>
               <button class="btn btn-secondary" id="btn-cancel-issue">Cancel</button>
@@ -69,6 +78,46 @@ export async function render(container) {
   };
   document.getElementById('btn-raise')?.addEventListener('click', toggle);
   document.getElementById('btn-cancel-issue')?.addEventListener('click', toggle);
+
+  document.getElementById('btn-ai-polish-issue')?.addEventListener('click', async () => {
+    const title = document.getElementById('i-title')?.value.trim();
+    const desc = document.getElementById('i-desc')?.value.trim();
+    const category = document.getElementById('i-cat')?.value;
+    const priority = document.getElementById('i-pri')?.value;
+
+    if (!title && !desc) {
+      showToast('Please enter at least an issue title or rough description first.', 'warning');
+      return;
+    }
+
+    const aiBtn = document.getElementById('btn-ai-polish-issue');
+    if (aiBtn) {
+      aiBtn.disabled = true;
+      aiBtn.innerHTML = '<div class="spinner spinner-xs" style="width:12px;height:12px;border-width:2px;"></div> Polishing...';
+    }
+
+    try {
+      const polished = await AIService.polishIssueDescription({
+        title: title || 'Academic / Campus Issue',
+        description: desc || title,
+        category,
+        priority
+      });
+      const descEl = document.getElementById('i-desc');
+      if (descEl) {
+        descEl.value = polished;
+      }
+      showToast('✨ Issue description structured and enhanced with AI!', 'success');
+    } catch (err) {
+      console.error('AI Polish error:', err);
+      showToast('Could not polish with AI. Please check your network.', 'error');
+    } finally {
+      if (aiBtn) {
+        aiBtn.disabled = false;
+        aiBtn.innerHTML = '<i class="ph-bold ph-sparkle"></i> ✨ AI Polish Description';
+      }
+    }
+  });
 
   document.getElementById('btn-submit-issue')?.addEventListener('click', async () => {
     const title    = document.getElementById('i-title')?.value.trim();
