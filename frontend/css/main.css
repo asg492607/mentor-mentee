@@ -321,8 +321,16 @@ html, body {
 
 .touch-scroll {
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.touch-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.touch-scroll::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: var(--radius-full);
 }
 
 /* Responsive Breakpoints */
