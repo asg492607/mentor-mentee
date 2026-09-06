@@ -453,6 +453,64 @@ export async function render(container) {
           padding: 60px 32px 30px 32px;
           border-top: 1px solid rgba(255, 255, 255, 0.08);
           margin-top: auto;
+          transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        [data-theme="light"] .landing-footer {
+          background: #f8fafc;
+          color: #64748b;
+          border-top: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        [data-theme="light"] .landing-footer h4,
+        [data-theme="light"] .landing-footer .brand-logo-wrap span {
+          color: #0f172a !important;
+        }
+
+        [data-theme="light"] .landing-footer p,
+        [data-theme="light"] .landing-footer a {
+          color: #64748b !important;
+        }
+
+        [data-theme="light"] .landing-footer a:hover {
+          color: var(--accent) !important;
+        }
+
+        .landing-theme-toggle {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          background: var(--bg-glass);
+          border: 1px solid var(--border);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-secondary);
+          transition: all 0.2s ease;
+        }
+
+        .landing-theme-toggle:hover {
+          background: var(--accent-light);
+          color: var(--accent);
+          transform: scale(1.05);
+        }
+
+        .ecosystem-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          padding: 32px 28px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .ecosystem-card:hover {
+          transform: translateY(-6px);
+          border-color: rgba(108, 71, 255, 0.4);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.12);
         }
       </style>
 
@@ -468,17 +526,18 @@ export async function render(container) {
 
         <ul class="nav-links">
           <li><a href="#features" class="nav-link">Features</a></li>
-          <li><a href="#download-app" class="nav-link" style="display:flex;align-items:center;gap:6px;color:#10b981;font-weight:700;"><i class="ph ph-device-mobile" style="font-size:1.1rem;"></i> <span>Download App</span></a></li>
           <li><a href="#roles" class="nav-link">User Roles</a></li>
+          <li><a href="#ecosystem" class="nav-link">Cloud Platform</a></li>
           <li><a href="#special-thanks" class="nav-link">Special Thanks</a></li>
           <li><a href="#contributors" class="nav-link">Contributors</a></li>
           <li><a href="#faq" class="nav-link">FAQs</a></li>
         </ul>
 
         <div style="display:flex;align-items:center;gap:12px;">
-          <a href="/downloads/MIT_ADT_Mentor_Mentee.apk" download="MIT_ADT_Mentor_Mentee.apk" class="btn-gradient" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 4px 14px rgba(16,185,129,0.35);padding:8px 16px;font-size:0.85rem;display:inline-flex;align-items:center;gap:6px;" title="Download Android APK">
-            <i class="ph ph-android-logo" style="font-size:1.1rem;"></i> <span>APK</span>
-          </a>
+          <button id="landing-theme-toggle" class="landing-theme-toggle" type="button" aria-label="Toggle Color Theme" title="Toggle Light/Dark Theme">
+            <i class="ph ph-sun landing-sun-icon" style="font-size:1.3rem;display:none;"></i>
+            <i class="ph ph-moon landing-moon-icon" style="font-size:1.3rem;display:none;"></i>
+          </button>
           ${user ? `
             <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">
               Go to Dashboard →
@@ -507,7 +566,7 @@ export async function render(container) {
 
         <div class="hero-ctas">
           ${user ? `
-            <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient">
+            <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:14px 32px;font-size:1.02rem;">
               Open Dashboard Portal <i class="ph ph-arrow-right"></i>
             </a>
           ` : `
@@ -515,8 +574,8 @@ export async function render(container) {
               Access Portal Login <i class="ph ph-arrow-right"></i>
             </a>
           `}
-          <a href="/downloads/MIT_ADT_Mentor_Mentee.apk" download="MIT_ADT_Mentor_Mentee.apk" class="btn-gradient" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 24px rgba(16,185,129,0.35);padding:14px 28px;font-size:1.05rem;">
-            <i class="ph ph-android-logo" style="font-size:1.3rem;"></i> Download Android APK
+          <a href="#features" class="btn-glass" style="padding:14px 28px;font-size:1.02rem;">
+            <i class="ph ph-sparkle" style="font-size:1.2rem;color:var(--accent);"></i> Explore Capabilities
           </a>
         </div>
 
@@ -755,115 +814,74 @@ export async function render(container) {
         </div>
       </section>
 
-      <!-- Mobile App Showcase & Download Section -->
-      <section id="download-app" style="padding:60px 24px;background:linear-gradient(180deg, rgba(108,71,255,0.05) 0%, rgba(16,185,129,0.08) 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+      <!-- Cloud & Mobile Architecture Showcase Section -->
+      <section id="ecosystem" style="padding:60px 24px;background:linear-gradient(180deg, rgba(108,71,255,0.04) 0%, rgba(59,130,246,0.06) 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
         <div style="max-width:1200px;margin:0 auto;">
           
-          <div class="section-header" style="margin-bottom:36px;">
-            <span class="section-tag" style="color:#10b981;background:rgba(16,185,129,0.12);padding:4px 12px;border-radius:20px;display:inline-block;font-weight:700;">
-              📱 Official Android Application &bull; v1.0.0
+          <div class="section-header" style="margin-bottom:44px;">
+            <span class="section-tag" style="color:var(--accent);background:rgba(108,71,255,0.12);padding:4px 14px;border-radius:20px;display:inline-block;font-weight:700;">
+              ⚡ Cloud &amp; Device Agnostic Architecture
             </span>
-            <h2 class="section-title" style="margin-top:12px;">Get the MIT-ADT Mentorship App on Your Device</h2>
+            <h2 class="section-title" style="margin-top:12px;">Modern, Real-Time Web Experience Across All Devices</h2>
             <p class="section-desc">
-              Experience seamless mentorship on the go. Built specifically for students and faculty with zero browser lag, instant auto-reconnect, and WebRTC video meeting support.
+              Built as an institutional Progressive Web App (PWA) with zero client installations required. Access high-definition video consultations, real-time mentorship booklets, and governance analytics anywhere on mobile, tablet, or desktop.
             </p>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:32px;align-items:center;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:28px;align-items:stretch;">
             
-            <!-- Left Column: Details & Download Actions -->
-            <div>
-              <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
-                <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT Logo" style="height:48px;width:auto;object-fit:contain;" onError="this.style.display='none';">
-                <div>
-                  <h3 style="margin:0;font-size:1.35rem;font-weight:800;color:var(--text-primary);">MIT-ADT Mentor Mentee</h3>
-                  <p style="margin:2px 0 0;font-size:0.8rem;color:var(--text-secondary);">Official Android Release &bull; Package: <code>com.lumina.mentormentee</code></p>
+            <!-- Feature Box 1: Device Agnostic & PWA -->
+            <div class="ecosystem-card">
+              <div>
+                <div style="width:48px;height:48px;border-radius:14px;background:rgba(108,71,255,0.15);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
+                  <i class="ph ph-browsers"></i>
                 </div>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Zero-Install Web Access</h3>
+                <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
+                  Instant, ultra-low latency browser access on Android, iOS, Windows, macOS, and Linux without downloading external installation packages or granting sideload permissions.
+                </p>
               </div>
-
-              <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px;">
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                  <div style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,0.15);color:#10b981;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
-                    🛡️
-                  </div>
-                  <div>
-                    <strong style="color:var(--text-primary);font-size:0.92rem;">Zero Browser Error Screens</strong>
-                    <p style="margin:2px 0 0;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;">
-                      Custom error suppression eliminates Chrome dinosaur pages and displays a clean, branded reconnect interface.
-                    </p>
-                  </div>
-                </div>
-
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                  <div style="width:32px;height:32px;border-radius:8px;background:rgba(108,71,255,0.15);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
-                    ⚡
-                  </div>
-                  <div>
-                    <strong style="color:var(--text-primary);font-size:0.92rem;">Instant Auto-Reconnect</strong>
-                    <p style="margin:2px 0 0;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;">
-                      Automatically detects when mobile data or Wi-Fi is restored and silently reloads your session.
-                    </p>
-                  </div>
-                </div>
-
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                  <div style="width:32px;height:32px;border-radius:8px;background:rgba(236,72,153,0.15);color:#ec4899;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">
-                    📹
-                  </div>
-                  <div>
-                    <strong style="color:var(--text-primary);font-size:0.92rem;">1-on-1 Video Meetings &amp; Booklet</strong>
-                    <p style="margin:2px 0 0;font-size:0.82rem;color:var(--text-secondary);line-height:1.5;">
-                      Hardware camera &amp; microphone support for live WebRTC meetings, plus full mobile mentorship booklet tracking.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Direct Download Action Buttons -->
-              <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
-                <a href="/downloads/MIT_ADT_Mentor_Mentee.apk" download="MIT_ADT_Mentor_Mentee.apk" class="btn-gradient" style="background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 24px rgba(16,185,129,0.35);padding:14px 28px;font-size:1.05rem;display:inline-flex;align-items:center;gap:10px;">
-                  <i class="ph ph-android-logo" style="font-size:1.4rem;"></i>
-                  <span>Download APK (Direct)</span>
-                </a>
-                <span style="font-size:0.8rem;color:var(--text-muted);">
-                  Android 7.0+ &bull; APK Size ~4 MB
-                </span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
+                <span class="badge badge-accent" style="font-size:0.75rem;">📱 Mobile Responsive</span>
+                <span class="badge badge-accent" style="font-size:0.75rem;">💻 Desktop Optimized</span>
+                <span class="badge badge-accent" style="font-size:0.75rem;">🚀 Instant Load</span>
               </div>
             </div>
 
-            <!-- Right Column: Mobile App Preview & QR Code -->
-            <div style="background:var(--bg-secondary);border:1.5px solid var(--border);border-radius:20px;padding:28px;box-shadow:0 20px 40px rgba(0,0,0,0.15);display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;">
-              
-              <!-- Quick Install Guide -->
+            <!-- Feature Box 2: Firestore Real-Time Sync -->
+            <div class="ecosystem-card">
               <div>
-                <h4 style="margin:0 0 14px 0;font-size:1.05rem;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                  <span>📋 3-Step Quick Install</span>
-                </h4>
-                <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:10px;font-size:0.85rem;color:var(--text-secondary);">
-                  <li>
-                    <strong style="color:var(--text-primary);">Download APK</strong>: Tap the download button or scan the QR code.
-                  </li>
-                  <li>
-                    <strong style="color:var(--text-primary);">Install Package</strong>: Open the downloaded <code>.apk</code> and allow installation.
-                  </li>
-                  <li>
-                    <strong style="color:var(--text-primary);">Login &amp; Connect</strong>: Enter your student or faculty email credentials.
-                  </li>
-                </ol>
-
-                <div style="margin-top:20px;padding:10px 14px;background:var(--bg-primary);border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:8px;">
-                  <span style="color:#10b981;font-size:1.1rem;">✓</span>
-                  <span style="font-size:0.78rem;color:var(--text-muted);">Compatible with Samsung, Xiaomi, OnePlus, Vivo, Oppo &amp; all Android phones.</span>
+                <div style="width:48px;height:48px;border-radius:14px;background:rgba(16,185,129,0.15);color:#10b981;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
+                  <i class="ph ph-arrows-clockwise"></i>
                 </div>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Cloud Firestore Synchronization</h3>
+                <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
+                  Changes to student booklets, attendance indicators, meeting bookings, and grievance escalations update in real-time across faculty and student screens simultaneously.
+                </p>
               </div>
-
-              <!-- Scan QR Code Box -->
-              <div style="text-align:center;background:var(--bg-primary);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,0.1);">
-                <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Scan to Download</div>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https%3A%2F%2Fmentor-mentee-asg.web.app%2Fdownloads%2FMIT_ADT_Mentor_Mentee.apk" alt="Scan QR Code to Download APK" style="width:130px;height:130px;border-radius:8px;display:block;margin:0 auto;background:#fff;padding:6px;">
-                <div style="font-size:0.7rem;color:var(--accent);margin-top:8px;font-weight:600;">📱 Point Phone Camera</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
+                <span class="badge badge-success" style="font-size:0.75rem;">⚡ Real-Time Snapshots</span>
+                <span class="badge badge-success" style="font-size:0.75rem;">🔄 Auto-Save Booklets</span>
+                <span class="badge badge-success" style="font-size:0.75rem;">🛡️ Offline Resilient</span>
               </div>
+            </div>
 
+            <!-- Feature Box 3: Enterprise Security & WebRTC -->
+            <div class="ecosystem-card">
+              <div>
+                <div style="width:48px;height:48px;border-radius:14px;background:rgba(236,72,153,0.15);color:#ec4899;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
+                  <i class="ph ph-video-camera"></i>
+                </div>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Peer-to-Peer WebRTC Video</h3>
+                <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
+                  Encrypted 1-on-1 virtual mentoring sessions with waiting room guest controls, participant admission, real-time screen sharing, and on-device recording capabilities.
+                </p>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🔒 End-to-End Encrypted</span>
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🎥 Screen Share</span>
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🎙️ Audio/Video</span>
+              </div>
             </div>
 
           </div>
@@ -962,7 +980,7 @@ export async function render(container) {
               <li><a href="#contributors" style="color:#94a3b8;text-decoration:none;">Project Guidance &amp; Contributors</a></li>
               <li><a href="#features" style="color:#94a3b8;text-decoration:none;">Platform Features</a></li>
               <li><a href="#roles" style="color:#94a3b8;text-decoration:none;">Role Workspaces</a></li>
-              <li><a href="#download-app" style="color:#94a3b8;text-decoration:none;">Android Mobile App</a></li>
+              <li><a href="#ecosystem" style="color:#94a3b8;text-decoration:none;">Cloud Architecture &amp; Security</a></li>
             </ul>
           </div>
 
@@ -1112,6 +1130,37 @@ export async function render(container) {
 
   // Initial tab render
   renderRoleTab('student');
+
+  // Landing Page Theme Toggle
+  const landingThemeBtn = container.querySelector('#landing-theme-toggle');
+  const landingSun = container.querySelector('.landing-sun-icon');
+  const landingMoon = container.querySelector('.landing-moon-icon');
+
+  function updateLandingThemeIcon(theme) {
+    if (!landingSun || !landingMoon) return;
+    if (theme === 'light') {
+      landingSun.style.display = 'block';
+      landingMoon.style.display = 'none';
+    } else {
+      landingSun.style.display = 'none';
+      landingMoon.style.display = 'block';
+    }
+  }
+
+  const initialTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark';
+  updateLandingThemeIcon(initialTheme);
+
+  if (landingThemeBtn) {
+    landingThemeBtn.addEventListener('click', () => {
+      const curr = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = curr === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateLandingThemeIcon(next);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = next === 'dark' ? '#0f172a' : '#6254e7';
+    });
+  }
 
   // FAQ Accordion Toggle
   container.querySelectorAll('.faq-question').forEach(q => {

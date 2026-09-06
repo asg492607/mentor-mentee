@@ -36,7 +36,7 @@ export async function render(container) {
             <div style="display:flex;justify-content:center;padding:60px;"><div class="spinner"></div></div>
           </div>
 
-          <div id="student-detail" style="display:none;margin-top:16px;" class="card" style="padding:24px;"></div>
+          <div id="student-detail" class="card" style="display:none;margin-top:16px;padding:24px;"></div>
         </div>
       </div>
     </div>
