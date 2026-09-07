@@ -7,6 +7,7 @@ import { MeetingService, NotificationService, StudentService, AvailabilityServic
 import { AIService } from '/js/services/ai-service.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 import { renderCalendar } from '/js/components/calendar-view.js';
+import { t, getLanguage } from '/js/i18n.js';
 
 const TYPES = [
   '1-on-1 Mentorship Session',
@@ -24,10 +25,12 @@ function statusBadge(s) {
 }
 
 function fmt(iso) {
-  if (!iso) return 'Not Scheduled Yet';
+  if (!iso) return t('meetings.not_scheduled') || 'Not Scheduled Yet';
   const d = new Date(iso);
-  if (isNaN(d.valueOf()) || d.getFullYear() < 2020) return 'Not Scheduled Yet';
-  return d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+  if (isNaN(d.valueOf()) || d.getFullYear() < 2020) return t('meetings.not_scheduled') || 'Not Scheduled Yet';
+  const lang = getLanguage();
+  const locale = lang === 'mr' ? 'mr-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+  return d.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 export async function render(container) {
@@ -42,23 +45,23 @@ export async function render(container) {
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/student/meetings')}
       <div class="main-content">
-        ${createHeader('My Meetings & Calendar', user)}
+        ${createHeader(t('meetings.title') || 'My Meetings & Calendar', user)}
         <div class="page-content">
           
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
             <!-- View Mode Switcher -->
             <div class="view-mode-toggle" style="display:flex; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:3px; gap:4px;">
               <button class="btn btn-sm ${activeViewMode === 'list' ? 'btn-primary' : 'btn-ghost'}" id="btn-view-list" style="border-radius:9px; font-weight:600; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-list-dashes"></i> List View
+                <i class="ph ph-list-dashes"></i> ${t('meetings.view_list') || 'List View'}
               </button>
               <button class="btn btn-sm ${activeViewMode === 'calendar' ? 'btn-primary' : 'btn-ghost'}" id="btn-view-calendar" style="border-radius:9px; font-weight:600; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-calendar-blank"></i> Calendar View
+                <i class="ph ph-calendar-blank"></i> ${t('meetings.view_calendar') || 'Calendar View'}
               </button>
             </div>
 
             <!-- Request Meeting Action -->
             <button class="btn btn-primary" id="btn-new" style="display:flex; align-items:center; gap:8px; border-radius:12px; font-weight:700; padding:10px 20px; box-shadow:0 4px 12px rgba(99, 102, 241, 0.25);">
-              <i class="ph ph-calendar-plus" style="font-size:1.2rem;"></i> Book / Request Meeting
+              <i class="ph ph-calendar-plus" style="font-size:1.2rem;"></i> ${t('meetings.btn_request') || 'Book / Request Meeting'}
             </button>
           </div>
 
@@ -409,10 +412,10 @@ Keep it structured, polite, and student-focused with clear discussion questions.
           <div style="width:60px; height:60px; border-radius:50%; background:rgba(99,102,241,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 12px;">
             <i class="ph ph-calendar-x"></i>
           </div>
-          <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:4px;">No meetings scheduled yet</h3>
-          <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 16px 0;">Pick an open slot or request a session with your mentor.</p>
+          <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:4px;">${t('meetings.empty_title') || 'No meetings scheduled yet'}</h3>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 16px 0;">${t('meetings.empty_desc') || 'Pick an open slot or request a session with your mentor.'}</p>
           <button class="btn btn-primary" onclick="document.getElementById('btn-new').click()" style="border-radius:10px;">
-            Book a Session
+            ${t('meetings.btn_request') || 'Book a Session'}
           </button>
         </div>
       `;
@@ -465,7 +468,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
                 ${(m.status === 'APPROVED' || m.status === 'ONGOING') ? `
                   <div style="display:flex; gap:6px;">
                     <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}" style="border-radius:8px; font-weight:700;">
-                      <i class="ph ph-video-camera"></i> ${m.status === 'ONGOING' ? 'Join Live Now' : 'Join Meeting'}
+                      <i class="ph ph-video-camera"></i> ${m.status === 'ONGOING' ? (t('meetings.join_live') || 'Join Live Now') : (t('meetings.btn_join_video') || 'Join Meeting')}
                     </button>
                     ${gcalUrl ? `<a href="${gcalUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary" style="border-radius:8px;" title="Add to Google Calendar"><i class="ph ph-google-logo"></i></a>` : ''}
                     <button class="btn btn-sm btn-secondary btn-ics-export" data-id="${m.id}" style="border-radius:8px;" title="Download .ICS invite"><i class="ph ph-calendar-plus"></i></button>
@@ -473,7 +476,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
                 ` : ''}
 
                 ${m.status === 'REQUESTED' ? `
-                  <button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}" style="border-radius:8px;">Cancel Request</button>
+                  <button class="btn btn-sm btn-secondary cancel-btn" data-id="${m.id}" style="border-radius:8px;">${t('meetings.btn_cancel') || 'Cancel Request'}</button>
                 ` : ''}
 
                 ${m.status === 'COMPLETED' ? `

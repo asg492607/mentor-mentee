@@ -116,15 +116,15 @@ export async function render(container) {
               </div>
               <div>
                 <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--text-primary);">
-                  Mandatory Action Required: Fill Mentorship Booklet (${bookletCompletionPct}% / 25%)
+                  ${t('dash.booklet_alert_title', 'Mentorship Booklet Requirement')} (${bookletCompletionPct}% / 25%)
                 </h4>
                 <p style="margin:4px 0 0 0;font-size:0.8rem;color:var(--text-secondary);">
-                  First-time setup requirement: You must complete at least <strong>25% of your Mentorship Booklet</strong> across all sections to unlock full account features.
+                  ${t('dash.booklet_alert_desc', 'Complete at least 25% of your digital mentorship booklet across all sections to unlock full platform features.')}
                 </p>
               </div>
             </div>
             <a href="#/student/booklet" class="btn btn-warning btn-sm" style="font-weight:700;padding:8px 16px;white-space:nowrap;border-radius:8px;">
-              ✏️ Fill Booklet Now →
+              ✏️ ${t('dash.complete_booklet_btn', 'Fill Booklet Now')} →
             </a>
           </div>
           <div style="height:8px;background:rgba(0,0,0,0.1);border-radius:4px;overflow:hidden;margin-top:14px;">
@@ -155,7 +155,7 @@ export async function render(container) {
             { label: t('dash.upcoming_meetings', 'Upcoming Meetings'), value: upcomingMeetings.length, color:'var(--info)',    icon:'ph-calendar-check' },
             { label: t('dash.stat_tasks', 'Pending Tasks'),            value: pendingTasks.length,     color:'var(--warning)', icon:'ph-clipboard-text' },
             { label: t('dash.stat_issues', 'Active Issues'),           value: openIssues.length,       color:'var(--danger)',  icon:'ph-warning-circle' },
-            { label:'CGPA',                                            value: fullProfile.cgpa || '—', color:'var(--success)', icon:'ph-graduation-cap' },
+            { label: t('profile.cgpa', 'CGPA'),                         value: fullProfile.cgpa || '—', color:'var(--success)', icon:'ph-graduation-cap' },
           ].map(c => `
             <div class="stat-card" style="display:flex; align-items:center; gap:14px; padding:18px;">
               <div class="stat-icon" style="background:${c.color}18; color:${c.color}; font-size:1.4rem; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -169,15 +169,15 @@ export async function render(container) {
           `).join('')}
         </div>
 
-        <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
           <!-- Left Column -->
           <div style="display:flex;flex-direction:column;gap:16px;">
             <!-- My Mentors Card -->
             <div class="card" style="padding:20px;text-align:center;">
-              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">Assigned Mentors</p>
+              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">${t('dash.mentor_card_title', 'Assigned Faculty Mentor')}</p>
               ${mentor ? `
                 <div style="padding-bottom:12px;border-bottom:${coMentor ? '1px solid var(--border)' : 'none'};">
-                  <span class="badge badge-accent" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">Primary Mentor</span>
+                  <span class="badge badge-accent" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">${t('profile.primary_mentor', 'Primary Mentor')}</span>
                   <div class="avatar avatar-lg" style="margin:0 auto 8px; background:var(--accent-gradient); color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(124,106,255,0.3);">${initials}</div>
                   <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:2px;color:var(--text-primary);">${mentor.name}</h3>
                   <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:2px;">${mentor.designation || 'Faculty Mentor'}</p>
@@ -186,13 +186,13 @@ export async function render(container) {
               ` : `
                 <div style="color:var(--text-muted);padding:14px;">
                   <i class="ph ph-user-minus" style="font-size:2.2rem; margin-bottom:6px; opacity:0.4; display:block;"></i>
-                  <p style="font-size:0.85rem;">No primary mentor assigned</p>
+                  <p style="font-size:0.85rem;">${t('dash.no_mentor', 'No mentor assigned yet.')}</p>
                 </div>
               `}
 
               ${coMentor ? `
                 <div style="padding-top:12px;">
-                  <span class="badge badge-info" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">Co-Mentor</span>
+                  <span class="badge badge-info" style="font-size:0.68rem;padding:2px 8px;margin-bottom:8px;display:inline-block;">${t('profile.co_mentor', 'Co-Mentor')}</span>
                   <div class="avatar avatar-lg" style="margin:0 auto 8px; background:linear-gradient(135deg,#06b6d4,#3b82f6); color:#fff; font-weight:700;">${coInitials}</div>
                   <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:2px;color:var(--text-primary);">${coMentor.name}</h3>
                   <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:2px;">${coMentor.designation || 'Co-Mentor'}</p>
@@ -201,21 +201,21 @@ export async function render(container) {
               ` : ''}
 
               ${(mentor || coMentor) ? `
-                <button class="btn btn-primary w-full" id="btn-req-meeting" style="border-radius:20px; font-weight:600;margin-top:14px;">Request Meeting</button>
+                <button class="btn btn-primary w-full" id="btn-req-meeting" style="border-radius:20px; font-weight:600;margin-top:14px;">${t('dash.schedule_meeting_btn', 'Request Meeting')}</button>
               ` : ''}
             </div>
 
             <!-- Academic Status Card -->
             <div class="card" style="padding:20px;">
-              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">Academic Status</p>
+              <p style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">${t('dash.academic_overview', 'Academic Status')}</p>
               <div style="display:flex;flex-direction:column;gap:12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <span style="color:var(--text-secondary);font-size:0.875rem;">CGPA</span>
+                  <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.cgpa', 'CGPA')}</span>
                   <strong style="font-size:1.1rem; color:${(fullProfile.cgpa||0)<6?'var(--danger)':(fullProfile.cgpa||0)<7?'var(--warning)':'var(--success)'};">${fullProfile.cgpa || '—'}</strong>
                 </div>
                 <div>
                   <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                    <span style="color:var(--text-secondary);font-size:0.875rem;">Attendance</span>
+                    <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.attendance', 'Attendance')}</span>
                     <strong style="color:${(fullProfile.attendance||100)<75?'var(--danger)':(fullProfile.attendance||100)<85?'var(--warning)':'var(--success)'};">${fullProfile.attendance || 0}%</strong>
                   </div>
                   <div class="progress-bar-wrap" style="height:8px; border-radius:4px; background:var(--bg-input);">
@@ -223,7 +223,7 @@ export async function render(container) {
                   </div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
-                  <span style="color:var(--text-secondary);font-size:0.875rem;">Academic Risk</span>
+                  <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.risk_score', 'Academic Risk')}</span>
                   ${riskBadge(fullProfile.riskLevel || risk.riskLevel)}
                 </div>
               </div>
@@ -235,14 +235,14 @@ export async function render(container) {
             <!-- Upcoming Meetings Card -->
             <div class="card">
               <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="font-size:0.95rem; font-weight:700; margin:0;">Upcoming Meetings</h3>
-                <a href="#/student/meetings" style="font-size:0.8rem;color:var(--accent);font-weight:600;">View All</a>
+                <h3 style="font-size:0.95rem; font-weight:700; margin:0;">${t('dash.upcoming_meetings', 'Upcoming Meetings')}</h3>
+                <a href="#/student/meetings" style="font-size:0.8rem;color:var(--accent);font-weight:600;">${t('common.all', 'View All')}</a>
               </div>
               ${upcomingMeetings.length === 0
                 ? `<div style="padding:28px 20px; text-align:center; color:var(--text-muted);">
                     <i class="ph ph-calendar-x" style="font-size:2.2rem; opacity:0.4; margin-bottom:6px; display:block;"></i>
-                    <p style="font-size:0.875rem; font-weight:500; color:var(--text-secondary); margin:0;">No upcoming meetings scheduled</p>
-                    <a href="#/student/meetings" class="btn btn-sm btn-ghost mt-2" style="color:var(--accent); font-weight:600; font-size:0.8rem;">+ Request Meeting</a>
+                    <p style="font-size:0.875rem; font-weight:500; color:var(--text-secondary); margin:0;">${t('dash.no_upcoming_meetings', 'No upcoming meetings scheduled.')}</p>
+                    <a href="#/student/meetings" class="btn btn-sm btn-ghost mt-2" style="color:var(--accent); font-weight:600; font-size:0.8rem;">+ ${t('dash.schedule_meeting_btn', 'Request Meeting')}</a>
                   </div>`
                 : upcomingMeetings.slice(0,3).map(m => `
                   <div class="list-item" style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
@@ -250,7 +250,7 @@ export async function render(container) {
                       <p style="font-weight:600;font-size:0.875rem;margin:0 0 2px;">${m.topic || m.type || m.description || 'Mentorship Session'}</p>
                       <p style="color:var(--text-muted);font-size:0.78rem;margin:0;">${fmt(m.scheduledAt)}</p>
                     </div>
-                    <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}" style="border-radius:16px; padding:4px 14px; font-weight:600;">Join Call</button>
+                    <button class="btn btn-sm btn-primary join-btn" data-id="${m.id}" style="border-radius:16px; padding:4px 14px; font-weight:600;">${t('meetings.btn_join_video', 'Join Call')}</button>
                   </div>
                 `).join('')
               }
@@ -259,13 +259,13 @@ export async function render(container) {
             <!-- Pending Tasks Card -->
             <div class="card">
               <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="font-size:0.95rem; font-weight:700; margin:0;">Pending Action Items</h3>
-                <a href="#/student/tasks" style="font-size:0.8rem;color:var(--accent);font-weight:600;">View All</a>
+                <h3 style="font-size:0.95rem; font-weight:700; margin:0;">${t('dash.recent_tasks', 'Pending Action Items')}</h3>
+                <a href="#/student/tasks" style="font-size:0.8rem;color:var(--accent);font-weight:600;">${t('common.all', 'View All')}</a>
               </div>
               ${pendingTasks.length === 0
                 ? `<div style="padding:28px 20px; text-align:center; color:var(--text-muted);">
                     <i class="ph ph-check-circle" style="font-size:2.2rem; color:var(--success); opacity:0.6; margin-bottom:6px; display:block;"></i>
-                    <p style="font-size:0.875rem; font-weight:500; color:var(--text-secondary); margin:0;">No pending tasks. You're all caught up!</p>
+                    <p style="font-size:0.875rem; font-weight:500; color:var(--text-secondary); margin:0;">${t('dash.no_tasks', 'No pending tasks assigned.')}</p>
                   </div>`
                 : pendingTasks.slice(0,3).map(t => `
                   <div class="list-item" style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
