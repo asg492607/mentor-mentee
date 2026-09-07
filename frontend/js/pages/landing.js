@@ -6,7 +6,7 @@ export async function render(container) {
   const user = getUserProfile();
 
   container.innerHTML = `
-    <div class="landing-page" style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg-primary);font-family:'Outfit','Inter',sans-serif;color:var(--text-primary);overflow-x:hidden;">
+    <div class="landing-page" style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg-primary);font-family:var(--font);color:var(--text-primary);overflow-x:hidden;">
       <style>
         /* ── Modern Landing Page Styling ── */
         .landing-header {
@@ -497,10 +497,10 @@ export async function render(container) {
         <ul class="nav-links">
           <li><a href="#features" class="nav-link">${t('landing.nav_features', 'Features')}</a></li>
           <li><a href="#roles" class="nav-link">${t('landing.nav_portals', 'User Roles')}</a></li>
-          <li><a href="#ecosystem" class="nav-link">${t('landing.nav_security', 'Cloud Platform')}</a></li>
-          <li><a href="#special-thanks" class="nav-link">Special Thanks</a></li>
-          <li><a href="#contributors" class="nav-link">Contributors</a></li>
-          <li><a href="#faq" class="nav-link">FAQs</a></li>
+          <li><a href="#ecosystem" class="nav-link">${t('landing.cloud_tag', 'Cloud Platform')}</a></li>
+          <li><a href="#special-thanks" class="nav-link">${t('landing.pilot_badge', 'Special Thanks')}</a></li>
+          <li><a href="#contributors" class="nav-link">${t('landing.credits_title', 'Contributors')}</a></li>
+          <li><a href="#faq" class="nav-link">${t('landing.faq_title', 'FAQs')}</a></li>
         </ul>
 
         <div style="display:flex;align-items:center;gap:12px;">
@@ -553,7 +553,7 @@ export async function render(container) {
           </div>
           <div class="metric-card">
             <div class="metric-val">20 : 1</div>
-            <div class="metric-lbl">Equitable Mentee Ratio</div>
+            <div class="metric-lbl">${t('landing.stat_ratio', '20:1 Max Mentee Ratio')}</div>
           </div>
           <div class="metric-card">
             <div class="metric-val">100%</div>
@@ -561,11 +561,11 @@ export async function render(container) {
           </div>
           <div class="metric-card">
             <div class="metric-val">4-Tier</div>
-            <div class="metric-lbl">${t('landing.feature_4_title', 'Grievance Escalation')}</div>
+            <div class="metric-lbl">${t('landing.feat_escalation_title', 'Grievance Escalation')}</div>
           </div>
           <div class="metric-card">
             <div class="metric-val">24/7</div>
-            <div class="metric-lbl">${t('landing.feature_2_title', 'AI Academic Copilot')}</div>
+            <div class="metric-lbl">${t('landing.feat_copilot_title', 'AI Academic Copilot')}</div>
           </div>
         </div>
 
@@ -577,19 +577,16 @@ export async function render(container) {
           <div style="display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:16px;">
             <img src="/assets/images/mit_adt_logo.png" alt="MIT ADT University Logo" style="height:54px;width:auto;object-fit:contain;" onError="this.style.display='none';">
             <span class="badge badge-accent" style="font-size:0.85rem;padding:6px 16px;border-radius:20px;font-weight:700;letter-spacing:0.04em;">
-              TY CSE Core Pilot Recognition
+              ${t('landing.pilot_badge', 'TY CSE Core Pilot Recognition')}
             </span>
           </div>
 
           <h2 style="font-size:1.8rem;font-weight:800;margin-bottom:14px;color:var(--text-primary);">
-            Special Thanks &amp; Mentorship Recognition
+            ${t('landing.pilot_title', 'Special Thanks & Mentorship Recognition')}
           </h2>
 
           <p style="font-size:1.02rem;color:var(--text-secondary);max-width:880px;margin:0 auto;line-height:1.7;">
-            We extend our heartfelt gratitude and special recognition to <strong>Dr. Suwarna Pawar Mam</strong>, Head of Department (HOD) of 
-            <strong>CSE Core</strong>, for her visionary leadership, constant guidance, and pioneering initiative in piloting the 
-            Lumina Mentorship Platform for the <strong>TY CSE Core</strong> batch at <strong>MIT-ADT University</strong>. 
-            Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.
+            ${t('landing.pilot_desc', 'We extend our heartfelt gratitude and special recognition to Dr. Suwarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.')}
           </p>
         </div>
       </section>
@@ -597,10 +594,10 @@ export async function render(container) {
       <!-- Dedicated Project Guidance & Contributors Section -->
       <section id="contributors" style="padding:40px 0 60px 0;">
         <div class="section-header">
-          <span class="section-tag">Project Credits</span>
-          <h2 class="section-title">Guidance &amp; Contributors</h2>
+          <span class="section-tag">${t('landing.credits_tag', 'Project Credits')}</span>
+          <h2 class="section-title">${t('landing.credits_title', 'Guidance & Contributors')}</h2>
           <p class="section-desc">
-            Recognizing the faculty mentorship and development team behind the Lumina Mentorship Platform.
+            ${t('landing.credits_desc', 'Recognizing the faculty mentorship and development team behind the Lumina Mentorship Platform.')}
           </p>
         </div>
 
@@ -612,12 +609,12 @@ export async function render(container) {
               <i class="ph ph-graduation-cap"></i>
             </div>
             <span style="font-size:0.75rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              Under Guidance Of
+              ${t('landing.guide_under', 'Under Guidance Of')}
             </span>
             <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Dr. Nilesh Thorat</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Assistant Professor</p>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.guide_role', 'Assistant Professor')}</p>
             <p class="feature-card-desc">
-              Provided faculty mentorship, project governance, and academic alignment throughout development.
+              ${t('landing.guide_desc', 'Provided faculty mentorship, project governance, and academic alignment throughout development.')}
             </p>
           </div>
 
@@ -627,12 +624,12 @@ export async function render(container) {
               <i class="ph ph-crown"></i>
             </div>
             <span style="font-size:0.75rem;color:#a855f7;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              Team Lead (Student)
+              ${t('landing.lead_tag', 'Team Lead (Student)')}
             </span>
             <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Atharva Gandhi</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Lead</p>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.lead_role', 'Student Team Lead')}</p>
             <p class="feature-card-desc">
-              Lead platform architect and developer overseeing end-to-end system design and deployment.
+              ${t('landing.lead_desc', 'Lead platform architect and developer overseeing end-to-end system design and deployment.')}
             </p>
           </div>
 
@@ -642,12 +639,12 @@ export async function render(container) {
               <i class="ph ph-user"></i>
             </div>
             <span style="font-size:0.75rem;color:#ec4899;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              Contributor
+              ${t('landing.member_tag', 'Contributor')}
             </span>
             <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Vaibhav Bariyar</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Member</p>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.member_role', 'Student Team Member')}</p>
             <p class="feature-card-desc">
-              Contributor assisting with feature implementations and testing.
+              ${t('landing.member_1_desc', 'Contributor assisting with feature implementations and testing.')}
             </p>
           </div>
 
@@ -657,12 +654,12 @@ export async function render(container) {
               <i class="ph ph-user"></i>
             </div>
             <span style="font-size:0.75rem;color:#3b82f6;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              Contributor
+              ${t('landing.member_tag', 'Contributor')}
             </span>
             <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Satwik Dhole</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">Student Team Member</p>
+            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.member_role', 'Student Team Member')}</p>
             <p class="feature-card-desc">
-              Contributor assisting with platform development, feature enhancements, and testing.
+              ${t('landing.member_2_desc', 'Contributor assisting with platform development, feature enhancements, and testing.')}
             </p>
           </div>
 
@@ -672,83 +669,83 @@ export async function render(container) {
       <!-- Core Features Section -->
       <section id="features" style="padding:40px 0;">
         <div class="section-header">
-          <span class="section-tag">Platform Excellence</span>
-          <h2 class="section-title">Built for Modern Institutional Needs</h2>
+          <span class="section-tag">${t('landing.features_tag', 'Platform Excellence')}</span>
+          <h2 class="section-title">${t('landing.features_title', 'Built for Modern Institutional Needs')}</h2>
           <p class="section-desc">
-            A battle-tested architecture providing everything your university needs to administer a high-performing, data-driven mentorship framework.
+            ${t('landing.features_desc', 'A battle-tested architecture providing everything your university needs to administer a high-performing, data-driven mentorship framework.')}
           </p>
         </div>
 
         <div class="features-grid">
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-git-merge"></i></div>
-            <h3 class="feature-card-title">Smart Capacity Auto-Allocation</h3>
+            <h3 class="feature-card-title">${t('landing.feat_alloc_title', 'Smart Capacity Auto-Allocation')}</h3>
             <p class="feature-card-desc">
-              Sequentially allocates unassigned students to available faculty mentors based on enrollment PRN and strict quota caps (max 20 students per mentor), preventing faculty burnout and ensuring fair attention.
+              ${t('landing.feat_alloc_desc', 'Sequentially allocates unassigned students to available faculty mentors based on enrollment PRN and strict quota caps (max 20 students per mentor), preventing faculty burnout and ensuring fair attention.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-book-open"></i></div>
-            <h3 class="feature-card-title">Paperless Mentorship Booklet</h3>
+            <h3 class="feature-card-title">${t('landing.feat_booklet_title', 'Paperless Mentorship Booklet')}</h3>
             <p class="feature-card-desc">
-              Comprehensive digitized cumulative dossier tracking Personal Profile, Health Records, Family Background, Academic Performance, and Co-curricular Milestones with an enforced 25% minimum onboarding requirement.
+              ${t('landing.feat_booklet_desc', 'Comprehensive digitized cumulative dossier tracking Personal Profile, Health Records, Family Background, Academic Performance, and Co-curricular Milestones with an enforced 25% minimum onboarding requirement.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap" style="background:rgba(168,85,247,0.15);color:#a855f7;"><i class="ph ph-sparkle"></i></div>
-            <h3 class="feature-card-title">Gemini AI Academic Copilot</h3>
+            <h3 class="feature-card-title">${t('landing.feat_copilot_title', 'Gemini AI Academic Copilot')}</h3>
             <p class="feature-card-desc">
-              Integrated AI mentorship assistant engineered with institutional prompt safety to guide mentees in defining semester goals, structuring grievance narratives, and generating personalized study schedules.
+              ${t('landing.feat_copilot_desc', 'Integrated AI mentorship assistant engineered with institutional prompt safety to guide mentees in defining semester goals, structuring grievance narratives, and generating personalized study schedules.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-video-camera"></i></div>
-            <h3 class="feature-card-title">Serverless WebRTC Video Meetings</h3>
+            <h3 class="feature-card-title">${t('landing.feat_webrtc_title', 'Serverless WebRTC Video Meetings')}</h3>
             <p class="feature-card-desc">
-              Broadcast-quality 1-on-1 and cohort video conferencing with real-time Firestore signaling, waiting room guest moderation, host controls, screen sharing, and synchronized audio recording.
+              ${t('landing.feat_webrtc_desc', 'Broadcast-quality 1-on-1 and cohort video conferencing with real-time Firestore signaling, waiting room guest moderation, host controls, screen sharing, and synchronized audio recording.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-tree-structure"></i></div>
-            <h3 class="feature-card-title">4-Tier Grievance Escalation</h3>
+            <h3 class="feature-card-title">${t('landing.feat_escalation_title', '4-Tier Grievance Escalation')}</h3>
             <p class="feature-card-desc">
-              Structured multi-tier dispute and academic issue resolution hierarchy routing student tickets through Mentor → Section Head → HOD → Dean, featuring immutable audit trails and real-time status updates.
+              ${t('landing.feat_escalation_desc', 'Structured multi-tier dispute and academic issue resolution hierarchy routing student tickets through Mentor → Section Head → HOD → Dean, featuring immutable audit trails and real-time status updates.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap" style="background:rgba(236,72,153,0.15);color:#ec4899;"><i class="ph ph-shield-check"></i></div>
-            <h3 class="feature-card-title">Statutory Cells &amp; Student Welfare</h3>
+            <h3 class="feature-card-title">${t('landing.feat_statutory_title', 'Statutory Cells & Student Welfare')}</h3>
             <p class="feature-card-desc">
-              Institutional statutory portals for Anti-Ragging, Internal Complaints Committee (ICC), SC/ST Cell, and Student Grievance Redressal with dedicated case workflows and confidential escalation channels.
+              ${t('landing.feat_statutory_desc', 'Institutional statutory portals for Anti-Ragging, Internal Complaints Committee (ICC), SC/ST Cell, and Student Grievance Redressal with dedicated case workflows and confidential escalation channels.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-warning-circle"></i></div>
-            <h3 class="feature-card-title">Institutional Risk &amp; Early Warning</h3>
+            <h3 class="feature-card-title">${t('landing.feat_risk_title', 'Institutional Risk & Early Warning')}</h3>
             <p class="feature-card-desc">
-              Continuous automated risk evaluation (High, Medium, Low) analyzing real-time CGPA trends, attendance alerts, and booklet submission milestones to trigger timely faculty and counselor interventions.
+              ${t('landing.feat_risk_desc', 'Continuous automated risk evaluation (High, Medium, Low) analyzing real-time CGPA trends, attendance alerts, and booklet submission milestones to trigger timely faculty and counselor interventions.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap" style="background:rgba(16,185,129,0.15);color:#10b981;"><i class="ph ph-file-pdf"></i></div>
-            <h3 class="feature-card-title">NAAC &amp; NIRF Accreditation Reporting</h3>
+            <h3 class="feature-card-title">${t('landing.feat_naac_title', 'NAAC & NIRF Accreditation Reporting')}</h3>
             <p class="feature-card-desc">
-              One-click compilation of university-grade PDF and Excel compliance dossiers, capturing mentor-mentee interaction logs, attendance ratios, and academic progression sheets ready for regulatory audits.
+              ${t('landing.feat_naac_desc', 'One-click compilation of university-grade PDF and Excel compliance dossiers, capturing mentor-mentee interaction logs, attendance ratios, and academic progression sheets ready for regulatory audits.')}
             </p>
           </div>
 
           <div class="feature-card">
             <div class="feature-icon-wrap"><i class="ph ph-file-csv"></i></div>
-            <h3 class="feature-card-title">Bulk Ingestion &amp; Data Hygiene</h3>
+            <h3 class="feature-card-title">${t('landing.feat_bulk_title', 'Bulk Ingestion & Data Hygiene')}</h3>
             <p class="feature-card-desc">
-              Rapid onboarding of hundreds of student and mentor profiles from CSV or Excel sheets with automated column parsing, honorific trimming, and a built-in 1-click duplicate record purger.
+              ${t('landing.feat_bulk_desc', 'Rapid onboarding of hundreds of student and mentor profiles from CSV or Excel sheets with automated column parsing, honorific trimming, and a built-in 1-click duplicate record purger.')}
             </p>
           </div>
         </div>
@@ -757,21 +754,21 @@ export async function render(container) {
       <!-- Role-Based Features Section -->
       <section id="roles" style="padding:40px 0;">
         <div class="section-header">
-          <span class="section-tag">Tailored Workspaces</span>
-          <h2 class="section-title">Designed for Every Stakeholder</h2>
+          <span class="section-tag">${t('landing.roles_tag', 'Tailored Workspaces')}</span>
+          <h2 class="section-title">${t('landing.roles_title', 'Designed for Every Stakeholder')}</h2>
           <p class="section-desc">
-            Custom interfaces and permissions tailored specifically for Students, Mentors, HODs, Deans, Section Heads, and Administrators.
+            ${t('landing.roles_desc', 'Custom interfaces and permissions tailored specifically for Students, Mentors, HODs, Deans, Section Heads, and Administrators.')}
           </p>
         </div>
 
         <div class="role-tabs-wrap">
           <div class="role-tabs">
-            <button class="role-tab-btn active" data-role="student">🎓 Student</button>
-            <button class="role-tab-btn" data-role="mentor">👨‍🏫 Mentor / Faculty</button>
-            <button class="role-tab-btn" data-role="hod">🏛 HOD</button>
-            <button class="role-tab-btn" data-role="dean">🎓 Dean</button>
-            <button class="role-tab-btn" data-role="section">📋 Section Head</button>
-            <button class="role-tab-btn" data-role="admin">⚙️ Admin</button>
+            <button class="role-tab-btn active" data-role="student">🎓 ${t('role.student', 'Student')}</button>
+            <button class="role-tab-btn" data-role="mentor">👨‍🏫 ${t('role.mentor', 'Mentor / Faculty')}</button>
+            <button class="role-tab-btn" data-role="hod">🏛 ${t('role.hod', 'HOD')}</button>
+            <button class="role-tab-btn" data-role="dean">🎓 ${t('role.dean', 'Dean')}</button>
+            <button class="role-tab-btn" data-role="section">📋 ${t('role.section_head', 'Section Head')}</button>
+            <button class="role-tab-btn" data-role="admin">⚙️ ${t('role.admin', 'Admin')}</button>
           </div>
 
           <div class="role-tab-content" id="role-tab-display">
@@ -786,11 +783,11 @@ export async function render(container) {
           
           <div class="section-header" style="margin-bottom:44px;">
             <span class="section-tag" style="color:var(--accent);background:rgba(108,71,255,0.12);padding:4px 14px;border-radius:20px;display:inline-block;font-weight:700;">
-              ⚡ Cloud &amp; Device Agnostic Architecture
+              ${t('landing.cloud_tag', '⚡ Cloud & Device Agnostic Architecture')}
             </span>
-            <h2 class="section-title" style="margin-top:12px;">Modern, Real-Time Web Experience Across All Devices</h2>
+            <h2 class="section-title" style="margin-top:12px;">${t('landing.cloud_title', 'Modern, Real-Time Web Experience Across All Devices')}</h2>
             <p class="section-desc">
-              Built as an institutional Progressive Web App (PWA) with zero client installations required. Access high-definition video consultations, real-time mentorship booklets, and governance analytics anywhere on mobile, tablet, or desktop.
+              ${t('landing.cloud_desc', 'Built as an institutional Progressive Web App (PWA) with zero client installations required. Access high-definition video consultations, real-time mentorship booklets, and governance analytics anywhere on mobile, tablet, or desktop.')}
             </p>
           </div>
 
@@ -802,15 +799,15 @@ export async function render(container) {
                 <div style="width:48px;height:48px;border-radius:14px;background:rgba(108,71,255,0.15);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
                   <i class="ph ph-browsers"></i>
                 </div>
-                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Zero-Install Web Access</h3>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">${t('landing.pwa_title', 'Zero-Install Web Access')}</h3>
                 <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
-                  Instant, ultra-low latency browser access on Android, iOS, Windows, macOS, and Linux without downloading external installation packages or granting sideload permissions.
+                  ${t('landing.pwa_desc', 'Instant, ultra-low latency browser access on Android, iOS, Windows, macOS, and Linux without downloading external installation packages or granting sideload permissions.')}
                 </p>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
-                <span class="badge badge-accent" style="font-size:0.75rem;">📱 Mobile Responsive</span>
-                <span class="badge badge-accent" style="font-size:0.75rem;">💻 Desktop Optimized</span>
-                <span class="badge badge-accent" style="font-size:0.75rem;">🚀 Instant Load</span>
+                <span class="badge badge-accent" style="font-size:0.75rem;">${t('landing.badge_mobile', '📱 Mobile Responsive')}</span>
+                <span class="badge badge-accent" style="font-size:0.75rem;">${t('landing.badge_desktop', '💻 Desktop Optimized')}</span>
+                <span class="badge badge-accent" style="font-size:0.75rem;">${t('landing.badge_instant', '🚀 Instant Load')}</span>
               </div>
             </div>
 
@@ -820,15 +817,15 @@ export async function render(container) {
                 <div style="width:48px;height:48px;border-radius:14px;background:rgba(16,185,129,0.15);color:#10b981;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
                   <i class="ph ph-arrows-clockwise"></i>
                 </div>
-                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Cloud Firestore Synchronization</h3>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">${t('landing.sync_title', 'Cloud Firestore Synchronization')}</h3>
                 <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
-                  Changes to student booklets, attendance indicators, meeting bookings, and grievance escalations update in real-time across faculty and student screens simultaneously.
+                  ${t('landing.sync_desc', 'Changes to student booklets, attendance indicators, meeting bookings, and grievance escalations update in real-time across faculty and student screens simultaneously.')}
                 </p>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
-                <span class="badge badge-success" style="font-size:0.75rem;">⚡ Real-Time Snapshots</span>
-                <span class="badge badge-success" style="font-size:0.75rem;">🔄 Auto-Save Booklets</span>
-                <span class="badge badge-success" style="font-size:0.75rem;">🛡️ Offline Resilient</span>
+                <span class="badge badge-success" style="font-size:0.75rem;">${t('landing.badge_realtime', '⚡ Real-Time Snapshots')}</span>
+                <span class="badge badge-success" style="font-size:0.75rem;">${t('landing.badge_autosave', '🔄 Auto-Save Booklets')}</span>
+                <span class="badge badge-success" style="font-size:0.75rem;">${t('landing.badge_offline', '🛡️ Offline Resilient')}</span>
               </div>
             </div>
 
@@ -838,15 +835,15 @@ export async function render(container) {
                 <div style="width:48px;height:48px;border-radius:14px;background:rgba(236,72,153,0.15);color:#ec4899;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin-bottom:18px;">
                   <i class="ph ph-video-camera"></i>
                 </div>
-                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">Peer-to-Peer WebRTC Video</h3>
+                <h3 style="font-size:1.2rem;font-weight:800;color:var(--text-primary);margin-bottom:10px;">${t('landing.p2p_title', 'Peer-to-Peer WebRTC Video')}</h3>
                 <p style="font-size:0.88rem;color:var(--text-secondary);line-height:1.6;margin-bottom:18px;">
-                  Encrypted 1-on-1 virtual mentoring sessions with waiting room guest controls, participant admission, real-time screen sharing, and on-device recording capabilities.
+                  ${t('landing.p2p_desc', 'Encrypted 1-on-1 virtual mentoring sessions with waiting room guest controls, participant admission, real-time screen sharing, and on-device recording capabilities.')}
                 </p>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);">
-                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🔒 End-to-End Encrypted</span>
-                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🎥 Screen Share</span>
-                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">🎙️ Audio/Video</span>
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">${t('landing.badge_e2e', '🔒 End-to-End Encrypted')}</span>
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">${t('landing.badge_screenshare', '🎥 Screen Share')}</span>
+                <span class="badge" style="font-size:0.75rem;background:rgba(236,72,153,0.12);color:#ec4899;border:1px solid rgba(236,72,153,0.3);">${t('landing.badge_av', '🎙️ Audio/Video')}</span>
               </div>
             </div>
 
@@ -858,68 +855,68 @@ export async function render(container) {
       <!-- FAQ Section -->
       <section id="faq" style="padding:40px 0;">
         <div class="section-header">
-          <span class="section-tag">Got Questions?</span>
-          <h2 class="section-title">Frequently Asked Questions</h2>
+          <span class="section-tag">${t('landing.faq_tag', 'Got Questions?')}</span>
+          <h2 class="section-title">${t('landing.faq_title', 'Frequently Asked Questions')}</h2>
         </div>
 
         <div class="faq-wrap">
           <div class="faq-item active">
             <div class="faq-question">
-              <span>What is the 25% Booklet Completion requirement?</span>
+              <span>${t('landing.faq_q1', 'What is the 25% Booklet Completion requirement?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              To guarantee data fidelity for institutional records, students must fill at least 25% of their Mentorship Booklet (Personal Info, Academic History, Health, and Goals) during initial onboarding before unlocking full dashboard modules.
+              ${t('landing.faq_a1', 'To guarantee data fidelity for institutional records, students must fill at least 25% of their Mentorship Booklet (Personal Info, Academic History, Health, and Goals) during initial onboarding before unlocking full dashboard modules.')}
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>How does Smart Capacity Auto-Allocation work?</span>
+              <span>${t('landing.faq_q2', 'How does Smart Capacity Auto-Allocation work?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              The allocation engine sorts unassigned students by enrollment PRN and sequentially pairs them with available faculty mentors within their department. It strictly enforces a 20-student maximum capacity per mentor to ensure fair distribution and dedicated attention.
+              ${t('landing.faq_a2', 'The allocation engine sorts unassigned students by enrollment PRN and sequentially pairs them with available faculty mentors within their department. It strictly enforces a 20-student maximum capacity per mentor to ensure fair distribution and dedicated attention.')}
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>How does the Gemini AI Academic Copilot help students and faculty?</span>
+              <span>${t('landing.faq_q3', 'How does the Gemini AI Academic Copilot help students and faculty?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Lumina integrates Gemini AI with tailored super-prompts grounded in academic mentorship. Students can draft semester milestones, structure grievance statements, or request revision plans, while faculty can generate meeting agendas and qualitative guidance.
+              ${t('landing.faq_a3', 'Lumina integrates Gemini AI with tailored super-prompts grounded in academic mentorship. Students can draft semester milestones, structure grievance narratives, or request revision plans, while faculty can generate meeting agendas and qualitative guidance.')}
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>How do WebRTC Video Meetings ensure privacy and host controls?</span>
+              <span>${t('landing.faq_q4', 'How do WebRTC Video Meetings ensure privacy and host controls?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Video sessions run entirely peer-to-peer using native WebRTC with Firestore signaling. Mentors enter as Hosts with full controls—including an active Waiting Room, Admit/Deny permissions, participant kicking, and local audio/screen recording.
+              ${t('landing.faq_a4', 'Video sessions run entirely peer-to-peer using native WebRTC with Firestore signaling. Mentors enter as Hosts with full controls—including an active Waiting Room, Admit/Deny permissions, participant kicking, and local audio/screen recording.')}
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>How does the 4-Tier Issue Escalation process operate?</span>
+              <span>${t('landing.faq_q5', 'How does the 4-Tier Issue Escalation process operate?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the Section Head (e.g., Exam Section), then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log throughout.
+              ${t('landing.faq_a5', 'When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the Section Head (e.g., Exam Section), then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log throughout.')}
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-question">
-              <span>Can HODs and Deans export data for NAAC and NIRF accreditations?</span>
+              <span>${t('landing.faq_q6', 'Can HODs and Deans export data for NAAC and NIRF accreditations?')}</span>
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              Yes. HODs, Deans, and Admins can export comprehensive Excel spreadsheets and university-formatted PDF dossiers containing booklet logs, meeting records, attendance correlations, and grievance resolution metrics.
+              ${t('landing.faq_a6', 'Yes. HODs, Deans, and Admins can export comprehensive Excel spreadsheets and university-formatted PDF dossiers containing booklet logs, meeting records, attendance correlations, and grievance resolution metrics.')}
             </div>
           </div>
         </div>
@@ -931,28 +928,28 @@ export async function render(container) {
           <div>
             <div class="brand-logo-wrap" style="margin-bottom:14px;">
               <img src="/assets/images/mit_adt_logo.png" alt="MIT ADT Logo" style="height:36px;width:auto;object-fit:contain;" onError="this.style.display='none';">
-              <span style="font-weight:800;font-size:1.2rem;color:#fff;">Lumina</span>
+              <span style="font-weight:800;font-size:1.2rem;color:#0f172a;">Lumina</span>
             </div>
-            <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
-              Comprehensive Institutional Mentorship, Academic Intelligence &amp; Analytics Ecosystem. Pioneered at MIT-ADT University for modern higher education.
+            <p style="font-size:0.84rem;line-height:1.6;color:#64748b;">
+              ${t('landing.footer_desc', 'Comprehensive Institutional Mentorship, Academic Intelligence & Analytics Ecosystem. Pioneered at MIT-ADT University for modern higher education.')}
             </p>
           </div>
 
           <div>
-            <h4 style="color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:14px;">Quick Links</h4>
+            <h4 style="color:#0f172a;font-size:0.9rem;font-weight:700;margin-bottom:14px;">${t('landing.footer_quick_links', 'Quick Links')}</h4>
             <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;display:flex;flex-direction:column;gap:8px;">
-              <li><a href="#/login" style="color:#94a3b8;text-decoration:none;">Portal Login</a></li>
-              <li><a href="#special-thanks" style="color:#94a3b8;text-decoration:none;">TY CSE Core Pilot Recognition</a></li>
-              <li><a href="#contributors" style="color:#94a3b8;text-decoration:none;">Project Guidance &amp; Contributors</a></li>
-              <li><a href="#features" style="color:#94a3b8;text-decoration:none;">Platform Features</a></li>
-              <li><a href="#roles" style="color:#94a3b8;text-decoration:none;">Role Workspaces</a></li>
-              <li><a href="#ecosystem" style="color:#94a3b8;text-decoration:none;">Cloud Architecture &amp; Security</a></li>
+              <li><a href="#/login" style="color:#64748b;text-decoration:none;">${t('landing.nav_signin', 'Portal Login')}</a></li>
+              <li><a href="#special-thanks" style="color:#64748b;text-decoration:none;">${t('landing.pilot_badge', 'TY CSE Core Pilot Recognition')}</a></li>
+              <li><a href="#contributors" style="color:#64748b;text-decoration:none;">${t('landing.credits_title', 'Project Guidance & Contributors')}</a></li>
+              <li><a href="#features" style="color:#64748b;text-decoration:none;">${t('landing.features_tag', 'Platform Features')}</a></li>
+              <li><a href="#roles" style="color:#64748b;text-decoration:none;">${t('landing.roles_tag', 'Role Workspaces')}</a></li>
+              <li><a href="#ecosystem" style="color:#64748b;text-decoration:none;">${t('landing.cloud_tag', 'Cloud Architecture & Security')}</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 style="color:#fff;font-size:0.9rem;font-weight:700;margin-bottom:14px;">Institution</h4>
-            <p style="font-size:0.84rem;line-height:1.6;color:#94a3b8;">
+            <h4 style="color:#0f172a;font-size:0.9rem;font-weight:700;margin-bottom:14px;">${t('landing.footer_institution', 'Institution')}</h4>
+            <p style="font-size:0.84rem;line-height:1.6;color:#64748b;">
               MIT ADT University, Pune<br>
               School of Computing — TY CSE Core Pilot<br>
               Mentorship Framework &amp; NAAC / NIRF Analytics
@@ -960,95 +957,105 @@ export async function render(container) {
           </div>
         </div>
 
-        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;text-align:center;font-size:0.78rem;color:#64748b;">
-          &copy; ${new Date().getFullYear()} Lumina Mentorship Platform. All Rights Reserved. MIT-ADT University.
+        <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:24px;text-align:center;font-size:0.78rem;color:#64748b;">
+          &copy; ${new Date().getFullYear()} ${t('landing.footer_rights', 'Lumina Mentorship Platform. All Rights Reserved. MIT-ADT University.')}
         </div>
       </footer>
     </div>
   `;
 
-  // ── Role Tab Data ─────────────────────────────────────────────────────────
-  const roleData = {
-    student: {
-      title: '🎓 Student Portal Experience',
-      desc: 'Fill digital mentorship booklets, track CGPA and attendance, request 1-on-1 meetings with mentors, report issues, and access the Gemini AI academic copilot.',
-      bullets: [
-        '25% Mandatory Booklet Completion tracker & profile manager',
-        'Request & Join high-definition WebRTC Video Meetings',
-        'Direct real-time messaging with your assigned faculty mentor',
-        'Submit academic grievances with 4-tier escalation visibility',
-        'Gemini AI Copilot for study timetables and milestone planning'
-      ],
-      ctaText: 'Login as Student →',
-      ctaHref: '#/login'
-    },
-    mentor: {
-      title: '👨‍🏫 Mentor & Faculty Hub',
-      desc: 'Manage your assigned mentee quota (up to 20 students), review digital booklets, host video calls, log meeting notes, and flag high-risk students.',
-      bullets: [
-        'Real-time Mentee Directory & capacity monitoring (max 20 students)',
-        'Review, sign off, and provide qualitative feedback on digital booklets',
-        'Host WebRTC video calls with waiting room moderation & recording',
-        'Early risk detection engine to flag academically vulnerable students',
-        'Escalate unresolved issues directly to Section Heads or HODs'
-      ],
-      ctaText: 'Login as Mentor →',
-      ctaHref: '#/login'
-    },
-    hod: {
-      title: '🏛 HOD Departmental Governance',
-      desc: 'Department-wide mentorship governance, auto-allocate unassigned students, inspect risk matrices, generate departmental reports, and re-assign mentors.',
-      bullets: [
-        'Auto-allocate unassigned students based on enrollment PRN order',
-        'Department High-Risk Matrix & multi-tier issue escalations',
-        'Inspect Student Booklets across all department batches',
-        'Export university-compliant Excel and PDF Mentorship Reports'
-      ],
-      ctaText: 'HOD Dashboard →',
-      ctaHref: '#/login'
-    },
-    dean: {
-      title: '🎓 Dean Institutional Analytics',
-      desc: 'Institution-level analytics dashboard, department performance comparison, high-risk student overview, and executive accreditation reporting.',
-      bullets: [
-        'Cross-Department Mentorship Analytics and faculty load index',
-        'Institutional Risk & Escalation Overview across all branches',
-        'Executive PDF & Excel Report Generator for NAAC/NIRF audits',
-        'Direct apex issue resolution and statutory cell coordination'
-      ],
-      ctaText: 'Dean Portal →',
-      ctaHref: '#/login'
-    },
-    section: {
-      title: '📋 Section Head Operations',
-      desc: 'Specialized domain management (Exam Cell, Accounts, Hostel, Transport) to swiftly investigate and resolve forwarded student grievances.',
-      bullets: [
-        'Dedicated queue for section-specific escalated student issues',
-        'Direct resolution workflows with audit logging and student notifications',
-        'Cross-functional coordination with Faculty Mentors and HODs',
-        'Operational bottleneck identification and performance analytics'
-      ],
-      ctaText: 'Section Portal →',
-      ctaHref: '#/login'
-    },
-    admin: {
-      title: '⚙️ Admin System Operations',
-      desc: 'Master control center for user registration, bulk imports, duplicate data cleaning, department name standardization, and platform configuration.',
-      bullets: [
-        'Bulk CSV/Excel User & Assignment Imports with auto column mapping',
-        '1-Click Duplicate Database Record Cleaner and data normalizer',
-        'Statutory Cells account manager & institutional escalation wiring',
-        'Full Role & Permission Management with audit log tracking'
-      ],
-      ctaText: 'Admin Operations →',
-      ctaHref: '#/login'
+  // ── Role Tab Data Function (dynamically localized) ──────────────────────────
+  function getRoleData(roleKey) {
+    switch (roleKey) {
+      case 'student':
+        return {
+          title: t('landing.role_student_title', '🎓 Student Portal Experience'),
+          desc: t('landing.role_student_desc', 'Fill digital mentorship booklets, track CGPA and attendance, request 1-on-1 meetings with mentors, report issues, and access the Gemini AI academic copilot.'),
+          bullets: [
+            t('landing.role_student_b1', '25% Mandatory Booklet Completion tracker & profile manager'),
+            t('landing.role_student_b2', 'Request & Join high-definition WebRTC Video Meetings'),
+            t('landing.role_student_b3', 'Direct real-time messaging with your assigned faculty mentor'),
+            t('landing.role_student_b4', 'Submit academic grievances with 4-tier escalation visibility'),
+            t('landing.role_student_b5', 'Gemini AI Copilot for study timetables and milestone planning')
+          ],
+          ctaText: t('landing.role_student_cta', 'Login as Student →'),
+          ctaHref: '#/login'
+        };
+      case 'mentor':
+        return {
+          title: t('landing.role_mentor_title', '👨‍🏫 Mentor & Faculty Hub'),
+          desc: t('landing.role_mentor_desc', 'Manage your assigned mentee quota (up to 20 students), review digital booklets, host video calls, log meeting notes, and flag high-risk students.'),
+          bullets: [
+            t('landing.role_mentor_b1', 'Real-time Mentee Directory & capacity monitoring (max 20 students)'),
+            t('landing.role_mentor_b2', 'Review, sign off, and provide qualitative feedback on digital booklets'),
+            t('landing.role_mentor_b3', 'Host WebRTC video calls with waiting room moderation & recording'),
+            t('landing.role_mentor_b4', 'Early risk detection engine to flag academically vulnerable students'),
+            t('landing.role_mentor_b5', 'Escalate unresolved issues directly to Section Heads or HODs')
+          ],
+          ctaText: t('landing.role_mentor_cta', 'Login as Mentor →'),
+          ctaHref: '#/login'
+        };
+      case 'hod':
+        return {
+          title: t('landing.role_hod_title', '🏛 HOD Departmental Governance'),
+          desc: t('landing.role_hod_desc', 'Department-wide mentorship governance, auto-allocate unassigned students, inspect risk matrices, generate departmental reports, and re-assign mentors.'),
+          bullets: [
+            t('landing.role_hod_b1', 'Auto-allocate unassigned students based on enrollment PRN order'),
+            t('landing.role_hod_b2', 'Department High-Risk Matrix & multi-tier issue escalations'),
+            t('landing.role_hod_b3', 'Inspect Student Booklets across all department batches'),
+            t('landing.role_hod_b4', 'Export university-compliant Excel and PDF Mentorship Reports')
+          ],
+          ctaText: t('landing.role_hod_cta', 'HOD Dashboard →'),
+          ctaHref: '#/login'
+        };
+      case 'dean':
+        return {
+          title: t('landing.role_dean_title', '🎓 Dean Institutional Analytics'),
+          desc: t('landing.role_dean_desc', 'Institution-level analytics dashboard, department performance comparison, high-risk student overview, and executive accreditation reporting.'),
+          bullets: [
+            t('landing.role_dean_b1', 'Cross-Department Mentorship Analytics and faculty load index'),
+            t('landing.role_dean_b2', 'Institutional Risk & Escalation Overview across all branches'),
+            t('landing.role_dean_b3', 'Executive PDF & Excel Report Generator for NAAC/NIRF audits'),
+            t('landing.role_dean_b4', 'Direct apex issue resolution and statutory cell coordination')
+          ],
+          ctaText: t('landing.role_dean_cta', 'Dean Portal →'),
+          ctaHref: '#/login'
+        };
+      case 'section':
+        return {
+          title: t('landing.role_section_title', '📋 Section Head Operations'),
+          desc: t('landing.role_section_desc', 'Specialized domain management (Exam Cell, Accounts, Hostel, Transport) to swiftly investigate and resolve forwarded student grievances.'),
+          bullets: [
+            t('landing.role_section_b1', 'Dedicated queue for section-specific escalated student issues'),
+            t('landing.role_section_b2', 'Direct resolution workflows with audit logging and student notifications'),
+            t('landing.role_section_b3', 'Cross-functional coordination with Faculty Mentors and HODs'),
+            t('landing.role_section_b4', 'Operational bottleneck identification and performance analytics')
+          ],
+          ctaText: t('landing.role_section_cta', 'Section Portal →'),
+          ctaHref: '#/login'
+        };
+      case 'admin':
+        return {
+          title: t('landing.role_admin_title', '⚙️ Admin System Operations'),
+          desc: t('landing.role_admin_desc', 'Master control center for user registration, bulk imports, duplicate data cleaning, department name standardization, and platform configuration.'),
+          bullets: [
+            t('landing.role_admin_b1', 'Bulk CSV/Excel User & Assignment Imports with auto column mapping'),
+            t('landing.role_admin_b2', '1-Click Duplicate Database Record Cleaner and data normalizer'),
+            t('landing.role_admin_b3', 'Statutory Cells account manager & institutional escalation wiring'),
+            t('landing.role_admin_b4', 'Full Role & Permission Management with audit log tracking')
+          ],
+          ctaText: t('landing.role_admin_cta', 'Admin Operations →'),
+          ctaHref: '#/login'
+        };
+      default:
+        return null;
     }
-  };
+  }
 
   const roleTabDisplay = container.querySelector('#role-tab-display');
 
   function renderRoleTab(roleKey) {
-    const data = roleData[roleKey];
+    const data = getRoleData(roleKey);
     if (!data || !roleTabDisplay) return;
 
     roleTabDisplay.innerHTML = `
@@ -1063,7 +1070,7 @@ export async function render(container) {
           `).join('')}
         </ul>
         <a href="${user ? '#' + getRoleDashboardPath(user.role) : data.ctaHref}" class="btn-gradient" style="padding:10px 24px;font-size:0.9rem;">
-          ${user ? 'Go to Dashboard →' : data.ctaText}
+          ${user ? (t('landing.nav_dashboard', 'Go to Dashboard') + ' →') : data.ctaText}
         </a>
       </div>
       <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.1);">
@@ -1074,9 +1081,9 @@ export async function render(container) {
           <span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;font-family:monospace;">lumina://${roleKey}/workspace</span>
         </div>
         <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;">
-          <p style="margin:0 0 10px 0;"><strong>Active Role:</strong> <span class="badge badge-accent">${roleKey.toUpperCase()}</span></p>
-          <p style="margin:0 0 10px 0;"><strong>Status:</strong> System Verified &amp; Synced with Firestore</p>
-          <p style="margin:0;"><strong>Feature Access:</strong> Full Workspace Privileges Enabled</p>
+          <p style="margin:0 0 10px 0;"><strong>${t('landing.roles_tag', 'Active Role')}:</strong> <span class="badge badge-accent">${roleKey.toUpperCase()}</span></p>
+          <p style="margin:0 0 10px 0;"><strong>${t('common.status', 'Status')}:</strong> ${t('landing.sync_status', 'System Verified & Synced with Firestore')}</p>
+          <p style="margin:0;"><strong>${t('landing.feature_access', 'Feature Access')}:</strong> ${t('landing.workspace_enabled', 'Full Workspace Privileges Enabled')}</p>
         </div>
       </div>
     `;
