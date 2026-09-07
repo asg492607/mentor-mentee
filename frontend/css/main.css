@@ -1,54 +1,4 @@
-:root {
-  --bg-primary: #06060f;
-  --bg-secondary: #0d0d1f;
-  --bg-card: #131328;
-  --bg-card-hover: #1a1a3a;
-  --bg-glass: rgba(255, 255, 255, 0.03);
-  --bg-glass-hover: rgba(255, 255, 255, 0.06);
-  --bg-input: rgba(255, 255, 255, 0.05);
-  --surface: var(--bg-card);
-  --surface-hover: var(--bg-card-hover);
-  --text: var(--text-primary);
-  --text-primary: #eeeeff;
-  --text-secondary: #9999cc;
-  --text-muted: #555577;
-  --text-inverse: #06060f;
-  --primary: var(--text-primary);
-  --accent: #C2185B;
-  --accent-hover: #D81B60;
-  --accent-light: rgba(194, 24, 91, 0.15);
-  --accent-gradient: linear-gradient(135deg, #C2185B 0%, #5C1B5E 100%);
-  --accent-gradient-subtle: linear-gradient(135deg, rgba(194,24,91,0.2) 0%, rgba(92,27,94,0.1) 100%);
-  --accent-gold: #E67E22;
-  --accent-gold-gradient: linear-gradient(135deg, #E67E22 0%, #D35400 100%);
-  --success: #34d399;
-  --success-light: rgba(52, 211, 153, 0.12);
-  --warning: #fbbf24;
-  --warning-light: rgba(251, 191, 36, 0.12);
-  --danger: #f87171;
-  --danger-light: rgba(248, 113, 113, 0.12);
-  --info: #60a5fa;
-  --info-light: rgba(96, 165, 250, 0.12);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 30px rgba(124, 106, 255, 0.15);
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-full: 9999px;
-  --font: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  color-scheme: dark;
-}
-
+:root,
 html[data-theme="light"] {
   color-scheme: light;
   --bg-primary: #f8fafc;
@@ -71,6 +21,8 @@ html[data-theme="light"] {
   --accent-light: rgba(79, 70, 229, 0.1);
   --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #8b5cf6 50%, #d946ef 100%);
   --accent-gradient-subtle: linear-gradient(135deg, rgba(79,70,229,0.1) 0%, rgba(139,92,246,0.05) 100%);
+  --accent-gold: #E67E22;
+  --accent-gold-gradient: linear-gradient(135deg, #E67E22 0%, #D35400 100%);
   --success: #10b981;
   --success-light: rgba(16, 185, 129, 0.1);
   --warning: #f59e0b;
@@ -85,6 +37,17 @@ html[data-theme="light"] {
   --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
   --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02);
   --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.08);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --font: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 *, *::before, *::after {

@@ -78,7 +78,7 @@ export function formatPercentage(value) {
     else color = 'bg-success';
     
     return `
-        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
             <div class="${color} h-2.5 rounded-full" style="width: ${val}%"></div>
         </div>
         <span class="text-xs text-muted mt-1 inline-block">${val}%</span>

@@ -220,14 +220,6 @@ export async function render(container) {
               </div>
             </div>
 
-            <!-- Theme -->
-            <div class="card" style="padding:24px;">
-              <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Appearance</h3>
-              <div style="display:flex;gap:12px;">
-                <button class="btn ${document.documentElement.getAttribute('data-theme')==='dark'?'btn-primary':'btn-secondary'}" id="theme-dark">🌙 Dark Mode</button>
-                <button class="btn ${document.documentElement.getAttribute('data-theme')==='light'?'btn-primary':'btn-secondary'}" id="theme-light">☀️ Light Mode</button>
-              </div>
-            </div>
 
             <!-- Danger Zone -->
             <div class="card" style="padding:24px;border-color:var(--danger);">
@@ -1212,19 +1204,5 @@ export async function render(container) {
 
 
 
-  document.getElementById('theme-dark').addEventListener('click', () => {
-    document.documentElement.setAttribute('data-theme','dark');
-    localStorage.setItem('theme','dark');
-    document.getElementById('theme-dark').className = 'btn btn-primary';
-    document.getElementById('theme-light').className = 'btn btn-secondary';
-    showToast('Dark mode enabled', 'info');
-  });
 
-  document.getElementById('theme-light').addEventListener('click', () => {
-    document.documentElement.setAttribute('data-theme','light');
-    localStorage.setItem('theme','light');
-    document.getElementById('theme-light').className = 'btn btn-primary';
-    document.getElementById('theme-dark').className  = 'btn btn-secondary';
-    showToast('Light mode enabled', 'info');
-  });
 }

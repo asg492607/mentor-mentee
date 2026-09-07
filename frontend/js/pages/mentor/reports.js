@@ -271,9 +271,8 @@ export async function render(container) {
       const canvas = container.querySelector('#chart-meetings-mentor');
       if (canvas) {
         if (activeMentorReportsChart) activeMentorReportsChart.destroy();
-        const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
-        const tc = isLight ? '#475569' : '#777799';
-        const gc = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+        const tc = '#475569';
+        const gc = 'rgba(0,0,0,0.06)';
 
         activeMentorReportsChart = new window.Chart(canvas.getContext('2d'), {
           type: 'bar',

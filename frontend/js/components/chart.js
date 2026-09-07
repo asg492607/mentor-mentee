@@ -13,9 +13,8 @@ export function createChart(containerOrId, type, data, options = {}) {
     existing.destroy();
   }
 
-  const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
-  const textColor = isLight ? '#475569' : '#9999cc';
-  const borderColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
+  const textColor = '#475569';
+  const borderColor = 'rgba(0, 0, 0, 0.08)';
 
   window.Chart.defaults.color = textColor;
   window.Chart.defaults.borderColor = borderColor;
@@ -27,7 +26,7 @@ export function createChart(containerOrId, type, data, options = {}) {
     plugins: {
       legend: {
         labels: {
-          color: isLight ? '#0f172a' : '#eeeeff',
+          color: '#0f172a',
           font: { family: "'Inter', sans-serif", size: 12 }
         }
       }

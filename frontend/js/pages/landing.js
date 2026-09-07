@@ -13,19 +13,14 @@ export async function render(container) {
           top: 0;
           z-index: 1000;
           padding: 14px 32px;
-          background: rgba(15, 23, 42, 0.75);
+          background: rgba(255, 255, 255, 0.88);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           display: flex;
           align-items: center;
           justify-content: space-between;
           transition: all 0.3s ease;
-        }
-
-        [data-theme="light"] .landing-header {
-          background: rgba(255, 255, 255, 0.88);
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
         }
 
         .brand-logo-wrap {
@@ -448,52 +443,26 @@ export async function render(container) {
 
         /* ── Footer ── */
         .landing-footer {
-          background: #090d16;
-          color: #94a3b8;
+          background: #f8fafc;
+          color: #64748b;
           padding: 60px 32px 30px 32px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-top: 1px solid rgba(0, 0, 0, 0.08);
           margin-top: auto;
           transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        [data-theme="light"] .landing-footer {
-          background: #f8fafc;
-          color: #64748b;
-          border-top: 1px solid rgba(0, 0, 0, 0.08);
-        }
-
-        [data-theme="light"] .landing-footer h4,
-        [data-theme="light"] .landing-footer .brand-logo-wrap span {
+        .landing-footer h4,
+        .landing-footer .brand-logo-wrap span {
           color: #0f172a !important;
         }
 
-        [data-theme="light"] .landing-footer p,
-        [data-theme="light"] .landing-footer a {
+        .landing-footer p,
+        .landing-footer a {
           color: #64748b !important;
         }
 
-        [data-theme="light"] .landing-footer a:hover {
+        .landing-footer a:hover {
           color: var(--accent) !important;
-        }
-
-        .landing-theme-toggle {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: var(--bg-glass);
-          border: 1px solid var(--border);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--text-secondary);
-          transition: all 0.2s ease;
-        }
-
-        .landing-theme-toggle:hover {
-          background: var(--accent-light);
-          color: var(--accent);
-          transform: scale(1.05);
         }
 
         .ecosystem-card {
@@ -534,10 +503,6 @@ export async function render(container) {
         </ul>
 
         <div style="display:flex;align-items:center;gap:12px;">
-          <button id="landing-theme-toggle" class="landing-theme-toggle" type="button" aria-label="Toggle Color Theme" title="Toggle Light/Dark Theme">
-            <i class="ph ph-sun landing-sun-icon" style="font-size:1.3rem;display:none;"></i>
-            <i class="ph ph-moon landing-moon-icon" style="font-size:1.3rem;display:none;"></i>
-          </button>
           ${user ? `
             <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">
               Go to Dashboard →
@@ -1131,36 +1096,7 @@ export async function render(container) {
   // Initial tab render
   renderRoleTab('student');
 
-  // Landing Page Theme Toggle
-  const landingThemeBtn = container.querySelector('#landing-theme-toggle');
-  const landingSun = container.querySelector('.landing-sun-icon');
-  const landingMoon = container.querySelector('.landing-moon-icon');
 
-  function updateLandingThemeIcon(theme) {
-    if (!landingSun || !landingMoon) return;
-    if (theme === 'light') {
-      landingSun.style.display = 'block';
-      landingMoon.style.display = 'none';
-    } else {
-      landingSun.style.display = 'none';
-      landingMoon.style.display = 'block';
-    }
-  }
-
-  const initialTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark';
-  updateLandingThemeIcon(initialTheme);
-
-  if (landingThemeBtn) {
-    landingThemeBtn.addEventListener('click', () => {
-      const curr = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = curr === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
-      updateLandingThemeIcon(next);
-      const meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.content = next === 'dark' ? '#0f172a' : '#6254e7';
-    });
-  }
 
   // FAQ Accordion Toggle
   container.querySelectorAll('.faq-question').forEach(q => {

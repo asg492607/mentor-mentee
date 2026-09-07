@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
     <script>
-        const savedTheme = localStorage.getItem('theme');
-        const theme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.removeItem('theme');
+        document.documentElement.setAttribute('data-theme', 'light');
         const metaTheme = document.createElement('meta');
         metaTheme.name = 'theme-color';
-        metaTheme.content = theme === 'dark' ? '#0f172a' : '#6254e7';
+        metaTheme.content = '#6254e7';
         document.head.appendChild(metaTheme);
     </script>
     <meta charset="UTF-8">

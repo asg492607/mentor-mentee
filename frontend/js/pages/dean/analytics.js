@@ -139,9 +139,8 @@ export async function render(container) {
     });
 
     if (!window.Chart) return;
-    const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
-    const tc = isLight ? '#475569' : '#777799';
-    const gc = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tc = '#475569';
+    const gc = 'rgba(0,0,0,0.06)';
 
     // Avg SGPA Bar
     const canvasSGPA = container.querySelector('#chart-sgpa');

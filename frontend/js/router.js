@@ -189,7 +189,6 @@ async function handleRoute() {
     currentModule = module;
     if (module.render) {
       await module.render(appContainer);
-      updateThemeToggleUI();
       renderNotifications();
       if (user && !authFreeRoutes.includes(path)) {
         initAIAssistant();
@@ -241,30 +240,8 @@ onAuthChange((user) => {
 
 // Removed fallback timeout as it caused race conditions overriding deep links.
 
-function updateThemeToggleUI(theme) {
-    const currentTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark';
-    const sunIcons = document.querySelectorAll('.sun-icon');
-    const moonIcons = document.querySelectorAll('.moon-icon');
-    
-    if (currentTheme === 'light') {
-        sunIcons.forEach(icon => icon.style.display = 'block');
-        moonIcons.forEach(icon => icon.style.display = 'none');
-    } else {
-        sunIcons.forEach(icon => icon.style.display = 'none');
-        moonIcons.forEach(icon => icon.style.display = 'block');
-    }
-}
-
-// Theme Toggle Click Handler
+// Global Click Handler
 document.addEventListener('click', (e) => {
-    const toggleBtn = e.target.closest('#theme-toggle');
-    if (toggleBtn) {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeToggleUI(newTheme);
-    }
 
     if (e.target.closest('#global-ai-copilot-btn')) {
         aiAssistantWidget.toggleWindow();

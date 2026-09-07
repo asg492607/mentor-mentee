@@ -242,7 +242,6 @@ export async function render(container) {
       const canvas = container.querySelector('#dean-risk-chart');
       if (canvas) {
         if (activeDeanChart) activeDeanChart.destroy();
-        const isLight = (document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme')) === 'light';
         activeDeanChart = new window.Chart(canvas.getContext('2d'), {
           type: 'doughnut',
           data: {
@@ -251,7 +250,7 @@ export async function render(container) {
           },
           options: {
             responsive:true, maintainAspectRatio:false, cutout:'65%',
-            plugins:{ legend:{ position:'right', labels:{color: isLight ? '#475569' : '#777799',font:{size:11}} } }
+            plugins:{ legend:{ position:'right', labels:{color: '#475569',font:{size:11}} } }
           }
         });
       }
