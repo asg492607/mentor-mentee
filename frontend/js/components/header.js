@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils.js';
+import { t, renderLanguageSelector } from '../i18n.js';
 
 export function createHeader(title, user, notificationCount = 0) {
   const badgeHtml = notificationCount > 0 ? `<span class="notification-badge">${notificationCount > 9 ? '9+' : notificationCount}</span>` : '';
@@ -17,6 +18,40 @@ export function createHeader(title, user, notificationCount = 0) {
   const guidePdf = pdfMap[role] || '/docs/pdf/Lumina_Student_Mentee_Guide.pdf';
   const pdfFileName = guidePdf.split('/').pop();
 
+  // Automatic translation lookup for common header titles
+  const titleKeyMap = {
+    'Dashboard': 'nav.dashboard',
+    'Messages': 'nav.messages',
+    'Meetings': 'nav.meetings',
+    'Issues': 'nav.issues',
+    'Grievances & Issues': 'nav.issues',
+    'Tasks': 'nav.tasks',
+    'Tasks & Goals': 'nav.tasks',
+    'Profile': 'nav.profile',
+    'My Profile': 'nav.profile',
+    'Mentorship Booklet': 'nav.booklet',
+    'Reports': 'nav.reports',
+    'Reports & Analytics': 'nav.reports',
+    'Mentor Allocation': 'nav.allocation',
+    'Allocation': 'nav.allocation',
+    'Academic Management': 'nav.management',
+    'Management': 'nav.management',
+    'Users': 'nav.users',
+    'Directory & Users': 'nav.users',
+    'Risk Students': 'nav.risk_students',
+    'Students at Risk': 'nav.risk_students',
+    'Escalations': 'nav.escalations',
+    'Institutional Analytics': 'nav.analytics',
+    'Analytics': 'nav.analytics',
+    'Booklet Compliance': 'nav.compliance',
+    'Departments': 'nav.departments',
+    'Settings': 'nav.settings',
+    'Platform Settings': 'nav.settings',
+    'System Intelligence': 'nav.infrastructure'
+  };
+
+  const localizedTitle = titleKeyMap[title] ? t(titleKeyMap[title], title) : title;
+
   return `
     <header class="header">
       <div class="header-leading">
@@ -24,18 +59,19 @@ export function createHeader(title, user, notificationCount = 0) {
           <i class="ph ph-list" style="font-size:1.5rem;pointer-events:none;"></i>
         </button>
         <div>
-          <p class="header-kicker">Lumina workspace</p>
-          <h2 class="header-title">${title}</h2>
+          <p class="header-kicker">${t('brand.kicker', 'Lumina workspace')}</p>
+          <h2 class="header-title">${escapeHtml(localizedTitle)}</h2>
         </div>
       </div>
       <div class="header-actions">
-        <button id="global-ai-copilot-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(219,39,119,0.15)); color:#c084fc; border:1px solid rgba(168,85,247,0.35); display:inline-flex; align-items:center;" title="Open Lumina AI Copilot (Ctrl + /)">
-          <i class="ph-bold ph-sparkle" style="font-size:1.1rem;color:#c084fc;"></i><span class="header-ai-text"> Copilot</span>
+        ${renderLanguageSelector('header')}
+        <button id="global-ai-copilot-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(219,39,119,0.15)); color:#c084fc; border:1px solid rgba(168,85,247,0.35); display:inline-flex; align-items:center;" title="${t('header.copilot_title', 'Open Lumina AI Copilot (Ctrl + /)')}">
+          <i class="ph-bold ph-sparkle" style="font-size:1.1rem;color:#c084fc;"></i><span class="header-ai-text"> ${t('header.copilot', 'Copilot')}</span>
         </button>
-        <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="Report a Web Issue or Bug">
-          <i class="ph ph-bug" style="font-size:1.1rem;"></i><span class="header-web-issue-text"> Web Issue</span>
+        <button id="global-web-issue-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); display:inline-flex; align-items:center;" title="${t('header.web_issue_title', 'Report a Web Issue or Bug')}">
+          <i class="ph ph-bug" style="font-size:1.1rem;"></i><span class="header-web-issue-text"> ${t('header.web_issue', 'Web Issue')}</span>
         </button>
-        <a id="global-pdf-guide-btn" href="${guidePdf}" download="${pdfFileName}" target="_blank" title="Download Role Operating Manual (PDF)" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+        <a id="global-pdf-guide-btn" href="${guidePdf}" download="${pdfFileName}" target="_blank" title="${t('header.pdf_guide_title', 'Download Role Operating Manual (PDF)')}" class="header-icon-btn" style="background: rgba(16, 185, 129, 0.12); color: #10b981; text-decoration: none; display: flex; align-items: center; justify-content: center;">
           <i class="ph ph-file-pdf" style="font-size:1.4rem;"></i>
         </a>
         <div class="notification-bell" id="global-notification-bell">
@@ -43,15 +79,15 @@ export function createHeader(title, user, notificationCount = 0) {
           <span id="global-notification-badge" class="notification-badge" style="display:none;"></span>
           <div class="notification-dropdown" id="global-notification-dropdown">
             <div class="notification-dropdown-header">
-              <h3>Notifications</h3>
-              <button id="global-mark-all-read" type="button">Mark all as read</button>
+              <h3>${t('header.notifications', 'Notifications')}</h3>
+              <button id="global-mark-all-read" type="button">${t('header.mark_all_read', 'Mark all as read')}</button>
             </div>
             <div class="notification-list" id="global-notification-list">
               <!-- Dynamically populated via app.js -->
             </div>
           </div>
         </div>
-        <div class="header-user-profile-btn flex items-center gap-3" id="global-header-profile-btn" style="cursor:pointer;padding:4px 12px 4px 6px;border-radius:24px;background:var(--bg-secondary);border:1px solid var(--border);transition:all 0.2s;user-select:none;" title="Click to view &amp; edit Profile">
+        <div class="header-user-profile-btn flex items-center gap-3" id="global-header-profile-btn" style="cursor:pointer;padding:4px 12px 4px 6px;border-radius:24px;background:var(--bg-secondary);border:1px solid var(--border);transition:all 0.2s;user-select:none;" title="${t('header.profile_tooltip', 'Click to view & edit Profile')}">
           <div class="avatar avatar-sm">${initial}</div>
           <span class="header-user-name" style="font-weight:600;font-size:0.875rem;">${escapeHtml(user?.name || 'User')}</span>
           <i class="ph ph-caret-down" style="font-size:0.8rem;color:var(--text-muted);"></i>
@@ -60,3 +96,4 @@ export function createHeader(title, user, notificationCount = 0) {
     </header>
   `;
 }
+

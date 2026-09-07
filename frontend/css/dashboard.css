@@ -1038,6 +1038,20 @@
     align-items: center;
   }
 
+  .lumina-lang-toggle {
+    padding: 2px 3px;
+    gap: 2px;
+  }
+
+  .lumina-lang-toggle .lang-icon-globe {
+    display: none;
+  }
+
+  .lumina-lang-pill {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+
   .header-icon-btn,
   .theme-toggle-btn {
     width: 36px;

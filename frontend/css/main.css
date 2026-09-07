@@ -43,7 +43,7 @@ html[data-theme="light"] {
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --font: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font: 'Outfit', 'Poppins', 'Noto Sans Devanagari', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -360,3 +360,104 @@ html, body {
     display: block !important;
   }
 }
+
+/* ============================================================
+   Lumina Multilingual Language Switcher Styles
+   ============================================================ */
+.lumina-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 3px 5px;
+  gap: 3px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lumina-lang-toggle:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.lumina-lang-toggle .lang-icon-globe {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-left: 5px;
+  margin-right: 2px;
+}
+
+.lumina-lang-pill {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.lumina-lang-pill:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass-hover);
+}
+
+.lumina-lang-pill.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+/* Landing Page variant */
+.landing-style.lumina-lang-toggle {
+  background: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 4px 6px;
+  gap: 4px;
+}
+
+.landing-style .lumina-lang-pill {
+  font-size: 0.82rem;
+  padding: 5px 12px;
+}
+
+/* Auth variant */
+.auth-lang-btn:hover {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+}
+
+.auth-lang-btn.active {
+  background: var(--accent) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+}
+
+/* Devanagari Typography Polish */
+html[lang="mr"],
+html[lang="hi"] {
+  --font: 'Outfit', 'Noto Sans Devanagari', 'Poppins', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+html[lang="mr"] h1,
+html[lang="mr"] h2,
+html[lang="mr"] h3,
+html[lang="hi"] h1,
+html[lang="hi"] h2,
+html[lang="hi"] h3 {
+  line-height: 1.35;
+}
+

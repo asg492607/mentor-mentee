@@ -2,6 +2,7 @@ import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from '
 import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
 import { openWebIssueModal } from './components/web-issue-modal.js';
 import { initAIAssistant, aiAssistantWidget } from './components/ai-assistant-widget.js';
+import { onLanguageChange } from './i18n.js';
 
 const routes = {
   '/landing': './pages/landing.js',
@@ -212,6 +213,9 @@ async function handleRoute() {
 
 // Initialization
 window.addEventListener('hashchange', handleRoute);
+onLanguageChange(() => {
+  handleRoute();
+});
 
 let isInitialLoad = true;
 

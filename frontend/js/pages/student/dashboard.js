@@ -5,6 +5,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, FacultyService, MeetingService, IssueService, TaskService, StatsService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
+import { t } from '/js/i18n.js';
 
 function fmt(iso) {
   return iso ? new Date(iso).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' }) : '—';
@@ -135,26 +136,26 @@ export async function render(container) {
         <!-- Quick Actions Bar -->
         <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
           <a href="#/student/meetings" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
-            <i class="ph ph-calendar-plus" style="font-size:1.1rem;"></i> Request Meeting
+            <i class="ph ph-calendar-plus" style="font-size:1.1rem;"></i> ${t('dash.schedule_meeting_btn', 'Request Meeting')}
           </a>
           <a href="#/chat" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
-            <i class="ph ph-chat-circle-text" style="font-size:1.1rem; color:var(--accent);"></i> Messages
+            <i class="ph ph-chat-circle-text" style="font-size:1.1rem; color:var(--accent);"></i> ${t('nav.messages', 'Messages')}
           </a>
           <a href="#/student/booklet" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
-            <i class="ph ph-book-open" style="font-size:1.1rem; color:var(--info);"></i> Mentorship Booklet
+            <i class="ph ph-book-open" style="font-size:1.1rem; color:var(--info);"></i> ${t('nav.booklet', 'Mentorship Booklet')}
           </a>
           <a href="#/student/issues" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
-            <i class="ph ph-warning-circle" style="font-size:1.1rem; color:var(--warning);"></i> Report Issue
+            <i class="ph ph-warning-circle" style="font-size:1.1rem; color:var(--warning);"></i> ${t('nav.issues', 'Grievances & Issues')}
           </a>
         </div>
 
         <!-- Stats -->
         <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
           ${[
-            { label:'Upcoming Meetings', value: upcomingMeetings.length, color:'var(--info)',    icon:'ph-calendar-check' },
-            { label:'Pending Tasks',     value: pendingTasks.length,     color:'var(--warning)', icon:'ph-clipboard-text' },
-            { label:'Open Issues',       value: openIssues.length,       color:'var(--danger)',  icon:'ph-warning-circle' },
-            { label:'CGPA',              value: fullProfile.cgpa || '—', color:'var(--success)', icon:'ph-graduation-cap' },
+            { label: t('dash.upcoming_meetings', 'Upcoming Meetings'), value: upcomingMeetings.length, color:'var(--info)',    icon:'ph-calendar-check' },
+            { label: t('dash.stat_tasks', 'Pending Tasks'),            value: pendingTasks.length,     color:'var(--warning)', icon:'ph-clipboard-text' },
+            { label: t('dash.stat_issues', 'Active Issues'),           value: openIssues.length,       color:'var(--danger)',  icon:'ph-warning-circle' },
+            { label:'CGPA',                                            value: fullProfile.cgpa || '—', color:'var(--success)', icon:'ph-graduation-cap' },
           ].map(c => `
             <div class="stat-card" style="display:flex; align-items:center; gap:14px; padding:18px;">
               <div class="stat-icon" style="background:${c.color}18; color:${c.color}; font-size:1.4rem; width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">

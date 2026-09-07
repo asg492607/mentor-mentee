@@ -1,6 +1,7 @@
 import { login, forgotPassword } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
+import { t, renderLanguageSelector } from '../i18n.js';
 
 export async function render(container) {
   container.innerHTML = `
@@ -9,38 +10,46 @@ export async function render(container) {
       <div class="absolute" style="top: -10%; left: -5%; width: 40vw; height: 40vw; background: var(--accent); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       <div class="absolute" style="bottom: -10%; right: -5%; width: 30vw; height: 30vw; background: var(--info); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       
-      <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: clamp(20px, 5vw, 36px); z-index: 10;">
+      <div class="card card-glass animate-scale-in" style="width: 100%; max-width: 420px; padding: clamp(20px, 5vw, 36px); z-index: 10; position: relative;">
+        
+        <!-- Top bar with language selector and home link -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <a href="#/landing" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+            <i class="ph ph-arrow-left"></i> ${t('common.back', 'Back')}
+          </a>
+          ${renderLanguageSelector('auth')}
+        </div>
+
         <div class="text-center mb-8">
           <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT University" style="height: 60px; width: auto; max-width: 240px; margin: 0 auto 16px; display: block; object-fit: contain; background: white; padding: 6px 12px; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.1);">
           <h1 class="text-gradient mb-2" style="font-size: 2.2rem; letter-spacing: -1px;">Lumina</h1>
-          <p class="text-secondary">Empowering Student Success</p>
+          <p class="text-secondary">${t('brand.subtagline', 'Empowering Student Success')}</p>
         </div>
 
         <form id="login-form">
           <div class="form-group">
-            <label class="form-label">Email Address</label>
-            <input type="email" id="email" class="form-input" placeholder="student@university.edu" required>
+            <label class="form-label">${t('login.email', 'Email Address')}</label>
+            <input type="email" id="email" class="form-input" placeholder="${t('login.email_placeholder', 'student@university.edu')}" required>
           </div>
           
           <div class="form-group mb-2">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <label class="form-label" style="margin:0;">Password</label>
-              <button type="button" id="btn-forgot-password" class="text-sm" style="background:none;border:none;color:var(--accent);cursor:pointer;font-weight:500;padding:0;">Forgot Password?</button>
+              <label class="form-label" style="margin:0;">${t('login.password', 'Password')}</label>
+              <button type="button" id="btn-forgot-password" class="text-sm" style="background:none;border:none;color:var(--accent);cursor:pointer;font-weight:500;padding:0;">${t('login.forgot_password', 'Forgot Password?')}</button>
             </div>
-            <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+            <input type="password" id="password" class="form-input" placeholder="${t('login.password_placeholder', '••••••••')}" required>
           </div>
 
           <button type="submit" class="btn btn-primary w-full btn-lg mt-6" id="login-btn">
-            Sign In
+            ${t('login.sign_in', 'Sign In')}
           </button>
         </form>
 
         <div class="text-center mt-6 flex flex-col gap-2">
           <p class="text-secondary text-sm">
-            Don't have an account? 
-            <a href="#/register" style="color:var(--accent);font-weight:600;text-decoration:none;">Create Account</a>
+            ${t('login.no_account', "Don't have an account?")} 
+            <a href="#/register" style="color:var(--accent);font-weight:600;text-decoration:none;">${t('login.create_account', 'Create Account')}</a>
           </p>
-          <p class="text-muted text-xs">Forgot your password? Use "Forgot Password?" above.</p>
         </div>
       </div>
 
@@ -48,20 +57,20 @@ export async function render(container) {
       <div id="forgot-password-modal" class="modal-backdrop" style="display:none;z-index:9999;">
         <div class="modal" style="max-width:400px;padding:28px;">
           <div class="modal-header" style="margin-bottom:16px;">
-            <h3>Reset Password</h3>
+            <h3>${t('login.reset_title', 'Reset Password')}</h3>
             <button class="btn btn-ghost btn-sm" id="close-forgot-modal">✕</button>
           </div>
           <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;">
-            Enter your registered email address and we will send you a link to reset your password.
+            ${t('login.reset_desc', 'Enter your registered email address and we will send you a link to reset your password.')}
           </p>
           <form id="forgot-password-form">
             <div class="form-group mb-4">
-              <label class="form-label">Email Address</label>
-              <input type="email" id="forgot-email" class="form-input" placeholder="user@university.edu" required>
+              <label class="form-label">${t('login.email', 'Email Address')}</label>
+              <input type="email" id="forgot-email" class="form-input" placeholder="${t('login.email_placeholder', 'user@university.edu')}" required>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-              <button type="button" class="btn btn-secondary btn-sm" id="cancel-forgot-modal">Cancel</button>
-              <button type="submit" class="btn btn-primary btn-sm" id="btn-send-reset">Send Reset Link</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="cancel-forgot-modal">${t('common.cancel', 'Cancel')}</button>
+              <button type="submit" class="btn btn-primary btn-sm" id="btn-send-reset">${t('login.send_reset_link', 'Send Reset Link')}</button>
             </div>
           </form>
         </div>

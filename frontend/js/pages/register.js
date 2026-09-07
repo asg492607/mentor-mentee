@@ -1,6 +1,7 @@
 import { register } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
+import { t, renderLanguageSelector } from '../i18n.js';
 
 // No longer need PRIVILEGED_ROLES here — auth.js handles all approval logic
 
@@ -17,94 +18,91 @@ export async function render(container) {
       <!-- Decorative background elements -->
       <div class="absolute" style="top: 20%; right: 10%; width: 30vw; height: 30vw; background: var(--accent); opacity: 0.05; filter: blur(100px); border-radius: 50%;"></div>
       
-      <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: clamp(20px, 5vw, 36px); z-index: 10;">
+      <div class="card card-glass animate-slide-up" style="width: 100%; max-width: 600px; padding: clamp(20px, 5vw, 36px); z-index: 10; position: relative;">
+        
+        <!-- Top bar with language selector and home link -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <a href="#/landing" style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+            <i class="ph ph-arrow-left"></i> ${t('common.back', 'Back')}
+          </a>
+          ${renderLanguageSelector('auth')}
+        </div>
+
         <div class="text-center mb-8">
-          <h2 class="text-gradient mb-2">Join Lumina</h2>
-          <p class="text-secondary">Create your student, faculty, HOD, dean, or admin account to get started</p>
+          <h2 class="text-gradient mb-2">${t('register.title', 'Join Lumina')}</h2>
+          <p class="text-secondary">${t('register.subtitle', 'Create your student, faculty, HOD, dean, or admin account to get started')}</p>
         </div>
 
         <form id="register-form">
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
             <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label">Register As</label>
+              <label class="form-label">${t('register.as', 'Register As')}</label>
               <select id="role" class="form-select" required>
-                <option value="STUDENT">Student</option>
-                <option value="FACULTY">Teacher / Faculty</option>
-                <option value="HOD">HOD</option>
-                <option value="SECTION_HEAD">Section Head</option>
+                <option value="STUDENT">${t('role.student', 'Student')}</option>
+                <option value="FACULTY">${t('role.faculty', 'Teacher / Faculty')}</option>
+                <option value="HOD">${t('role.hod', 'HOD')}</option>
+                <option value="SECTION_HEAD">${t('role.section_head', 'Section Head')}</option>
               </select>
             </div>
 
             <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label">Full Name</label>
-              <input type="text" id="name" class="form-input" placeholder="John Doe" required>
+              <label class="form-label">${t('register.full_name', 'Full Name')}</label>
+              <input type="text" id="name" class="form-input" placeholder="${t('register.full_name_placeholder', 'John Doe')}" required>
             </div>
 
             <div class="form-group" style="grid-column: 1 / -1;">
-              <label class="form-label">Email Address</label>
-              <input type="email" id="email" class="form-input" placeholder="john@university.edu" required>
+              <label class="form-label">${t('register.email', 'Email Address')}</label>
+              <input type="email" id="email" class="form-input" placeholder="${t('register.email_placeholder', 'john@university.edu')}" required>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Password</label>
+              <label class="form-label">${t('register.password', 'Password')}</label>
               <input type="password" id="password" class="form-input" placeholder="••••••••" required minlength="6">
             </div>
 
             <div class="form-group">
-              <label class="form-label">Confirm Password</label>
+              <label class="form-label">${t('register.confirm_password', 'Confirm Password')}</label>
               <input type="password" id="confirmPassword" class="form-input" placeholder="••••••••" required>
             </div>
 
             <!-- Student Fields -->
             <div id="student-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: grid;">
               <div class="form-group">
-                <label class="form-label">Department</label>
+                <label class="form-label">${t('register.department', 'Department')}</label>
                 <select id="department" class="form-select dynamic-dept" required>
-                  <option value="">Loading...</option>
+                  <option value="">${t('common.loading', 'Loading...')}</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label class="form-label">Class</label>
+                <label class="form-label">${t('register.class', 'Class')}</label>
                 <select id="student-class" class="form-select" required disabled>
                   <option value="">Select Department First</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label class="form-label">Year (Standard)</label>
+                <label class="form-label">${t('register.year', 'Year (Standard)')}</label>
                 <select id="year" class="form-select" required>
                   <option value="">Select Year</option>
-                  <option value="1">First Year</option>
-                  <option value="2">Second Year</option>
-                  <option value="3">Third Year</option>
-                  <option value="4">Fourth Year</option>
+                  <option value="1">${t('register.year_1', 'First Year')}</option>
+                  <option value="2">${t('register.year_2', 'Second Year')}</option>
+                  <option value="3">${t('register.year_3', 'Third Year')}</option>
+                  <option value="4">${t('register.year_4', 'Fourth Year')}</option>
                 </select>
               </div>
               
               <div class="form-group">
-                <label class="form-label">Enrollment Number</label>
-                <input type="text" id="enrollmentNumber" class="form-input" placeholder="e.g. EN2024001" required>
+                <label class="form-label">${t('register.enrollment', 'Enrollment Number')}</label>
+                <input type="text" id="enrollmentNumber" class="form-input" placeholder="${t('register.enrollment_placeholder', 'e.g. EN2024001')}" required>
               </div>
             </div>
 
             <!-- Staff Fields -->
             <div id="teacher-fields" class="grid grid-cols-2 gap-4" style="grid-column: 1 / -1; display: none;">
               <div class="form-group" id="staff-dept-group">
-                <label class="form-label" id="staff-dept-label">Department</label>
+                <label class="form-label" id="staff-dept-label">${t('register.department', 'Department')}</label>
                 <select id="teacher-department" class="form-select dynamic-dept">
-                  <option value="">Loading...</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Designation</label>
-                <select id="designation" class="form-select">
-                  <option value="">Select Designation</option>
-                  <option value="Assistant Professor">Assistant Professor</option>
-                  <option value="Associate Professor">Associate Professor</option>
-                  <option value="Professor">Professor</option>
-                  <option value="Head of Department">Head of Department</option>
                 </select>
               </div>
               
@@ -116,12 +114,12 @@ export async function render(container) {
           </div>
 
           <button type="submit" class="btn btn-primary w-full btn-lg mt-6" id="register-btn">
-            Create Account
+            ${t('register.submit', 'Create Account')}
           </button>
         </form>
 
         <div class="text-center mt-6">
-          <p class="text-muted text-sm">Already have an account? <a href="#/login">Sign in</a></p>
+          <p class="text-muted text-sm">${t('register.already_registered', 'Already have an account?')} <a href="#/login">${t('register.sign_in', 'Sign in')}</a></p>
         </div>
       </div>
     </div>

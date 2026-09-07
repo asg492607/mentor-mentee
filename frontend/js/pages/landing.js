@@ -1,5 +1,6 @@
 import { getUserProfile } from '../auth.js';
 import { navigateTo } from '../router.js';
+import { t, renderLanguageSelector } from '../i18n.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -494,21 +495,22 @@ export async function render(container) {
         </a>
 
         <ul class="nav-links">
-          <li><a href="#features" class="nav-link">Features</a></li>
-          <li><a href="#roles" class="nav-link">User Roles</a></li>
-          <li><a href="#ecosystem" class="nav-link">Cloud Platform</a></li>
+          <li><a href="#features" class="nav-link">${t('landing.nav_features', 'Features')}</a></li>
+          <li><a href="#roles" class="nav-link">${t('landing.nav_portals', 'User Roles')}</a></li>
+          <li><a href="#ecosystem" class="nav-link">${t('landing.nav_security', 'Cloud Platform')}</a></li>
           <li><a href="#special-thanks" class="nav-link">Special Thanks</a></li>
           <li><a href="#contributors" class="nav-link">Contributors</a></li>
           <li><a href="#faq" class="nav-link">FAQs</a></li>
         </ul>
 
         <div style="display:flex;align-items:center;gap:12px;">
+          ${renderLanguageSelector('landing')}
           ${user ? `
             <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">
-              Go to Dashboard →
+              ${t('landing.nav_dashboard', 'Go to Dashboard')} →
             </a>
           ` : `
-            <a href="#/login" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">Log In Portal →</a>
+            <a href="#/login" class="btn-gradient" style="padding:8px 20px;font-size:0.88rem;">${t('landing.nav_signin', 'Log In Portal')} →</a>
           `}
         </div>
       </header>
@@ -517,30 +519,29 @@ export async function render(container) {
       <section class="hero-section">
         <div class="hero-pill">
           <img src="/assets/images/mit_adt_logo.png" alt="MIT-ADT Logo" style="height:20px;width:auto;" onError="this.style.display='none';">
-          <span>🚀 MIT-ADT University — TY CSE Core Pilot &amp; Mentorship Ecosystem</span>
+          <span>🚀 ${t('landing.badge', 'Institutional Mentorship & Student Intelligence Platform')}</span>
         </div>
 
         <h1 class="hero-title">
-          Empowering Next-Gen Mentorship, <span>Student Growth</span> &amp; Analytics
+          ${t('landing.hero_title_1', 'Next-Gen Mentorship,')} <span>${t('landing.hero_title_2', 'Zero Paperwork, Infinite Impact.')}</span>
         </h1>
 
         <p class="hero-desc">
-          Lumina unifies Students, Faculty Mentors, Heads of Department, Deans, and Statutory Cells into one intelligent institutional ecosystem.
-          Accelerate student development through automated capacity balancing, paperless mentorship booklets, real-time risk intelligence, serverless WebRTC video meeting rooms, and 24/7 Gemini-powered AI mentorship assistance.
+          ${t('landing.hero_desc', 'The all-in-one platform unifying student mentorship booklets, AI-powered academic copilots, high-definition WebRTC video meetings, and institutional grievance escalation for premier universities.')}
         </p>
 
         <div class="hero-ctas">
           ${user ? `
             <a href="#${getRoleDashboardPath(user.role)}" class="btn-gradient" style="padding:14px 32px;font-size:1.02rem;">
-              Open Dashboard Portal <i class="ph ph-arrow-right"></i>
+              ${t('landing.nav_dashboard', 'Go to Dashboard')} <i class="ph ph-arrow-right"></i>
             </a>
           ` : `
             <a href="#/login" class="btn-gradient" style="padding:14px 36px;font-size:1.05rem;">
-              Access Portal Login <i class="ph ph-arrow-right"></i>
+              ${t('landing.cta_get_started', 'Get Started Free')} <i class="ph ph-arrow-right"></i>
             </a>
           `}
           <a href="#features" class="btn-glass" style="padding:14px 28px;font-size:1.02rem;">
-            <i class="ph ph-sparkle" style="font-size:1.2rem;color:var(--accent);"></i> Explore Capabilities
+            <i class="ph ph-sparkle" style="font-size:1.2rem;color:var(--accent);"></i> ${t('landing.cta_explore', 'Explore Capabilities')}
           </a>
         </div>
 
@@ -548,7 +549,7 @@ export async function render(container) {
         <div class="metrics-grid">
           <div class="metric-card">
             <div class="metric-val">1,200+</div>
-            <div class="metric-lbl">Students Guided</div>
+            <div class="metric-lbl">${t('landing.stat_students', 'Active Students Mentored')}</div>
           </div>
           <div class="metric-card">
             <div class="metric-val">20 : 1</div>
@@ -556,15 +557,15 @@ export async function render(container) {
           </div>
           <div class="metric-card">
             <div class="metric-val">100%</div>
-            <div class="metric-lbl">Paperless Booklets</div>
+            <div class="metric-lbl">${t('landing.stat_paperless', 'Paperless Compliance')}</div>
           </div>
           <div class="metric-card">
             <div class="metric-val">4-Tier</div>
-            <div class="metric-lbl">Grievance Escalation</div>
+            <div class="metric-lbl">${t('landing.feature_4_title', 'Grievance Escalation')}</div>
           </div>
           <div class="metric-card">
             <div class="metric-val">24/7</div>
-            <div class="metric-lbl">AI Academic Copilot</div>
+            <div class="metric-lbl">${t('landing.feature_2_title', 'AI Academic Copilot')}</div>
           </div>
         </div>
 
