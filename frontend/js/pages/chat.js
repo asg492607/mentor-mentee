@@ -7,10 +7,18 @@ import { navigateTo } from '/js/router.js';
 import { showToast } from '/js/components/toast.js';
 
 let currentChatUnsubscribe = null;
+let currentChatSessionId = 0;
+let isChatMounted = false;
 
 export function teardown() {
+  isChatMounted = false;
+  currentChatSessionId++;
   if (currentChatUnsubscribe) {
-    currentChatUnsubscribe();
+    try {
+      currentChatUnsubscribe();
+    } catch (e) {
+      console.warn('Error unsubscribing chat:', e);
+    }
     currentChatUnsubscribe = null;
   }
 }
@@ -73,6 +81,8 @@ export async function render(container) {
 
   const isStudent = String(user.role).toUpperCase() === 'STUDENT';
   
+  isChatMounted = true;
+
   try {
     let directContacts = [];
     let groupChatInfo = null;
@@ -121,9 +131,15 @@ export async function render(container) {
       };
     }
 
+    if (!isChatMounted) return;
+
     const chatList = document.getElementById('chat-list');
 
     async function renderChatList(filterQuery = '') {
+      if (!isChatMounted) return;
+      const listEl = document.getElementById('chat-list');
+      if (!listEl) return;
+
       let html = '';
 
       // 1. Group Chat Card (Pinned at Top)
@@ -194,16 +210,20 @@ export async function render(container) {
         }).join('');
       }
 
-      chatList.innerHTML = html;
+      listEl.innerHTML = html;
 
       // Event Handlers for Contact selection
-      chatList.querySelectorAll('.chat-contact').forEach(el => {
+      listEl.querySelectorAll('.chat-contact').forEach(el => {
         el.addEventListener('click', async () => {
-          chatList.querySelectorAll('.chat-contact').forEach(c => {
-            c.classList.remove('active');
-            c.style.background = c.classList.contains('group-contact') ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.04))' : 'transparent';
-            c.style.borderColor = c.classList.contains('group-contact') ? 'rgba(139, 92, 246, 0.25)' : 'transparent';
-          });
+          if (!isChatMounted) return;
+          const currentList = document.getElementById('chat-list');
+          if (currentList) {
+            currentList.querySelectorAll('.chat-contact').forEach(c => {
+              c.classList.remove('active');
+              c.style.background = c.classList.contains('group-contact') ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(99, 102, 241, 0.04))' : 'transparent';
+              c.style.borderColor = c.classList.contains('group-contact') ? 'rgba(139, 92, 246, 0.25)' : 'transparent';
+            });
+          }
 
           el.classList.add('active');
           el.style.background = 'rgba(99, 102, 241, 0.12)';
@@ -226,6 +246,8 @@ export async function render(container) {
 
     await renderChatList();
 
+    if (!isChatMounted) return;
+
     // Search filter listener
     const searchInput = document.getElementById('chat-search');
     if (searchInput) {
@@ -245,8 +267,12 @@ export async function render(container) {
     }
 
   } catch (err) {
+    if (!isChatMounted) return;
     console.error('Failed to load chat contacts:', err);
-    document.getElementById('chat-list').innerHTML = `<div style="padding:20px; color:var(--danger); text-align:center;">Failed to load contacts: ${escapeHtml(err.message)}</div>`;
+    const chatListEl = document.getElementById('chat-list');
+    if (chatListEl) {
+      chatListEl.innerHTML = `<div style="padding:20px; color:var(--danger); text-align:center;">Failed to load contacts: ${escapeHtml(err.message)}</div>`;
+    }
   }
 }
 
@@ -254,8 +280,22 @@ export async function render(container) {
  * Open Group Conversation (Mentor + whole cohort of students)
  */
 async function openGroupConversation(groupChatInfo, user) {
+  if (!isChatMounted || !groupChatInfo) return;
   const chatMain = document.getElementById('chat-main');
+  if (!chatMain) return;
+
+  const sessionId = ++currentChatSessionId;
   const isMentorUser = String(user.role).toUpperCase() !== 'STUDENT';
+
+  // Teardown previous listener immediately
+  if (currentChatUnsubscribe) {
+    try {
+      currentChatUnsubscribe();
+    } catch (e) {
+      console.warn('Error unsubscribing previous chat:', e);
+    }
+    currentChatUnsubscribe = null;
+  }
 
   chatMain.innerHTML = `
     <!-- Group Chat Header -->
@@ -352,98 +392,137 @@ async function openGroupConversation(groupChatInfo, user) {
     }
   });
 
-  // Initialize group chat document in Firestore
-  const chatId = await ChatService.getGroupConversation(
-    groupChatInfo.mentorId,
-    groupChatInfo.mentorName,
-    groupChatInfo.students
-  );
-
-  // Teardown previous listener
-  if (currentChatUnsubscribe) {
-    currentChatUnsubscribe();
-  }
-
-  const messagesContainer = document.getElementById('chat-messages');
-
-  // Realtime snapshot listener for group messages
-  currentChatUnsubscribe = ChatService.listenToMessages(chatId, (messages) => {
-    if (messages.length === 0) {
-      messagesContainer.innerHTML = `
-        <div style="margin:auto; text-align:center; padding:40px; color:var(--text-muted);">
-          <div style="width:60px; height:60px; border-radius:50%; background:rgba(139, 92, 246, 0.1); color:#8b5cf6; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 12px;">
-            <i class="ph ph-chat-centered-text"></i>
-          </div>
-          <h4 style="font-size:1rem; font-weight:700; color:var(--text); margin-bottom:4px;">Welcome to the Cohort Group Chat</h4>
-          <p style="font-size:0.85rem; color:var(--text-secondary); max-width:360px; margin:0 auto;">
-            This is the shared space for ${escapeHtml(groupChatInfo.mentorName)} and all assigned mentees to discuss updates, ask doubts, and share resources.
-          </p>
-        </div>
-      `;
-      return;
-    }
-
-    messagesContainer.innerHTML = messages.map(m => {
-      const isMine = m.senderId === user.id;
-      const isMentorSender = (m.senderRole === 'MENTOR' || m.senderRole === 'FACULTY' || m.senderId === groupChatInfo.mentorId);
-      const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-      const senderName = m.senderName || (isMine ? 'You' : (isMentorSender ? groupChatInfo.mentorName : 'Mentee'));
-
-      return `
-        <div style="display:flex; flex-direction:column; align-items:${isMine ? 'flex-end' : 'flex-start'}; gap:4px;">
-          ${!isMine ? `
-            <div style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-muted); margin-left:4px;">
-              <strong style="color:var(--text);">${escapeHtml(senderName)}</strong>
-              ${isMentorSender ? '<span class="badge" style="background:#8b5cf6; color:#fff; font-size:0.62rem; padding:1px 5px;">👑 Mentor</span>' : '<span class="badge badge-info" style="font-size:0.62rem; padding:1px 5px;">Student</span>'}
-            </div>
-          ` : ''}
-
-          <div class="chat-bubble ${isMine ? 'mine' : 'theirs'}" style="${isMine ? 'background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; border-radius:18px 18px 4px 18px;' : 'background:var(--surface,#fff); border:1px solid var(--border); border-radius:18px 18px 18px 4px;'} padding:10px 16px; max-width:75%; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-            <div class="chat-text" style="font-size:0.9rem; line-height:1.45; word-break:break-word;">
-              ${formatMessageContent(m.text)}
-            </div>
-            <div class="chat-time" style="font-size:0.7rem; text-align:right; margin-top:4px; opacity:${isMine ? '0.85' : '0.6'};">
-              ${time}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  });
-
-  // Message Send Logic
+  // Message Send Logic Setup immediately with null safety
+  let activeChatId = null;
   const sendBtn = document.getElementById('btn-send-msg');
   const input = document.getElementById('chat-input');
 
   const sendMessage = async () => {
+    if (!input) return;
     const text = input.value.trim();
     if (!text) return;
+    if (!activeChatId) {
+      showToast('Connecting to cohort room, please wait...', 'info');
+      return;
+    }
     input.value = '';
     input.focus();
     try {
       const roleStr = isMentorUser ? 'MENTOR' : 'STUDENT';
-      await ChatService.sendMessage(chatId, user.id, text, user.name, roleStr);
+      await ChatService.sendMessage(activeChatId, user.id, text, user.name, roleStr);
     } catch (err) {
       console.error('Failed to send group message:', err);
       showToast('Failed to send message: ' + err.message, 'error');
     }
   };
 
-  sendBtn.addEventListener('click', sendMessage);
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-  });
-  input.focus();
+  if (sendBtn) {
+    sendBtn.addEventListener('click', sendMessage);
+  }
+  if (input) {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+    input.focus();
+  }
+
+  // Initialize group chat document in Firestore
+  try {
+    const chatId = await ChatService.getGroupConversation(
+      groupChatInfo.mentorId,
+      groupChatInfo.mentorName,
+      groupChatInfo.students
+    );
+
+    // Guard: check if component unmounted or another chat was opened during await
+    if (!isChatMounted || sessionId !== currentChatSessionId) {
+      return;
+    }
+
+    activeChatId = chatId;
+
+    // Realtime snapshot listener for group messages
+    currentChatUnsubscribe = ChatService.listenToMessages(chatId, (messages) => {
+      if (!isChatMounted || sessionId !== currentChatSessionId) return;
+
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+
+      if (messages.length === 0) {
+        messagesContainer.innerHTML = `
+          <div style="margin:auto; text-align:center; padding:40px; color:var(--text-muted);">
+            <div style="width:60px; height:60px; border-radius:50%; background:rgba(139, 92, 246, 0.1); color:#8b5cf6; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin:0 auto 12px;">
+              <i class="ph ph-chat-centered-text"></i>
+            </div>
+            <h4 style="font-size:1rem; font-weight:700; color:var(--text); margin-bottom:4px;">Welcome to the Cohort Group Chat</h4>
+            <p style="font-size:0.85rem; color:var(--text-secondary); max-width:360px; margin:0 auto;">
+              This is the shared space for ${escapeHtml(groupChatInfo.mentorName)} and all assigned mentees to discuss updates, ask doubts, and share resources.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      messagesContainer.innerHTML = messages.map(m => {
+        const isMine = m.senderId === user.id;
+        const isMentorSender = (m.senderRole === 'MENTOR' || m.senderRole === 'FACULTY' || m.senderId === groupChatInfo.mentorId);
+        const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const senderName = m.senderName || (isMine ? 'You' : (isMentorSender ? groupChatInfo.mentorName : 'Mentee'));
+
+        return `
+          <div style="display:flex; flex-direction:column; align-items:${isMine ? 'flex-end' : 'flex-start'}; gap:4px;">
+            ${!isMine ? `
+              <div style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-muted); margin-left:4px;">
+                <strong style="color:var(--text);">${escapeHtml(senderName)}</strong>
+                ${isMentorSender ? '<span class="badge" style="background:#8b5cf6; color:#fff; font-size:0.62rem; padding:1px 5px;">👑 Mentor</span>' : '<span class="badge badge-info" style="font-size:0.62rem; padding:1px 5px;">Student</span>'}
+              </div>
+            ` : ''}
+
+            <div class="chat-bubble ${isMine ? 'mine' : 'theirs'}" style="${isMine ? 'background:linear-gradient(135deg,#8b5cf6,#6366f1); color:#fff; border-radius:18px 18px 4px 18px;' : 'background:var(--surface,#fff); border:1px solid var(--border); border-radius:18px 18px 18px 4px;'} padding:10px 16px; max-width:75%; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+              <div class="chat-text" style="font-size:0.9rem; line-height:1.45; word-break:break-word;">
+                ${formatMessageContent(m.text)}
+              </div>
+              <div class="chat-time" style="font-size:0.7rem; text-align:right; margin-top:4px; opacity:${isMine ? '0.85' : '0.6'};">
+                ${time}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+
+  } catch (err) {
+    if (!isChatMounted || sessionId !== currentChatSessionId) return;
+    console.error('Failed to open group conversation:', err);
+    const messagesContainer = document.getElementById('chat-messages');
+    if (messagesContainer) {
+      messagesContainer.innerHTML = `<div style="padding:40px; text-align:center; color:var(--danger);">Failed to load group chat: ${escapeHtml(err.message)}</div>`;
+    }
+  }
 }
 
 /**
  * Open 1-on-1 Direct Conversation
  */
 async function openDirectConversation(studentId, mentorId, contactName, contactRole, user) {
+  if (!isChatMounted) return;
   const chatMain = document.getElementById('chat-main');
+  if (!chatMain) return;
+
+  const sessionId = ++currentChatSessionId;
   const isMentorUser = String(user.role).toUpperCase() !== 'STUDENT';
+
+  // Teardown previous listener immediately
+  if (currentChatUnsubscribe) {
+    try {
+      currentChatUnsubscribe();
+    } catch (e) {
+      console.warn('Error unsubscribing previous chat:', e);
+    }
+    currentChatUnsubscribe = null;
+  }
 
   chatMain.innerHTML = `
     <!-- Direct Chat Header -->
@@ -509,68 +588,94 @@ async function openDirectConversation(studentId, mentorId, contactName, contactR
     }
   });
 
-  const chatId = await ChatService.getConversation(studentId, mentorId);
-
-  if (currentChatUnsubscribe) {
-    currentChatUnsubscribe();
-  }
-
-  const messagesContainer = document.getElementById('chat-messages');
-  
-  // Listen to live messages
-  currentChatUnsubscribe = ChatService.listenToMessages(chatId, (messages) => {
-    if (messages.length === 0) {
-      messagesContainer.innerHTML = `
-        <div style="margin:auto; text-align:center; padding:40px; color:var(--text-muted);">
-          <i class="ph ph-chat-teardrop-text" style="font-size:2.8rem; color:var(--text-muted); opacity:0.4; margin-bottom:8px; display:block;"></i>
-          <p style="font-size:0.925rem; font-weight:600; color:var(--text-primary);">No messages yet with ${escapeHtml(contactName)}</p>
-          <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Type a message below to start the conversation.</p>
-        </div>
-      `;
-      return;
-    }
-
-    messagesContainer.innerHTML = messages.map(m => {
-      const isMine = m.senderId === user.id;
-      const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-      return `
-        <div class="chat-bubble ${isMine ? 'mine' : 'theirs'}" style="${isMine ? 'background:var(--primary); color:#fff; align-self:flex-end; border-radius:18px 18px 4px 18px;' : 'background:var(--surface,#fff); border:1px solid var(--border); align-self:flex-start; border-radius:18px 18px 18px 4px;'} padding:10px 16px; max-width:75%;">
-          <div class="chat-text" style="font-size:0.9rem; line-height:1.45; word-break:break-word;">
-            ${formatMessageContent(m.text)}
-          </div>
-          <div class="chat-time" style="font-size:0.7rem; text-align:right; margin-top:4px; opacity:${isMine ? '0.85' : '0.6'};">
-            ${time}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  });
-
-  // Send message handler
+  // Setup input & send handlers immediately with null safety
+  let activeChatId = null;
   const sendBtn = document.getElementById('btn-send-msg');
   const input = document.getElementById('chat-input');
 
   const sendMessage = async () => {
+    if (!input) return;
     const text = input.value.trim();
     if (!text) return;
+    if (!activeChatId) {
+      showToast('Connecting to conversation, please wait...', 'info');
+      return;
+    }
     input.value = '';
     input.focus();
     try {
       const roleStr = isMentorUser ? 'MENTOR' : 'STUDENT';
-      await ChatService.sendMessage(chatId, user.id, text, user.name, roleStr);
+      await ChatService.sendMessage(activeChatId, user.id, text, user.name, roleStr);
     } catch (err) {
       console.error('Failed to send message:', err);
       showToast('Failed to send message: ' + err.message, 'error');
     }
   };
 
-  sendBtn.addEventListener('click', sendMessage);
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-  });
-  input.focus();
+  if (sendBtn) {
+    sendBtn.addEventListener('click', sendMessage);
+  }
+  if (input) {
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+    input.focus();
+  }
+
+  try {
+    const chatId = await ChatService.getConversation(studentId, mentorId);
+
+    // Guard: check if component unmounted or user switched conversation
+    if (!isChatMounted || sessionId !== currentChatSessionId) {
+      return;
+    }
+
+    activeChatId = chatId;
+
+    // Listen to live messages
+    currentChatUnsubscribe = ChatService.listenToMessages(chatId, (messages) => {
+      if (!isChatMounted || sessionId !== currentChatSessionId) return;
+
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+
+      if (messages.length === 0) {
+        messagesContainer.innerHTML = `
+          <div style="margin:auto; text-align:center; padding:40px; color:var(--text-muted);">
+            <i class="ph ph-chat-teardrop-text" style="font-size:2.8rem; color:var(--text-muted); opacity:0.4; margin-bottom:8px; display:block;"></i>
+            <p style="font-size:0.925rem; font-weight:600; color:var(--text-primary);">No messages yet with ${escapeHtml(contactName)}</p>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">Type a message below to start the conversation.</p>
+          </div>
+        `;
+        return;
+      }
+
+      messagesContainer.innerHTML = messages.map(m => {
+        const isMine = m.senderId === user.id;
+        const time = m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+          <div class="chat-bubble ${isMine ? 'mine' : 'theirs'}" style="${isMine ? 'background:var(--primary); color:#fff; align-self:flex-end; border-radius:18px 18px 4px 18px;' : 'background:var(--surface,#fff); border:1px solid var(--border); align-self:flex-start; border-radius:18px 18px 18px 4px;'} padding:10px 16px; max-width:75%;">
+            <div class="chat-text" style="font-size:0.9rem; line-height:1.45; word-break:break-word;">
+              ${formatMessageContent(m.text)}
+            </div>
+            <div class="chat-time" style="font-size:0.7rem; text-align:right; margin-top:4px; opacity:${isMine ? '0.85' : '0.6'};">
+              ${time}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    });
+
+  } catch (err) {
+    if (!isChatMounted || sessionId !== currentChatSessionId) return;
+    console.error('Failed to open direct conversation:', err);
+    const messagesContainer = document.getElementById('chat-messages');
+    if (messagesContainer) {
+      messagesContainer.innerHTML = `<div style="padding:40px; text-align:center; color:var(--danger);">Failed to load conversation: ${escapeHtml(err.message)}</div>`;
+    }
+  }
 }
 
 /**
