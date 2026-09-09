@@ -137,14 +137,14 @@ service cloud.firestore {
       allow get: if isAuth() && (
         resource.data.studentId  == uid() ||
         resource.data.mentorId   == uid() ||
-        isHODForDept(resource.data.department) ||
+        isHOD() ||
         (isSectionHead() && resource.data.escalationLevel == getFacultyDoc().department) ||
         isDean() || isSuperAdmin()
       );
       allow list: if isAuth() && (
         resource.data.studentId == uid() ||
         resource.data.mentorId == uid() ||
-        isHODForDept(resource.data.department) ||
+        isHOD() ||
         isSectionHead() ||
         isDean() || isSuperAdmin()
       );
@@ -152,7 +152,7 @@ service cloud.firestore {
                        (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']);
       allow update: if isAuth() && (
         resource.data.mentorId  == uid() ||
-        isHODForDept(resource.data.department) ||
+        isHOD() ||
         (isSectionHead() && resource.data.escalationLevel == getFacultyDoc().department) ||
         isDean() || isSuperAdmin()
       );
