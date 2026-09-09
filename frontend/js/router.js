@@ -3,6 +3,7 @@ import { initNotificationListener, stopNotificationListener, renderNotifications
 import { openWebIssueModal } from './components/web-issue-modal.js';
 import { initAIAssistant, aiAssistantWidget } from './components/ai-assistant-widget.js';
 import { onLanguageChange } from './i18n.js';
+import { escapeHtml } from './utils.js';
 
 const routes = {
   '/landing': './pages/landing.js',
@@ -166,11 +167,19 @@ async function handleRoute() {
 
   const modulePath = routes[path];
 
-  if (!modulePath) {
-    if (currentModule && currentModule.teardown) {
-      currentModule.teardown();
-      currentModule = null;
+  const safeTeardown = () => {
+    if (currentModule && typeof currentModule.teardown === 'function') {
+      try {
+        currentModule.teardown();
+      } catch (teardownErr) {
+        console.warn('Error during page teardown:', teardownErr);
+      }
     }
+    currentModule = null;
+  };
+
+  if (!modulePath) {
+    safeTeardown();
     appContainer.innerHTML = `
       <div class="empty-state h-screen">
         <h2>404 - Page Not Found</h2>
@@ -182,11 +191,29 @@ async function handleRoute() {
   }
 
   try {
-    if (currentModule && currentModule.teardown) {
-      currentModule.teardown();
-    }
+    safeTeardown();
     appContainer.innerHTML = '<div class="loader-overlay"><div class="spinner"></div></div>';
-    const module = await import(`${modulePath}?v=10`);
+    
+    // Dynamic import with retry logic for network drops/ERR_CONNECTION_RESET
+    let module = null;
+    let lastImportError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const cacheBuster = attempt > 1 ? `&_retry=${Date.now()}` : '';
+        module = await import(`${modulePath}?v=11${cacheBuster}`);
+        break;
+      } catch (err) {
+        lastImportError = err;
+        if (attempt < 3) {
+          await new Promise(res => setTimeout(res, 500 * attempt));
+        }
+      }
+    }
+
+    if (!module) {
+      throw lastImportError || new Error(`Failed to load module ${modulePath}`);
+    }
+
     currentModule = module;
     if (module.render) {
       await module.render(appContainer);
@@ -201,11 +228,30 @@ async function handleRoute() {
     }
   } catch (error) {
     console.error("Error loading route:", error);
+    const isNetworkError = !navigator.onLine || 
+      /failed to fetch|dynamically imported module|network|load failed/i.test(error.message || '');
+
     appContainer.innerHTML = `
-      <div class="empty-state h-screen">
-        <h2 class="text-danger">Error Loading Page</h2>
-        <p class="text-muted mt-2">${error.message || 'Check console for details.'}</p>
-        <p class="text-muted mt-2 text-xs">Note: Placeholder routes might not exist yet.</p>
+      <div class="empty-state h-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(239,68,68,0.1); color:var(--danger, #ef4444); display:flex; align-items:center; justify-content:center; font-size:2rem; margin-bottom:16px;">
+          <i class="ph ${isNetworkError ? 'ph-wifi-slash' : 'ph-warning-circle'}"></i>
+        </div>
+        <h2 style="font-size:1.4rem; font-weight:700; color:var(--text); margin-bottom:8px;">
+          ${isNetworkError ? 'Network Connection Issue' : 'Error Loading Page'}
+        </h2>
+        <p class="text-muted" style="max-width:440px; margin:0 0 20px; font-size:0.9rem; line-height:1.5;">
+          ${isNetworkError 
+            ? 'We were unable to download this page module due to a network interruption. Please verify your internet connection and try again.' 
+            : escapeHtml(error.message || 'Check console for details.')}
+        </p>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" onclick="window.location.reload()" style="display:inline-flex; align-items:center; gap:6px;">
+            <i class="ph ph-arrows-clockwise"></i> Reload Page
+          </button>
+          <a class="btn btn-secondary" href="#/">
+            Go Home
+          </a>
+        </div>
       </div>
     `;
   }
