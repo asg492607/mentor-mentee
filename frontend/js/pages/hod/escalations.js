@@ -27,11 +27,31 @@ export async function render(container) {
 
   let issues = [];
   try {
-    issues = await IssueService.getEscalated('HOD');
-    // Also get department issues that are escalated
-    const deptIssues = await IssueService.getByDepartment(user.department);
-    const extra = deptIssues.filter(i => i.status === 'ESCALATED' && !issues.find(x => x.id === i.id));
-    issues = [...issues, ...extra];
+    let hodIssues = [];
+    try {
+      hodIssues = await IssueService.getEscalated('HOD');
+    } catch (e) {
+      console.warn('Could not fetch issues escalated to HOD:', e);
+    }
+
+    let deptIssues = [];
+    if (user?.department) {
+      try {
+        deptIssues = await IssueService.getByDepartment(user.department);
+      } catch (e) {
+        console.warn('Could not fetch department issues:', e);
+      }
+    }
+
+    const extra = (deptIssues || []).filter(i => i.status === 'ESCALATED' && !hodIssues.find(x => x.id === i.id));
+    const combined = [...hodIssues, ...extra];
+
+    if (user?.department) {
+      const userDept = String(user.department).trim().toLowerCase();
+      issues = combined.filter(i => !i.department || String(i.department).trim().toLowerCase() === userDept || i.escalationLevel === 'HOD');
+    } else {
+      issues = combined;
+    }
   } catch (err) {
     (container.querySelector('#esc-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error: ${err.message}</h3></div>`;
     return;
