@@ -6,6 +6,7 @@ import { navigateTo } from '/js/router.js';
 import { showToast } from '/js/components/toast.js';
 import { MeetingService, TaskService, NotificationService } from '/js/services.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
+import { AIService } from '/js/services/ai-service.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -51,6 +52,21 @@ export async function render(container) {
       <div class="meeting-room-layout">
         <!-- Floating Reactions Container -->
         <div class="reaction-emitter-container" id="reaction-emitter"></div>
+
+        <!-- Floating Recording Bar -->
+        <div class="floating-rec-bar" id="floating-rec-bar" style="display:none;">
+          <div class="rec-bar-inner">
+            <span class="rec-dot-pulse"></span>
+            <span class="rec-bar-label">REC</span>
+            <span class="rec-bar-timer" id="rec-bar-timer">00:00</span>
+            <span class="rec-bar-mode" id="rec-bar-mode"></span>
+            <div class="rec-bar-actions">
+              <button class="rec-bar-btn" id="btn-rec-pause" title="Pause/Resume">⏸️</button>
+              <button class="rec-bar-btn rec-bar-stop" id="btn-rec-stop" title="Stop & Save">⏹ Stop</button>
+              <button class="rec-bar-btn rec-bar-extract" id="btn-rec-extract" title="AI Auto-Extract notes from transcript">⚡ AI Extract</button>
+            </div>
+          </div>
+        </div>
 
         <!-- Real-Time Subtitle / Captions Container -->
         <div class="meeting-live-captions-container" id="live-captions-box" style="display:none;"></div>
@@ -686,6 +702,8 @@ export async function render(container) {
                   </div>
 
                   <div class="report-actions">
+                    <button class="btn-report-ai-extract" id="btn-ai-extract-report" title="Auto-extract issues, actions & notes from transcript using AI">⚡ AI Auto-Extract to Report</button>
+                    <button class="btn-report-ai-draft" id="btn-ai-draft-report" title="Generate a complete official report draft using AI">✨ AI Draft Official Report</button>
                     <button class="btn-report-save" id="btn-save-report">💾 Save Report</button>
                     <button class="btn-report-generate" id="btn-generate-report">🖨️ Generate & Print</button>
                   </div>
@@ -861,7 +879,7 @@ export async function render(container) {
 
         <!-- Recording Options Modal (Host Only) -->
         <div id="recording-modal" class="modal-backdrop" style="display:none;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);position:fixed;inset:0;justify-content:center;align-items:center;">
-          <div class="modal" style="max-width:520px;width:90%;background:var(--bg-card,#1e293b);border-radius:14px;border:1px solid var(--border,#334155);color:white;padding:24px;box-shadow:0 12px 36px rgba(0,0,0,0.4);">
+          <div class="modal" style="max-width:560px;width:90%;background:var(--bg-card,#1e293b);border-radius:16px;border:1px solid var(--border,#334155);color:white;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;">
               <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px;font-weight:700;">
                 <span style="color:#ef4444;font-size:1.3rem;">⏺️</span> Meeting Recording Mode
@@ -869,43 +887,47 @@ export async function render(container) {
               <button class="btn btn-ghost btn-sm" id="close-record-modal" style="color:#94a3b8;background:none;border:none;font-size:1.2rem;cursor:pointer;">✕</button>
             </div>
 
-            <p style="font-size:0.875rem;color:#94a3b8;margin-bottom:20px;line-height:1.4;">
-              Select your recording destination for this mentorship session:
+            <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:20px;line-height:1.4;">
+              Choose a recording mode. Speech-to-text transcription runs automatically during recording for AI extraction.
             </p>
 
-            <!-- Option 1: On-Device Recording -->
-            <div class="card" style="padding:16px;background:rgba(255,255,255,0.04);border:1.5px solid #3b82f6;border-radius:10px;margin-bottom:14px;">
+            <!-- Mode 1: Screen + Mic -->
+            <div class="card rec-mode-card" style="padding:16px;background:rgba(59,130,246,0.08);border:1.5px solid #3b82f6;border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                 <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#60a5fa;">
-                  💻 1. On-Device Recording
+                  🖥️ Screen + Microphone
                 </div>
-                <span class="badge" style="background:#22c55e;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">ACTIVE / READY</span>
+                <span class="badge" style="background:#22c55e;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">RECOMMENDED</span>
               </div>
-              <p style="font-size:0.82rem;color:#cbd5e1;margin-bottom:12px;line-height:1.4;">
-                Records high-definition audio &amp; video in your browser. When stopped, saves the video file directly to your device downloads folder.
-              </p>
-              <button class="btn btn-primary btn-sm" id="btn-start-device-rec" style="width:100%;font-weight:700;padding:9px;">
-                ▶️ Start On-Device Recording
-              </button>
+              <p style="font-size:0.8rem;color:#cbd5e1;margin-bottom:10px;line-height:1.35;">Record your screen (tab/window), system audio, and microphone. Best for presentations & demos.</p>
+              <button class="btn btn-primary btn-sm btn-start-rec-mode" data-mode="screen" style="width:100%;font-weight:700;padding:9px;border-radius:10px;">▶️ Start Screen Recording</button>
             </div>
 
-            <!-- Option 2: Cloud Recording -->
-            <div class="card" style="padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.1);border-radius:10px;opacity:0.75;">
+            <!-- Mode 2: Camera + Mic -->
+            <div class="card rec-mode-card" style="padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.4);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#94a3b8;">
-                  ☁️ 2. Cloud Recording (Server)
-                </div>
-                <span class="badge" style="background:#64748b;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">DISABLED (OFF)</span>
+                <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#34d399;">🎥 Camera + Microphone</div>
+                <span class="badge" style="background:#0ea5e9;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">FACE-TO-FACE</span>
               </div>
-              <p style="font-size:0.82rem;color:#94a3b8;margin-bottom:8px;line-height:1.4;">
-                Institutional cloud server recording with automatic video archive.
-              </p>
-              <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;font-size:0.78rem;color:#f59e0b;">
-                <span>🔒</span> Cloud recording is kept <strong>OFF</strong> by administrative policy till further activation instructions.
-              </div>
+              <p style="font-size:0.8rem;color:#cbd5e1;margin-bottom:10px;line-height:1.35;">Record direct webcam feed with mic audio. Best for 1-on-1 mentoring sessions.</p>
+              <button class="btn btn-sm btn-start-rec-mode" data-mode="camera" style="width:100%;font-weight:600;padding:9px;border-radius:10px;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.4);">▶️ Start Camera Recording</button>
             </div>
 
-            <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+            <!-- Mode 3: Audio Only -->
+            <div class="card rec-mode-card" style="padding:16px;background:rgba(168,85,247,0.06);border:1.5px solid rgba(168,85,247,0.35);border-radius:12px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;color:#c084fc;">🎙️ Audio Only</div>
+                <span class="badge" style="background:#a855f7;color:white;font-size:0.72rem;padding:2px 8px;border-radius:12px;font-weight:700;">COMPACT</span>
+              </div>
+              <p style="font-size:0.8rem;color:#cbd5e1;margin-bottom:10px;line-height:1.35;">Records microphone audio only (small file, ~1MB/min). Best for voice-based sessions & counseling.</p>
+              <button class="btn btn-sm btn-start-rec-mode" data-mode="audio" style="width:100%;font-weight:600;padding:9px;border-radius:10px;background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid rgba(168,85,247,0.4);">▶️ Start Audio Recording</button>
+            </div>
+
+            <div style="margin-top:8px;padding:10px 14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:10px;font-size:0.78rem;color:#38bdf8;display:flex;align-items:center;gap:8px;">
+              <span>🧠</span> <strong>AI Auto-Extract:</strong> Speech transcript is captured live during recording. Press ⚡ AI Extract anytime to auto-fill report fields.
+            </div>
+
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;">
               <button class="btn btn-secondary btn-sm" id="cancel-record-modal" style="padding:7px 16px;">Cancel</button>
             </div>
           </div>
@@ -1919,17 +1941,185 @@ export async function render(container) {
   let recordStream = null;
   let recInterval = null;
   let recSeconds = 0;
+  let activeRecMode = null; // 'screen' | 'camera' | 'audio'
+  let recAudioCtx = null;
 
   const btnRecord = document.getElementById('btn-record');
   const recordModal = document.getElementById('recording-modal');
   const closeRecModal = document.getElementById('close-record-modal');
   const cancelRecModal = document.getElementById('cancel-record-modal');
-  const btnStartDeviceRec = document.getElementById('btn-start-device-rec');
+  const floatingRecBar = document.getElementById('floating-rec-bar');
+  const recBarTimer = document.getElementById('rec-bar-timer');
+  const recBarMode = document.getElementById('rec-bar-mode');
+
+  function showRecBar(mode) {
+    if (!floatingRecBar) return;
+    const modeLabels = { screen: '🖥️ Screen+Mic', camera: '🎥 Camera+Mic', audio: '🎙️ Audio' };
+    if (recBarMode) recBarMode.textContent = modeLabels[mode] || mode;
+    floatingRecBar.style.display = 'flex';
+  }
+
+  function hideRecBar() {
+    if (floatingRecBar) floatingRecBar.style.display = 'none';
+  }
+
+  function updateRecBarTimer() {
+    recSeconds++;
+    const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+    const secs = String(recSeconds % 60).padStart(2, '0');
+    if (recBarTimer) recBarTimer.textContent = `${mins}:${secs}`;
+    const label = document.getElementById('label-record');
+    if (label) label.textContent = `Stop (${mins}:${secs})`;
+  }
+
+  // Shared handler: finalize recording, download file, and trigger AI extraction
+  function finalizeRecording() {
+    clearInterval(recInterval);
+    hideRecBar();
+
+    const mimeType = activeRecMode === 'audio' ? 'audio/webm' : 'video/webm';
+    const ext = activeRecMode === 'audio' ? 'webm' : 'webm';
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    document.body.appendChild(a);
+    a.style.display = 'none';
+    a.href = url;
+    const cleanTopic = (meeting.type || meeting.description || 'Mentorship_Session').replace(/[^a-zA-Z0-9_-]/g, '_');
+    a.download = `${cleanTopic}_${activeRecMode || 'rec'}_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    if (recordStream) {
+      recordStream.getTracks().forEach(t => t.stop());
+      recordStream = null;
+    }
+    if (recAudioCtx) {
+      try { recAudioCtx.close(); } catch(e) {}
+      recAudioCtx = null;
+    }
+
+    if (btnRecord) btnRecord.classList.remove('active');
+    const label = document.getElementById('label-record');
+    if (label) label.textContent = 'Record';
+
+    // Log recording in meeting metadata
+    const recMeta = {
+      mode: activeRecMode,
+      duration: recSeconds,
+      recordedAt: new Date().toISOString(),
+      fileName: a.download
+    };
+    MeetingService.update(meetingId, {
+      lastRecording: recMeta,
+      hasRecording: true
+    }).catch(e => console.warn('Could not save recording metadata:', e));
+
+    showToast(`🔴 Recording saved! (${activeRecMode === 'audio' ? 'Audio' : 'Video'} downloaded to your device)`, 'success');
+
+    // Auto-prompt AI extraction if transcript is available
+    if (fullTranscriptLog.length > 0) {
+      showToast('🧠 Transcript available — Click ⚡ AI Auto-Extract in the Report panel to generate notes!', 'info');
+    }
+
+    activeRecMode = null;
+  }
+
+  // Start recording for any mode
+  async function startRecording(mode) {
+    if (recordModal) recordModal.style.display = 'none';
+
+    try {
+      let mixedStream;
+
+      if (mode === 'screen') {
+        recordStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'browser' },
+          audio: true
+        });
+        recAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const dest = recAudioCtx.createMediaStreamDestination();
+        if (recordStream.getAudioTracks().length > 0) {
+          recAudioCtx.createMediaStreamSource(new MediaStream([recordStream.getAudioTracks()[0]])).connect(dest);
+        }
+        if (localStream && localStream.getAudioTracks().length > 0) {
+          recAudioCtx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]])).connect(dest);
+        }
+        mixedStream = new MediaStream([
+          ...recordStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks()
+        ]);
+      } else if (mode === 'camera') {
+        recordStream = localStream;
+        if (!recordStream || recordStream.getVideoTracks().length === 0) {
+          recordStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        }
+        mixedStream = recordStream;
+      } else if (mode === 'audio') {
+        recordStream = localStream;
+        if (!recordStream || recordStream.getAudioTracks().length === 0) {
+          recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+        mixedStream = new MediaStream(recordStream.getAudioTracks());
+      }
+
+      activeRecMode = mode;
+
+      const mimeOptions = mode === 'audio'
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 };
+      try {
+        mediaRecorder = new MediaRecorder(mixedStream, mimeOptions);
+      } catch (e) {
+        mediaRecorder = new MediaRecorder(mixedStream);
+      }
+
+      recordedChunks = [];
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = finalizeRecording;
+
+      if (mode === 'screen' && recordStream.getVideoTracks()[0]) {
+        recordStream.getVideoTracks()[0].onended = () => {
+          if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        };
+      }
+
+      mediaRecorder.start(1000);
+      if (btnRecord) btnRecord.classList.add('active');
+      recSeconds = 0;
+      const label = document.getElementById('label-record');
+      if (label) label.textContent = 'Stop (00:00)';
+
+      showRecBar(mode);
+      recInterval = setInterval(updateRecBarTimer, 1000);
+
+      // Auto-activate live captions/transcription if not active
+      if (!isCaptionsActive && recognition) {
+        try {
+          recognition.start();
+          isCaptionsActive = true;
+          const captionsBtn = document.getElementById('btn-toggle-captions');
+          const captionsLbl = document.getElementById('label-captions');
+          if (captionsBtn) captionsBtn.classList.add('active');
+          if (captionsLbl) captionsLbl.textContent = 'CC (ON)';
+        } catch (e) { console.warn('Auto-captions failed:', e); }
+      }
+
+      const modeNames = { screen: 'Screen + Mic', camera: 'Camera + Mic', audio: 'Audio Only' };
+      showToast(`🔴 Recording started (${modeNames[mode]}) — Live transcription active`, 'info');
+    } catch (err) {
+      console.error(err);
+      showToast('Recording cancelled or not supported', 'warning');
+    }
+  }
 
   if (btnRecord && recordModal) {
     btnRecord.onclick = () => {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        if (confirm('Stop On-Device Recording and save the video file?')) {
+        if (confirm('Stop recording and save the file?')) {
           mediaRecorder.stop();
         }
         return;
@@ -1940,84 +2130,149 @@ export async function render(container) {
     closeRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
     cancelRecModal?.addEventListener('click', () => recordModal.style.display = 'none');
 
-    btnStartDeviceRec?.addEventListener('click', async () => {
-      recordModal.style.display = 'none';
-
-      try {
-        recordStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: 'browser' },
-          audio: true
-        });
-
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const dest = audioCtx.createMediaStreamDestination();
-        if (recordStream.getAudioTracks().length > 0) {
-          audioCtx.createMediaStreamSource(new MediaStream([recordStream.getAudioTracks()[0]])).connect(dest);
-        }
-        if (localStream && localStream.getAudioTracks().length > 0) {
-          audioCtx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]])).connect(dest);
-        }
-        const mixedStream = new MediaStream([
-          ...recordStream.getVideoTracks(),
-          ...dest.stream.getAudioTracks()
-        ]);
-
-        const options = { mimeType: 'video/webm; codecs=vp8,opus', videoBitsPerSecond: 2500000 };
-        try {
-          mediaRecorder = new MediaRecorder(mixedStream, options);
-        } catch (e) {
-          mediaRecorder = new MediaRecorder(mixedStream, { videoBitsPerSecond: 2500000 });
-        }
-
-        recordedChunks = [];
-        mediaRecorder.ondataavailable = e => {
-          if (e.data.size > 0) recordedChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = () => {
-          clearInterval(recInterval);
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          document.body.appendChild(a);
-          a.style.display = 'none';
-          a.href = url;
-          const cleanTopic = (meeting.type || meeting.description || 'Mentorship_Session').replace(/[^a-zA-Z0-9_-]/g, '_');
-          a.download = `${cleanTopic}_${new Date().toISOString().slice(0, 10)}.webm`;
-          a.click();
-          URL.revokeObjectURL(url);
-          recordStream.getTracks().forEach(t => t.stop());
-
-          btnRecord.classList.remove('active');
-          const label = document.getElementById('label-record');
-          if (label) label.textContent = 'Record';
-          showToast('💻 On-Device recording saved to your Downloads folder!', 'success');
-        };
-
-        recordStream.getVideoTracks()[0].onended = () => {
-          if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-        };
-
-        mediaRecorder.start(1000);
-        btnRecord.classList.add('active');
-        recSeconds = 0;
-        const label = document.getElementById('label-record');
-        if (label) label.textContent = 'Stop (00:00)';
-
-        recInterval = setInterval(() => {
-          recSeconds++;
-          const mins = String(Math.floor(recSeconds / 60)).padStart(2, '0');
-          const secs = String(recSeconds % 60).padStart(2, '0');
-          if (label) label.textContent = `Stop (${mins}:${secs})`;
-        }, 1000);
-
-        showToast('🔴 On-Device recording active (Saving locally when done)', 'info');
-      } catch (err) {
-        console.error(err);
-        showToast('On-Device recording cancelled', 'warning');
-      }
+    // Multi-mode recording buttons
+    document.querySelectorAll('.btn-start-rec-mode').forEach(btn => {
+      btn.addEventListener('click', () => startRecording(btn.dataset.mode));
     });
   }
+
+  // Floating rec bar controls
+  document.getElementById('btn-rec-pause')?.addEventListener('click', () => {
+    if (!mediaRecorder) return;
+    if (mediaRecorder.state === 'recording') {
+      mediaRecorder.pause();
+      clearInterval(recInterval);
+      const pauseBtn = document.getElementById('btn-rec-pause');
+      if (pauseBtn) pauseBtn.textContent = '▶️';
+      showToast('Recording paused', 'info');
+    } else if (mediaRecorder.state === 'paused') {
+      mediaRecorder.resume();
+      recInterval = setInterval(updateRecBarTimer, 1000);
+      const pauseBtn = document.getElementById('btn-rec-pause');
+      if (pauseBtn) pauseBtn.textContent = '⏸️';
+      showToast('Recording resumed', 'info');
+    }
+  });
+
+  document.getElementById('btn-rec-stop')?.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+  });
+
+  // AI Auto-Extract from floating bar
+  document.getElementById('btn-rec-extract')?.addEventListener('click', () => {
+    triggerAIExtraction();
+  });
+
+  // AI Auto-Extract to Report handler
+  async function triggerAIExtraction() {
+    const transcript = fullTranscriptLog.join('\n');
+    const chatMsgs = [...document.querySelectorAll('#chat-messages .chat-msg')].map(el => el.textContent).join('\n');
+    const notesEl = document.getElementById('meeting-notes');
+    const notes = notesEl ? notesEl.value : '';
+    const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: '' }));
+
+    if (!transcript && !chatMsgs && !notes) {
+      showToast('No transcript, chat, or notes to extract from. Start Live Captions (CC) first!', 'warning');
+      return;
+    }
+
+    showToast('🧠 AI analyzing session data...', 'info');
+
+    try {
+      const insights = await AIService.extractMeetingInsights({
+        transcript,
+        chatMessages: chatMsgs,
+        notes,
+        meetingTopic: meeting.type || meeting.description || '',
+        studentName: meeting.studentName || '',
+        department: meeting.department || '',
+        attendees
+      });
+
+      // Auto-populate report fields
+      const topicEl = document.getElementById('rpt-topic');
+      const issuesEl = document.getElementById('rpt-issues');
+      const actionsEl = document.getElementById('rpt-actions');
+      const remarksEl = document.getElementById('rpt-remarks');
+
+      if (topicEl && insights.topic) topicEl.value = insights.topic;
+      if (issuesEl && insights.issuesDiscussed) issuesEl.value = insights.issuesDiscussed;
+      if (actionsEl && insights.actionItems) actionsEl.value = insights.actionItems;
+      if (remarksEl && insights.remarks) remarksEl.value = insights.remarks;
+
+      // Add tasks to session notes
+      if (notesEl && insights.tasks && insights.tasks.length > 0) {
+        notesEl.value += '\n\n--- [AI EXTRACTED TASKS] ---\n' + insights.tasks.map(t => `• ${t}`).join('\n');
+      }
+
+      // Auto-populate students if available
+      if (attendees.length > 0) {
+        const studentsList = document.getElementById('rpt-students-list');
+        if (studentsList) {
+          studentsList.innerHTML = '';
+          attendees.forEach(a => {
+            if (a.name && a.name !== 'Participant') {
+              const row = document.createElement('div');
+              row.className = 'rpt-student-row';
+              row.innerHTML = `
+                <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4" value="${escapeHtml(a.name)}">
+                <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1" value="${escapeHtml(a.enrollment || '')}">
+                <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
+              `;
+              studentsList.appendChild(row);
+            }
+          });
+        }
+      }
+
+      // Open report panel
+      if (typeof openPanelTab === 'function') openPanelTab('report');
+
+      showToast('✅ AI extraction complete! Report fields auto-populated.', 'success');
+    } catch (err) {
+      console.error('AI extraction error:', err);
+      showToast('AI extraction failed: ' + err.message, 'error');
+    }
+  }
+
+  document.getElementById('btn-ai-extract-report')?.addEventListener('click', () => triggerAIExtraction());
+
+  // AI Draft Official Report handler
+  document.getElementById('btn-ai-draft-report')?.addEventListener('click', async () => {
+    showToast('✨ AI generating official report draft...', 'info');
+
+    try {
+      const transcript = fullTranscriptLog.join('\n');
+      const notesEl = document.getElementById('meeting-notes');
+      const notes = notesEl ? notesEl.value : '';
+
+      const report = await AIService.generateMentorMeetingReport({
+        meeting,
+        studentName: meeting.studentName || '',
+        studentProfile: {},
+        transcript,
+        notes
+      });
+
+      const topicEl = document.getElementById('rpt-topic');
+      const issuesEl = document.getElementById('rpt-issues');
+      const actionsEl = document.getElementById('rpt-actions');
+      const remarksEl = document.getElementById('rpt-remarks');
+
+      if (topicEl && report.topic) topicEl.value = report.topic;
+      if (issuesEl && report.issuesDiscussed) issuesEl.value = report.issuesDiscussed;
+      if (actionsEl && report.actionItems) actionsEl.value = report.actionItems;
+      if (remarksEl && report.remarks) remarksEl.value = report.remarks;
+
+      showToast('✅ AI official report draft generated!', 'success');
+    } catch (err) {
+      console.error('AI draft report error:', err);
+      showToast('AI draft failed: ' + err.message, 'error');
+    }
+  });
+
 
   const btnNetDiag = document.getElementById('btn-network-diag');
   const netDiagModal = document.getElementById('network-diag-modal');
