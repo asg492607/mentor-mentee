@@ -2653,8 +2653,226 @@ input:checked + .switch-slider:before {
   margin-top: 10px;
 }
 
+/* ============================================================
+   Floating Recording Bar
+   ============================================================ */
 
+.floating-rec-bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
 
+.rec-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(239, 68, 68, 0.4);
+  border-radius: 40px;
+  padding: 6px 16px 6px 12px;
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: all;
+  animation: rec-bar-glow 2s ease-in-out infinite alternate;
+}
 
+@keyframes rec-bar-glow {
+  0%   { box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(0,0,0,0.4); }
+  100% { box-shadow: 0 8px 40px rgba(239, 68, 68, 0.35), 0 2px 8px rgba(0,0,0,0.4); }
+}
+
+.rec-dot-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: rec-dot-blink 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes rec-dot-blink {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #ef4444; }
+  50%      { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 2px #ef4444; }
+}
+
+.rec-bar-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rec-bar-timer {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  min-width: 44px;
+}
+
+.rec-bar-mode {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.rec-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  padding-left: 10px;
+}
+
+.rec-bar-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.rec-bar-btn:hover {
+  background: rgba(255,255,255,0.14);
+  transform: translateY(-1px);
+}
+
+.rec-bar-stop {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.rec-bar-stop:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.rec-bar-extract {
+  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2));
+  border-color: rgba(99,102,241,0.4);
+  color: #c4b5fd;
+  font-weight: 700;
+}
+
+.rec-bar-extract:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(168,85,247,0.3));
+}
+
+/* ============================================================
+   AI Report Action Buttons (Report Panel)
+   ============================================================ */
+
+.btn-report-ai-extract,
+.btn-report-ai-draft {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--meet-radius-sm, 8px);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-report-ai-extract {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: white;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+}
+
+.btn-report-ai-extract:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.35);
+}
+
+.btn-report-ai-draft {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+}
+
+.btn-report-ai-draft:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.35);
+}
+
+/* Recording Mode Cards */
+.rec-mode-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* Spinner for AI loading (small inline) */
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* AI Cohort Insights formatting */
+#ai-cohort-insights-content h2,
+#ai-cohort-insights-content h3,
+#ai-cohort-insights-content h4 {
+  color: var(--accent, #7c6aff);
+  margin: 12px 0 6px;
+  font-weight: 700;
+}
+
+#ai-cohort-insights-content strong {
+  color: var(--text-primary);
+}
+
+#ai-cohort-insights-content ul,
+#ai-cohort-insights-content ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+/* AI Report Modal responsive */
+@media (max-width: 768px) {
+  .floating-rec-bar {
+    top: auto;
+    bottom: 90px;
+  }
+
+  .rec-bar-mode {
+    display: none;
+  }
+
+  .rec-bar-inner {
+    padding: 5px 12px;
+    gap: 6px;
+  }
+}
 
 
