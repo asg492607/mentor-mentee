@@ -268,6 +268,7 @@ export async function render(container) {
 
               <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end; flex-wrap:wrap;">
                 <button class="btn btn-sm btn-secondary cancel-note-btn" data-id="${m.id}" style="border-radius:8px;">Cancel</button>
+                <button class="btn btn-sm ai-draft-mom-btn" data-id="${m.id}" data-sid="${m.studentId}" data-sname="${m.studentName || ''}" data-topic="${m.type || m.description || ''}" style="border-radius:8px; background:linear-gradient(135deg, #6366f1, #a855f7); color:white; font-weight:700; display:flex; align-items:center; gap:6px;">✨ AI Draft MOM & Report</button>
                 <button class="btn btn-sm btn-primary save-note-btn" data-id="${m.id}" data-sid="${m.studentId}" style="border-radius:8px;">💾 Save Notes &amp; Sync Tasks</button>
                 <button class="btn btn-sm btn-success save-gen-report-btn" data-id="${m.id}" data-sid="${m.studentId}" style="border-radius:8px;">🖨️ Save &amp; Download Report</button>
               </div>
@@ -403,6 +404,53 @@ export async function render(container) {
       btn.addEventListener('click', () => {
         const w = document.getElementById(`notes-${btn.dataset.id}`);
         if (w) w.style.display = 'none';
+      });
+    });
+
+    // AI Draft MOM & Report
+    panel.querySelectorAll('.ai-draft-mom-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const meetingId = btn.dataset.id;
+        const studentName = btn.dataset.sname || '';
+        const topic = btn.dataset.topic || '';
+        const card = document.getElementById(`card-${meetingId}`);
+        if (!card) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-sm"></span> AI Generating...';
+
+        try {
+          const m = meetings.find(x => x.id === meetingId);
+          const studentProfile = students.find(s => s.id === btn.dataset.sid) || {};
+
+          const report = await AIService.generateMentorMeetingReport({
+            meeting: m || {},
+            studentName: studentName || studentProfile.name || '',
+            studentProfile,
+            transcript: '',
+            notes: card.querySelector('.np')?.value || ''
+          });
+
+          // Auto-fill the form fields
+          const npField = card.querySelector('.np');
+          const naField = card.querySelector('.na');
+          const npoField = card.querySelector('.npo');
+          const ntField = card.querySelector('.nt');
+          const nrField = card.querySelector('.nr');
+
+          if (npField && report.issuesDiscussed) npField.value = report.issuesDiscussed;
+          if (naField && report.actionItems) naField.value = report.actionItems;
+          if (npoField && report.confidentialObservations) npoField.value = report.confidentialObservations;
+          if (ntField && report.tasks && report.tasks.length > 0) ntField.value = report.tasks.join('\n');
+          if (nrField && report.remarks) nrField.value = report.remarks;
+
+          showToast('✅ AI MOM & Report drafted successfully! Review and save.', 'success');
+        } catch (err) {
+          showToast('AI Draft failed: ' + err.message, 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '✨ AI Draft MOM & Report';
+        }
       });
     });
   }
