@@ -302,6 +302,229 @@ How can I assist you today?`;
   }
 
   /**
+   * AI Meeting Insights Extractor — parses transcript, chat, notes, and attendees
+   * to auto-generate structured meeting report fields.
+   */
+  async extractMeetingInsights({ transcript = '', chatMessages = '', notes = '', meetingTopic = '', studentName = '', department = '', attendees = [] }) {
+    const attendeeStr = attendees.length > 0
+      ? attendees.map((a, i) => `${i + 1}. ${a.name || 'Unknown'}${a.enrollment ? ' (' + a.enrollment + ')' : ''}`).join('\n')
+      : 'No attendee list available';
+
+    const prompt = `You are an expert academic meeting analyst for MIT-ADT University. Analyze the following mentorship session data and extract a structured report. Be thorough, professional, and actionable.
+
+--- SESSION METADATA ---
+Topic/Type: ${meetingTopic || 'Mentorship Session'}
+Student/Attendees: ${studentName || 'Mentee(s)'}
+Department: ${department || 'Not specified'}
+Attendee List:
+${attendeeStr}
+
+--- LIVE TRANSCRIPT ---
+${transcript || '(No transcript captured)'}
+
+--- ROOM CHAT MESSAGES ---
+${chatMessages || '(No chat messages)'}
+
+--- SESSION NOTES ---
+${notes || '(No manual notes)'}
+
+--- EXTRACT THE FOLLOWING (use ### headers, bullet points with bold lead-ins) ---
+
+### 📌 Meeting Topic & Executive Summary
+[1-2 crisp sentences capturing the essence of the session]
+
+### ⚠️ Issues Discussed
+[Bullet points of each distinct student issue, concern, or challenge raised — academic backlogs, attendance, personal, technical, hostel, exam-related, etc.]
+
+### ✅ Action Items & Remedial Measures
+[Numbered list of concrete tasks, solutions, and follow-up steps agreed upon with deadlines if possible]
+
+### 🎯 Student Tasks
+[Simple bullet list of tasks assigned to the student, one per line — these auto-sync to the student task board]
+
+### 🔒 Confidential Faculty Observations
+[Private faculty-only observations: stress indicators, risk signals, counseling needs, behavioral notes — NOT visible to students]
+
+### 📝 Additional Remarks
+[Any other noteworthy observations, positive commendations, or general remarks for the HOD/Dean record]`;
+
+    try {
+      const res = await this.chat({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.25,
+        maxTokens: 900
+      });
+      return this._parseExtractedInsights(res.content);
+    } catch (e) {
+      console.warn('AI extractMeetingInsights fallback:', e);
+      return this._fallbackExtraction({ transcript, chatMessages, notes, meetingTopic });
+    }
+  }
+
+  /**
+   * Parse AI extraction response into structured fields.
+   */
+  _parseExtractedInsights(content) {
+    const result = {
+      topic: '',
+      issuesDiscussed: '',
+      actionItems: '',
+      tasks: [],
+      confidentialObservations: '',
+      remarks: ''
+    };
+
+    if (!content) return result;
+
+    const sections = content.split(/###\s*/);
+    for (const section of sections) {
+      const lower = section.toLowerCase();
+      const body = section.replace(/^[^\n]*\n/, '').trim();
+
+      if (lower.includes('topic') || lower.includes('summary') || lower.includes('executive')) {
+        result.topic = body;
+      } else if (lower.includes('issues discussed') || lower.includes('issues')) {
+        result.issuesDiscussed = body;
+      } else if (lower.includes('action items') || lower.includes('remedial')) {
+        result.actionItems = body;
+      } else if (lower.includes('student tasks') || lower.includes('tasks')) {
+        result.tasks = body.split('\n')
+          .map(l => l.replace(/^[\s•\-*\d.]+/, '').trim())
+          .filter(Boolean);
+      } else if (lower.includes('confidential') || lower.includes('faculty observation')) {
+        result.confidentialObservations = body;
+      } else if (lower.includes('remarks') || lower.includes('additional')) {
+        result.remarks = body;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Fallback extraction when AI API is unavailable — uses simple heuristics.
+   */
+  _fallbackExtraction({ transcript, chatMessages, notes, meetingTopic }) {
+    const allText = [transcript, chatMessages, notes].filter(Boolean).join('\n');
+    const lines = allText.split('\n').filter(l => l.trim());
+
+    return {
+      topic: meetingTopic || 'Mentorship Session',
+      issuesDiscussed: lines.length > 0
+        ? '• ' + lines.slice(0, Math.min(8, lines.length)).join('\n• ')
+        : 'Session discussion points were recorded via live transcript.',
+      actionItems: 'Action items to be confirmed by mentor post-session review.',
+      tasks: [],
+      confidentialObservations: '',
+      remarks: `Auto-extracted from ${lines.length} transcript line(s). Generated via Lumina Offline Engine.`
+    };
+  }
+
+  /**
+   * Generate a comprehensive official mentorship meeting report using AI.
+   */
+  async generateMentorMeetingReport({ meeting = {}, studentName = '', studentProfile = {}, transcript = '', notes = '' }) {
+    const topic = meeting.type || meeting.description || 'Mentorship Session';
+    const dept = meeting.department || studentProfile.department || 'Department of Computer Science & Engineering';
+
+    const prompt = `Generate a concise, formal MIT-ADT University Mentorship Session Report in under 250 words. Use professional academic language.
+
+Session: ${topic}
+Student: ${studentName || 'Mentee'}
+Department: ${dept}
+CGPA: ${studentProfile.cgpa || 'N/A'} | Attendance: ${studentProfile.attendance || 'N/A'}% | Risk Level: ${studentProfile.riskLevel || 'N/A'}
+Backlogs: ${studentProfile.backlogs || 'N/A'}
+
+Meeting Notes: ${notes || 'General academic review and mentoring discussion'}
+Transcript Excerpt: ${(transcript || '').slice(0, 600)}
+
+Format strictly as:
+### Issues Discussed
+[3-5 bullet points of specific student issues with bold labels]
+
+### Action Taken & Remedial Measures
+[3-5 numbered steps with specific, measurable actions and timelines]
+
+### Student Tasks
+[Simple bullet list, one task per line]
+
+### Faculty Observations
+[2-3 brief private observations for HOD review]
+
+### Remarks
+[1-2 sentences of overall assessment and encouragement]`;
+
+    try {
+      const res = await this.chat({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        maxTokens: 700
+      });
+      return this._parseExtractedInsights(res.content);
+    } catch (e) {
+      console.warn('AI generateMentorMeetingReport fallback:', e);
+      return {
+        topic,
+        issuesDiscussed: 'Academic progress review and mentorship discussion conducted.',
+        actionItems: '1. Continue regular academic monitoring.\n2. Review attendance and backlog status.\n3. Follow up in next scheduled session.',
+        tasks: ['Submit pending assignments', 'Attend remedial classes if applicable'],
+        confidentialObservations: '',
+        remarks: 'Session conducted as per institutional mentorship guidelines.'
+      };
+    }
+  }
+
+  /**
+   * Generate cohort-level executive summary and performance insights for a mentor.
+   */
+  async generateCohortExecutiveSummary({ students = [], meetings = [], mentorName = '' }) {
+    const highRisk = students.filter(s => s.riskLevel === 'HIGH');
+    const medRisk = students.filter(s => s.riskLevel === 'MEDIUM');
+    const avgCGPA = students.length > 0
+      ? (students.reduce((sum, s) => sum + (parseFloat(s.cgpa) || 0), 0) / students.length).toFixed(2)
+      : 'N/A';
+    const avgAtt = students.length > 0
+      ? (students.reduce((sum, s) => sum + (parseFloat(s.attendance) || 0), 0) / students.length).toFixed(1)
+      : 'N/A';
+    const completedMeetings = meetings.filter(m => m.status === 'COMPLETED').length;
+
+    const prompt = `Generate a concise Mentor Cohort Performance Intelligence Report (under 200 words) for Prof. ${mentorName || 'Mentor'}.
+
+Cohort Statistics:
+- Total Mentees: ${students.length}
+- High Risk Students: ${highRisk.length} (${highRisk.map(s => s.name).join(', ') || 'None'})
+- Medium Risk Students: ${medRisk.length}
+- Average CGPA: ${avgCGPA}
+- Average Attendance: ${avgAtt}%
+- Completed Meetings: ${completedMeetings} / ${meetings.length} total
+
+Format strictly as:
+### 📊 Cohort Health Summary
+[2-3 sentences on overall cohort health]
+
+### 🚨 Priority Interventions Required
+[Numbered list of specific students/actions needing immediate attention]
+
+### 📈 Positive Trends & Commendations
+[Brief positive observations]
+
+### 📋 Recommended Next Steps
+[3-4 actionable recommendations for the mentor]`;
+
+    try {
+      const res = await this.chat({
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        maxTokens: 500
+      });
+      return res.content;
+    } catch (e) {
+      console.warn('AI generateCohortExecutiveSummary fallback:', e);
+      return `### 📊 Cohort Health Summary\nYou are mentoring ${students.length} students. ${highRisk.length} are flagged high-risk requiring immediate intervention. Average CGPA: ${avgCGPA}, Avg Attendance: ${avgAtt}%.\n\n### 🚨 Priority Interventions Required\n${highRisk.length > 0 ? highRisk.map((s, i) => `${i + 1}. **${s.name}** — CGPA: ${s.cgpa || 'N/A'}, Attendance: ${s.attendance || 'N/A'}%`).join('\n') : 'No critical interventions needed at this time.'}\n\n### 📈 Positive Trends\n${completedMeetings} meetings completed out of ${meetings.length} scheduled.\n\n### 📋 Recommended Next Steps\n1. Schedule 1-on-1 sessions with high-risk students.\n2. Review attendance patterns for medium-risk group.\n3. Update mentorship booklets for compliance.\n\n*(Generated via Lumina Offline Knowledge Engine)*`;
+    }
+  }
+
+  /**
    * Lightweight markdown parser to render assistant outputs with code blocks, bold text, lists, and headers safely.
    */
   formatMarkdown(text) {
