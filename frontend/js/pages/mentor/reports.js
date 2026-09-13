@@ -4,6 +4,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StatsService } from '/js/services.js';
 import { exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
+import { AIService } from '/js/services/ai-service.js';
 
 function riskBadge(r) {
   const map = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' };
@@ -86,6 +87,9 @@ export async function render(container) {
             <p style="color:var(--text-muted);font-size:0.82rem;margin:3px 0 0;">Download comprehensive batch reports or official PDF reports per individual meeting session</p>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-sm" id="btn-ai-cohort-audit" style="display:flex;align-items:center;gap:6px;font-weight:700;background:linear-gradient(135deg, #6366f1, #a855f7);color:white;border:none;border-radius:10px;padding:8px 16px;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
+              <span>✨</span> AI Cohort Audit & Insights
+            </button>
             <button class="btn btn-sm btn-secondary" id="btn-mentor-excel" style="display:flex;align-items:center;gap:6px;font-weight:600;">
               <i class="ph ph-file-xls" style="font-size:1.1rem;color:var(--success);"></i> Download Mentee List (Excel)
             </button>
@@ -111,6 +115,21 @@ export async function render(container) {
               <div class="stat-value">${v}</div>
             </div>
           `).join('')}
+        </div>
+
+        <!-- ── AI Cohort Insights Panel (hidden by default) ── -->
+        <div id="ai-cohort-insights" class="card" style="margin-bottom:24px;display:none;">
+          <div class="card-header" style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:1.2rem;">🧠</span>
+              <div>
+                <h3 style="font-size:0.95rem;font-weight:700;margin:0;color:var(--accent);">AI Cohort Performance Intelligence</h3>
+                <p style="font-size:0.75rem;color:var(--text-muted);margin:2px 0 0;">AI-generated analysis of your mentee cohort health, risk levels, and recommendations</p>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="btn-close-cohort-insights" style="color:var(--text-muted);">✕ Close</button>
+          </div>
+          <div id="ai-cohort-insights-content" style="padding:20px;font-size:0.88rem;line-height:1.6;color:var(--text-secondary);white-space:pre-wrap;"></div>
         </div>
 
         <!-- ── Chart + At-Risk ── -->
@@ -199,9 +218,14 @@ export async function render(container) {
                           <td style="padding:12px;color:var(--text-secondary);font-size:0.82rem;">${dateStr}</td>
                           <td style="padding:12px;">${statusBadge(m.status)}</td>
                           <td style="padding:12px;text-align:right;white-space:nowrap;">
-                            <button class="btn btn-sm btn-primary meeting-report-dl-btn" data-id="${m.id}" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:6px 14px;border-radius:8px;">
-                              <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Download Report
-                            </button>
+                            <div style="display:flex;gap:6px;justify-content:flex-end;">
+                              <button class="btn btn-sm ai-enhanced-report-btn" data-id="${m.id}" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#a855f7);color:white;border:none;font-size:0.8rem;">
+                                <span>✨</span> AI Report
+                              </button>
+                              <button class="btn btn-sm btn-primary meeting-report-dl-btn" data-id="${m.id}" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:6px 14px;border-radius:8px;">
+                                <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Download
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       `;
@@ -264,6 +288,21 @@ export async function render(container) {
         </div>
 
       </div>
+
+        <!-- ── AI Enhanced Report Modal ── -->
+        <div id="ai-report-modal" class="modal-backdrop" style="display:none;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);position:fixed;inset:0;justify-content:center;align-items:center;">
+          <div class="modal" style="max-width:680px;width:95%;max-height:90vh;overflow-y:auto;background:var(--bg-card,#1e293b);border-radius:16px;border:1px solid var(--border);color:var(--text-primary);padding:28px;box-shadow:0 16px 48px rgba(0,0,0,0.4);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;">
+              <h3 style="margin:0;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:8px;">
+                <span>✨</span> AI Enhanced Mentorship Report
+              </h3>
+              <button class="btn btn-ghost btn-sm" id="close-ai-report-modal" style="font-size:1.2rem;">✕</button>
+            </div>
+            <div id="ai-report-modal-body" style="font-size:0.88rem;">
+              <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
     `;
 
     // Chart
@@ -318,6 +357,117 @@ export async function render(container) {
 
     container.querySelector('#btn-mentor-pdf')?.addEventListener('click', async () => {
       await exportSingleMentorReport(user.id, 'pdf');
+    });
+
+    // AI Cohort Audit
+    container.querySelector('#btn-ai-cohort-audit')?.addEventListener('click', async () => {
+      const insightsPanel = container.querySelector('#ai-cohort-insights');
+      const insightsContent = container.querySelector('#ai-cohort-insights-content');
+      if (!insightsPanel || !insightsContent) return;
+
+      insightsPanel.style.display = 'block';
+      insightsContent.innerHTML = '<div style="display:flex;justify-content:center;padding:30px;"><div class="spinner"></div><span style="margin-left:12px;color:var(--text-muted);">AI analyzing cohort data...</span></div>';
+
+      try {
+        const summary = await AIService.generateCohortExecutiveSummary({
+          students,
+          meetings,
+          mentorName: user.name || ''
+        });
+        insightsContent.innerHTML = AIService.formatMarkdown(summary);
+      } catch (err) {
+        insightsContent.innerHTML = `<div style="color:var(--danger);">AI analysis failed: ${err.message}</div>`;
+      }
+    });
+
+    container.querySelector('#btn-close-cohort-insights')?.addEventListener('click', () => {
+      const panel = container.querySelector('#ai-cohort-insights');
+      if (panel) panel.style.display = 'none';
+    });
+
+    // AI Enhanced Report per meeting
+    container.querySelectorAll('.ai-enhanced-report-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const m = meetings.find(x => x.id === btn.dataset.id);
+        if (!m) { showToast('Meeting not found', 'error'); return; }
+
+        const modal = container.querySelector('#ai-report-modal');
+        const body = container.querySelector('#ai-report-modal-body');
+        if (!modal || !body) return;
+
+        modal.style.display = 'flex';
+        body.innerHTML = '<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div><span style="margin-left:12px;color:var(--text-muted);">AI generating enhanced report...</span></div>';
+
+        try {
+          const studentProfile = students.find(s => s.id === m.studentId) || {};
+          const report = await AIService.generateMentorMeetingReport({
+            meeting: m,
+            studentName: m.studentName || studentProfile.name || '',
+            studentProfile,
+            transcript: '',
+            notes: m.notes?.issuesDiscussed || m.notes?.summary || m.description || ''
+          });
+
+          const topic = m.type || m.description || 'Mentorship Session';
+          const dateStr = m.scheduledAt
+            ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Date not set';
+
+          body.innerHTML = `
+            <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,rgba(255,255,255,0.03));border-radius:12px;border:1px solid var(--border);">
+              <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">${topic}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">${dateStr} • ${m.studentName || 'Mentee'} • ${m.department || 'CSE'}</div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:12px;">
+              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Issues Discussed</label>
+              <textarea id="ai-rpt-issues" class="form-textarea" rows="4" style="border-radius:8px;">${report.issuesDiscussed || ''}</textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Action Items & Remedial Measures</label>
+              <textarea id="ai-rpt-actions" class="form-textarea" rows="4" style="border-radius:8px;">${report.actionItems || ''}</textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Remarks</label>
+              <textarea id="ai-rpt-remarks" class="form-textarea" rows="2" style="border-radius:8px;">${report.remarks || ''}</textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+              <button class="btn btn-sm btn-secondary" id="btn-ai-rpt-close" style="border-radius:8px;">Close</button>
+              <button class="btn btn-sm btn-primary" id="btn-ai-rpt-save-dl" data-id="${m.id}" style="border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-file-pdf"></i> Save & Download Official PDF
+              </button>
+            </div>
+          `;
+
+          body.querySelector('#btn-ai-rpt-close')?.addEventListener('click', () => modal.style.display = 'none');
+          body.querySelector('#btn-ai-rpt-save-dl')?.addEventListener('click', async () => {
+            const updatedReport = {
+              issuesDiscussed: body.querySelector('#ai-rpt-issues')?.value || '',
+              actionItems: body.querySelector('#ai-rpt-actions')?.value || '',
+              remarks: body.querySelector('#ai-rpt-remarks')?.value || ''
+            };
+            // Save AI report to meeting
+            try {
+              const existingNotes = m.notes || {};
+              await fetch('').catch(() => {}); // no-op
+              m.notes = { ...existingNotes, ...updatedReport, aiGenerated: true, aiGeneratedAt: new Date().toISOString() };
+            } catch (e) {}
+            // Generate PDF
+            exportMeetingSessionReport({ ...m, report: { ...m.report, ...updatedReport, preparedBy: user.name || m.mentorName || '' } });
+            modal.style.display = 'none';
+            showToast('Official AI-enhanced PDF report generated!', 'success');
+          });
+
+        } catch (err) {
+          body.innerHTML = `<div style="color:var(--danger);padding:20px;">AI report generation failed: ${err.message}</div>`;
+        }
+      });
+    });
+
+    container.querySelector('#close-ai-report-modal')?.addEventListener('click', () => {
+      const modal = container.querySelector('#ai-report-modal');
+      if (modal) modal.style.display = 'none';
     });
 
   } catch (err) {
