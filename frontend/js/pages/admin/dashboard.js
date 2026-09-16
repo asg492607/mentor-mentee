@@ -1,3 +1,7 @@
+/**
+ * @fileoverview System administrator dashboard and KPI metrics
+ * @module dashboard
+ */
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
