@@ -557,7 +557,23 @@ export const MeetingService = {
     });
   },
 
-  // Generate direct Google Calendar creation link
+  /**
+   * Save AI-generated notes to a meeting document in Firestore.
+   * Called automatically by autoExtractAndSaveMeetingReport() at meeting end.
+   * @param {string} id - Meeting document ID
+   * @param {Object} aiNotes - Structured AI notes (topic, issuesDiscussed, actionItems, tasks, riskSignals, etc.)
+   */
+  async saveAINotes(id, aiNotes) {
+    await updateDoc(doc(db, 'meetings', id), {
+      aiNotes: {
+        ...aiNotes,
+        savedAt: new Date().toISOString()
+      },
+      hasAiNotes: true,
+      updatedAt: now()
+    });
+  },
+
   generateGoogleCalendarUrl(meeting) {
     const title = encodeURIComponent(meeting.type || meeting.topic || 'Mentorship Session');
     const startIso = meeting.scheduledAt || meeting.preferredDate;
