@@ -1,3 +1,5 @@
+// Mentor — Reports Page
+// Generates, previews, and exports per-student and cohort mentoring reports as PDF/Excel.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -485,3 +487,4 @@ export function teardown() {
     activeMentorReportsChart = null;
   }
 }
+
