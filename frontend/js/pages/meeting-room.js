@@ -1435,14 +1435,23 @@ export async function render(container) {
 
       signaling.onMessage('joined', message => {
         signaling.selfId = message.id;
-        participants = [{ id: message.id, name: user.name, isHost: isMentor }, ...message.peers];
+        // Deduplicate by id — guard against stale Firestore cache delivering the same peer twice
+        const seenIds = new Set([message.id]);
+        const dedupedPeers = message.peers.filter(p => {
+          if (seenIds.has(p.id)) return false;
+          seenIds.add(p.id);
+          return true;
+        });
+        participants = [{ id: message.id, name: user.name, isHost: isMentor }, ...dedupedPeers];
         renderRoster(participants, waitingList);
-        message.peers.forEach(person => {
+        dedupedPeers.forEach(person => {
           createPeer(person.id, person.name, true);
         });
       });
 
       signaling.onMessage('peer-joined', message => {
+        // Guard: don't add self or duplicate entries
+        if (message.id === signaling.selfId) return;
         participants = participants.filter(p => p.id !== message.id);
         participants.push({ id: message.id, name: message.name, isHost: message.isHost });
         renderRoster(participants, waitingList);
