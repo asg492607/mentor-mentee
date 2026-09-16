@@ -1,4 +1,4 @@
-// Student — Booklet Page
+// Student ï¿½ Booklet Page
 // Comprehensive student record, academic progress, and mentoring logs.
 import { getUserProfile } from '../../auth.js';
 import { db, storage } from '../../firebase-init.js';
@@ -75,8 +75,8 @@ export async function render(container) {
                             <button class="btn tab-btn" data-target="tab-activities">
                                 <i class="ph ph-star"></i> Activities
                             </button>
-                            <button class="btn tab-btn" data-target="tab-meets">
-                                <i class="ph ph-users-three"></i> Mentorship Meets
+                            <button class="btn tab-btn" data-target="tab-meets" id="btn-tab-meets" style="font-weight:700;">
+                                <i class="ph ph-calendar-check" style="color:#6366f1;"></i> Mentorship Meets &amp; Sessions
                             </button>
                         </div>
                         <button class="btn btn-secondary" type="button" onclick="window.print()" style="white-space: nowrap;">
@@ -332,7 +332,15 @@ export async function render(container) {
                         <!-- Mentorship Meets Tab -->
                         <div id="tab-meets" class="tab-content fade-in" hidden>
                             <div class="booklet-section">
-                                <h4 class="booklet-section-title"><i class="ph ph-users-three"></i> Mentorship Meets Log</h4>
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+                                    <div>
+                                        <h4 class="booklet-section-title" style="margin-bottom:4px;"><i class="ph ph-calendar-check"></i> Mentorship Meetings &amp; Video Sessions</h4>
+                                        <p class="text-muted" style="margin:0; font-size:0.85rem;"><i class="ph ph-info"></i> Official dual-signed institutional meeting records &amp; upcoming live calls</p>
+                                    </div>
+                                    <a href="#/student/meetings" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; border-radius:8px; padding:8px 16px;">
+                                        <i class="ph ph-video-camera"></i> View All Meetings &amp; Book Session
+                                    </a>
+                                </div>
                                 <p class="text-muted" style="margin-bottom:20px; font-size:0.9rem;"><i class="ph ph-info"></i> Filled by Mentor during/after meetings</p>
                                 <div class="table-responsive" style="background:var(--bg-input); border-radius:8px; border:1px solid var(--border);">
                                     <table class="data-table" style="width:100%; text-align:left; border-collapse:collapse; font-size:0.9rem;">
