@@ -1,3 +1,6 @@
+"""
+Credentials verification and session token generation service
+"""
 from app.firebase.client import firebase_auth, db
 from app.models.enums import UserRole
 from app.utils.helpers import get_timestamp
