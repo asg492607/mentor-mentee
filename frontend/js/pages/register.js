@@ -1,3 +1,5 @@
+// Register Page
+// Self-registration flow for students and faculty; pending approval before access is granted.
 import { register } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
@@ -272,3 +274,4 @@ export async function render(container) {
     }
   });
 }
+
