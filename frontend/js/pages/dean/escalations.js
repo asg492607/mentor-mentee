@@ -1,3 +1,5 @@
+// Dean — Escalations Page
+// High-priority escalated cases requiring dean-level intervention or policy action.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -134,4 +136,5 @@ export async function render(container) {
 
   renderList();
 }
+
 
