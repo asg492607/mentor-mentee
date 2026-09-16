@@ -1,3 +1,7 @@
+/**
+ * @fileoverview RTCPeerConnection lifecycle and ICE candidate exchanges
+ * @module peer
+ */
 import { STUN_SERVERS } from '/js/config.js';
 
 export function createPeerConnection(signaling, localStream, remoteId) {
