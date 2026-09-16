@@ -489,3 +489,4 @@ export async function render(container) {
     }
   });
 }
+
