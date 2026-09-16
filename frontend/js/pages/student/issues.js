@@ -1,3 +1,5 @@
+// Student — Issues Page
+// Portal for students to raise, track, and review escalated grievance issues.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -360,3 +362,4 @@ export async function render(container) {
 
   loadIssues();
 }
+
