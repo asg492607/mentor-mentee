@@ -1,3 +1,5 @@
+// Mentor — Dashboard Page
+// Overview: assigned students, pending meetings, escalated issues, and quick actions.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -264,3 +266,4 @@ export async function render(container) {
     }
   }
 }
+
