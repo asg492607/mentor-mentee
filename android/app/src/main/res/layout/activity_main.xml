@@ -28,7 +28,7 @@
         android:layout_height="3dp"
         android:layout_alignParentTop="true"
         android:max="100"
-        android:progressBackgroundTint="#334155"
+        android:progressBackgroundTint="@color/surface_dark"
         android:progressTint="@color/primary"
         android:visibility="gone" />
 
@@ -152,7 +152,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="🔄 Auto-reconnects when connection is restored"
+            android:text="@string/auto_reconnect_status"
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />
 
