@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Client-side hash router with role-based route resolution
+ * @module router
+ */
 // Client-Side Router
 // Hash-based SPA router with role-based route guards, lazy page loading, and retry logic.
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
