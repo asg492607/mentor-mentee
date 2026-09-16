@@ -17,6 +17,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
 
+/** Cached user profile object; populated after login or page reload. */
 let cachedUserProfile = null;
 
 function normalizeAuthError(error) {
@@ -290,4 +291,5 @@ export async function forgotPassword(email) {
     throw normalizeAuthError(error);
   }
 }
+
 
