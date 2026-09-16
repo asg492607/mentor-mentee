@@ -1,3 +1,6 @@
+"""
+Password hashing, bearer token verification, and RBAC helpers
+"""
 from app.firebase.client import firebase_auth
 
 def verify_firebase_token(token: str) -> dict:
