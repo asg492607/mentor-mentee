@@ -2673,6 +2673,7 @@ input:checked + .switch-slider:before {
   align-items: center;
   gap: 10px;
   background: rgba(15, 23, 42, 0.92);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 1.5px solid rgba(239, 68, 68, 0.4);
   border-radius: 40px;
