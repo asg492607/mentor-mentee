@@ -1,3 +1,5 @@
+// Client-Side Router
+// Hash-based SPA router with role-based route guards, lazy page loading, and retry logic.
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
 import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
 import { openWebIssueModal } from './components/web-issue-modal.js';
@@ -341,3 +343,4 @@ document.addEventListener('click', (e) => {
         menuButton?.setAttribute('aria-expanded', 'false');
     }
 });
+
