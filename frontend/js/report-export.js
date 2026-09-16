@@ -1,3 +1,5 @@
+// Report Exporter Utility
+// Handles generation and download of formatted PDF and Excel reports across roles.
 import { FacultyService, StudentService, IssueService, MeetingService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { escapeHtml } from '/js/utils.js';
@@ -1142,4 +1144,5 @@ export function exportMeetingSessionReport(meeting) {
 </html>`);
   reportWin.document.close();
 }
+
 
