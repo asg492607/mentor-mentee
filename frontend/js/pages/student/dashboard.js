@@ -1,3 +1,5 @@
+// Student — Dashboard Page
+// Displays personal academic overview, mentor info, upcoming sessions, and notifications.
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
@@ -360,3 +362,4 @@ export async function render(container) {
     showToast('Failed to load dashboard: ' + err.message, 'error');
   }
 }
+
