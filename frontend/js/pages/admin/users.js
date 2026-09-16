@@ -6,6 +6,7 @@ import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 import { escapeHtml } from '/js/utils.js';
 
+/** Returns a coloured role badge HTML string for display in user tables. */
 function roleBadge(r) {
   const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
   return `<span class="badge ${cls}">${r}</span>`;
@@ -2014,4 +2015,5 @@ export async function render(container) {
   });
 
 }
+
 
