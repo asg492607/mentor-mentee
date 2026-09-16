@@ -1,4 +1,8 @@
-// Mentor — Mentee Booklet View
+/**
+ * @fileoverview Student mentorship booklet viewer and remarks recorder
+ * @module booklet
+ */
+// Mentor ï¿½ Mentee Booklet View
 // Comprehensive student profile, academic semester history, and mentoring timeline.
 import { getUserProfile } from '../../auth.js';
 import { db } from '../../firebase-init.js';
