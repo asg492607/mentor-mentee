@@ -1,3 +1,5 @@
+// Mentor — Meetings Management
+// Schedule, launch, and log 1-on-1 or group mentoring sessions.
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
@@ -812,3 +814,4 @@ export async function render(container) {
     }
   });
 }
+
