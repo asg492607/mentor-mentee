@@ -1,4 +1,4 @@
-// Student — Dashboard Page
+// Student ï¿½ Dashboard Page
 // Displays personal academic overview, mentor info, upcoming sessions, and notifications.
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
@@ -134,6 +134,32 @@ export async function render(container) {
           </div>
         </div>
         ` : ''}
+
+        <!-- Student View Primary Navigation Tabs -->
+        <div class="student-nav-tabs" style="display:flex; gap:8px; margin-bottom:24px; padding:8px; background:var(--surface); border:1.5px solid var(--border); border-radius:14px; overflow-x:auto; box-shadow:var(--shadow-sm);">
+          <a href="#/student/dashboard" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:700; padding:8px 14px; white-space:nowrap;">
+            <i class="ph ph-squares-four"></i> ${t('nav.dashboard', 'Dashboard')}
+          </a>
+          <a href="#/student/meetings" class="btn btn-sm btn-ghost" id="tab-student-meetings" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:700; padding:8px 14px; color:var(--text-primary); border:1.5px solid #6366f1; background:rgba(99,102,241,0.08); white-space:nowrap;">
+            <i class="ph ph-calendar-check" style="font-size:1.1rem; color:#4f46e5;"></i> ${t('nav.meetings', 'Meetings')}
+            ${upcomingMeetings.length > 0 ? `<span class="badge badge-primary" style="font-size:0.7rem; padding:1px 6px; border-radius:99px; background:#4f46e5; color:#fff;">${upcomingMeetings.length}</span>` : ''}
+          </a>
+          <a href="#/chat" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-chat-circle-dots" style="color:var(--accent);"></i> ${t('nav.messages', 'Messages')}
+          </a>
+          <a href="#/student/booklet" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-book-open" style="color:var(--info);"></i> ${t('nav.booklet', 'Mentorship Booklet')}
+          </a>
+          <a href="#/student/issues" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-warning-circle" style="color:var(--warning);"></i> ${t('nav.issues', 'Issues')}
+          </a>
+          <a href="#/student/tasks" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-check-square" style="color:var(--success);"></i> ${t('nav.tasks', 'Tasks')}
+          </a>
+          <a href="#/student/profile" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-user"></i> ${t('nav.profile', 'Profile')}
+          </a>
+        </div>
 
         <!-- Quick Actions Bar -->
         <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
