@@ -1,3 +1,5 @@
+// Section Head — Dashboard Page
+// Shows section-level student data, staff roster, and pending escalations for the section.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -184,3 +186,4 @@ export async function render(container) {
     (container.querySelector('#section-dash-content') || {}).innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error</h3><p>${err.message}</p></div>`;
   }
 }
+
