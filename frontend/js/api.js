@@ -1,3 +1,5 @@
+// API Client
+// Thin wrapper around fetch for backend REST calls; handles auth headers and error parsing.
 import { getIdToken } from './auth.js';
 import { API_BASE_URL } from './config.js';
 import { navigateTo } from './router.js';
@@ -55,3 +57,4 @@ export const api = {
   }),
   delete: (path) => fetchWithAuth(path, { method: 'DELETE' })
 };
+
