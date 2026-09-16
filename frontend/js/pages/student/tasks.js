@@ -1,3 +1,5 @@
+// Student — Tasks Page
+// Task checklist and action item management assigned by mentors.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -379,3 +381,4 @@ export async function render(container) {
 
   renderTasks();
 }
+
