@@ -180,3 +180,4 @@ With 6 different organizational roles (Student, Mentor, Section Head, HOD, Dean,
 <!-- release-milestone-v1.51 -->
 <!-- release-milestone-v1.52 -->
 <!-- release-milestone-v1.53 -->
+<!-- release-milestone-v1.54 -->
