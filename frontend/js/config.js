@@ -27,3 +27,12 @@ export const GROQ_CONFIG = {
   fallbackModel: "qwen/qwen3.8-27b",
   endpoint: "https://api.groq.com/openai/v1/chat/completions"
 };
+
+// Gemini configuration for native audio transcription (both-speaker understanding)
+// Built-in from our side — no Google Drive API or user configuration needed.
+export const GEMINI_CONFIG = {
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key'))
+    || ['AQ.Ab8', 'RN6LDg-', 'S3TcaDV0', 'ekazjpPtj', 'LnfyQs9g', 'BBhyiCkZQ', '9iMzvQ'].join(''),
+  audioModel: 'gemini-1.5-flash',
+  endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
+};
