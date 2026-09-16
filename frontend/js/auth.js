@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Authentication state, token persistence, and role guards
+ * @module auth
+ */
 import { auth, db } from './firebase-init.js';
 import { 
   signInWithEmailAndPassword, 
