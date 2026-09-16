@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Top navigation header component with notification indicators
+ * @module header
+ */
 import { escapeHtml } from '../utils.js';
 import { t, renderLanguageSelector } from '../i18n.js';
 
