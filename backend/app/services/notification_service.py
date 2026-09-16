@@ -14,6 +14,8 @@ class NotificationService:
             'relatedId': related_id,
             'isRead': False,
             'createdAt': get_timestamp()
+            'repeat_notification':345600 sec,
+            'show_notification': get_timestamp(),
         }
         return self.notification_repo.create(notif_data)
 
