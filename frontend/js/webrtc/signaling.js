@@ -32,20 +32,30 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
 
             // Listen for presence changes FIRST to build roster and catch new joins
             let initialPresenceDone = false;
+            // Track peer IDs seen in the initial snapshot to prevent duplicate peer-joined events
+            const knownPeerIds = new Set();
+            const myUserId = user?.id || null;
+
             const unsubPresence = onSnapshot(query(sigRef, where('type', '==', 'presence')), snapshot => {
                 const peers = [];
                 snapshot.docChanges().forEach(change => {
                     const data = change.doc.data();
-                    if (data.id === selfId) return;
-                    
+                    // Filter out self by signaling ID OR by userId (guards against race conditions)
+                    if (data.id === selfId || (myUserId && data.userId === myUserId)) return;
+
                     if (change.type === 'added') {
                         if (!initialPresenceDone) {
+                            // Build initial roster — track all peers seen here
+                            knownPeerIds.add(data.id);
                             peers.push({ id: data.id, name: data.name, isHost: !!data.isHost });
-                        } else {
+                        } else if (!knownPeerIds.has(data.id)) {
+                            // Only emit peer-joined for truly NEW peers not seen in initial snapshot
+                            knownPeerIds.add(data.id);
                             emit('peer-joined', { id: data.id, name: data.name, isHost: !!data.isHost });
                         }
                     }
                     if (change.type === 'removed') {
+                        knownPeerIds.delete(data.id);
                         emit('peer-left', { id: data.id });
                     }
                 });
@@ -54,7 +64,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                     initialPresenceDone = true;
                     if (isHost) {
                         myPresenceRef = doc(sigRef, `presence_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: user?.id || null, name: user?.name || 'Participant', isHost: true }).then(() => {
+                        setDoc(myPresenceRef, { type: 'presence', id: selfId, userId: myUserId, name: user?.name || 'Participant', isHost: true }).then(() => {
                             connected = true;
                             if (pruneInterval) clearInterval(pruneInterval);
                             pruneInterval = setInterval(pruneStaleSignals, 45000);
@@ -63,7 +73,7 @@ export function createSignaling(meetingId, user, isHostExplicit = null) {
                         }).catch(err => emit('error', new Error('Failed to join: ' + err.message)));
                     } else {
                         myPresenceRef = doc(sigRef, `waiting_${selfId}`);
-                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: user?.id || null, name: user?.name || 'Participant', isHost: false }).then(() => {
+                        setDoc(myPresenceRef, { type: 'waiting', id: selfId, userId: myUserId, name: user?.name || 'Participant', isHost: false }).then(() => {
                             emit('waiting');
                         }).catch(err => emit('error', new Error('Failed to join waiting room: ' + err.message)));
                     }
