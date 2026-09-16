@@ -9,7 +9,7 @@ class IssueService:
     def __init__(self):
         self.issue_repo = IssueRepository()
         self.notification_service = NotificationService()
-
+        self.notification_service =NotificationService(345600)
     def create_issue(self, student_id: str, student_name: str, mentor_id: str, data):
         # data may be a Pydantic model or a dict
         issue_data = data.model_dump() if hasattr(data, 'model_dump') else (data.dict() if hasattr(data, 'dict') else dict(data))
