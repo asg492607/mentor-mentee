@@ -5,7 +5,7 @@ export function createSidebar(role, activePath) {
   
   let navItems = [];
   
-  if (roleUpper === 'STUDENT') {
+  if (roleUpper === 'STUDENT' || roleUpper === 'MENTEE') {
     navItems = [
       { path: '/student/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: '<i class="ph ph-squares-four"></i>' },
       { path: '/chat', label: t('nav.messages', 'Messages'), icon: '<i class="ph ph-chat-circle-dots"></i>' },
