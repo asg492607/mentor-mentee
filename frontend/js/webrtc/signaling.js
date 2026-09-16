@@ -1,3 +1,7 @@
+/**
+ * @fileoverview WebSocket signaling bridge for real-time room negotiation
+ * @module signaling
+ */
 import { db } from '/js/firebase-init.js';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, where, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
