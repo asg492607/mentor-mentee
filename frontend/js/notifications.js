@@ -105,7 +105,7 @@ export function renderNotifications() {
   `).join('');
 }
 
-// Global UI listeners
+// --- Global UI Event Listeners ----------------------------------------------
 document.addEventListener('click', async (e) => {
   const bell = e.target.closest('#global-notification-bell');
   const dropdown = document.getElementById('global-notification-dropdown');
@@ -155,3 +155,4 @@ document.addEventListener('click', async (e) => {
     }
   }
 });
+
