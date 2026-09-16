@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Meeting summary and institutional booklet export utilities
+ * @module report-export
+ */
 // Report Exporter Utility
 // Handles generation and download of formatted PDF and Excel reports across roles.
 import { FacultyService, StudentService, IssueService, MeetingService } from '/js/services.js';
