@@ -106,10 +106,6 @@ export async function render(container) {
             </div>
           </div>
           <div class="meeting-topbar-right">
-            <button class="btn-meet-secondary" id="btn-pair-program-toggle" title="Toggle Side-by-Side Pair Programming Workstation">
-              <i class="ph ph-code" style="font-size:1.1rem; color:#38bdf8;"></i>
-              <span>Split IDE</span>
-            </button>
             <button class="btn-meet-secondary" id="copy-room-link" title="Copy invitation link">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
               <span>Copy Link</span>
@@ -144,11 +140,11 @@ export async function render(container) {
                 </div>
 
                 <!-- Pre-Meeting Smart Prep Checklist Card -->
-                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 14px; margin-bottom:14px; text-align:left;">
-                  <div style="font-size:0.78rem; font-weight:700; color:#38bdf8; margin-bottom:4px;">💡 Session Prep Recommendations:</div>
-                  <div style="font-size:0.72rem; color:#cbd5e1; line-height:1.4;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; margin-bottom:18px; text-align:left; width:100%;">
+                  <div style="font-size:0.82rem; font-weight:700; color:#0284c7; margin-bottom:6px;">💡 Session Prep Recommendations:</div>
+                  <div style="font-size:0.78rem; color:#334155; line-height:1.5;">
                     • Prepare semester backlog updates &amp; marks sheet.<br>
-                    • Keep doubts or code architecture ready to share on whiteboard.<br>
+                    • Keep doubts or academic questions ready to share on whiteboard.<br>
                     • Mic and camera check completed.
                   </div>
                 </div>
@@ -173,23 +169,6 @@ export async function render(container) {
                 <p>The mentor will let you in shortly. Your camera and microphone will connect automatically upon entry.</p>
               </div>
             </div>` : ''}
-          </section>
-
-          <!-- Pair-Programming Split Workstation -->
-          <section class="pair-workstation-panel" id="pair-workstation">
-            <div class="pair-tabs-bar">
-              <button class="pair-tab-btn active" data-file="solution.js"><i class="ph ph-file-js"></i> solution.js</button>
-              <button class="pair-tab-btn" data-file="algorithm.py"><i class="ph ph-file-code"></i> algorithm.py</button>
-              <button class="pair-tab-btn" data-file="schema.sql"><i class="ph ph-database"></i> schema.sql</button>
-              <div style="flex:1;"></div>
-              <button class="btn btn-sm btn-primary" id="btn-run-pair-code" style="padding:4px 10px; font-size:0.75rem; border-radius:6px; font-weight:700;">▶ Run</button>
-            </div>
-            <textarea id="pair-code-editor" style="flex:1; background:#020617; color:#f8fafc; border:none; padding:12px; font-family:'JetBrains Mono', monospace; font-size:0.82rem; resize:none; outline:none; line-height:1.5;" placeholder="// Type code here in real-time collaboration mode..."></textarea>
-            <div class="terminal-header">
-              <span>⚡ Output Console</span>
-              <span id="pair-terminal-status" style="color:#10b981;">Ready</span>
-            </div>
-            <div class="code-terminal-console" id="pair-terminal-out" style="max-height:90px;">// Output will appear here...</div>
           </section>
 
           <!-- Side Drawer Panel -->
@@ -265,13 +244,13 @@ export async function render(container) {
               <!-- Live Transcript Panel -->
               <div id="panel-transcript" hidden style="padding:14px; display:flex; flex-direction:column; gap:12px; height:100%;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div style="font-size:0.85rem; font-weight:700; color:#e2e8f0;">🎙️ Live Speech Transcript</div>
+                  <div style="font-size:0.85rem; font-weight:700; color:#0f172a;">🎙️ Live Speech Transcript</div>
                   <div style="display:flex; gap:6px;">
-                    <button class="btn btn-sm btn-ghost" id="btn-copy-transcript" style="font-size:0.75rem; color:#38bdf8;">📋 Copy</button>
-                    <button class="btn btn-sm btn-ghost" id="btn-download-transcript" style="font-size:0.75rem; color:#a5b4fc;">⬇️ Export</button>
+                    <button class="btn btn-sm btn-ghost" id="btn-copy-transcript" style="font-size:0.75rem; color:#4f46e5;">📋 Copy</button>
+                    <button class="btn btn-sm btn-ghost" id="btn-download-transcript" style="font-size:0.75rem; color:#4338ca;">⬇️ Export</button>
                   </div>
                 </div>
-                <div id="transcript-feed" style="flex:1; background:#090d16; border:1px solid #1e293b; border-radius:10px; padding:12px; overflow-y:auto; font-size:0.82rem; line-height:1.5; color:#cbd5e1; display:flex; flex-direction:column; gap:8px;">
+                <div id="transcript-feed" style="flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; overflow-y:auto; font-size:0.82rem; line-height:1.5; color:#1e293b; display:flex; flex-direction:column; gap:8px;">
                   <div style="color:#64748b; font-style:italic;" id="transcript-empty-placeholder">Turn on Live Captions (CC) to start real-time transcription...</div>
                 </div>
                 <button class="btn btn-sm btn-primary" id="btn-append-transcript-notes" style="width:100%; border-radius:8px; font-weight:600;">
@@ -284,59 +263,56 @@ export async function render(container) {
                 
                 <!-- Quick Tool Launchers Grid -->
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  <button class="btn btn-secondary btn-sm" id="btn-launch-whiteboard" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(99, 102, 241, 0.15); color:#a5b4fc; border:1px solid rgba(99, 102, 241, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-whiteboard" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe;">
                     <i class="ph ph-paint-brush"></i> Whiteboard
                   </button>
-                  <button class="btn btn-secondary btn-sm" id="btn-toggle-scratchpad-view" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(6, 182, 212, 0.15); color:#67e8f9; border:1px solid rgba(6, 182, 212, 0.3);">
-                    <i class="ph ph-code"></i> Code Pad
-                  </button>
-                  <button class="btn btn-secondary btn-sm" id="btn-launch-slides" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-slides" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
                     <i class="ph ph-presentation"></i> Slides &amp; Laser
                   </button>
                   ${isMentor ? `
-                  <button class="btn btn-secondary btn-sm" id="btn-launch-breakouts" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(168, 85, 247, 0.15); color:#d8b4fe; border:1px solid rgba(168, 85, 247, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-breakouts" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#faf5ff; color:#7e22ce; border:1px solid #e9d5ff;">
                     <i class="ph ph-squares-four"></i> Breakouts
                   </button>` : `
-                  <button class="btn btn-secondary btn-sm" id="btn-toggle-engagement" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-toggle-engagement" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;">
                     <i class="ph ph-chart-donut"></i> Analytics
                   </button>`}
-                  <button class="btn btn-secondary btn-sm" id="btn-launch-flashcards" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(236, 72, 153, 0.15); color:#f472b6; border:1px solid rgba(236, 72, 153, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-launch-flashcards" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#fdf2f8; color:#be185d; border:1px solid #fbcfe8;">
                     <i class="ph ph-cards"></i> Flashcards
                   </button>
-                  <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:rgba(251, 191, 36, 0.15); color:#fbbf24; border:1px solid rgba(251, 191, 36, 0.3);">
+                  <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
                     <i class="ph ph-certificate"></i> 🎖️ Certificate
                   </button>
                 </div>
 
                 <!-- Live Talk-Time & Engagement Analytics Widget -->
-                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                <div class="host-section-card" style="padding:12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
                       📊 Live Talk-Time Distribution
                     </span>
-                    <span id="engagement-score-pill" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700;">Active 95%</span>
+                    <span id="engagement-score-pill" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:#dcfce7; color:#15803d; font-weight:700;">Active 95%</span>
                   </div>
                   <div class="engagement-meter-bar">
                     <div class="talk-time-mentor" id="talk-meter-mentor" style="width: 55%;" title="Mentor Talk Time"></div>
                     <div class="talk-time-student" id="talk-meter-student" style="width: 45%;" title="Student Talk Time"></div>
                   </div>
-                  <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#94a3b8; margin-top:4px;">
-                    <span>👨‍🏫 Host: <strong id="talk-pct-mentor" style="color:#a5b4fc;">55%</strong></span>
-                    <span>🎓 Student: <strong id="talk-pct-student" style="color:#34d399;">45%</strong></span>
+                  <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748b; margin-top:4px;">
+                    <span>👨‍🏫 Host: <strong id="talk-pct-mentor" style="color:#4338ca;">55%</strong></span>
+                    <span>🎓 Student: <strong id="talk-pct-student" style="color:#059669;">45%</strong></span>
                   </div>
                   ${isMentor ? `
-                  <button class="btn btn-sm btn-ghost" id="btn-export-audit-csv" style="width:100%; margin-top:8px; font-size:0.72rem; color:#38bdf8; border:1px solid rgba(56,189,248,0.2); border-radius:6px;">
+                  <button class="btn btn-sm btn-ghost" id="btn-export-audit-csv" style="width:100%; margin-top:8px; font-size:0.72rem; color:#0284c7; border:1px solid #bae6fd; border-radius:6px;">
                     📥 Download Attendance &amp; Engagement Audit (.CSV)
                   </button>` : ''}
                 </div>
 
                 <!-- Structured Agenda Checklist Section -->
-                <div class="host-section-card" style="padding:12px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.08);">
+                <div class="host-section-card" style="padding:12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
                       ⏱️ Meeting Agenda &amp; Checklist
                     </span>
-                    <span id="agenda-count-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700;">0/4</span>
+                    <span id="agenda-count-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:#dcfce7; color:#15803d; font-weight:700;">0/4</span>
                   </div>
                   <div class="agenda-list" id="in-room-agenda-list">
                     <label class="agenda-item-row"><input type="checkbox" class="agenda-chk" data-item="Review Academic Attendance &amp; Marks"> <span>Review Academic Attendance &amp; Marks</span></label>
@@ -347,15 +323,15 @@ export async function render(container) {
                 </div>
 
                 <!-- 60-Second Academic Diagnostic Quiz / Flashcheck -->
-                <div class="quiz-card">
+                <div class="quiz-card" style="padding:12px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
                       🧠 60s Diagnostic Knowledge Check
                     </span>
-                    <span id="quiz-score-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:rgba(99,102,241,0.2); color:#a5b4fc; font-weight:700;">Q 1/3</span>
+                    <span id="quiz-score-badge" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:#e0e7ff; color:#4338ca; font-weight:700;">Q 1/3</span>
                   </div>
                   <div id="quiz-body-container">
-                    <div id="quiz-question" style="font-size:0.85rem; font-weight:600; color:#f8fafc; margin-bottom:10px;">
+                    <div id="quiz-question" style="font-size:0.85rem; font-weight:600; color:#0f172a; margin-bottom:10px;">
                       1. In DBMS, which normal form eliminates transitive dependency?
                     </div>
                     <div id="quiz-options-list">
@@ -365,32 +341,6 @@ export async function render(container) {
                       <button class="quiz-option-btn" data-correct="false">D. Boyce-Codd Normal Form (BCNF)</button>
                     </div>
                   </div>
-                </div>
-
-                <!-- Code Scratchpad & Live Sandbox Runner -->
-                <div id="scratchpad-box" style="display:none; background:#090d16; border-radius:12px; border:1px solid #334155; overflow:hidden;">
-                  <div class="scratchpad-toolbar">
-                    <select id="scratchpad-lang" style="background:#1e293b; color:#38bdf8; border:1px solid #475569; border-radius:6px; padding:2px 8px; font-size:0.75rem;">
-                      <option value="javascript">JavaScript</option>
-                      <option value="python">Python</option>
-                      <option value="java">Java</option>
-                      <option value="cpp">C++</option>
-                      <option value="sql">SQL</option>
-                    </select>
-                    <div style="display:flex; gap:6px;">
-                      <button id="btn-run-code" style="background:rgba(16,185,129,0.2); border:1px solid #10b981; color:#34d399; font-weight:700; padding:2px 8px; border-radius:6px; cursor:pointer; font-size:0.75rem;">▶ Run</button>
-                      <button id="btn-copy-code" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; font-size:0.75rem;" title="Copy Code">📋</button>
-                      <button id="btn-append-code-notes" style="background:transparent; border:none; color:#38bdf8; cursor:pointer; font-size:0.75rem;" title="Save to Notes">💾</button>
-                    </div>
-                  </div>
-                  <textarea id="in-room-scratchpad" class="scratchpad-editor" rows="6" placeholder="// Type code here e.g. console.log('Mentorship Session');"></textarea>
-                  
-                  <!-- Interactive Terminal Output Box -->
-                  <div class="terminal-header">
-                    <span>⚡ Console Stdout</span>
-                    <span id="code-exec-status" style="color:#10b981;">Ready</span>
-                  </div>
-                  <div class="code-terminal-console" id="code-terminal-out">// Terminal output will appear here after clicking Run...</div>
                 </div>
 
                 <!-- In-Room Live Poll Section -->
@@ -1567,9 +1517,6 @@ export async function render(container) {
         handleSlideSyncMessage(payload);
       });
 
-      signaling.onMessage('code-run', payload => {
-        handleCodeRunMessage(payload);
-      });
 
       signaling.onMessage('sound-fx', payload => {
         playSynthesizedSound(payload.sound);
@@ -1584,9 +1531,6 @@ export async function render(container) {
         handleDoubtMessage(payload);
       });
 
-      signaling.onMessage('pair-code', payload => {
-        handlePairCodeMessage(payload);
-      });
 
       signaling.onMessage('copilot-query', payload => {
         handleRemoteCopilotMessage(payload);
@@ -1947,6 +1891,7 @@ export async function render(container) {
 
   let mediaRecorder = null;
   let recordedChunks = [];
+  let lastAudioBlob = null; // Stores the most recent recorded audio blob for AI transcription
   let recordStream = null;
   let recInterval = null;
   let recSeconds = 0;
@@ -1999,6 +1944,11 @@ export async function render(container) {
     a.click();
     URL.revokeObjectURL(url);
 
+    // Save the audio blob for Gemini deep transcription (audio mode only)
+    if (activeRecMode === 'audio') {
+      lastAudioBlob = blob;
+    }
+
     if (recordStream) {
       recordStream.getTracks().forEach(t => t.stop());
       recordStream = null;
@@ -2024,11 +1974,11 @@ export async function render(container) {
       hasRecording: true
     }).catch(e => console.warn('Could not save recording metadata:', e));
 
-    showToast(`🔴 Recording saved! (${activeRecMode === 'audio' ? 'Audio' : 'Video'} downloaded to your device)`, 'success');
+    showToast(`🎙️ Recording saved! (${activeRecMode === 'audio' ? 'Audio' : 'Video'} downloaded to your device)`, 'success');
 
     // Auto-prompt AI extraction if transcript is available
     if (fullTranscriptLog.length > 0) {
-      showToast('🧠 Transcript available — Click ⚡ AI Auto-Extract in the Report panel to generate notes!', 'info');
+      showToast('🤖 Transcript captured — AI report will auto-generate when you end the meeting!', 'info');
     }
 
     activeRecMode = null;
@@ -2362,32 +2312,6 @@ export async function render(container) {
 
   document.querySelectorAll('.side-panel-tab').forEach(button => {
     button.addEventListener('click', () => openPanelTab(button.dataset.panel));
-  });
-
-  document.getElementById('btn-toggle-scratchpad-view')?.addEventListener('click', () => {
-    const box = document.getElementById('scratchpad-box');
-    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
-  });
-
-  document.getElementById('btn-copy-code')?.addEventListener('click', () => {
-    const code = document.getElementById('in-room-scratchpad')?.value;
-    if (code) {
-      navigator.clipboard.writeText(code);
-      showToast('Code copied to clipboard!', 'success');
-    }
-  });
-
-  document.getElementById('btn-append-code-notes')?.addEventListener('click', () => {
-    const code = document.getElementById('in-room-scratchpad')?.value;
-    const lang = document.getElementById('scratchpad-lang')?.value || 'code';
-    if (!code) { showToast('Scratchpad is empty', 'warning'); return; }
-    
-    const formattedSnippet = `\n\n--- [${lang.toUpperCase()} SNIPPET] ---\n` + code;
-    const notesEl = document.getElementById('meeting-notes');
-    if (notesEl) notesEl.value += formattedSnippet;
-    const rptIssues = document.getElementById('rpt-issues');
-    if (rptIssues) rptIssues.value += formattedSnippet;
-    showToast('Code appended to meeting notes & report draft!', 'success');
   });
 
   const agendaCheckboxes = document.querySelectorAll('.agenda-chk');
@@ -3338,7 +3262,6 @@ export async function render(container) {
 
   document.getElementById('btn-synthesize-mom')?.addEventListener('click', () => {
     const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
-    const codeSnippet = document.getElementById('in-room-scratchpad')?.value.trim();
     const studentsPresent = participants.map(p => p.name).join(', ') || meeting.studentName || 'Student';
 
     const synthesizedMOM = `
@@ -3359,13 +3282,13 @@ ${checkedAgendas.length > 0 ? checkedAgendas.map(a => `• [COMPLETED] ${a}`).jo
 
 3. DIAGNOSTIC ASSESSMENT & UNDERSTANDING:
 • Rapid Diagnostic Assessment Score: ${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)
-• Key Topics Clarified: Core conceptual doubts, DBMS normalization, algorithmic optimization.
+• Key Topics Clarified: Core conceptual doubts, subject fundamentals, coursework optimization.
 
 4. KEY MOMENTS & HIGHLIGHTS TIMELINE:
 ${bookmarkedMoments.length > 0 ? bookmarkedMoments.map(m => `• [${m.time}] ${m.tag}${m.note ? `: ${m.note}` : ''} (Logged by ${m.user})`).join('\n') : '• No specific critical warnings tagged during this session.'}
 
-5. CODE / ARTIFACTS REVIEWED:
-${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding problems and project architecture blueprints reviewed.'}
+5. ACADEMIC MATERIALS & TOPICS REVIEWED:
+Standard syllabus topics, coursework materials, and project documentation reviewed.
 
 6. NEXT MILESTONES & DEADLINES:
 • Complete remedial assignments before the upcoming internal assessment.
@@ -3590,106 +3513,6 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
       appendCopilotMessage('AI Copilot', payload.response, true);
     }
   }
-
-  // Side-by-Side Pair Programming Workstation Logic
-  const pairFiles = {
-    'solution.js': '// JavaScript Solution\nfunction twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const diff = target - nums[i];\n    if (map.has(diff)) return [map.get(diff), i];\n    map.set(nums[i], i);\n  }\n  return [];\n}\n\nconsole.log("TwoSum Result:", twoSum([2, 7, 11, 15], 9));',
-    'algorithm.py': '# Python Algorithm Simulation\ndef binary_search(arr, target):\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n\nprint("Search Index:", binary_search([1, 3, 5, 7, 9, 11], 7))',
-    'schema.sql': '-- SQL Schema & Normalization\nCREATE TABLE Students (\n    student_id INT PRIMARY KEY,\n    name VARCHAR(100) NOT NULL,\n    department VARCHAR(50),\n    attendance_pct DECIMAL(5,2)\n);\n\nSELECT * FROM Students WHERE attendance_pct >= 75.00;'
-  };
-
-  let activePairFile = 'solution.js';
-  const pairEditor = document.getElementById('pair-code-editor');
-  const btnPairToggle = document.getElementById('btn-pair-program-toggle');
-
-  if (pairEditor) {
-    pairEditor.value = pairFiles[activePairFile];
-  }
-
-  btnPairToggle?.addEventListener('click', () => {
-    const layout = container.querySelector('.meeting-room-layout');
-    layout.classList.toggle('pair-programming-mode');
-    const isPair = layout.classList.contains('pair-programming-mode');
-    btnPairToggle.classList.toggle('active', isPair);
-    showToast(isPair ? '💻 Side-by-Side Pair Programming Workstation Enabled' : 'Standard Video Grid View', 'info');
-  });
-
-  document.querySelectorAll('.pair-tab-btn').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.pair-tab-btn').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      activePairFile = tab.dataset.file;
-      if (pairEditor) {
-        pairEditor.value = pairFiles[activePairFile] || '';
-      }
-    });
-  });
-
-  let pairCodeDebounce = null;
-  pairEditor?.addEventListener('input', () => {
-    pairFiles[activePairFile] = pairEditor.value;
-    clearTimeout(pairCodeDebounce);
-    pairCodeDebounce = setTimeout(async () => {
-      await signaling.sendPairCode(activePairFile, pairEditor.value);
-    }, 400);
-  });
-
-  function handlePairCodeMessage(payload) {
-    if (payload.fileName && payload.content !== undefined) {
-      pairFiles[payload.fileName] = payload.content;
-      if (activePairFile === payload.fileName && pairEditor) {
-        const start = pairEditor.selectionStart;
-        const end = pairEditor.selectionEnd;
-        pairEditor.value = payload.content;
-        pairEditor.setSelectionRange(start, end);
-      }
-    }
-  }
-
-  document.getElementById('btn-run-pair-code')?.addEventListener('click', async () => {
-    const code = pairEditor?.value || '';
-    const outEl = document.getElementById('pair-terminal-out');
-    const statusEl = document.getElementById('pair-terminal-status');
-
-    if (!code.trim()) { showToast('Editor is empty', 'info'); return; }
-
-    statusEl.textContent = 'Running...';
-    statusEl.style.color = '#f59e0b';
-    const startTime = performance.now();
-
-    try {
-      let logs = [];
-      if (activePairFile.endsWith('.js')) {
-        const customConsole = {
-          log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-          error: (...args) => logs.push('[ERROR] ' + args.join(' ')),
-          warn: (...args) => logs.push('[WARN] ' + args.join(' '))
-        };
-        const runFn = new Function('console', code);
-        runFn(customConsole);
-      } else {
-        logs.push(`[${activePairFile.toUpperCase()} Sandbox Runner]`);
-        logs.push(`Execution completed with exit code 0.`);
-      }
-
-      const dur = Math.round(performance.now() - startTime);
-      const res = logs.join('\n') || '[Code executed with no output]';
-      if (outEl) outEl.textContent = `[Finished in ${dur}ms]\n` + res;
-      if (statusEl) {
-        statusEl.textContent = 'Success (0)';
-        statusEl.style.color = '#10b981';
-      }
-      await signaling.sendCodeRun(code, activePairFile, res);
-      showToast('Executed pair code successfully!', 'success');
-    } catch(err) {
-      const dur = Math.round(performance.now() - startTime);
-      if (outEl) outEl.textContent = `[Runtime Error in ${dur}ms]:\n` + err.message;
-      if (statusEl) {
-        statusEl.textContent = 'Error (1)';
-        statusEl.style.color = '#ef4444';
-      }
-    }
-  });
 
   // Pomodoro Deep Work Focus Sprint Timer
   let pomodoroInterval = null;
@@ -4205,7 +4028,7 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
 
   document.getElementById('btn-end')?.addEventListener('click', async () => {
     if (isMentor) {
-      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n• Click OK to End for Everyone\n• Click Cancel to Leave without ending for others");
+      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n✔️ Click OK to End for Everyone\n❌ Click Cancel to Leave without ending for others");
       if (endForAll) {
         try {
           await MeetingService.update(meetingId, {
@@ -4215,6 +4038,11 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
         } catch (e) {
           console.warn('Meeting status sync warning:', e);
         }
+
+        // ── AI AUTO-EXTRACTION ──────────────────────────────────────────────────
+        // Automatically analyze the session transcript + audio and save notes
+        await autoExtractAndSaveMeetingReport();
+        // ───────────────────────────────────────────────────────────────────────
       }
       await cleanup();
       navigateTo('/mentor/meetings');
@@ -4229,7 +4057,149 @@ ${codeSnippet ? `[Code Scratchpad Attached]\n${codeSnippet}` : 'Standard coding 
     }
   });
 
+  /**
+   * AUTO AI EXTRACTION — runs automatically when mentor ends meeting.
+   * Layer 1: SpeechRecognition live transcript (always available, free)
+   * Layer 2: Gemini audio blob transcription (both speakers, requires API key)
+   * Saves structured AI notes to Firestore under meetings/{id}.aiNotes
+   */
+  async function autoExtractAndSaveMeetingReport() {
+    const hasTranscript = fullTranscriptLog.length > 0;
+    const hasAudio = !!lastAudioBlob;
+    // Gemini key is built-in — no user setup needed
+    const geminiReady = true;
+
+    if (!hasTranscript && !hasAudio) {
+      // Nothing to analyze — skip silently (meeting had no recording/captions)
+      return;
+    }
+
+    showToast('🤖 AI analyzing meeting session... auto-generating report', 'info');
+
+    try {
+      let combinedTranscript = fullTranscriptLog.join('\n');
+
+      // Layer 2: Direct Gemini Multimodal Audio Extraction (No Google Drive needed)
+      let aiNotes = null;
+      if (hasAudio) {
+        try {
+          showToast('🎙️ Gemini extracting meeting audio & analyzing report...', 'info');
+          const geminiResult = await AIService.analyzeMeetingAudioWithGemini(lastAudioBlob, {
+            studentName: meeting.studentName || 'Student',
+            meetingTopic: meeting.type || meeting.description || 'Mentorship Session',
+            department: meeting.department || ''
+          });
+
+          if (geminiResult && geminiResult.issuesDiscussed) {
+            aiNotes = {
+              topic: geminiResult.topic || meeting.type || 'Mentorship Session',
+              issuesDiscussed: geminiResult.issuesDiscussed || '',
+              actionItems: geminiResult.actionItems || '',
+              tasks: geminiResult.tasks || [],
+              confidentialObservations: '',
+              remarks: geminiResult.remarks || '',
+              riskSignals: geminiResult.riskSignals || [],
+              riskLevel: geminiResult.riskLevel || 'LOW',
+              riskRecommendations: geminiResult.riskSignals || [],
+              requiresEscalation: geminiResult.requiresEscalation || false,
+              transcriptSource: 'gemini-multimodal-audio',
+              transcriptLength: (geminiResult.transcript || '').length,
+              generatedAt: new Date().toISOString(),
+              generatedBy: 'gemini-1.5-flash-native'
+            };
+            if (geminiResult.transcript) {
+              combinedTranscript = geminiResult.transcript;
+            }
+          }
+        } catch (audioErr) {
+          console.warn('Direct Gemini audio analysis fallback:', audioErr.message);
+        }
+      }
+
+      if (!aiNotes) {
+        if (hasAudio) {
+          try {
+            const deepTranscript = await AIService.transcribeAudioBlob(lastAudioBlob);
+            if (deepTranscript) {
+              combinedTranscript = deepTranscript;
+            }
+          } catch (e) {
+            console.warn('Gemini transcript fallback:', e.message);
+          }
+        }
+
+        if (!combinedTranscript.trim()) return;
+
+        // Extract structured meeting insights using AI
+        const chatMsgs = [...document.querySelectorAll('#chat-messages .chat-msg')]
+          .map(el => el.textContent).join('\n');
+        const notesEl = document.getElementById('meeting-notes');
+        const notes = notesEl ? notesEl.value : '';
+        const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: '' }));
+
+        const insights = await AIService.extractMeetingInsights({
+          transcript: combinedTranscript,
+          chatMessages: chatMsgs,
+          notes,
+          meetingTopic: meeting.type || meeting.description || 'Mentorship Session',
+          studentName: meeting.studentName || '',
+          department: meeting.department || '',
+          attendees
+        });
+
+        const riskData = await AIService.extractRiskSignals(
+          combinedTranscript,
+          meeting.studentName || 'Student'
+        );
+
+        aiNotes = {
+          topic: insights.topic || '',
+          issuesDiscussed: insights.issuesDiscussed || '',
+          actionItems: insights.actionItems || '',
+          tasks: insights.tasks || [],
+          confidentialObservations: insights.confidentialObservations || '',
+          remarks: insights.remarks || '',
+          riskSignals: riskData.signals || [],
+          riskLevel: riskData.riskLevel || 'LOW',
+          riskRecommendations: riskData.recommendations || [],
+          requiresEscalation: riskData.requiresEscalation || false,
+          transcriptSource: hasAudio ? 'gemini+live' : 'live-only',
+          transcriptLength: combinedTranscript.length,
+          generatedAt: new Date().toISOString(),
+          generatedBy: 'lumina-ai-auto'
+        };
+      }
+
+      // Persist to Firestore via backend API
+      await MeetingService.saveAINotes(meetingId, aiNotes);
+
+      // Also auto-populate the in-session report panel so mentor can review before leaving
+      const topicEl = document.getElementById('rpt-topic');
+      const issuesEl = document.getElementById('rpt-issues');
+      const actionsEl = document.getElementById('rpt-actions');
+      const remarksEl = document.getElementById('rpt-remarks');
+      if (topicEl && insights.topic) topicEl.value = insights.topic;
+      if (issuesEl && insights.issuesDiscussed) issuesEl.value = insights.issuesDiscussed;
+      if (actionsEl && insights.actionItems) actionsEl.value = insights.actionItems;
+      if (remarksEl && insights.remarks) remarksEl.value = insights.remarks;
+
+      const riskEmoji = riskData.riskLevel === 'HIGH' ? '🔴' : riskData.riskLevel === 'MEDIUM' ? '🟡' : '🟢';
+      showToast(
+        `✅ AI report auto-saved! Risk: ${riskEmoji} ${riskData.riskLevel}${
+          riskData.requiresEscalation ? ' — ⚠️ Escalation recommended' : ''
+        }`,
+        riskData.riskLevel === 'HIGH' ? 'warning' : 'success'
+      );
+
+    } catch (err) {
+      console.error('Auto AI extraction error:', err);
+      // Non-blocking — meeting still ends normally even if AI fails
+      showToast('AI auto-report failed (meeting ended normally). Re-extract from Reports page.', 'warning');
+    }
+  }
+
   window.addEventListener('hashchange', cleanup, { once: true });
+
 
   try {
     localStream = await getLocalStream();
