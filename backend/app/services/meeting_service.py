@@ -1,3 +1,6 @@
+"""
+Business logic for scheduling, status transitions, and sessions
+"""
 from app.repositories.meeting_repository import MeetingRepository
 from app.services.notification_service import NotificationService
 from app.models.enums import MeetingStatus, NotificationType
