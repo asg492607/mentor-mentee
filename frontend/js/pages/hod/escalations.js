@@ -1,3 +1,5 @@
+// HOD — Escalations Page
+// Displays issues escalated to the HOD level; allows resolution and escalation to Dean.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -189,4 +191,5 @@ export async function render(container) {
 
   renderList();
 }
+
 
