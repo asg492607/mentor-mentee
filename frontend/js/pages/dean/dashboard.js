@@ -1,3 +1,5 @@
+// Dean — Executive Dashboard
+// High-level institutional metrics, cross-department mentoring stats, and alerts.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -270,3 +272,4 @@ export function teardown() {
     activeDeanChart = null;
   }
 }
+
