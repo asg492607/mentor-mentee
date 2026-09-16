@@ -1631,8 +1631,9 @@ export const AdminService = {
             throw appErr;
           }
         }
-        secondaryAuth = getAuth(secondaryApp);
       }
+      // Always re-fetch auth instance (ensures a clean state after signOut)
+      secondaryAuth = getAuth(secondaryApp);
 
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       uid = userCredential.user.uid;
