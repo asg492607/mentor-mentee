@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Role-based credentials login and authentication page
+ * @module login
+ */
 import { login, forgotPassword } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
