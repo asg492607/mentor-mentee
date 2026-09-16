@@ -1,3 +1,5 @@
+// Dean — Reports Page
+// Institutional compliance reports and cross-departmental mentoring summaries.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -263,3 +265,4 @@ export async function render(container) {
     if (content) content.innerHTML = `<div class="empty-state"><h3 style="color:var(--danger);">Error loading reports</h3><p>${err.message}</p></div>`;
   }
 }
+
