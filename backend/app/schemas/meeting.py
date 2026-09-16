@@ -1,3 +1,6 @@
+"""
+Pydantic models for meeting scheduling and status updates
+"""
 from pydantic import BaseModel
 from typing import Optional
 from app.models.enums import MeetingType, MeetingStatus
