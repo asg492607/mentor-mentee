@@ -1,3 +1,5 @@
+// Shared Utility Functions
+// escapeHtml and other cross-cutting helpers used throughout the frontend.
 export function escapeHtml(value) {
     if (value === null || value === undefined) return '';
     return String(value).replace(/[&<>"']/g, char => ({
@@ -48,3 +50,4 @@ export function exportToCSV(filename, rows) {
         }
     }
 }
+
