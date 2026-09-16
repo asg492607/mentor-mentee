@@ -1,3 +1,5 @@
+// Student — Meetings Page
+// Allows students to view, join, and schedule mentoring sessions.
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
 import { createSidebar } from '/js/components/sidebar.js';
@@ -644,3 +646,4 @@ Keep it structured, polite, and student-focused with clear discussion questions.
     };
   }
 }
+
