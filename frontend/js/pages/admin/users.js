@@ -1,3 +1,7 @@
+/**
+ * @fileoverview User account provisioning and role allocation panel
+ * @module users
+ */
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
