@@ -1,3 +1,5 @@
+// Admin — Infrastructure Management
+// Manages platform-level infrastructure settings and system health indicators.
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, FacultyService, DepartmentService, IssueService, MeetingService } from '/js/services.js';
@@ -295,3 +297,4 @@ export async function render(container) {
     console.warn('Live infrastructure counts fetch:', e);
   }
 }
+
