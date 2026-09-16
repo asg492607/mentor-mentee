@@ -1,3 +1,5 @@
+// Mentor — Session Notes Page
+// Allows mentors to record, view and export session notes for each student.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -160,3 +162,4 @@ export async function render(container) {
 
   renderList();
 }
+
