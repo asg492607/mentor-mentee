@@ -1,4 +1,8 @@
-// Mentor — Meetings Management
+/**
+ * @fileoverview Faculty mentor session calendar and scheduling panel
+ * @module meetings
+ */
+// Mentor ï¿½ Meetings Management
 // Schedule, launch, and log 1-on-1 or group mentoring sessions.
 import { getUserProfile } from '/js/auth.js';
 import { navigateTo } from '/js/router.js';
