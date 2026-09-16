@@ -1,4 +1,4 @@
-// Mentor — Reports Page
+// Mentor ï¿½ Reports Page
 // Generates, previews, and exports per-student and cohort mentoring reports as PDF/Excel.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
@@ -20,6 +20,93 @@ function fmt(val, suffix = '') {
 function statusBadge(s) {
   const cls = { REQUESTED: 'badge-warning', APPROVED: 'badge-success', ONGOING: 'badge-info', REJECTED: 'badge-danger', COMPLETED: 'badge-muted', CANCELLED: 'badge-muted' }[s] || 'badge-muted';
   return `<span class="badge ${cls}">${s || 'SCHEDULED'}</span>`;
+}
+
+// Render the AI Meeting Intelligence panel from aiInsights data
+function renderAIIntelligencePanel(ai) {
+  const analyzed = ai?.analyzed || 0;
+  const total = ai?.total || 0;
+  const pct = ai?.coveragePercent || 0;
+  const rb = ai?.riskBreakdown || { HIGH: 0, MEDIUM: 0, LOW: 0 };
+  const issues = ai?.recurringIssues || [];
+  const escalations = ai?.escalationRequired || [];
+  const recent = ai?.recentInsights || [];
+
+  const issueChips = issues.length > 0
+    ? issues.slice(0, 6).map(i =>
+        `<span style="display:inline-block;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:0.72rem;padding:3px 8px;border-radius:6px;margin:2px;">${i}</span>`
+      ).join('')
+    : '<p style="color:#475569;font-size:0.8rem;font-style:italic;">Complete more AI-analyzed meetings to see patterns</p>';
+
+  const escalationHTML = escalations.length > 0
+    ? `<div style="font-size:0.85rem;color:#fca5a5;font-weight:700;">${escalations.length} meeting(s) need escalation</div><p style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">AI flagged critical student issues</p>`
+    : '<div style="font-size:0.85rem;color:#4ade80;">&#x2705; No escalations required</div><p style="font-size:0.75rem;color:#64748b;margin-top:4px;">All sessions within normal parameters</p>';
+
+  const recentHTML = recent.length > 0 ? `
+    <div style="padding:0 20px 20px;">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">&#x1F4C5; Recent AI-Analyzed Sessions</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${recent.map(ins => {
+          const riskColor = ins.riskLevel === 'HIGH' ? '#fca5a5' : ins.riskLevel === 'MEDIUM' ? '#fcd34d' : '#6ee7b7';
+          const riskBg = ins.riskLevel === 'HIGH' ? 'rgba(239,68,68,0.2)' : ins.riskLevel === 'MEDIUM' ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)';
+          const summary = (ins.issuesSummary || '').slice(0, 120) + ((ins.issuesSummary || '').length > 120 ? '...' : '');
+          const dateStr = ins.generatedAt ? new Date(ins.generatedAt).toLocaleDateString('en-IN') : '';
+          const src = ins.transcriptSource === 'gemini+live' ? '&#x1F3A4; Gemini+Live' : '&#x1F3A4; Live Only';
+          return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">${ins.topic || 'Mentorship Session'}</div>
+              <div style="font-size:0.75rem;color:#64748b;">${summary}</div>
+              <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+                <span style="font-size:0.68rem;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 7px;border-radius:5px;">&#x2713; ${ins.taskCount || 0} Tasks</span>
+                <span style="font-size:0.68rem;background:rgba(16,185,129,0.2);color:#6ee7b7;padding:2px 7px;border-radius:5px;">&#x2192; ${ins.actionCount || 0} Actions</span>
+                <span style="font-size:0.68rem;background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 7px;border-radius:5px;">${src}</span>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;background:${riskBg};color:${riskColor};">${ins.riskLevel}</span>
+              <div style="font-size:0.68rem;color:#475569;margin-top:4px;">${dateStr}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  const bodyHTML = analyzed > 0 ? `
+    <div style="padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+      <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x26A0;&#xFE0F; AI Risk Breakdown</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">High Risk</span><span style="font-size:1rem;font-weight:800;color:#ef4444;">${rb.HIGH}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">Medium Risk</span><span style="font-size:1rem;font-weight:800;color:#f59e0b;">${rb.MEDIUM}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">Low Risk</span><span style="font-size:1rem;font-weight:800;color:#22c55e;">${rb.LOW}</span></div>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.07);">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x1F50D; Recurring Issue Topics</div>
+        ${issueChips}
+      </div>
+      <div style="background:${escalations.length > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)'};border-radius:12px;padding:16px;border:1px solid ${escalations.length > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.07)'};">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x1F6A8; Escalation Alerts</div>
+        ${escalationHTML}
+      </div>
+    </div>
+    ${recentHTML}` :
+    '<div style="padding:24px;text-align:center;"><p style="font-size:0.85rem;color:#64748b;">&#x1F916; No meetings analyzed yet. End a meeting with <strong style="color:#a5b4fc;">Live Captions (CC)</strong> turned on &mdash; AI will auto-generate a report immediately.</p></div>';
+
+  return `
+  <div id="ai-meeting-intelligence" class="card" style="margin-bottom:24px;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);border:1px solid rgba(139,92,246,0.3);overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid rgba(139,92,246,0.2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">&#x1F916;</div>
+        <div>
+          <h3 style="font-size:1rem;font-weight:800;margin:0;color:#c4b5fd;">AI Meeting Intelligence</h3>
+          <p style="font-size:0.75rem;color:#94a3b8;margin:2px 0 0;">Auto-extracted from ${analyzed} of ${total} meetings &bull; ${pct}% transcript coverage &bull; No Google Drive needed</p>
+        </div>
+      </div>
+      <span style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;font-size:0.72rem;padding:4px 10px;border-radius:8px;font-weight:600;">&#x1F3A4; Gemini Deep Transcription Active</span>
+    </div>
+    ${bodyHTML}
+  </div>`;
 }
 
 export async function render(container) {
@@ -75,6 +162,16 @@ export async function render(container) {
       const cComp = classA.localeCompare(classB, undefined, { numeric: true, sensitivity: 'base' });
       return cComp !== 0 ? cComp : (a.name || '').localeCompare(b.name || '');
     });
+
+    // Fetch AI insights from the mentor report endpoint
+    let aiInsights = null;
+    try {
+      const { api } = await import('/js/api.js');
+      const reportRes = await api.get('/mentor/reports');
+      aiInsights = reportRes?.aiInsights || null;
+    } catch (aiErr) {
+      console.warn('Could not load AI insights:', aiErr.message);
+    }
 
     const rc = container.querySelector('#mentor-reports-content');
     if (!rc) return;
@@ -387,6 +484,7 @@ export async function render(container) {
       if (panel) panel.style.display = 'none';
     });
 
+
     // AI Enhanced Report per meeting
     container.querySelectorAll('.ai-enhanced-report-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -487,4 +585,8 @@ export function teardown() {
     activeMentorReportsChart = null;
   }
 }
+
+
+
+
 
