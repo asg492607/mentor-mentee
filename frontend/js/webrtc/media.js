@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Camera, microphone, and screen share media stream managers
+ * @module media
+ */
 export async function getLocalStream(video = true, audio = true) {
     try {
         return await navigator.mediaDevices.getUserMedia({ video, audio });
