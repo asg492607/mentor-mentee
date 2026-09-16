@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Floating toast notification dispatcher with auto-dismiss
+ * @module toast
+ */
 export function showToast(message, type = 'success', duration = 4000) {
   const container = document.getElementById('toast-container');
   if (!container) return;
