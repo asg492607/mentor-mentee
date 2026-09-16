@@ -1,3 +1,5 @@
+// Cache Manager � provides prefix-based invalidation for Firestore read caches.
+// Used by StudentService, FacultyService, and AdminService to avoid stale reads.
 // ─── LUMINA CLIENT CACHE MANAGER ─────────────────────────────────────────────
 // In-memory & sessionStorage cache with TTL & instant invalidation
 
@@ -92,3 +94,4 @@ class MemoryCacheManager {
 }
 
 export const CacheManager = new MemoryCacheManager();
+
