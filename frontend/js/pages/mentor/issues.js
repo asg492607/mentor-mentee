@@ -252,6 +252,50 @@ export async function render(container) {
                   at: new Date().toISOString()
                 });
               }
+
+              // ── Notify the target authority ────────────────────────────────
+              try {
+                const { db: firestoreDb } = await import('/js/firebase-init.js');
+                const { collection: col, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } =
+                  await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+                let recipientId = null;
+
+                if (escalateTarget === 'HOD') {
+                  // Find the HOD for the mentor's department
+                  const hodSnap = await fsGetDocs(fsQuery(
+                    col(firestoreDb, 'faculty'),
+                    fsWhere('role', '==', 'HOD'),
+                    fsWhere('department', '==', user.department || issue?.department || '')
+                  ));
+                  if (!hodSnap.empty) recipientId = hodSnap.docs[0].data().id || hodSnap.docs[0].id;
+                } else {
+                  // escalateTarget is the section name — find the Section Head for that section
+                  const shSnap = await fsGetDocs(fsQuery(
+                    col(firestoreDb, 'faculty'),
+                    fsWhere('role', '==', 'SECTION_HEAD'),
+                    fsWhere('department', '==', escalateTarget)
+                  ));
+                  if (!shSnap.empty) recipientId = shSnap.docs[0].data().id || shSnap.docs[0].id;
+                }
+
+                if (recipientId) {
+                  await NotificationService.create({
+                    userId: recipientId,
+                    type: 'ISSUE_ESCALATED',
+                    title: `New Issue Escalated to You`,
+                    message: `Mentor ${user.name} escalated an issue${issue?.studentName ? ` for student ${issue.studentName}` : ''}: "${issue?.title || 'Issue'}". Reason: ${reason}`,
+                    relatedId: issueId
+                  });
+                } else {
+                  console.warn(`[Escalation] No ${escalateTarget} user found in faculty to notify.`);
+                }
+              } catch (notifErr) {
+                // Notification failure must not block the escalation success
+                console.warn('[Escalation] Notification send failed:', notifErr.message);
+              }
+              // ──────────────────────────────────────────────────────────────
+
               close();
               renderList();
             } catch (err) { showToast(err.message, 'error'); }
@@ -387,11 +431,53 @@ export async function render(container) {
         }];
       }
 
-      await IssueService.create(issueData);
+      const newIssueId = await IssueService.create(issueData);
       showToast(targetAuth !== 'MENTOR' ? `Issue sent directly to ${targetAuth}!` : 'Issue created in your queue!', 'success');
       issueModal.style.display = 'none';
       e.target.reset();
-      
+
+      // ── If sent to Section Head or HOD, notify them ─────────────────────
+      if (targetAuth !== 'MENTOR') {
+        try {
+          const { db: firestoreDb } = await import('/js/firebase-init.js');
+          const { collection: col, query: fsQuery, where: fsWhere, getDocs: fsGetDocs } =
+            await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+          let recipientId = null;
+
+          if (targetAuth === 'HOD') {
+            const hodSnap = await fsGetDocs(fsQuery(
+              col(firestoreDb, 'faculty'),
+              fsWhere('role', '==', 'HOD'),
+              fsWhere('department', '==', user.department || issueData.department || '')
+            ));
+            if (!hodSnap.empty) recipientId = hodSnap.docs[0].data().id || hodSnap.docs[0].id;
+          } else {
+            const shSnap = await fsGetDocs(fsQuery(
+              col(firestoreDb, 'faculty'),
+              fsWhere('role', '==', 'SECTION_HEAD'),
+              fsWhere('department', '==', targetAuth)
+            ));
+            if (!shSnap.empty) recipientId = shSnap.docs[0].data().id || shSnap.docs[0].id;
+          }
+
+          if (recipientId) {
+            await NotificationService.create({
+              userId: recipientId,
+              type: 'ISSUE_ESCALATED',
+              title: `New Issue Assigned to You`,
+              message: `Mentor ${user.name} raised an issue for student ${issueData.studentName}: "${issueData.title}". Priority: ${issueData.priority}.`,
+              relatedId: newIssueId
+            });
+          } else {
+            console.warn(`[Issue Create] No ${targetAuth} faculty found to notify.`);
+          }
+        } catch (notifErr) {
+          console.warn('[Issue Create] Notification send failed:', notifErr.message);
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────
+
       // Reload issues
       const all = await IssueService.getByMentor(user.id);
       issues = all;
