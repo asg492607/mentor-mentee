@@ -1,3 +1,5 @@
+// Modal UI Component
+// Reusable modal dialog controller with focus trap and keyboard navigation.
 export function showModal(options) {
   const { title, content, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel', size = 'md' } = options;
   
@@ -81,3 +83,4 @@ export function hideModal() {
     }
   }
 }
+
