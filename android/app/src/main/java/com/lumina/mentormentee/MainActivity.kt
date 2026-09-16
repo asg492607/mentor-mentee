@@ -1,8 +1,10 @@
 package com.lumina.mentormentee
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -18,6 +20,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
@@ -37,6 +40,14 @@ class MainActivity : AppCompatActivity() {
 
     private var isNetworkError = false
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    // Permission Launcher for Camera/Microphone (WebRTC support)
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        webView.reload()
+    }
 
     // Activity Result Launcher for HTML5 file uploads (<input type="file">)
     private val fileChooserLauncher = registerForActivityResult(
@@ -71,6 +82,11 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupNetworkObserver()
         setupBackNavigation()
+
+        // Sync SwipeRefresh with WebView scroll position so swipe refresh doesn't conflict with WebView scrolling
+        webView.viewTreeObserver.addOnScrollChangedListener {
+            swipeRefreshLayout.isEnabled = (webView.scrollY == 0)
+        }
 
         btnRetry.setOnClickListener {
             if (isOnline()) {
@@ -129,6 +145,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                isNetworkError = false
                 topProgressBar.visibility = View.VISIBLE
             }
 
@@ -168,7 +185,6 @@ class MainActivity : AppCompatActivity() {
 
             // Handle SSL error gracefully if needed
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
-                // If using verified production SSL, proceed or cancel
                 handler?.proceed()
             }
 
@@ -227,8 +243,29 @@ class MainActivity : AppCompatActivity() {
 
             // WebRTC Camera & Microphone Permission (For Live Video Meetings)
             override fun onPermissionRequest(request: PermissionRequest?) {
-                runOnUiThread {
-                    request?.grant(request.resources)
+                val resources = request?.resources ?: return
+                val permissions = mutableListOf<String>()
+                if (resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+                    permissions.add(Manifest.permission.CAMERA)
+                }
+                if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                    permissions.add(Manifest.permission.RECORD_AUDIO)
+                }
+
+                if (permissions.isEmpty()) {
+                    request.grant(resources)
+                } else {
+                    val allGranted = permissions.all {
+                        ContextCompat.checkSelfPermission(this@MainActivity, it) == PackageManager.PERMISSION_GRANTED
+                    }
+                    if (allGranted) {
+                        runOnUiThread { request.grant(resources) }
+                    } else {
+                        runOnUiThread {
+                            requestPermissionLauncher.launch(permissions.toTypedArray())
+                            request.deny()
+                        }
+                    }
                 }
             }
         }
@@ -262,13 +299,18 @@ class MainActivity : AppCompatActivity() {
     private fun setupNetworkObserver() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val builder = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 
-        cm.registerNetworkCallback(builder.build(), object : ConnectivityManager.NetworkCallback() {
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 runOnUiThread {
                     if (layoutNoInternet.visibility == View.VISIBLE || isNetworkError) {
                         hideErrorScreen()
-                        webView.reload()
+                        if (webView.url.isNullOrEmpty()) {
+                            webView.loadUrl(webAppUrl)
+                        } else {
+                            webView.reload()
+                        }
                     }
                 }
             }
@@ -278,7 +320,8 @@ class MainActivity : AppCompatActivity() {
                     showErrorScreen()
                 }
             }
-        })
+        }
+        cm.registerNetworkCallback(builder.build(), networkCallback!!)
     }
 
     private fun setupBackNavigation() {
@@ -292,5 +335,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    override fun onDestroy() {
+        networkCallback?.let {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.unregisterNetworkCallback(it)
+        }
+        super.onDestroy()
     }
 }
