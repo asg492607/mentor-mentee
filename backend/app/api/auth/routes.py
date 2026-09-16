@@ -1,3 +1,6 @@
+"""
+User authentication, login credentials, and session refresh
+"""
 from fastapi import APIRouter, Depends
 from app.schemas.auth import RegisterRequest, UserProfileResponse
 from app.services.auth_service import AuthService
