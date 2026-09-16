@@ -1,3 +1,5 @@
+// Student — Booklet Page
+// Comprehensive student record, academic progress, and mentoring logs.
 import { getUserProfile } from '../../auth.js';
 import { db, storage } from '../../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
@@ -634,3 +636,4 @@ export async function render(container) {
         });
     }
 }
+
