@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Accessible modal dialog wrapper and lifecycle handlers
+ * @module modal
+ */
 // Modal UI Component
 // Reusable modal dialog controller with focus trap and keyboard navigation.
 export function showModal(options) {
