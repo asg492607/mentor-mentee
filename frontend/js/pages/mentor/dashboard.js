@@ -1,4 +1,8 @@
-// Mentor — Dashboard Page
+/**
+ * @fileoverview Faculty mentor overview dashboard with cohort indicators
+ * @module dashboard
+ */
+// Mentor ï¿½ Dashboard Page
 // Overview: assigned students, pending meetings, escalated issues, and quick actions.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
