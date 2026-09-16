@@ -1,3 +1,5 @@
+// HOD — At-Risk Students
+// Tracks students flagged with low attendance, academic difficulty, or critical issues.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
@@ -101,4 +103,5 @@ export async function render(container) {
 
   renderTable();
 }
+
 
