@@ -10,6 +10,7 @@ import { AIService } from '/js/services/ai-service.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 import { renderCalendar } from '/js/components/calendar-view.js';
 import { t, getLanguage } from '/js/i18n.js';
+import { escapeHtml } from '/js/utils.js';
 
 const TYPES = [
   '1-on-1 Mentorship Session',
@@ -483,7 +484,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
 
                 ${m.status === 'COMPLETED' ? `
                   <div style="display:flex; gap:6px;">
-                    ${m.notes ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}" style="border-radius:8px;">📝 View MOM Notes</button>` : ''}
+                    ${(m.notes || m.report || m.aiNotes) ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}" style="border-radius:8px;">📝 View MOM Notes</button>` : ''}
                     <button class="btn btn-sm btn-outline report-btn" data-id="${m.id}" style="border-radius:8px;">📄 Download Report</button>
                   </div>
                 ` : ''}
@@ -491,14 +492,25 @@ Keep it structured, polite, and student-focused with clear discussion questions.
             </div>
 
             <!-- Notes Panel for Completed Meeting -->
-            ${m.status === 'COMPLETED' && m.notes ? `
+            ${m.status === 'COMPLETED' && (m.notes || m.report || m.aiNotes) ? `
               <div id="notes-panel-${m.id}" style="display:none; margin-top:16px; padding:16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px;">
                 <h4 style="font-size:0.88rem; font-weight:700; margin-bottom:10px; color:var(--text);">📋 Minutes of Meeting (MOM) &amp; Guidance Provided</h4>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                  ${(m.notes.issuesDiscussed || m.notes.problem) ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">Section 1: Issues Discussed</p><p style="font-size:0.85rem; margin:0;">${escapeHtml(m.notes.issuesDiscussed || m.notes.problem)}</p></div>` : ''}
-                  ${(m.notes.actionTaken || m.notes.advice) ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px;"><p style="font-size:0.75rem; color:var(--accent); margin-bottom:4px; font-weight:700;">Section 2: Action Taken / Guidance</p><p style="font-size:0.85rem; margin:0;">${escapeHtml(m.notes.actionTaken || m.notes.advice)}</p></div>` : ''}
-                  ${m.notes.summary && m.notes.summary !== (m.notes.issuesDiscussed || m.notes.problem) ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px; grid-column:1/-1;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">Summary</p><p style="font-size:0.85rem; margin:0;">${escapeHtml(m.notes.summary)}</p></div>` : ''}
-                  ${m.notes.tasks?.length ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px; grid-column:1/-1;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px; font-weight:700;">Assigned Action Items (Synced to Tasks)</p>${m.notes.tasks.map(t => `<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="color:var(--accent);">→</span><p style="font-size:0.85rem; margin:0;">${escapeHtml(typeof t === 'string' ? t : t.text)}</p></div>`).join('')}</div>` : ''}
+                  ${(() => {
+                    const issues = m.report?.issuesDiscussed || m.aiNotes?.issuesDiscussed || m.notes?.issuesDiscussed || m.notes?.problem || '';
+                    const actions = m.report?.actionItems || (Array.isArray(m.aiNotes?.remedialMeasures) ? m.aiNotes.remedialMeasures.join('; ') : m.aiNotes?.remedialMeasures) || m.notes?.actionTaken || m.notes?.advice || '';
+                    const summary = m.notes?.summary || m.report?.remarks || '';
+                    const tasks = m.report?.tasks || m.aiNotes?.actionItems || m.notes?.tasks || [];
+                    const risk = m.report?.riskLevel || m.aiNotes?.riskLevel;
+
+                    return `
+                      ${issues ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">Section 1: Issues Discussed</p><p style="font-size:0.85rem; margin:0; line-height:1.5;">${escapeHtml(issues)}</p></div>` : ''}
+                      ${actions ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px;"><p style="font-size:0.75rem; color:var(--accent); margin-bottom:4px; font-weight:700;">Section 2: Action Taken / Guidance</p><p style="font-size:0.85rem; margin:0; line-height:1.5;">${escapeHtml(typeof actions === 'string' ? actions : JSON.stringify(actions))}</p></div>` : ''}
+                      ${risk ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">Risk Status</p><span class="badge ${risk === 'HIGH' ? 'badge-danger' : risk === 'MEDIUM' ? 'badge-warning' : 'badge-success'}">${escapeHtml(risk)} RISK</span></div>` : ''}
+                      ${tasks.length ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px; grid-column:1/-1;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px; font-weight:700;">Assigned Action Items &amp; Tasks</p>${tasks.map(t => `<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="color:var(--accent);">&#10003;</span><p style="font-size:0.85rem; margin:0;">${escapeHtml(typeof t === 'string' ? t : t.text || t.title)}</p></div>`).join('')}</div>` : ''}
+                      ${summary && summary !== issues ? `<div style="background:var(--card-bg,#fff); border:1px solid var(--border); border-radius:10px; padding:12px; grid-column:1/-1;"><p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">Summary Remarks</p><p style="font-size:0.85rem; margin:0;">${escapeHtml(summary)}</p></div>` : ''}
+                    `;
+                  })()}
                 </div>
               </div>
             ` : ''}

@@ -846,9 +846,10 @@ export function exportMeetingSessionReport(meeting) {
     return;
   }
 
-  // Prioritize report data saved directly inside the meeting room
+  // Prioritize report data saved directly inside the meeting room or extracted by AI
   const rpt = meeting.report || {};
-  const topic = rpt.topic || meeting.type || meeting.description || 'Mentorship Session';
+  const ai = meeting.aiNotes || {};
+  const topic = rpt.topic || ai.topic || meeting.type || meeting.description || 'Mentorship Session';
   const rawDate = rpt.date || meeting.scheduledAt || meeting.updatedAt || meeting.createdAt || new Date().toISOString().slice(0, 10);
 
   let formattedDate = rawDate;
@@ -865,12 +866,15 @@ export function exportMeetingSessionReport(meeting) {
   const checkedBy = rpt.checkedBy || '';
   const hodName = rpt.hodName || 'Dr. Suwarna Pawar';
 
-  const issues = rpt.issuesDiscussed || meeting.notes?.issuesDiscussed || meeting.notes?.studentIssues || meeting.notes?.problem || meeting.notes?.summary || meeting.description || 'No issues reported.';
-  const actionTaken = meeting.notes?.actionTaken || meeting.notes?.remedialMeasures || meeting.notes?.advice || '';
-  const tasks = Array.isArray(meeting.notes?.tasks) ? meeting.notes.tasks.map(t => `• ${t}`).join('\n') : '';
-  const fallbackActions = [actionTaken, tasks].filter(Boolean).join('\n\n');
-  const actions = rpt.actionItems || fallbackActions || 'No action items recorded.';
-  const remarks = rpt.remarks || meeting.notes?.remarks || '';
+  const issues = rpt.issuesDiscussed || ai.issuesDiscussed || meeting.notes?.issuesDiscussed || meeting.notes?.studentIssues || meeting.notes?.problem || meeting.notes?.summary || meeting.description || 'No issues reported.';
+  const actionTaken = rpt.actionItems || ai.actionItems || meeting.notes?.actionTaken || meeting.notes?.remedialMeasures || meeting.notes?.advice || '';
+  const rawTasks = rpt.tasks || ai.tasks || meeting.notes?.tasks || [];
+  const tasksStr = Array.isArray(rawTasks) ? rawTasks.map(t => typeof t === 'string' ? `• ${t}` : `• ${t.title || t.text || ''}`).filter(Boolean).join('\n') : '';
+  const actions = actionTaken ? (tasksStr ? `${actionTaken}\n\nStudent Action Items:\n${tasksStr}` : actionTaken) : (tasksStr || 'No action items recorded.');
+  const remarks = rpt.remarks || ai.remarks || meeting.notes?.remarks || '';
+  const confidential = rpt.confidentialObservations || ai.confidentialObservations || meeting.notes?.confidentialObservations || meeting.notes?.privateObservations || '';
+  const riskLevel = (rpt.riskLevel || ai.riskLevel || 'LOW').toUpperCase();
+  const riskSignals = rpt.riskSignals || ai.riskSignals || [];
 
   // Collect students list for attendance sheet (excluding placeholder non-student strings)
   const isPlaceholderStudent = (name) => {
@@ -1023,6 +1027,7 @@ export function exportMeetingSessionReport(meeting) {
         <tr><td>Time of Meeting</td><td>${time}</td></tr>
         <tr><td>Department</td><td>${dept}</td></tr>
         <tr><td>Mentor / Faculty</td><td>Prof. ${preparedBy}</td></tr>
+        <tr><td>Risk Assessment</td><td><span style="font-weight:700; color:${riskLevel === 'HIGH' ? '#dc2626' : riskLevel === 'MEDIUM' ? '#d97706' : '#16a34a'};">${riskLevel} RISK</span>${riskSignals.length > 0 ? ` &nbsp;<span style="font-size:8pt;color:#64748b;">(${riskSignals.join(', ')})</span>` : ''}</td></tr>
         <tr><td>Total Students Present</td><td>${totalStudentsText} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance verified on Page 2)</em></td></tr>
       </table>
 
@@ -1035,6 +1040,12 @@ export function exportMeetingSessionReport(meeting) {
         <div class="section-head">Action Items &amp; Resolutions</div>
         <div class="section-body">${actions}</div>
       </div>
+
+      ${confidential ? `
+      <div class="section">
+        <div class="section-head" style="background:#fef2f2; color:#991b1b; border-color:#f87171;">🔒 Confidential Faculty Observations (Institutional Review)</div>
+        <div class="section-body" style="border-color:#f87171; background:#fffafa;">${confidential}</div>
+      </div>` : ''}
 
       ${remarks ? `<div class="section"><div class="section-head">Additional Remarks</div><div class="section-body">${remarks}</div></div>` : ''}
 

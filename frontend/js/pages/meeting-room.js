@@ -612,8 +612,23 @@ export async function render(container) {
                   </div>
 
                   <div class="report-field-group">
-                    <label class="report-label">🏢 Department</label>
-                    <input id="rpt-dept" class="report-input" type="text" placeholder="Department" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
+                    <label class="report-label">🔒 Confidential Faculty Observations (Faculty/HOD Review)</label>
+                    <textarea id="rpt-confidential" class="report-textarea" rows="2" placeholder="Private behavioral notes, stress signals, counseling recommendations..."></textarea>
+                  </div>
+
+                  <div class="report-field-row">
+                    <div class="report-field-group" style="flex:1;">
+                      <label class="report-label">🚨 Risk Assessment Level</label>
+                      <select id="rpt-risk" class="report-input" style="border-radius:8px;font-weight:700;">
+                        <option value="LOW">🟢 LOW RISK (Normal Progress)</option>
+                        <option value="MEDIUM">🟡 MEDIUM RISK (Needs Academic Monitoring)</option>
+                        <option value="HIGH">🔴 HIGH RISK (Immediate Intervention Required)</option>
+                      </select>
+                    </div>
+                    <div class="report-field-group" style="flex:1;">
+                      <label class="report-label">🏢 Department</label>
+                      <input id="rpt-dept" class="report-input" type="text" placeholder="Department" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
+                    </div>
                   </div>
 
                   <!-- Signature Section -->
@@ -2130,14 +2145,17 @@ export async function render(container) {
     const chatMsgs = [...document.querySelectorAll('#chat-messages .chat-msg')].map(el => el.textContent).join('\n');
     const notesEl = document.getElementById('meeting-notes');
     const notes = notesEl ? notesEl.value : '';
-    const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: '' }));
+    const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: p.enrollment || '' }));
+    if (meeting.studentName && !attendees.some(a => a.name === meeting.studentName)) {
+      attendees.unshift({ name: meeting.studentName, enrollment: meeting.studentEnrollment || meeting.enrollmentNumber || '' });
+    }
 
-    if (!transcript && !chatMsgs && !notes) {
-      showToast('No transcript, chat, or notes to extract from. Start Live Captions (CC) first!', 'warning');
+    if (!transcript && !chatMsgs && !notes.trim()) {
+      showToast('No transcript, chat, or notes to extract from. Start Live Captions (CC) or type notes first!', 'warning');
       return;
     }
 
-    showToast('🧠 AI analyzing session data...', 'info');
+    showToast('🧠 AI analyzing session data and generating report...', 'info');
 
     try {
       const insights = await AIService.extractMeetingInsights({
@@ -2155,11 +2173,15 @@ export async function render(container) {
       const issuesEl = document.getElementById('rpt-issues');
       const actionsEl = document.getElementById('rpt-actions');
       const remarksEl = document.getElementById('rpt-remarks');
+      const confEl = document.getElementById('rpt-confidential');
+      const riskEl = document.getElementById('rpt-risk');
 
       if (topicEl && insights.topic) topicEl.value = insights.topic;
       if (issuesEl && insights.issuesDiscussed) issuesEl.value = insights.issuesDiscussed;
       if (actionsEl && insights.actionItems) actionsEl.value = insights.actionItems;
       if (remarksEl && insights.remarks) remarksEl.value = insights.remarks;
+      if (confEl && insights.confidentialObservations) confEl.value = insights.confidentialObservations;
+      if (riskEl && insights.riskLevel) riskEl.value = insights.riskLevel;
 
       // Add tasks to session notes
       if (notesEl && insights.tasks && insights.tasks.length > 0) {
@@ -2167,29 +2189,29 @@ export async function render(container) {
       }
 
       // Auto-populate students if available
-      if (attendees.length > 0) {
+      const validAttendees = attendees.filter(a => a.name && a.name !== 'Participant');
+      if (validAttendees.length > 0) {
         const studentsList = document.getElementById('rpt-students-list');
         if (studentsList) {
           studentsList.innerHTML = '';
-          attendees.forEach(a => {
-            if (a.name && a.name !== 'Participant') {
-              const row = document.createElement('div');
-              row.className = 'rpt-student-row';
-              row.innerHTML = `
-                <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4" value="${escapeHtml(a.name)}">
-                <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1" value="${escapeHtml(a.enrollment || '')}">
-                <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
-              `;
-              studentsList.appendChild(row);
-            }
+          validAttendees.forEach(a => {
+            const row = document.createElement('div');
+            row.className = 'rpt-student-row';
+            row.innerHTML = `
+              <input class="report-input rpt-sname" type="text" placeholder="Student Name" style="flex:1.4" value="${escapeHtml(a.name)}">
+              <input class="report-input rpt-senroll" type="text" placeholder="Enrollment No." style="flex:1" value="${escapeHtml(a.enrollment || '')}">
+              <button class="btn-rpt-remove" onclick="this.closest('.rpt-student-row').remove()" title="Remove">✕</button>
+            `;
+            studentsList.appendChild(row);
           });
         }
       }
 
-      // Open report panel
+      // Open report panel so mentor can review immediately
       if (typeof openPanelTab === 'function') openPanelTab('report');
 
-      showToast('✅ AI extraction complete! Report fields auto-populated.', 'success');
+      const riskEmoji = insights.riskLevel === 'HIGH' ? '🔴' : insights.riskLevel === 'MEDIUM' ? '🟡' : '🟢';
+      showToast(`✅ AI extraction complete! Report populated. Risk: ${riskEmoji} ${insights.riskLevel || 'LOW'}`, 'success');
     } catch (err) {
       console.error('AI extraction error:', err);
       showToast('AI extraction failed: ' + err.message, 'error');
@@ -2219,11 +2241,17 @@ export async function render(container) {
       const issuesEl = document.getElementById('rpt-issues');
       const actionsEl = document.getElementById('rpt-actions');
       const remarksEl = document.getElementById('rpt-remarks');
+      const confEl = document.getElementById('rpt-confidential');
+      const riskEl = document.getElementById('rpt-risk');
 
       if (topicEl && report.topic) topicEl.value = report.topic;
       if (issuesEl && report.issuesDiscussed) issuesEl.value = report.issuesDiscussed;
       if (actionsEl && report.actionItems) actionsEl.value = report.actionItems;
       if (remarksEl && report.remarks) remarksEl.value = report.remarks;
+      if (confEl && report.confidentialObservations) confEl.value = report.confidentialObservations;
+      if (riskEl && report.riskLevel) riskEl.value = report.riskLevel;
+
+      if (typeof openPanelTab === 'function') openPanelTab('report');
 
       showToast('✅ AI official report draft generated!', 'success');
     } catch (err) {
@@ -3363,23 +3391,55 @@ Standard syllabus topics, coursework materials, and project documentation review
         enrollment: row.querySelector('.rpt-senroll')?.value.trim()
       })).filter(s => s.name || s.enrollment);
 
+      const issuesDiscussed = document.getElementById('rpt-issues')?.value.trim() || '';
+      const actionItems = document.getElementById('rpt-actions')?.value.trim() || '';
+      const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
+      const confidentialObservations = document.getElementById('rpt-confidential')?.value.trim() || '';
+      const riskLevel = document.getElementById('rpt-risk')?.value || 'LOW';
+
       const reportData = {
-        topic: document.getElementById('rpt-topic')?.value.trim(),
-        date: document.getElementById('rpt-date')?.value,
-        time: document.getElementById('rpt-time')?.value,
+        topic: document.getElementById('rpt-topic')?.value.trim() || meeting.type || 'Mentorship Session',
+        date: document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0, 10),
+        time: document.getElementById('rpt-time')?.value || new Date().toTimeString().slice(0, 5),
         students: studentRows,
-        issuesDiscussed: document.getElementById('rpt-issues')?.value.trim(),
-        actionItems: document.getElementById('rpt-actions')?.value.trim(),
-        remarks: document.getElementById('rpt-remarks')?.value.trim(),
-        department: document.getElementById('rpt-dept')?.value.trim() || 'Department of Computer Science & Engineering (Core)',
+        issuesDiscussed,
+        actionItems,
+        remarks,
+        confidentialObservations,
+        riskLevel,
+        department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
         preparedBy: meeting.mentorName || user.name,
         checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
         verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
         hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar',
         savedAt: new Date().toISOString()
       };
-      await MeetingService.update(meetingId, { report: reportData });
-      showToast('Report data saved successfully!', 'success');
+
+      await MeetingService.update(meetingId, {
+        report: reportData,
+        hasAiNotes: true,
+        notes: {
+          ...(meeting.notes || {}),
+          issuesDiscussed,
+          actionTaken: actionItems,
+          remarks,
+          confidentialObservations
+        }
+      });
+
+      await MeetingService.saveAINotes(meetingId, {
+        topic: reportData.topic,
+        issuesDiscussed,
+        actionItems,
+        confidentialObservations,
+        remarks,
+        riskLevel,
+        requiresEscalation: riskLevel === 'HIGH',
+        transcriptSource: 'session-report',
+        generatedAt: new Date().toISOString()
+      });
+
+      showToast('Official report saved and synchronized successfully!', 'success');
     } catch (e) {
       showToast('Failed to save report: ' + e.message, 'error');
     }
@@ -3399,6 +3459,8 @@ Standard syllabus topics, coursework materials, and project documentation review
       issuesDiscussed: document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.',
       actionItems: document.getElementById('rpt-actions')?.value.trim() || 'No action items recorded.',
       remarks: document.getElementById('rpt-remarks')?.value.trim() || '',
+      confidentialObservations: document.getElementById('rpt-confidential')?.value.trim() || '',
+      riskLevel: document.getElementById('rpt-risk')?.value || 'LOW',
       department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
       preparedBy: meeting.mentorName || user.name || '',
       checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
@@ -4059,18 +4121,17 @@ Standard syllabus topics, coursework materials, and project documentation review
 
   /**
    * AUTO AI EXTRACTION — runs automatically when mentor ends meeting.
-   * Layer 1: SpeechRecognition live transcript (always available, free)
-   * Layer 2: Gemini audio blob transcription (both speakers, requires API key)
-   * Saves structured AI notes to Firestore under meetings/{id}.aiNotes
+   * Transcribes audio, analyzes live captions, chat, and session notes.
+   * Saves structured AI notes and report to Firestore under meetings/{id}.aiNotes & report
    */
   async function autoExtractAndSaveMeetingReport() {
     const hasTranscript = fullTranscriptLog.length > 0;
     const hasAudio = !!lastAudioBlob;
-    // Gemini key is built-in — no user setup needed
-    const geminiReady = true;
+    const notesEl = document.getElementById('meeting-notes');
+    const manualNotes = notesEl ? notesEl.value.trim() : '';
 
-    if (!hasTranscript && !hasAudio) {
-      // Nothing to analyze — skip silently (meeting had no recording/captions)
+    if (!hasTranscript && !hasAudio && !manualNotes) {
+      // Nothing to analyze — skip silently
       return;
     }
 
@@ -4079,122 +4140,122 @@ Standard syllabus topics, coursework materials, and project documentation review
     try {
       let combinedTranscript = fullTranscriptLog.join('\n');
 
-      // Layer 2: Direct Gemini Multimodal Audio Extraction (No Google Drive needed)
-      let aiNotes = null;
       if (hasAudio) {
         try {
-          showToast('🎙️ Gemini extracting meeting audio & analyzing report...', 'info');
-          const geminiResult = await AIService.analyzeMeetingAudioWithGemini(lastAudioBlob, {
-            studentName: meeting.studentName || 'Student',
-            meetingTopic: meeting.type || meeting.description || 'Mentorship Session',
-            department: meeting.department || ''
-          });
-
-          if (geminiResult && geminiResult.issuesDiscussed) {
-            aiNotes = {
-              topic: geminiResult.topic || meeting.type || 'Mentorship Session',
-              issuesDiscussed: geminiResult.issuesDiscussed || '',
-              actionItems: geminiResult.actionItems || '',
-              tasks: geminiResult.tasks || [],
-              confidentialObservations: '',
-              remarks: geminiResult.remarks || '',
-              riskSignals: geminiResult.riskSignals || [],
-              riskLevel: geminiResult.riskLevel || 'LOW',
-              riskRecommendations: geminiResult.riskSignals || [],
-              requiresEscalation: geminiResult.requiresEscalation || false,
-              transcriptSource: 'gemini-multimodal-audio',
-              transcriptLength: (geminiResult.transcript || '').length,
-              generatedAt: new Date().toISOString(),
-              generatedBy: 'gemini-1.5-flash-native'
-            };
-            if (geminiResult.transcript) {
-              combinedTranscript = geminiResult.transcript;
-            }
+          showToast('🎙️ AI transcribing meeting audio recording...', 'info');
+          const deepTranscript = await AIService.transcribeAudioBlob(lastAudioBlob);
+          if (deepTranscript) {
+            combinedTranscript = deepTranscript + (combinedTranscript ? '\n\n' + combinedTranscript : '');
           }
         } catch (audioErr) {
-          console.warn('Direct Gemini audio analysis fallback:', audioErr.message);
+          console.warn('Audio transcription notice:', audioErr.message);
         }
       }
 
-      if (!aiNotes) {
-        if (hasAudio) {
-          try {
-            const deepTranscript = await AIService.transcribeAudioBlob(lastAudioBlob);
-            if (deepTranscript) {
-              combinedTranscript = deepTranscript;
-            }
-          } catch (e) {
-            console.warn('Gemini transcript fallback:', e.message);
-          }
-        }
-
-        if (!combinedTranscript.trim()) return;
-
-        // Extract structured meeting insights using AI
-        const chatMsgs = [...document.querySelectorAll('#chat-messages .chat-msg')]
-          .map(el => el.textContent).join('\n');
-        const notesEl = document.getElementById('meeting-notes');
-        const notes = notesEl ? notesEl.value : '';
-        const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: '' }));
-
-        const insights = await AIService.extractMeetingInsights({
-          transcript: combinedTranscript,
-          chatMessages: chatMsgs,
-          notes,
-          meetingTopic: meeting.type || meeting.description || 'Mentorship Session',
-          studentName: meeting.studentName || '',
-          department: meeting.department || '',
-          attendees
-        });
-
-        const riskData = await AIService.extractRiskSignals(
-          combinedTranscript,
-          meeting.studentName || 'Student'
-        );
-
-        aiNotes = {
-          topic: insights.topic || '',
-          issuesDiscussed: insights.issuesDiscussed || '',
-          actionItems: insights.actionItems || '',
-          tasks: insights.tasks || [],
-          confidentialObservations: insights.confidentialObservations || '',
-          remarks: insights.remarks || '',
-          riskSignals: riskData.signals || [],
-          riskLevel: riskData.riskLevel || 'LOW',
-          riskRecommendations: riskData.recommendations || [],
-          requiresEscalation: riskData.requiresEscalation || false,
-          transcriptSource: hasAudio ? 'gemini+live' : 'live-only',
-          transcriptLength: combinedTranscript.length,
-          generatedAt: new Date().toISOString(),
-          generatedBy: 'lumina-ai-auto'
-        };
+      // Extract structured meeting insights using AI
+      const chatMsgs = [...document.querySelectorAll('#chat-messages .chat-msg')]
+        .map(el => el.textContent).join('\n');
+      const attendees = participants.map(p => ({ name: p.name || p.displayName || 'Participant', enrollment: p.enrollment || '' }));
+      if (meeting.studentName && !attendees.some(a => a.name === meeting.studentName)) {
+        attendees.unshift({ name: meeting.studentName, enrollment: meeting.studentEnrollment || meeting.enrollmentNumber || '' });
       }
 
-      // Persist to Firestore via backend API
+      const insights = await AIService.extractMeetingInsights({
+        transcript: combinedTranscript,
+        chatMessages: chatMsgs,
+        notes: manualNotes,
+        meetingTopic: meeting.type || meeting.description || 'Mentorship Session',
+        studentName: meeting.studentName || '',
+        department: meeting.department || '',
+        attendees
+      });
+
+      const riskLevel = insights.riskLevel || 'LOW';
+      const aiNotes = {
+        topic: insights.topic || meeting.type || 'Mentorship Session',
+        issuesDiscussed: insights.issuesDiscussed || '',
+        actionItems: insights.actionItems || '',
+        tasks: insights.tasks || [],
+        confidentialObservations: insights.confidentialObservations || '',
+        remarks: insights.remarks || '',
+        riskSignals: insights.riskSignals || [],
+        riskLevel: riskLevel,
+        requiresEscalation: insights.requiresEscalation || riskLevel === 'HIGH',
+        transcriptSource: hasAudio ? 'audio+whisper' : (hasTranscript ? 'live-captions' : 'session-notes'),
+        transcriptLength: combinedTranscript.length,
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'lumina-ai-auto'
+      };
+
+      // Persist AI notes to Firestore & backend API
       await MeetingService.saveAINotes(meetingId, aiNotes);
 
-      // Also auto-populate the in-session report panel so mentor can review before leaving
+      const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
+        name: row.querySelector('.rpt-sname')?.value.trim(),
+        enrollment: row.querySelector('.rpt-senroll')?.value.trim()
+      })).filter(s => s.name || s.enrollment);
+
+      const reportData = {
+        topic: aiNotes.topic,
+        date: new Date().toISOString().slice(0, 10),
+        time: new Date().toTimeString().slice(0, 5),
+        students: studentRows.length > 0 ? studentRows : (meeting.studentName ? [{ name: meeting.studentName, enrollment: meeting.studentEnrollment || '' }] : []),
+        issuesDiscussed: aiNotes.issuesDiscussed,
+        actionItems: aiNotes.actionItems,
+        remarks: aiNotes.remarks,
+        confidentialObservations: aiNotes.confidentialObservations,
+        riskLevel: aiNotes.riskLevel,
+        riskSignals: aiNotes.riskSignals,
+        tasks: aiNotes.tasks,
+        department: meeting.department || 'Department of Computer Science & Engineering (Core)',
+        preparedBy: meeting.mentorName || user.name,
+        checkedBy: '',
+        verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
+        hodName: 'Dr. Suwarna Pawar',
+        savedAt: new Date().toISOString(),
+        aiGenerated: true
+      };
+
+      await MeetingService.update(meetingId, {
+        report: reportData,
+        hasAiNotes: true,
+        notes: {
+          ...(meeting.notes || {}),
+          issuesDiscussed: aiNotes.issuesDiscussed,
+          actionTaken: aiNotes.actionItems,
+          tasks: aiNotes.tasks,
+          remarks: aiNotes.remarks,
+          confidentialObservations: aiNotes.confidentialObservations
+        }
+      });
+
+      // Auto-populate report fields in session
       const topicEl = document.getElementById('rpt-topic');
       const issuesEl = document.getElementById('rpt-issues');
       const actionsEl = document.getElementById('rpt-actions');
       const remarksEl = document.getElementById('rpt-remarks');
-      if (topicEl && insights.topic) topicEl.value = insights.topic;
-      if (issuesEl && insights.issuesDiscussed) issuesEl.value = insights.issuesDiscussed;
-      if (actionsEl && insights.actionItems) actionsEl.value = insights.actionItems;
-      if (remarksEl && insights.remarks) remarksEl.value = insights.remarks;
+      const confEl = document.getElementById('rpt-confidential');
+      const riskEl = document.getElementById('rpt-risk');
 
-      const riskEmoji = riskData.riskLevel === 'HIGH' ? '🔴' : riskData.riskLevel === 'MEDIUM' ? '🟡' : '🟢';
+      if (topicEl && aiNotes.topic) topicEl.value = aiNotes.topic;
+      if (issuesEl && aiNotes.issuesDiscussed) issuesEl.value = aiNotes.issuesDiscussed;
+      if (actionsEl && aiNotes.actionItems) actionsEl.value = aiNotes.actionItems;
+      if (remarksEl && aiNotes.remarks) remarksEl.value = aiNotes.remarks;
+      if (confEl && aiNotes.confidentialObservations) confEl.value = aiNotes.confidentialObservations;
+      if (riskEl && aiNotes.riskLevel) riskEl.value = aiNotes.riskLevel;
+
+      const riskEmoji = riskLevel === 'HIGH' ? '🔴' : riskLevel === 'MEDIUM' ? '🟡' : '🟢';
       showToast(
-        `✅ AI report auto-saved! Risk: ${riskEmoji} ${riskData.riskLevel}${
-          riskData.requiresEscalation ? ' — ⚠️ Escalation recommended' : ''
+        `✅ AI report auto-saved! Risk: ${riskEmoji} ${riskLevel}${
+          aiNotes.requiresEscalation ? ' — ⚠️ Escalation recommended' : ''
         }`,
-        riskData.riskLevel === 'HIGH' ? 'warning' : 'success'
+        riskLevel === 'HIGH' ? 'warning' : 'success'
       );
 
     } catch (err) {
       console.error('Auto AI extraction error:', err);
       // Non-blocking — meeting still ends normally even if AI fails
-      showToast('AI auto-report failed (meeting ended normally). Re-extract from Reports page.', 'warning');
+      showToast('AI auto-report notice (meeting ended normally). Re-extract from Reports page if needed.', 'warning');
     }
   }
 

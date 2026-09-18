@@ -4,7 +4,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StatsService } from '/js/services.js';
+import { StatsService, MeetingService, TaskService } from '/js/services.js';
 import { exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
 import { AIService } from '/js/services/ai-service.js';
 
@@ -163,14 +163,58 @@ export async function render(container) {
       return cComp !== 0 ? cComp : (a.name || '').localeCompare(b.name || '');
     });
 
-    // Fetch AI insights from the mentor report endpoint
+    // Fetch AI insights from the mentor report endpoint with dynamic client-side fallback
     let aiInsights = null;
     try {
       const { api } = await import('/js/api.js');
       const reportRes = await api.get('/mentor/reports');
       aiInsights = reportRes?.aiInsights || null;
     } catch (aiErr) {
-      console.warn('Could not load AI insights:', aiErr.message);
+      console.warn('Could not load AI insights from API:', aiErr.message);
+    }
+
+    // Dynamic client-side fallback/enhancement if backend doesn't provide complete aiInsights
+    if (!aiInsights || !aiInsights.analyzed) {
+      const analyzedMeetings = sortedMeetings.filter(m => m.aiNotes || m.report || m.hasAiNotes);
+      const rb = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+      const recurringIssues = [];
+      const escalationRequired = [];
+      const recentInsights = [];
+
+      analyzedMeetings.forEach(m => {
+        const rLevel = (m.report?.riskLevel || m.aiNotes?.riskLevel || 'LOW').toUpperCase();
+        if (rb[rLevel] !== undefined) rb[rLevel]++;
+        else rb.LOW++;
+
+        if (rLevel === 'HIGH') escalationRequired.push(m);
+
+        const iss = m.report?.issuesDiscussed || m.aiNotes?.issuesDiscussed || m.notes?.issuesDiscussed || '';
+        if (iss) {
+          iss.split(/[\n,;]+/).map(s => s.replace(/^[-*•\d.]+\s*/, '').trim()).filter(s => s.length > 4 && s.length < 60).forEach(x => {
+            if (!recurringIssues.includes(x)) recurringIssues.push(x);
+          });
+        }
+
+        recentInsights.push({
+          topic: m.type || m.description || 'Mentorship Session',
+          issuesSummary: iss,
+          riskLevel: rLevel,
+          taskCount: m.aiNotes?.actionItems?.length || (m.report?.actionItems ? 1 : 0),
+          actionCount: m.aiNotes?.remedialMeasures?.length || (m.report?.actionItems ? 1 : 0),
+          generatedAt: m.report?.generatedAt || m.aiNotes?.extractedAt || m.scheduledAt,
+          transcriptSource: m.aiNotes?.source || 'whisper+live'
+        });
+      });
+
+      aiInsights = {
+        total: meetings.length,
+        analyzed: analyzedMeetings.length,
+        coveragePercent: meetings.length ? Math.round((analyzedMeetings.length / meetings.length) * 100) : 0,
+        riskBreakdown: rb,
+        recurringIssues,
+        escalationRequired,
+        recentInsights: recentInsights.slice(0, 5)
+      };
     }
 
     const rc = container.querySelector('#mentor-reports-content');
@@ -215,6 +259,9 @@ export async function render(container) {
             </div>
           `).join('')}
         </div>
+
+        <!-- ── AI Meeting Intelligence Live Panel ── -->
+        ${renderAIIntelligencePanel(aiInsights)}
 
         <!-- ── AI Cohort Insights Panel (hidden by default) ── -->
         <div id="ai-cohort-insights" class="card" style="margin-bottom:24px;display:none;">
@@ -513,6 +560,12 @@ export async function render(container) {
             ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
             : 'Date not set';
 
+          const existingRisk = m.report?.riskLevel || m.aiNotes?.riskLevel || 'LOW';
+          const existingConfidential = m.report?.confidentialNotes || m.aiNotes?.confidentialNotes || '';
+          const existingTasks = Array.isArray(m.aiNotes?.actionItems)
+            ? m.aiNotes.actionItems.join('\n')
+            : (Array.isArray(report.tasks) ? report.tasks.join('\n') : (report.actionItems || ''));
+
           body.innerHTML = `
             <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,rgba(255,255,255,0.03));border-radius:12px;border:1px solid var(--border);">
               <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">${topic}</div>
@@ -521,14 +574,32 @@ export async function render(container) {
 
             <div class="form-group" style="margin-bottom:12px;">
               <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Issues Discussed</label>
-              <textarea id="ai-rpt-issues" class="form-textarea" rows="4" style="border-radius:8px;">${report.issuesDiscussed || ''}</textarea>
+              <textarea id="ai-rpt-issues" class="form-textarea" rows="3" style="border-radius:8px;">${report.issuesDiscussed || ''}</textarea>
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Action Items & Remedial Measures</label>
-              <textarea id="ai-rpt-actions" class="form-textarea" rows="4" style="border-radius:8px;">${report.actionItems || ''}</textarea>
+              <textarea id="ai-rpt-actions" class="form-textarea" rows="3" style="border-radius:8px;">${report.actionItems || ''}</textarea>
             </div>
             <div class="form-group" style="margin-bottom:12px;">
-              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Remarks</label>
+              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Follow-Up Action Tasks (Assigned to Mentee/Mentor)</label>
+              <textarea id="ai-rpt-tasks" class="form-textarea" rows="2" style="border-radius:8px;" placeholder="One task per line...">${existingTasks}</textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div class="form-group">
+                <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Risk Level Assessment</label>
+                <select id="ai-rpt-risk" class="form-select" style="border-radius:8px;padding:8px 12px;width:100%;">
+                  <option value="LOW" ${existingRisk === 'LOW' ? 'selected' : ''}>🟢 LOW RISK</option>
+                  <option value="MEDIUM" ${existingRisk === 'MEDIUM' ? 'selected' : ''}>🟡 MEDIUM RISK</option>
+                  <option value="HIGH" ${existingRisk === 'HIGH' ? 'selected' : ''}>🔴 HIGH RISK (Escalate)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Confidential Mentor Observations</label>
+                <textarea id="ai-rpt-confidential" class="form-textarea" rows="2" style="border-radius:8px;" placeholder="Internal confidential observations...">${existingConfidential}</textarea>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">General Remarks</label>
               <textarea id="ai-rpt-remarks" class="form-textarea" rows="2" style="border-radius:8px;">${report.remarks || ''}</textarea>
             </div>
 
@@ -542,21 +613,94 @@ export async function render(container) {
 
           body.querySelector('#btn-ai-rpt-close')?.addEventListener('click', () => modal.style.display = 'none');
           body.querySelector('#btn-ai-rpt-save-dl')?.addEventListener('click', async () => {
+            const saveBtn = body.querySelector('#btn-ai-rpt-save-dl');
+            if (saveBtn) {
+              saveBtn.disabled = true;
+              saveBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;"></span> Saving...';
+            }
+
+            const issuesDiscussed = body.querySelector('#ai-rpt-issues')?.value || '';
+            const actionItems = body.querySelector('#ai-rpt-actions')?.value || '';
+            const tasksRaw = body.querySelector('#ai-rpt-tasks')?.value || '';
+            const riskLevel = body.querySelector('#ai-rpt-risk')?.value || 'LOW';
+            const confidentialNotes = body.querySelector('#ai-rpt-confidential')?.value || '';
+            const remarks = body.querySelector('#ai-rpt-remarks')?.value || '';
+
+            const taskLines = tasksRaw.split('\n').map(t => t.replace(/^[-*•\d.]+\s*/, '').trim()).filter(Boolean);
+
             const updatedReport = {
-              issuesDiscussed: body.querySelector('#ai-rpt-issues')?.value || '',
-              actionItems: body.querySelector('#ai-rpt-actions')?.value || '',
-              remarks: body.querySelector('#ai-rpt-remarks')?.value || ''
+              ...(m.report || {}),
+              issuesDiscussed,
+              actionItems,
+              remarks,
+              riskLevel,
+              confidentialNotes,
+              tasks: taskLines,
+              preparedBy: user.name || m.mentorName || 'Faculty Mentor',
+              verifiedAt: new Date().toISOString(),
+              generatedAt: m.report?.generatedAt || new Date().toISOString()
             };
-            // Save AI report to meeting
+
+            const updatedAiNotes = {
+              ...(m.aiNotes || {}),
+              topic: m.type || m.description || 'Mentorship Session',
+              issuesDiscussed,
+              actionItems: taskLines.length > 0 ? taskLines : (actionItems ? [actionItems] : []),
+              riskLevel,
+              confidentialNotes,
+              remedialMeasures: actionItems ? [actionItems] : [],
+              extractedAt: new Date().toISOString()
+            };
+
+            // Persist to Firestore
             try {
-              const existingNotes = m.notes || {};
-              await fetch('').catch(() => {}); // no-op
-              m.notes = { ...existingNotes, ...updatedReport, aiGenerated: true, aiGeneratedAt: new Date().toISOString() };
-            } catch (e) {}
-            // Generate PDF
-            exportMeetingSessionReport({ ...m, report: { ...m.report, ...updatedReport, preparedBy: user.name || m.mentorName || '' } });
+              await MeetingService.update(m.id, {
+                report: updatedReport,
+                aiNotes: updatedAiNotes,
+                hasAiNotes: true,
+                status: m.status === 'REQUESTED' ? 'APPROVED' : (m.status || 'COMPLETED'),
+                notes: {
+                  ...(m.notes || {}),
+                  issuesDiscussed,
+                  actionItems,
+                  remarks,
+                  aiGenerated: true,
+                  aiGeneratedAt: new Date().toISOString()
+                }
+              });
+
+              await MeetingService.saveAINotes(m.id, updatedAiNotes);
+
+              // Sync action tasks into TaskService if single student
+              if (taskLines.length > 0 && m.studentId && m.studentId !== 'ALL') {
+                try {
+                  for (const taskDesc of taskLines.slice(0, 5)) {
+                    await TaskService.create({
+                      title: taskDesc.slice(0, 80),
+                      description: `Action item from meeting session on ${dateStr}: ${taskDesc}`,
+                      studentId: m.studentId,
+                      mentorId: user.id,
+                      status: 'PENDING',
+                      dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+                    });
+                  }
+                } catch (tErr) {
+                  console.warn('Could not sync task items:', tErr);
+                }
+              }
+
+              // Update local memory
+              m.report = updatedReport;
+              m.aiNotes = updatedAiNotes;
+              m.notes = { ...(m.notes || {}), issuesDiscussed, actionItems, remarks };
+            } catch (saveErr) {
+              console.error('Error saving AI report to Firestore:', saveErr);
+            }
+
+            // Export official PDF report
+            exportMeetingSessionReport({ ...m, report: updatedReport });
             modal.style.display = 'none';
-            showToast('Official AI-enhanced PDF report generated!', 'success');
+            showToast('Official AI-enhanced report saved and PDF downloaded!', 'success');
           });
 
         } catch (err) {

@@ -22,17 +22,18 @@ export const STUN_SERVERS = {
 export const GROQ_CONFIG = {
   apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_groq_api_key')) 
     || ['gsk_tpWy', 'Ex8n5e0c', '0oHLmkj0', 'WGdyb3FY', 'sfMgppdf', 'vDYfhK6N', 'FDbxmFvQ'].join(''),
-  defaultModel: "openai/gpt-oss-120b",
+  defaultModel: "qwen/qwen3.8-27b",
   fastModel: "openai/gpt-oss-20b",
-  fallbackModel: "qwen/qwen3.8-27b",
-  endpoint: "https://api.groq.com/openai/v1/chat/completions"
+  fallbackModel: "openai/gpt-oss-120b",
+  audioModel: "whisper-large-v3-turbo",
+  endpoint: "https://api.groq.com/openai/v1/chat/completions",
+  audioEndpoint: "https://api.groq.com/openai/v1/audio/transcriptions"
 };
 
-// Gemini configuration for native audio transcription (both-speaker understanding)
-// Built-in from our side — no Google Drive API or user configuration needed.
+// Gemini configuration for native audio transcription & multimodal fallback
+// Uses custom key from localStorage or system fallback
 export const GEMINI_CONFIG = {
-  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key'))
-    || ['AQ.Ab8', 'RN6LDg-', 'S3TcaDV0', 'ekazjpPtj', 'LnfyQs9g', 'BBhyiCkZQ', '9iMzvQ'].join(''),
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key')) || '',
   audioModel: 'gemini-1.5-flash',
   endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
 };
