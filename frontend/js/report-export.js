@@ -875,6 +875,7 @@ export function exportMeetingSessionReport(meeting) {
   const confidential = rpt.confidentialObservations || ai.confidentialObservations || meeting.notes?.confidentialObservations || meeting.notes?.privateObservations || '';
   const riskLevel = (rpt.riskLevel || ai.riskLevel || 'LOW').toUpperCase();
   const riskSignals = rpt.riskSignals || ai.riskSignals || [];
+  const recordingUrl = meeting.recordingUrl || meeting.lastRecording?.url || meeting.recordingDownloadUrl || rpt.recordingUrl || '';
 
   // Collect students list for attendance sheet (excluding placeholder non-student strings)
   const isPlaceholderStudent = (name) => {
@@ -1029,6 +1030,7 @@ export function exportMeetingSessionReport(meeting) {
         <tr><td>Mentor / Faculty</td><td>Prof. ${preparedBy}</td></tr>
         <tr><td>Risk Assessment</td><td><span style="font-weight:700; color:${riskLevel === 'HIGH' ? '#dc2626' : riskLevel === 'MEDIUM' ? '#d97706' : '#16a34a'};">${riskLevel} RISK</span>${riskSignals.length > 0 ? ` &nbsp;<span style="font-size:8pt;color:#64748b;">(${riskSignals.join(', ')})</span>` : ''}</td></tr>
         <tr><td>Total Students Present</td><td>${totalStudentsText} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance verified on Page 2)</em></td></tr>
+        ${recordingUrl ? `<tr><td>Session Recording</td><td><a href="${recordingUrl}" target="_blank" style="color:#2563eb;text-decoration:underline;font-weight:600;">📁 View Meeting Recording (Google Drive)</a></td></tr>` : ''}
       </table>
 
       <div class="section">

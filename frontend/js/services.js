@@ -574,6 +574,79 @@ export const MeetingService = {
     });
   },
 
+  /**
+   * Upload meeting recording to backend Google Drive service.
+   * Updates meeting document with Drive view link and download URL.
+   */
+  async uploadRecording(meetingId, fileBlob, metadata = {}) {
+    const formData = new FormData();
+    const mode = metadata.mode || 'audio';
+    const ext = 'webm';
+    const filename = metadata.filename || `Session_${meetingId}_${mode}.${ext}`;
+    
+    formData.append('file', fileBlob, filename);
+    formData.append('mode', mode);
+    formData.append('duration', String(metadata.duration || 0));
+
+    let token = null;
+    try {
+      const { auth } = await import('/js/firebase-init.js');
+      if (auth.currentUser) {
+        token = await auth.currentUser.getIdToken();
+      }
+    } catch (e) {
+      console.warn('Could not retrieve Firebase auth token for recording upload:', e);
+    }
+
+    const { API_BASE_URL } = await import('/js/config.js');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/upload-recording`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Upload failed with HTTP ${res.status}`);
+    }
+
+    const resData = await res.json();
+    return resData.data || resData;
+  },
+
+  /**
+   * Retrieve recording details and Google Drive link for a meeting.
+   */
+  async getRecording(meetingId) {
+    try {
+      let token = null;
+      const { auth } = await import('/js/firebase-init.js');
+      if (auth.currentUser) {
+        token = await auth.currentUser.getIdToken();
+      }
+      const { API_BASE_URL } = await import('/js/config.js');
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/recording`, { headers });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('Could not fetch recording from backend:', e);
+    }
+    const meeting = snap(await getDoc(doc(db, 'meetings', meetingId)));
+    return {
+      hasRecording: !!meeting?.hasRecording,
+      recordingUrl: meeting?.recordingUrl || meeting?.lastRecording?.url || '',
+      recordingDownloadUrl: meeting?.recordingDownloadUrl || '',
+      recordingDriveId: meeting?.recordingDriveId || '',
+      mode: meeting?.recordingMode || meeting?.lastRecording?.mode || 'audio',
+      duration: meeting?.recordingDuration || meeting?.lastRecording?.duration || 0
+    };
+  },
+
   generateGoogleCalendarUrl(meeting) {
     const title = encodeURIComponent(meeting.type || meeting.topic || 'Mentorship Session');
     const startIso = meeting.scheduledAt || meeting.preferredDate;

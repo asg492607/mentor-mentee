@@ -11,8 +11,15 @@ class Settings(BaseSettings):
     SMTP_USER: str = ''
     SMTP_PASSWORD: str = ''
 
+    # Google Drive Recording Storage Configuration
+    GOOGLE_DRIVE_FOLDER_ID: str = ''
+    GOOGLE_DRIVE_API_KEY: str = ''
+    GOOGLE_SERVICE_ACCOUNT_JSON: str = ''
+    GOOGLE_SERVICE_ACCOUNT_PATH: str = ''
+
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
     @property
     def cors_origins_list(self) -> list[str]:

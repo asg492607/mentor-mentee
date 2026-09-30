@@ -315,52 +315,60 @@ How can I assist you today?`;
       ? attendees.map((a, i) => `${i + 1}. ${a.name || 'Unknown'}${a.enrollment ? ' (' + a.enrollment + ')' : ''}`).join('\n')
       : (studentName ? `1. ${studentName}` : 'No attendee list available');
 
-    const prompt = `You are Lumina AI, an expert academic meeting analyst for MIT-ADT University. Analyze the following mentorship session data and extract a structured, professional, and actionable report.
+    const prompt = `You are Lumina AI, an expert academic and mentorship intelligence analyst for MIT-ADT University.
+Analyze the following recorded meeting audio transcript, live closed captions, room chat, and faculty notes. Extract a rigorous, exhaustive, highly precise institutional mentorship report.
 
---- SESSION METADATA ---
-Topic/Type: ${meetingTopic || 'Mentorship Session'}
-Student/Attendees: ${studentName || 'Mentee(s)'}
-Department: ${department || 'Department of Computer Science & Engineering (Core)'}
-Attendee List:
+--- SESSION CONTEXT ---
+Topic / Meeting Type: ${meetingTopic || 'Mentorship Session'}
+Target Student(s) / Attendees: ${studentName || 'Mentee(s)'}
+Academic Department: ${department || 'Department of Computer Science & Engineering (Core)'}
+Registered Attendees:
 ${attendeeStr}
 
---- LIVE TRANSCRIPT ---
+--- VERBATIM MEETING AUDIO TRANSCRIPT & LIVE CAPTIONS ---
 ${transcript || '(No transcript captured)'}
 
---- ROOM CHAT MESSAGES ---
+--- IN-SESSION CHAT LOG ---
 ${chatMessages || '(No chat messages)'}
 
---- SESSION NOTES ---
+--- MENTOR MANUAL OBSERVATIONS & NOTES ---
 ${notes || '(No manual notes)'}
 
---- EXTRACT AND STRUCTURE THE REPORT STRICTLY USING THESE '### ' HEADERS ---
+--- INSTRUCTIONS FOR HIGH-PRECISION EXTRACTION ---
+1. Identify all student concerns, difficulties, backlogs, attendance deficits, exam hurdles, or personal/hostel issues explicitly or implicitly discussed.
+2. Group issues into distinct bold academic categories (e.g., **Academic Performance & Lab Submissions**, **Attendance Defaulter Status**, **KT & Backlog Clearance Plan**, **Examination Readiness**, **Personal & Psychological Well-being**, **Career, Certifications & Internship Placement**).
+3. Specify concrete remedial actions and agreed interventions with clear timelines.
+4. Extract individual actionable student tasks (short, crisp, one per line) to automatically synchronize with the student's task manager.
+5. Provide confidential faculty observations regarding the mentee's mindset, stress, emotional state, sincerity, and whether university counseling or parental notification is warranted.
+6. Evaluate risk triage level strictly: HIGH (critical backlogs / severe attendance shortage < 60% / deep distress), MEDIUM (moderate backlogs / attendance 60-75% / academic warning), or LOW (satisfactory standing).
+7. Format the output strictly under the following markdown section headers:
 
 ### 📌 Meeting Topic & Executive Summary
-[1-2 crisp, professional sentences capturing the purpose and outcome of the session]
+[2-3 formal sentences clearly defining the purpose, key dialogue, and overarching outcome of the session]
 
 ### ⚠️ Issues Discussed
-[Clear bullet points with bold category labels for each challenge raised: **Academic Performance**, **Attendance & Backlogs**, **Exam Preparation**, **Personal / Stress / Hostel**, **Career & Placement Goals**, etc.]
+[Detailed bullet points with bold category headings describing every problem, challenge, or topic raised by the student or mentor]
 
 ### ✅ Action Items & Remedial Measures
-[Numbered concrete tasks, solutions, and remedial steps agreed upon with specific timelines or deadlines]
+[Numbered concrete remedial actions, faculty guidance, and institutional support steps agreed upon with deadlines]
 
 ### 🎯 Student Tasks
-[Simple bullet list of specific tasks assigned to the student, one per line — these auto-sync to the student task board]
+[Concise bulleted list of 2-5 specific tasks assigned to the student for follow-up before next review, one per line]
 
 ### 🔒 Confidential Faculty Observations
-[Private faculty-only observations: student engagement, stress/anxiety indicators, behavioral notes, counseling recommendations — NOT visible to students]
+[Confidential observations on the student's attitude, emotional state, engagement, stress signals, and faculty recommendations — kept private from the student]
 
 ### 🚨 Risk Assessment & Triage
-[Indicate Risk Level: LOW, MEDIUM, or HIGH followed by 1-2 bullet points explaining risk signals or reasons]
+[State RISK LEVEL: LOW, MEDIUM, or HIGH followed by specific risk factors or corroborating indicators]
 
 ### 📝 Additional Remarks
-[Encouraging, formal qualitative remarks and commendations for the university record]`;
+[Professional, constructive summary remarks for official university record and NAAC/NBA compliance]`;
 
     try {
       const res = await this.chat({
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.2,
-        maxTokens: 2000
+        temperature: 0.15,
+        maxTokens: 2500
       });
       return this._parseExtractedInsights(res.content);
     } catch (e) {

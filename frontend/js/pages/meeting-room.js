@@ -1907,6 +1907,8 @@ export async function render(container) {
   let mediaRecorder = null;
   let recordedChunks = [];
   let lastAudioBlob = null; // Stores the most recent recorded audio blob for AI transcription
+  let lastRecordingBlob = null; // Full recording blob (audio or video)
+  let uploadedDriveRecording = null; // Stored Google Drive upload result
   let recordStream = null;
   let recInterval = null;
   let recSeconds = 0;
@@ -1959,10 +1961,9 @@ export async function render(container) {
     a.click();
     URL.revokeObjectURL(url);
 
-    // Save the audio blob for Gemini deep transcription (audio mode only)
-    if (activeRecMode === 'audio') {
-      lastAudioBlob = blob;
-    }
+    // Save recording blob for AI audio transcription & Drive upload
+    lastRecordingBlob = blob;
+    lastAudioBlob = blob;
 
     if (recordStream) {
       recordStream.getTracks().forEach(t => t.stop());
@@ -1977,23 +1978,44 @@ export async function render(container) {
     const label = document.getElementById('label-record');
     if (label) label.textContent = 'Record';
 
+    const recordingFileName = a.download;
+    const recordingDuration = recSeconds;
+    const recordingMode = activeRecMode;
+
     // Log recording in meeting metadata
     const recMeta = {
-      mode: activeRecMode,
-      duration: recSeconds,
+      mode: recordingMode,
+      duration: recordingDuration,
       recordedAt: new Date().toISOString(),
-      fileName: a.download
+      fileName: recordingFileName
     };
     MeetingService.update(meetingId, {
       lastRecording: recMeta,
       hasRecording: true
     }).catch(e => console.warn('Could not save recording metadata:', e));
 
-    showToast(`🎙️ Recording saved! (${activeRecMode === 'audio' ? 'Audio' : 'Video'} downloaded to your device)`, 'success');
+    showToast(`🎙️ Recording saved! (${recordingMode === 'audio' ? 'Audio' : 'Video'} downloaded)`, 'success');
+
+    // Automatically upload recording to Google Drive
+    showToast('☁️ Uploading recording to Google Drive folder...', 'info');
+    MeetingService.uploadRecording(meetingId, blob, {
+      mode: recordingMode || 'audio',
+      duration: recordingDuration,
+      filename: recordingFileName
+    }).then(driveRes => {
+      uploadedDriveRecording = driveRes;
+      const viewLink = driveRes?.webViewLink || driveRes?.url;
+      if (viewLink) {
+        showToast('📁 Recording uploaded & linked to Google Drive!', 'success');
+      }
+    }).catch(driveErr => {
+      console.warn('Google Drive upload notice:', driveErr.message);
+      showToast('Recording downloaded locally (Drive sync pending)', 'info');
+    });
 
     // Auto-prompt AI extraction if transcript is available
-    if (fullTranscriptLog.length > 0) {
-      showToast('🤖 Transcript captured — AI report will auto-generate when you end the meeting!', 'info');
+    if (fullTranscriptLog.length > 0 || lastAudioBlob) {
+      showToast('🤖 Session recording captured — AI report will auto-generate when you end the meeting!', 'info');
     }
 
     activeRecMode = null;
@@ -4125,8 +4147,13 @@ Standard syllabus topics, coursework materials, and project documentation review
    * Saves structured AI notes and report to Firestore under meetings/{id}.aiNotes & report
    */
   async function autoExtractAndSaveMeetingReport() {
+    // If recorder is still running, stop it now so recording is finalized
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try { mediaRecorder.stop(); } catch (e) { }
+    }
+
     const hasTranscript = fullTranscriptLog.length > 0;
-    const hasAudio = !!lastAudioBlob;
+    const hasAudio = !!(lastAudioBlob || lastRecordingBlob);
     const notesEl = document.getElementById('meeting-notes');
     const manualNotes = notesEl ? notesEl.value.trim() : '';
 
@@ -4143,7 +4170,8 @@ Standard syllabus topics, coursework materials, and project documentation review
       if (hasAudio) {
         try {
           showToast('🎙️ AI transcribing meeting audio recording...', 'info');
-          const deepTranscript = await AIService.transcribeAudioBlob(lastAudioBlob);
+          const audioBlobToTranscribe = lastAudioBlob || lastRecordingBlob;
+          const deepTranscript = await AIService.transcribeAudioBlob(audioBlobToTranscribe);
           if (deepTranscript) {
             combinedTranscript = deepTranscript + (combinedTranscript ? '\n\n' + combinedTranscript : '');
           }
@@ -4171,6 +4199,9 @@ Standard syllabus topics, coursework materials, and project documentation review
       });
 
       const riskLevel = insights.riskLevel || 'LOW';
+      const driveUrl = uploadedDriveRecording?.webViewLink || meeting.recordingUrl || '';
+      const driveDownload = uploadedDriveRecording?.downloadLink || meeting.recordingDownloadUrl || '';
+
       const aiNotes = {
         topic: insights.topic || meeting.type || 'Mentorship Session',
         issuesDiscussed: insights.issuesDiscussed || '',
@@ -4183,12 +4214,31 @@ Standard syllabus topics, coursework materials, and project documentation review
         requiresEscalation: insights.requiresEscalation || riskLevel === 'HIGH',
         transcriptSource: hasAudio ? 'audio+whisper' : (hasTranscript ? 'live-captions' : 'session-notes'),
         transcriptLength: combinedTranscript.length,
+        recordingUrl: driveUrl,
+        recordingDownloadUrl: driveDownload,
         generatedAt: new Date().toISOString(),
         generatedBy: 'lumina-ai-auto'
       };
 
       // Persist AI notes to Firestore & backend API
       await MeetingService.saveAINotes(meetingId, aiNotes);
+
+      // Auto-synchronize tasks to TaskService
+      if (Array.isArray(aiNotes.tasks) && aiNotes.tasks.length > 0 && meeting.studentId && meeting.studentId !== 'ALL') {
+        for (const t of aiNotes.tasks) {
+          const taskTitle = typeof t === 'string' ? t : (t.title || '');
+          if (taskTitle) {
+            TaskService.create({
+              studentId: meeting.studentId,
+              mentorId: meeting.mentorId || user.id,
+              title: taskTitle,
+              description: `Action item assigned from Mentorship Session on ${new Date().toLocaleDateString()}`,
+              status: 'PENDING',
+              source: 'AI_SESSION_REPORT'
+            }).catch(err => console.warn('Could not auto-create student task:', err));
+          }
+        }
+      }
 
       const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
         name: row.querySelector('.rpt-sname')?.value.trim(),
@@ -4207,6 +4257,8 @@ Standard syllabus topics, coursework materials, and project documentation review
         riskLevel: aiNotes.riskLevel,
         riskSignals: aiNotes.riskSignals,
         tasks: aiNotes.tasks,
+        recordingUrl: driveUrl,
+        recordingDownloadUrl: driveDownload,
         department: meeting.department || 'Department of Computer Science & Engineering (Core)',
         preparedBy: meeting.mentorName || user.name,
         checkedBy: '',
@@ -4218,6 +4270,8 @@ Standard syllabus topics, coursework materials, and project documentation review
 
       await MeetingService.update(meetingId, {
         report: reportData,
+        recordingUrl: driveUrl,
+        recordingDownloadUrl: driveDownload,
         hasAiNotes: true,
         notes: {
           ...(meeting.notes || {}),

@@ -14,8 +14,6 @@ export const STUN_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // Configure a TURN server for reliable calls across restrictive networks.
-    // Example: { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'secret' }
   ]
 };
 
@@ -36,4 +34,10 @@ export const GEMINI_CONFIG = {
   apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key')) || '',
   audioModel: 'gemini-1.5-flash',
   endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
+};
+
+// Google Drive Recording Storage Configuration
+export const GOOGLE_DRIVE_CONFIG = {
+  folderId: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_folder_id')) || '',
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_api_key')) || ''
 };

@@ -1,9 +1,11 @@
 """
 FastAPI application factory, CORS policies, and routing mount
 """
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.firebase.client import initialize_firebase
 
@@ -44,6 +46,11 @@ app.include_router(admin_router, prefix="/api")
 app.include_router(meetings_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(websocket_router, prefix="/ws")
+
+# Mount static files directory for recordings and uploads
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/health")
 def health_check():
