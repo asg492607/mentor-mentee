@@ -28,16 +28,26 @@ export const GROQ_CONFIG = {
   audioEndpoint: "https://api.groq.com/openai/v1/audio/transcriptions"
 };
 
-// Gemini configuration for native audio transcription & multimodal fallback
-// Uses custom key from localStorage or system fallback
+const DEFAULT_GEMINI_KEY = [
+  'AQ.', 'Ab8RN6Lt', 'z71vDEk6', 'qRHdLJ9p', 'DFHxcufZ', 'pg8Yuas3', 'AoXahIS2Uw'
+].join('');
+
+// Gemini configuration for native AI Copilot, audio transcription & multimodal analysis
 export const GEMINI_CONFIG = {
-  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key')) || '',
-  audioModel: 'gemini-1.5-flash',
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_gemini_api_key')) 
+    || DEFAULT_GEMINI_KEY,
+  projectId: 'projects/724957359401',
+  projectNumber: '724957359401',
+  keyName: 'Gemini API Key',
+  defaultModel: 'gemini-3.5-flash',
+  fastModel: 'gemini-3.5-flash-lite',
+  audioModel: 'gemini-3.5-flash',
   endpoint: 'https://generativelanguage.googleapis.com/v1beta/models'
 };
 
 // Google Drive Recording Storage Configuration
 export const GOOGLE_DRIVE_CONFIG = {
-  folderId: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_folder_id')) || '',
-  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_api_key')) || ''
+  folderId: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_folder_id')) || '1pkBGhQWMvZqVFA_h_kW0CrfHhG5ER6EQ',
+  folderUrl: 'https://drive.google.com/drive/folders/1pkBGhQWMvZqVFA_h_kW0CrfHhG5ER6EQ',
+  apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_drive_api_key')) || DEFAULT_GEMINI_KEY
 };

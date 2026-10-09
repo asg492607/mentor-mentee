@@ -1,4 +1,4 @@
-// Admin � Platform Settings
+// Admin � Platform Settings
 // Controls global platform settings: sections, academic year, branding, and feature toggles.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
@@ -6,7 +6,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { SettingsService, WebIssueService } from '/js/services.js';
 import { AIService } from '/js/services/ai-service.js';
-import { GROQ_CONFIG } from '/js/config.js';
+import { GROQ_CONFIG, GOOGLE_DRIVE_CONFIG } from '/js/config.js';
 import { MIT_UNIVERSITY_CELLS, getCellsByCategory } from '/js/utils/mit-cells-data.js';
 import { db } from '/js/firebase-init.js';
 import {
@@ -113,32 +113,55 @@ export async function render(container) {
               <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
             </div>
 
-            <!-- Lumina AI Assistant Configuration -->
+            <!-- Lumina AI Academic Copilot Configuration (Gemini & Groq) -->
             <div class="card" style="padding:24px;border-color:rgba(124,58,237,0.3);background:linear-gradient(180deg, rgba(124,58,237,0.04) 0%, var(--bg-card) 100%);">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                 <div>
                   <h3 style="font-size:1.05rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;color:var(--text-primary);">
-                    <i class="ph-bold ph-sparkle" style="color:#c084fc;"></i> Lumina AI Copilot Engine Settings
-                    <span class="badge badge-accent" style="font-size:0.7rem;padding:2px 8px;">GROQ CORE</span>
+                    <i class="ph-bold ph-sparkle" style="color:#c084fc;"></i> Lumina AI Academic Copilot Settings
+                    <span class="badge badge-accent" style="font-size:0.7rem;padding:2px 8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;">GEMINI 3.5 ACTIVE</span>
                   </h3>
                   <p style="color:var(--text-secondary);font-size:0.82rem;margin-top:4px;line-height:1.5;">
-                    Configure the generative AI core powering student study planning, mentor agenda generation, issue polishing, and natural language platform assistance.
+                    Powered by Google Gemini Generative AI (Project: <code>projects/724957359401</code>, #724957359401) with ultra-low-latency Groq fallback.
                   </p>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <span class="badge badge-success" style="font-size:0.75rem;padding:4px 10px;">● API ACTIVE</span>
+                  <span class="badge badge-success" style="font-size:0.75rem;padding:4px 10px;">● GEMINI ACTIVE</span>
                 </div>
               </div>
 
+              <!-- Gemini Primary Engine -->
               <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:16px;">
                 <div class="form-group">
-                  <label class="form-label" style="font-weight:600;">Active AI Model</label>
-                  <select id="setting-ai-model" class="form-select">
-                    <option value="openai/gpt-oss-120b" ${AIService.getModel()==='openai/gpt-oss-120b'?'selected':''}>GPT OSS 120B (Recommended &amp; Highly Intelligent)</option>
-                    <option value="openai/gpt-oss-20b" ${AIService.getModel()==='openai/gpt-oss-20b'?'selected':''}>GPT OSS 20B (Ultra-fast response time)</option>
-                    <option value="qwen/qwen3.8-27b" ${AIService.getModel()==='qwen/qwen3.8-27b'?'selected':''}>Qwen 3.8 27B (High-accuracy reasoning)</option>
+                  <label class="form-label" style="font-weight:600;">Active Gemini Model (Primary)</label>
+                  <select id="setting-gemini-model" class="form-select">
+                    <option value="gemini-3.5-flash" ${AIService.getGeminiModel()==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash (Recommended &amp; Highly Intelligent)</option>
+                    <option value="gemini-3.5-flash-lite" ${AIService.getGeminiModel()==='gemini-3.5-flash-lite'?'selected':''}>Gemini 3.5 Flash Lite (Ultra-fast response time)</option>
+                    <option value="gemini-3.7-flash" ${AIService.getGeminiModel()==='gemini-3.7-flash'?'selected':''}>Gemini 3.7 Flash</option>
                   </select>
-                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Free tier models executed on Groq ultra low-latency hardware</p>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Google Generative AI multimodal copilot engine</p>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">Gemini API Key</label>
+                  <div style="display:flex;gap:8px;">
+                    <input type="password" id="setting-gemini-key" class="form-input" placeholder="AQ...." value="${escapeHtml(AIService.getGeminiApiKey())}">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-gemini-key-vis" title="Toggle visibility">👁</button>
+                  </div>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Official key for Gemini Copilot &amp; Multimodal Transcription</p>
+                </div>
+              </div>
+
+              <!-- Groq Secondary Failover -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-bottom:16px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600;">Groq Fallback Model</label>
+                  <select id="setting-ai-model" class="form-select">
+                    <option value="openai/gpt-oss-120b" ${AIService.getModel()==='openai/gpt-oss-120b'?'selected':''}>GPT OSS 120B (High reasoning fallback)</option>
+                    <option value="openai/gpt-oss-20b" ${AIService.getModel()==='openai/gpt-oss-20b'?'selected':''}>GPT OSS 20B (Ultra-fast fallback)</option>
+                    <option value="qwen/qwen3.8-27b" ${AIService.getModel()==='qwen/qwen3.8-27b'?'selected':''}>Qwen 3.8 27B</option>
+                  </select>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Secondary failover engine</p>
                 </div>
 
                 <div class="form-group">
@@ -150,7 +173,23 @@ export async function render(container) {
                   <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Leave as default or provide a custom key</p>
                 </div>
               </div>
-
+              <!-- Google Drive Recording Folder -->
+              <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);">
+                <div class="form-group">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <label class="form-label" style="font-weight:600;margin:0;">Google Drive Recording Storage Folder</label>
+                    <a href="${GOOGLE_DRIVE_CONFIG.folderUrl || 'https://drive.google.com/drive/folders/' + (localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-weight:600;">
+                      <i class="ph-bold ph-arrow-square-out"></i> Open in Google Drive
+                    </a>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <input type="text" id="setting-drive-folder" class="form-input" placeholder="Google Drive Folder Link or ID" value="${escapeHtml(localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}">
+                  </div>
+                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">
+                    Active Folder ID: <code>${escapeHtml(localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}</code> — Meeting recordings and audio are stored here.
+                  </p>
+                </div>
+              </div>
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid var(--border);padding-top:16px;">
                 <div style="display:flex;gap:10px;">
                   <button class="btn btn-primary" id="btn-save-ai-settings" style="gap:6px;">
@@ -413,42 +452,61 @@ export async function render(container) {
     showToast('Settings saved!', 'success');
   });
 
-  // AI Settings Event Listeners
-  const keyInput = document.getElementById('setting-ai-key');
-  const visBtn = document.getElementById('btn-toggle-ai-key-vis');
-  visBtn?.addEventListener('click', () => {
-    if (keyInput) {
-      keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
-      visBtn.textContent = keyInput.type === 'password' ? '👁' : '🔒';
+  // AI Settings Event Listeners (Gemini & Groq)
+  const geminiKeyInput = document.getElementById('setting-gemini-key');
+  const geminiVisBtn = document.getElementById('btn-toggle-gemini-key-vis');
+  geminiVisBtn?.addEventListener('click', () => {
+    if (geminiKeyInput) {
+      geminiKeyInput.type = geminiKeyInput.type === 'password' ? 'text' : 'password';
+      geminiVisBtn.textContent = geminiKeyInput.type === 'password' ? '👁' : '🔒';
+    }
+  });
+
+  const groqKeyInput = document.getElementById('setting-ai-key');
+  const groqVisBtn = document.getElementById('btn-toggle-ai-key-vis');
+  groqVisBtn?.addEventListener('click', () => {
+    if (groqKeyInput) {
+      groqKeyInput.type = groqKeyInput.type === 'password' ? 'text' : 'password';
+      groqVisBtn.textContent = groqKeyInput.type === 'password' ? '👁' : '🔒';
     }
   });
 
   document.getElementById('btn-save-ai-settings')?.addEventListener('click', () => {
-    const model = document.getElementById('setting-ai-model')?.value;
-    const customKey = keyInput?.value?.trim();
-    AIService.setModel(model);
-    if (customKey) {
-      AIService.setApiKey(customKey);
+    const geminiModel = document.getElementById('setting-gemini-model')?.value;
+    const customGeminiKey = geminiKeyInput?.value?.trim();
+    if (geminiModel) AIService.setGeminiModel(geminiModel);
+    if (customGeminiKey) AIService.setGeminiApiKey(customGeminiKey);
+
+    const groqModel = document.getElementById('setting-ai-model')?.value;
+    const customGroqKey = groqKeyInput?.value?.trim();
+    if (groqModel) AIService.setModel(groqModel);
+    if (customGroqKey) AIService.setApiKey(customGroqKey);
+
+    const driveFolderInput = document.getElementById('setting-drive-folder')?.value?.trim();
+    if (driveFolderInput) {
+      const match = driveFolderInput.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+      const folderId = match ? match[1] : driveFolderInput;
+      localStorage.setItem('lumina_drive_folder_id', folderId);
     }
-    showToast('✨ Lumina AI Copilot settings updated successfully!', 'success');
+    showToast('✨ Lumina Gemini AI Copilot settings updated successfully!', 'success');
   });
 
   document.getElementById('btn-test-ai-connection')?.addEventListener('click', async () => {
     const testStatus = document.getElementById('ai-test-status');
     const testBtn = document.getElementById('btn-test-ai-connection');
     if (testBtn) testBtn.disabled = true;
-    if (testStatus) testStatus.innerHTML = '<span style="color:var(--info);">⏳ Testing Groq API connection...</span>';
+    if (testStatus) testStatus.innerHTML = '<span style="color:var(--info);">⏳ Testing Gemini API connection...</span>';
 
     try {
       const response = await AIService.chat({
-        messages: [{ role: 'user', content: 'Reply in one short sentence: Connection successful!' }],
+        messages: [{ role: 'user', content: 'Reply in one short sentence: Gemini AI connection verified!' }],
         temperature: 0.1,
         maxTokens: 50
       });
       if (testStatus) {
         testStatus.innerHTML = `<span style="color:var(--success);">✅ Connected to <strong>${escapeHtml(response.model)}</strong>! (${escapeHtml(response.content.trim())})</span>`;
       }
-      showToast('AI API Connection Verified!', 'success');
+      showToast('Gemini AI Connection Verified!', 'success');
     } catch (err) {
       console.error('AI Test Error:', err);
       if (testStatus) {

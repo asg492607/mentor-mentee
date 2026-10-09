@@ -173,7 +173,7 @@ class AIAssistantWidget {
               </div>
               <div class="lumina-ai-status">
                 <span class="lumina-ai-status-dot"></span>
-                <span>Active &bull; Groq AI Core</span>
+                <span>Active &bull; Gemini AI Copilot</span>
               </div>
             </div>
           </div>
