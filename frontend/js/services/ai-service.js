@@ -559,11 +559,10 @@ ${notes || '(No manual notes)'}
    * Fallback extraction when AI API is unavailable — uses intelligent heuristic parsing.
    */
   _fallbackExtraction({ transcript, chatMessages, notes, meetingTopic, studentName }) {
-    const isGoodStr = s => s && typeof s === 'string' && s.trim().length > 3 && !/^(n|na|nil|none)$/i.test(s.trim());
+    const isGoodStr = s => s && typeof s === 'string' && s.trim().length > 2 && !/^(n|na|nil|none)$/i.test(s.trim());
     const allText = [transcript, chatMessages, notes].filter(isGoodStr).join('\n');
-    const rawLines = allText.split('\n').map(l => l.replace(/^\[\d{2}:\d{2}\]\s*/, '').trim()).filter(l => l && l.length > 3 && !/^(n|na|nil|none)$/i.test(l));
+    const rawLines = allText.split('\n').map(l => l.replace(/^\[\d{2}:\d{2}\]\s*/, '').trim()).filter(l => l && l.length > 2 && !/^(n|na|nil|none)$/i.test(l));
 
-    // Heuristic keyword scan for risk level
     const lowerAll = allText.toLowerCase();
     let riskLevel = 'LOW';
     let requiresEscalation = false;
@@ -579,16 +578,16 @@ ${notes || '(No manual notes)'}
     }
 
     const discussionPoints = rawLines.length > 0
-      ? rawLines.slice(0, Math.min(6, rawLines.length)).map(l => `• ${l}`).join('\n')
-      : '• Comprehensive academic progress review and mentorship session conducted.\n• Discussion regarding curriculum milestones, semester coursework, and attendance tracking.';
+      ? rawLines.slice(0, Math.min(8, rawLines.length)).map(l => `• ${l}`).join('\n')
+      : '';
 
     return {
-      topic: meetingTopic || 'Mentorship Session Review',
+      topic: meetingTopic || '',
       issuesDiscussed: discussionPoints,
-      actionItems: '1. Follow up on academic milestones discussed during session.\n2. Verify attendance regularisation if applicable.\n3. Complete assigned study modules before next mentorship check-in.',
-      tasks: ['Submit pending coursework assignments', 'Review notes for challenging subjects'],
-      confidentialObservations: riskLevel === 'HIGH' ? 'Student flagged for faculty follow-up.' : 'Student engaged constructively during session.',
-      remarks: `Session logged successfully for ${studentName || 'mentee'}. Verified via Lumina Academic Engine.`,
+      actionItems: '',
+      tasks: [],
+      confidentialObservations: '',
+      remarks: '',
       riskLevel,
       riskSignals,
       requiresEscalation

@@ -486,49 +486,12 @@ export async function render(container) {
 
     // Individual Meeting PDF Report Download Handlers
     container.querySelectorAll('.meeting-report-dl-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         const m = meetings.find(x => x.id === btn.dataset.id);
         if (!m) {
           showToast('Meeting record not found', 'error');
           return;
         }
-
-        const isValidIssue = m.report?.issuesDiscussed && m.report.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(m.report.issuesDiscussed.trim());
-        if (!isValidIssue) {
-          try {
-            const studentProfile = students.find(s => s.id === m.studentId) || {};
-            const cleanNotes = (m.notes?.issuesDiscussed || m.notes?.summary || m.description || '').trim();
-            const validNotes = cleanNotes.length > 4 && !/^(n|na|nil|none)$/i.test(cleanNotes) ? cleanNotes : '';
-
-            const rep = await AIService.generateMentorMeetingReport({
-              meeting: m,
-              studentName: m.studentName || studentProfile.name || '',
-              studentProfile,
-              transcript: m.transcript || '',
-              notes: validNotes
-            });
-
-            const updatedReport = {
-              ...(m.report || {}),
-              topic: rep.topic || m.type || 'Mentorship Session Review',
-              issuesDiscussed: rep.issuesDiscussed,
-              actionItems: rep.actionItems,
-              tasks: rep.tasks || [],
-              confidentialObservations: rep.confidentialObservations || '',
-              remarks: rep.remarks || '',
-              riskLevel: rep.riskLevel || m.riskLevel || 'LOW',
-              riskSignals: rep.riskSignals || [],
-              recordingUrl: m.recordingUrl || m.lastRecording?.url || m.report?.recordingUrl || '',
-              savedAt: new Date().toISOString()
-            };
-
-            m.report = updatedReport;
-            MeetingService.update(m.id, { report: updatedReport }).catch(e => console.warn('Persistence notice:', e));
-          } catch (genErr) {
-            console.warn('Auto-generation fallback on export:', genErr);
-          }
-        }
-
         exportMeetingSessionReport(m);
       });
     });

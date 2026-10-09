@@ -870,7 +870,7 @@ export function exportMeetingSessionReport(meeting) {
   const isValidReportContent = (str) => {
     if (!str || typeof str !== 'string') return false;
     const clean = str.trim().toLowerCase();
-    if (clean.length < 4) return false;
+    if (clean.length < 2) return false;
     if (['n', 'na', 'n/a', 'nil', 'none', 'no', 'null', 'undefined', 'test', 'dummy', '.', '-'].includes(clean)) return false;
     return true;
   };
@@ -882,7 +882,7 @@ export function exportMeetingSessionReport(meeting) {
     return '';
   };
 
-  let issues = getValidFirst(
+  const issues = getValidFirst(
     rpt.issuesDiscussed,
     ai.issuesDiscussed,
     meeting.notes?.issuesDiscussed,
@@ -892,7 +892,7 @@ export function exportMeetingSessionReport(meeting) {
     meeting.description
   );
 
-  let actionTaken = getValidFirst(
+  const actionTaken = getValidFirst(
     rpt.actionItems,
     ai.actionItems,
     meeting.notes?.actionTaken,
@@ -900,30 +900,13 @@ export function exportMeetingSessionReport(meeting) {
     meeting.notes?.advice
   );
 
-  // If issues discussed is empty or dummy, auto-generate official structured discussion points
-  if (!issues) {
-    const topicLabel = topic || 'Academic Mentorship';
-    issues = `• Comprehensive review of student academic progress, coursework milestones, and syllabus completion.
-• Attendance regularity monitoring and verification of student engagement across core subject lectures and practicals.
-• Doubt resolution, continuous internal evaluation (CIE/CA) performance assessment, and laboratory submission tracking.
-• Discussion on examination preparedness, backlog clearance strategies, and upcoming semester performance milestones.`;
-  }
-
-  // If action items is empty or dummy, auto-generate official structured remedial measures
-  if (!actionTaken) {
-    actionTaken = `1. Student to complete and submit pending coursework assignments and laboratory records within the specified timeline.
-2. Maintain minimum 75% attendance compliance across all theory lectures and laboratory practical sessions.
-3. Schedule doubt-clearing sessions with faculty mentor for challenging modules and technical concepts.
-4. Prepare systematically for upcoming internal evaluations (CIE) and end-semester examinations.`;
-  }
-
   const rawTasks = rpt.tasks || ai.tasks || meeting.notes?.tasks || [];
   const tasksStr = Array.isArray(rawTasks) && rawTasks.length > 0
-    ? rawTasks.map(t => typeof t === 'string' ? `• ${t}` : `• ${t.title || t.text || ''}`).filter(t => t && t.length > 3).join('\n')
+    ? rawTasks.map(t => typeof t === 'string' ? `• ${t}` : `• ${t.title || t.text || ''}`).filter(t => t && t.length > 2).join('\n')
     : '';
 
-  const actions = tasksStr ? `${actionTaken}\n\nStudent Action Items:\n${tasksStr}` : actionTaken;
-  const remarks = getValidFirst(rpt.remarks, ai.remarks, meeting.notes?.remarks) || 'Session concluded successfully. Student guided on academic roadmap and performance objectives.';
+  const actions = tasksStr ? (actionTaken ? `${actionTaken}\n\nStudent Action Items:\n${tasksStr}` : tasksStr) : (actionTaken || '');
+  const remarks = getValidFirst(rpt.remarks, ai.remarks, meeting.notes?.remarks);
   const confidential = getValidFirst(rpt.confidentialObservations, ai.confidentialObservations, meeting.notes?.confidentialObservations, meeting.notes?.privateObservations);
   const riskLevel = (rpt.riskLevel || ai.riskLevel || 'LOW').toUpperCase();
   const riskSignals = rpt.riskSignals || ai.riskSignals || [];

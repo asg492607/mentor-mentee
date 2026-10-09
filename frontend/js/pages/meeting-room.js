@@ -4393,17 +4393,8 @@ Standard syllabus topics, coursework materials, and project documentation review
         attendees
       });
     } catch (aiErr) {
-      console.warn('AI insight extraction fallback:', aiErr);
-      insights = {
-        topic: meeting.type || 'Mentorship Session Review',
-        issuesDiscussed: '• General academic progress, attendance tracking, and syllabus milestones discussed.',
-        actionItems: '1. Follow up on academic milestones.\n2. Review coursework materials.\n3. Complete assigned study modules.',
-        tasks: ['Complete pending lab submissions', 'Review upcoming test syllabus'],
-        confidentialObservations: 'Student engaged constructively during session.',
-        remarks: 'Session completed successfully. Continuous monitoring recommended.',
-        riskLevel: 'LOW',
-        riskSignals: []
-      };
+      console.warn('AI insight extraction notice:', aiErr);
+      insights = {};
     }
 
     if (stepAi) {
@@ -4416,9 +4407,9 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
 
     const finalTopic = insights.topic || insights.agenda || meeting.type || 'Mentorship Session Review';
-    const finalIssues = (insights.issuesDiscussed && insights.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(insights.issuesDiscussed.trim())) ? insights.issuesDiscussed : 'Comprehensive academic progress, syllabus tracking, and student performance review.';
-    const finalActions = (insights.actionItems && insights.actionItems.trim().length > 4 && !/^(n|na|nil|none)$/i.test(insights.actionItems.trim())) ? insights.actionItems : '1. Review coursework milestones.\n2. Complete assigned follow-up items.\n3. Prepare for upcoming internal assessments.';
-    const finalRemarks = insights.remarks || 'Session concluded successfully. Student guided on academic roadmap.';
+    const finalIssues = insights.issuesDiscussed || '';
+    const finalActions = insights.actionItems || '';
+    const finalRemarks = insights.remarks || '';
     const finalConfidential = insights.confidentialObservations || '';
     const finalRisk = insights.riskLevel || 'LOW';
     const finalSignals = insights.riskSignals || [];
