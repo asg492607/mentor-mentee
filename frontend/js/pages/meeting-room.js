@@ -3633,8 +3633,8 @@ Standard syllabus topics, coursework materials, and project documentation review
       date: document.getElementById('rpt-date')?.value || new Date().toISOString().slice(0, 10),
       time: document.getElementById('rpt-time')?.value || '',
       students: studentRows,
-      issuesDiscussed: document.getElementById('rpt-issues')?.value.trim() || 'No issues reported.',
-      actionItems: document.getElementById('rpt-actions')?.value.trim() || 'No action items recorded.',
+      issuesDiscussed: (() => { const val = document.getElementById('rpt-issues')?.value.trim(); return (val && val.length > 4 && !/^(n|na|nil|none)$/i.test(val)) ? val : (meeting.report?.issuesDiscussed || meeting.aiNotes?.issuesDiscussed || ''); })(),
+      actionItems: (() => { const val = document.getElementById('rpt-actions')?.value.trim(); return (val && val.length > 4 && !/^(n|na|nil|none)$/i.test(val)) ? val : (meeting.report?.actionItems || meeting.aiNotes?.actionItems || ''); })(),
       remarks: document.getElementById('rpt-remarks')?.value.trim() || '',
       confidentialObservations: document.getElementById('rpt-confidential')?.value.trim() || '',
       riskLevel: document.getElementById('rpt-risk')?.value || 'LOW',
@@ -4416,8 +4416,8 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
 
     const finalTopic = insights.topic || insights.agenda || meeting.type || 'Mentorship Session Review';
-    const finalIssues = insights.issuesDiscussed || 'Comprehensive academic progress and guidance discussed.';
-    const finalActions = insights.actionItems || '1. Review coursework milestones.\n2. Complete assigned follow-up items.';
+    const finalIssues = (insights.issuesDiscussed && insights.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(insights.issuesDiscussed.trim())) ? insights.issuesDiscussed : 'Comprehensive academic progress, syllabus tracking, and student performance review.';
+    const finalActions = (insights.actionItems && insights.actionItems.trim().length > 4 && !/^(n|na|nil|none)$/i.test(insights.actionItems.trim())) ? insights.actionItems : '1. Review coursework milestones.\n2. Complete assigned follow-up items.\n3. Prepare for upcoming internal assessments.';
     const finalRemarks = insights.remarks || 'Session concluded successfully. Student guided on academic roadmap.';
     const finalConfidential = insights.confidentialObservations || '';
     const finalRisk = insights.riskLevel || 'LOW';

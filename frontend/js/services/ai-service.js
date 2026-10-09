@@ -559,8 +559,9 @@ ${notes || '(No manual notes)'}
    * Fallback extraction when AI API is unavailable — uses intelligent heuristic parsing.
    */
   _fallbackExtraction({ transcript, chatMessages, notes, meetingTopic, studentName }) {
-    const allText = [transcript, chatMessages, notes].filter(Boolean).join('\n');
-    const rawLines = allText.split('\n').map(l => l.replace(/^\[\d{2}:\d{2}\]\s*/, '').trim()).filter(Boolean);
+    const isGoodStr = s => s && typeof s === 'string' && s.trim().length > 3 && !/^(n|na|nil|none)$/i.test(s.trim());
+    const allText = [transcript, chatMessages, notes].filter(isGoodStr).join('\n');
+    const rawLines = allText.split('\n').map(l => l.replace(/^\[\d{2}:\d{2}\]\s*/, '').trim()).filter(l => l && l.length > 3 && !/^(n|na|nil|none)$/i.test(l));
 
     // Heuristic keyword scan for risk level
     const lowerAll = allText.toLowerCase();
@@ -608,7 +609,7 @@ Department: ${dept}
 CGPA: ${studentProfile.cgpa || meeting.studentCGPA || 'N/A'} | Attendance: ${studentProfile.attendance || meeting.studentAttendance || 'N/A'}% | Current Risk: ${studentProfile.riskLevel || meeting.riskLevel || 'N/A'}
 Backlogs: ${studentProfile.backlogs || 'N/A'}
 
-Meeting Notes: ${notes || meeting.notes?.summary || 'General academic review and mentorship guidance'}
+Meeting Notes: ${(notes && notes.trim().length > 3 && !/^(n|na|nil|none)$/i.test(notes.trim())) ? notes : ((meeting.notes?.summary && meeting.notes.summary.trim().length > 3 && !/^(n|na|nil|none)$/i.test(meeting.notes.summary.trim())) ? meeting.notes.summary : 'General academic review and mentorship guidance')}
 Transcript / Audio Excerpt: ${(transcript || '').slice(0, 1500)}
 
 Format the report strictly using these '### ' section headers:
