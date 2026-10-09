@@ -454,19 +454,20 @@ ${chatMessages || '(No chat messages)'}
 ${notes || '(No manual notes)'}
 
 --- INSTRUCTIONS FOR HIGH-PRECISION EXTRACTION ---
-1. Identify all student concerns, difficulties, backlogs, attendance deficits, exam hurdles, or personal/hostel issues explicitly or implicitly discussed.
-2. Group issues into distinct bold academic categories (e.g., **Academic Performance & Lab Submissions**, **Attendance Defaulter Status**, **KT & Backlog Clearance Plan**, **Examination Readiness**, **Personal & Psychological Well-being**, **Career, Certifications & Internship Placement**).
-3. Specify concrete remedial actions and agreed interventions with clear timelines.
-4. Extract individual actionable student tasks (short, crisp, one per line) to automatically synchronize with the student's task manager.
-5. Provide confidential faculty observations regarding the mentee's mindset, stress, emotional state, sincerity, and whether university counseling or parental notification is warranted.
-6. Evaluate risk triage level strictly: HIGH (critical backlogs / severe attendance shortage < 60% / deep distress), MEDIUM (moderate backlogs / attendance 60-75% / academic warning), or LOW (satisfactory standing).
-7. Format the output strictly under the following markdown section headers:
+1. Identify the primary Meeting Agenda & Topic directly from how the session opened and the topics explored in the voice recording.
+2. Identify all student concerns, difficulties, backlogs, attendance deficits, exam hurdles, or personal/hostel issues explicitly or implicitly discussed.
+3. Group issues into distinct bold academic categories (e.g., **Academic Performance & Lab Submissions**, **Attendance Defaulter Status**, **KT & Backlog Clearance Plan**, **Examination Readiness**, **Personal & Psychological Well-being**, **Career, Certifications & Internship Placement**).
+4. Specify concrete remedial actions and agreed interventions with clear timelines.
+5. Extract individual actionable student tasks (short, crisp, one per line) to automatically synchronize with the student's task manager.
+6. Provide confidential faculty observations regarding the mentee's mindset, stress, emotional state, sincerity, and whether university counseling or parental notification is warranted.
+7. Evaluate risk triage level strictly: HIGH (critical backlogs / severe attendance shortage < 60% / deep distress), MEDIUM (moderate backlogs / attendance 60-75% / academic warning), or LOW (satisfactory standing).
+8. Format the output strictly under the following markdown section headers:
 
-### 📌 Meeting Topic & Executive Summary
-[2-3 formal sentences clearly defining the purpose, key dialogue, and overarching outcome of the session]
+### 📌 Meeting Agenda & Executive Topic
+[Specific meeting agenda and core subject matter derived directly from the voice recording dialogue]
 
 ### ⚠️ Issues Discussed
-[Detailed bullet points with bold category headings describing every problem, challenge, or topic raised by the student or mentor]
+[Detailed bullet points with bold category headings describing every problem, challenge, or topic raised by the student or mentor in the recording]
 
 ### ✅ Action Items & Remedial Measures
 [Numbered concrete remedial actions, faculty guidance, and institutional support steps agreed upon with deadlines]
@@ -521,8 +522,9 @@ ${notes || '(No manual notes)'}
       const header = (firstLineEnd === -1 ? section : section.slice(0, firstLineEnd)).toLowerCase();
       const body = (firstLineEnd === -1 ? '' : section.slice(firstLineEnd + 1)).trim();
 
-      if (header.includes('topic') || header.includes('summary') || header.includes('executive')) {
+      if (header.includes('agenda') || header.includes('topic') || header.includes('summary') || header.includes('executive')) {
         result.topic = body;
+        result.agenda = body;
       } else if (header.includes('issues') || header.includes('problem') || header.includes('challenge') || header.includes('concern')) {
         result.issuesDiscussed = body;
       } else if (header.includes('action') || header.includes('remedial') || header.includes('resolution') || header.includes('measure')) {
@@ -876,13 +878,15 @@ Format strictly as:
           const model = GEMINI_CONFIG.audioModel || 'gemini-3.5-flash';
           const endpoint = `${GEMINI_CONFIG.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models'}/${model}:generateContent?key=${geminiKey}`;
 
-          const promptText = `Analyze this university mentorship audio. Student: ${context.studentName || 'Student'}, Topic: ${context.meetingTopic || 'Session'}.
+          const promptText = `Analyze this university mentorship audio recording. Student: ${context.studentName || 'Student'}, Topic: ${context.meetingTopic || 'Session'}.
 Respond with a JSON object strictly conforming to:
 {
   "transcript": "[Mentor]: ...\\n[Student]: ...",
-  "issuesDiscussed": "Detailed summary of student academic or personal issues.",
-  "actionItems": "Numbered next steps agreed upon.",
+  "topic": "Concise Meeting Agenda & Topic identified from the voice discussion.",
+  "issuesDiscussed": "Detailed summary of student academic or personal issues raised in this voice recording grouped with bold categories.",
+  "actionItems": "Numbered next steps and remedial measures agreed upon.",
   "tasks": ["Task 1", "Task 2"],
+  "confidentialObservations": "Confidential faculty notes on student stress, attitude, and engagement.",
   "riskLevel": "LOW|MEDIUM|HIGH",
   "riskSignals": ["Signal 1"],
   "requiresEscalation": false,
@@ -913,7 +917,21 @@ Respond with a JSON object strictly conforming to:
           if (response.ok) {
             const data = await response.json();
             const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (rawJson) return JSON.parse(rawJson);
+            if (rawJson) {
+              const parsed = JSON.parse(rawJson);
+              return {
+                transcript: parsed.transcript || '',
+                topic: parsed.topic || context.meetingTopic || 'Mentorship Session',
+                issuesDiscussed: parsed.issuesDiscussed || '',
+                actionItems: parsed.actionItems || '',
+                tasks: parsed.tasks || [],
+                confidentialObservations: parsed.confidentialObservations || '',
+                remarks: parsed.remarks || '',
+                riskLevel: parsed.riskLevel || 'LOW',
+                riskSignals: parsed.riskSignals || [],
+                requiresEscalation: parsed.requiresEscalation || false
+              };
+            }
           }
         }
       } catch (geminiErr) {

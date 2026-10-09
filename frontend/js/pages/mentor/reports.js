@@ -547,29 +547,39 @@ export async function render(container) {
 
         try {
           const studentProfile = students.find(s => s.id === m.studentId) || {};
-          const report = await AIService.generateMentorMeetingReport({
-            meeting: m,
-            studentName: m.studentName || studentProfile.name || '',
-            studentProfile,
-            transcript: '',
-            notes: m.notes?.issuesDiscussed || m.notes?.summary || m.description || ''
-          });
+          const report = (m.report && m.report.issuesDiscussed)
+            ? m.report
+            : await AIService.generateMentorMeetingReport({
+                meeting: m,
+                studentName: m.studentName || studentProfile.name || '',
+                studentProfile,
+                transcript: '',
+                notes: m.notes?.issuesDiscussed || m.notes?.summary || m.description || ''
+              });
 
-          const topic = m.type || m.description || 'Mentorship Session';
+          const topic = m.report?.topic || m.type || m.description || 'Mentorship Session';
           const dateStr = m.scheduledAt
             ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
             : 'Date not set';
 
-          const existingRisk = m.report?.riskLevel || m.aiNotes?.riskLevel || 'LOW';
-          const existingConfidential = m.report?.confidentialNotes || m.aiNotes?.confidentialNotes || '';
+          const existingRisk = m.report?.riskLevel || m.aiNotes?.riskLevel || report.riskLevel || 'LOW';
+          const existingConfidential = m.report?.confidentialObservations || m.report?.confidentialNotes || m.aiNotes?.confidentialObservations || '';
           const existingTasks = Array.isArray(m.aiNotes?.actionItems)
             ? m.aiNotes.actionItems.join('\n')
             : (Array.isArray(report.tasks) ? report.tasks.join('\n') : (report.actionItems || ''));
+          const recUrl = m.recordingUrl || m.report?.recordingUrl || m.lastRecording?.url || '';
 
           body.innerHTML = `
             <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,rgba(255,255,255,0.03));border-radius:12px;border:1px solid var(--border);">
               <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">${topic}</div>
               <div style="font-size:0.8rem;color:var(--text-muted);">${dateStr} • ${m.studentName || 'Mentee'} • ${m.department || 'CSE'}</div>
+              ${recUrl ? `
+                <div style="margin-top:8px;font-size:0.8rem;">
+                  <a href="${escapeHtml(recUrl)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
+                    📁 View Voice Recording in Google Drive
+                  </a>
+                </div>
+              ` : ''}
             </div>
 
             <div class="form-group" style="margin-bottom:12px;">
