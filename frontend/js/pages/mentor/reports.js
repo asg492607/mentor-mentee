@@ -586,6 +586,7 @@ export async function render(container) {
           const studentProfile = students.find(s => s.id === m.studentId) || {};
           const hasValidIssues = m.report?.issuesDiscussed && m.report.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(m.report.issuesDiscussed.trim());
           const report = hasValidIssues
+            ? m.report
             : await AIService.generateMentorMeetingReport({
                 meeting: m,
                 studentName: m.studentName || studentProfile.name || '',
