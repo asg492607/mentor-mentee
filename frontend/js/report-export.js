@@ -882,6 +882,15 @@ export function exportMeetingSessionReport(meeting) {
     return '';
   };
 
+  const extractedSentences = getValidFirst(
+    rpt.extractedSentences,
+    rpt.transcript,
+    ai.extractedSentences,
+    ai.transcript,
+    meeting.extractedSentences,
+    meeting.transcript
+  );
+
   const issues = getValidFirst(
     rpt.issuesDiscussed,
     ai.issuesDiscussed,
@@ -889,6 +898,7 @@ export function exportMeetingSessionReport(meeting) {
     meeting.notes?.studentIssues,
     meeting.notes?.problem,
     meeting.notes?.summary,
+    extractedSentences,
     meeting.description
   );
 
@@ -1072,6 +1082,12 @@ export function exportMeetingSessionReport(meeting) {
         <div class="section-head">Issues Discussed</div>
         <div class="section-body">${issues}</div>
       </div>
+
+      ${(extractedSentences && extractedSentences !== issues) ? `
+      <div class="section">
+        <div class="section-head">Key Sentences &amp; Dialogue Extracted from Voice Recording</div>
+        <div class="section-body" style="white-space: pre-wrap; font-size: 9pt; line-height: 1.45;">${extractedSentences}</div>
+      </div>` : ''}
 
       <div class="section">
         <div class="section-head">Action Items &amp; Resolutions</div>

@@ -1775,6 +1775,8 @@ export async function render(container) {
 
       if (isMentor) {
         await MeetingService.update(meetingId, {
+        transcript: combinedTranscript,
+        extractedSentences: combinedTranscript,
           status: 'ONGOING',
           startedAt: meeting.startedAt || new Date().toISOString()
         });
@@ -4407,7 +4409,7 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
 
     const finalTopic = insights.topic || insights.agenda || meeting.type || 'Mentorship Session Review';
-    const finalIssues = insights.issuesDiscussed || '';
+    const finalIssues = insights.issuesDiscussed || combinedTranscript || '';
     const finalActions = insights.actionItems || '';
     const finalRemarks = insights.remarks || '';
     const finalConfidential = insights.confidentialObservations || '';
@@ -4426,6 +4428,8 @@ Standard syllabus topics, coursework materials, and project documentation review
       time: new Date().toTimeString().slice(0, 5),
       students: studentRows.length > 0 ? studentRows : (meeting.studentName ? [{ name: meeting.studentName, enrollment: meeting.studentEnrollment || '' }] : []),
       issuesDiscussed: finalIssues, // Issues Discussed
+      transcript: combinedTranscript,
+      extractedSentences: combinedTranscript,
       actionItems: finalActions, // Action Taken & Remedial Measures
       remarks: finalRemarks, // Additional Remarks
       confidentialObservations: finalConfidential,
@@ -4448,6 +4452,8 @@ Standard syllabus topics, coursework materials, and project documentation review
     const aiNotes = {
       topic: finalTopic,
       issuesDiscussed: finalIssues,
+      transcript: combinedTranscript,
+      extractedSentences: combinedTranscript,
       actionItems: finalActions,
       tasks: finalTasks,
       confidentialObservations: finalConfidential,
@@ -4552,7 +4558,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       const printBtn = document.getElementById('btn-post-print-report');
       if (printBtn) {
         printBtn.onclick = () => {
-          exportMeetingSessionReport({ ...meeting, report: reportData, recordingUrl: driveUrl });
+          exportMeetingSessionReport({ ...meeting, report: reportData, recordingUrl: driveUrl, transcript: combinedTranscript, extractedSentences: combinedTranscript });
         };
       }
 

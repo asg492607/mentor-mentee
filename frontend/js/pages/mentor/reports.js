@@ -642,6 +642,8 @@ export async function render(container) {
             const updatedReport = {
               ...(m.report || {}),
               issuesDiscussed,
+              transcript: m.transcript || m.aiNotes?.transcript || m.report?.transcript || '',
+              extractedSentences: m.extractedSentences || m.transcript || m.aiNotes?.transcript || m.report?.extractedSentences || '',
               actionItems,
               remarks,
               riskLevel,
