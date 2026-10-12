@@ -4409,13 +4409,40 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
 
     const finalTopic = insights.topic || insights.agenda || meeting.type || 'Mentorship Session Review';
-    const finalIssues = insights.issuesDiscussed || combinedTranscript || '';
+    
+    // Ensure issuesDiscussed is never a raw verbatim dialogue dump
+    let finalIssues = (insights.issuesDiscussed || '').trim();
+    if (!finalIssues || /\[\d{2}:\d{2}\]/.test(finalIssues) || finalIssues.length < 10) {
+      const fallback = AIService._fallbackExtraction({
+        transcript: combinedTranscript,
+        chatMessages: chatMsgs,
+        notes: manualNotes,
+        meetingTopic: finalTopic,
+        studentName: meeting.studentName || ''
+      });
+      finalIssues = fallback.issuesDiscussed || finalIssues;
+      if (!insights.actionItems) insights.actionItems = fallback.actionItems;
+      if (!insights.tasks || insights.tasks.length === 0) insights.tasks = fallback.tasks;
+      if (!insights.confidentialObservations) insights.confidentialObservations = fallback.confidentialObservations;
+      if (!insights.remarks) insights.remarks = fallback.remarks;
+    }
+
     const finalActions = insights.actionItems || '';
     const finalRemarks = insights.remarks || '';
     const finalConfidential = insights.confidentialObservations || '';
     const finalRisk = insights.riskLevel || 'LOW';
     const finalSignals = insights.riskSignals || [];
     const finalTasks = insights.tasks || [];
+
+    // Extract key salient quotes for extractedSentences instead of whole transcript dump
+    const cleanExtractedSentences = combinedTranscript
+      ? combinedTranscript.split('\n')
+          .map(l => l.replace(/^\[\d{2}:\d{2}\]\s*(?:\[?[A-Za-z\s]+\]?:)?\s*/, '').trim())
+          .filter(l => l.length > 12 && !/^(hello|hi|yes|no|ok|thank|sir|bye)/i.test(l))
+          .slice(0, 4)
+          .map(l => `• "${l}"`)
+          .join('\n')
+      : '';
 
     const studentRows = [...document.querySelectorAll('.rpt-student-row')].map(row => ({
       name: row.querySelector('.rpt-sname')?.value.trim(),
@@ -4429,7 +4456,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       students: studentRows.length > 0 ? studentRows : (meeting.studentName ? [{ name: meeting.studentName, enrollment: meeting.studentEnrollment || '' }] : []),
       issuesDiscussed: finalIssues, // Issues Discussed
       transcript: combinedTranscript,
-      extractedSentences: combinedTranscript,
+      extractedSentences: cleanExtractedSentences || finalIssues,
       actionItems: finalActions, // Action Taken & Remedial Measures
       remarks: finalRemarks, // Additional Remarks
       confidentialObservations: finalConfidential,

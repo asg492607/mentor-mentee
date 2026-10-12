@@ -882,25 +882,35 @@ export function exportMeetingSessionReport(meeting) {
     return '';
   };
 
-  const extractedSentences = getValidFirst(
+  const rawExtractedSentences = getValidFirst(
     rpt.extractedSentences,
-    rpt.transcript,
     ai.extractedSentences,
-    ai.transcript,
-    meeting.extractedSentences,
-    meeting.transcript
+    meeting.extractedSentences
   );
 
-  const issues = getValidFirst(
+  let issues = getValidFirst(
     rpt.issuesDiscussed,
     ai.issuesDiscussed,
     meeting.notes?.issuesDiscussed,
     meeting.notes?.studentIssues,
     meeting.notes?.problem,
     meeting.notes?.summary,
-    extractedSentences,
     meeting.description
   );
+
+  // If issues still contains raw timestamps/speaker dialogue, convert to clean bullet points
+  if (issues && /\[\d{2}:\d{2}\]/.test(issues)) {
+    issues = issues.split('\n')
+      .map(l => l.replace(/^\[\d{2}:\d{2}\]\s*(?:\[?[A-Za-z\s]+\]?:)?\s*/, '').trim())
+      .filter(l => l.length > 5 && !/^(hello|hi|yes|no|ok|thank|sir|bye)$/i.test(l))
+      .map(l => `• ${l}`)
+      .join('\n');
+  }
+
+  // Ensure extractedSentences is clean salient quotes, not identical to issues or full raw transcript
+  const extractedSentences = (rawExtractedSentences && rawExtractedSentences !== issues && !rawExtractedSentences.includes(issues))
+    ? rawExtractedSentences
+    : '';
 
   const actionTaken = getValidFirst(
     rpt.actionItems,

@@ -106,7 +106,7 @@ service cloud.firestore {
         resource.data.studentId == 'ALL' ||
         isDean() || isSuperAdmin()
       );
-      allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status == 'REQUESTED') ||
+      allow create: if (isStudent() && request.resource.data.studentId == uid() && (request.resource.data.status == 'REQUESTED' || request.resource.data.status == 'APPROVED')) ||
                        (isFaculty() && request.resource.data.mentorId == uid()) || isSuperAdmin();
       allow update: if isAuth() && (
         (resource.data.studentId == uid() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'CANCELLED') ||

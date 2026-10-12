@@ -669,7 +669,9 @@ export async function render(container) {
 
             <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; border:none; padding:0;">
               <button type="button" class="btn btn-secondary" id="cancel-sched-modal" style="border-radius:10px;">Cancel</button>
-              <button type="submit" class="btn btn-primary" id="btn-submit-sched" style="border-radius:10px; font-weight:700;">Schedule &amp; Notify</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit-sched" style="border-radius:10px; font-weight:700;">
+                <i class="ph ph-calendar-plus"></i> Schedule Now
+              </button>
             </div>
           </form>
         </div>
@@ -729,8 +731,10 @@ export async function render(container) {
   container.querySelector('#sched-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = container.querySelector('#btn-submit-sched');
-    btn.disabled = true; 
-    btn.textContent = 'Scheduling...';
+    if (btn) {
+      btn.disabled = true; 
+      btn.innerHTML = '<span class="spinner-sm" style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span> Scheduling...';
+    }
 
     try {
       const studentId = container.querySelector('#sched-student').value;
@@ -762,17 +766,21 @@ export async function render(container) {
           students: students.map(s => ({ name: s.name, studentName: s.name, enrollment: s.enrollmentNumber || s.rollNo || '—' })),
           status: 'APPROVED'
         };
-        const mId = await MeetingService.create(mData);
+
+        const createPromise = MeetingService.create(mData);
+        const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Meeting save timed out. Please check network.')), 10000));
+        const mId = await Promise.race([createPromise, timeoutPromise]);
+
         meetings.unshift({ id: mId, ...mData });
         
-        for (const s of students) {
-          await NotificationService.create({
-            userId: s.id, type: 'MEETING_APPROVED',
-            title: `New Group Mentorship Session: ${type}`, 
-            message: `Scheduled for ${fmt(date)}. Agenda: ${desc}`, 
-            relatedId: mId
-          });
-        }
+        // Background notification delivery
+        const notifPromises = students.map(s => NotificationService.create({
+          userId: s.id, type: 'MEETING_APPROVED',
+          title: `New Group Mentorship Session: ${type}`, 
+          message: `Scheduled for ${fmt(date)}. Agenda: ${desc}`, 
+          relatedId: mId
+        }));
+        Promise.allSettled(notifPromises).catch(err => console.warn('Background notification error:', err));
       } else {
         const student = students.find(s => s.id === studentId);
         if (!student) {
@@ -793,15 +801,20 @@ export async function render(container) {
           students: [{ name: student.name, enrollment: student.enrollmentNumber || student.rollNo || '—' }],
           status: 'APPROVED'
         };
-        const mId = await MeetingService.create(mData);
+
+        const createPromise = MeetingService.create(mData);
+        const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('Meeting save timed out. Please check network.')), 10000));
+        const mId = await Promise.race([createPromise, timeoutPromise]);
+
         meetings.unshift({ id: mId, ...mData });
         
-        await NotificationService.create({
+        // Background notification delivery
+        NotificationService.create({
           userId: student.id, type: 'MEETING_APPROVED',
           title: `Mentorship Session Scheduled: ${type}`, 
           message: `Scheduled for ${fmt(date)}. Agenda: ${desc}`, 
           relatedId: mId
-        });
+        }).catch(err => console.warn('Background notification error:', err));
       }
 
       showToast('Meeting scheduled and added to calendar!', 'success');
@@ -811,10 +824,12 @@ export async function render(container) {
       activeTab = 'approved';
       renderCurrentView();
     } catch(err) {
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to schedule meeting', 'error');
     } finally {
-      btn.disabled = false; 
-      btn.textContent = 'Schedule & Notify';
+      if (btn) {
+        btn.disabled = false; 
+        btn.innerHTML = '<i class="ph ph-calendar-plus"></i> Schedule Now';
+      }
     }
   });
 }
