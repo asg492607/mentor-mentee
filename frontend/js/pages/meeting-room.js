@@ -1775,8 +1775,6 @@ export async function render(container) {
 
       if (isMentor) {
         await MeetingService.update(meetingId, {
-        transcript: combinedTranscript,
-        extractedSentences: combinedTranscript,
           status: 'ONGOING',
           startedAt: meeting.startedAt || new Date().toISOString()
         });
@@ -1907,7 +1905,9 @@ export async function render(container) {
     };
 
     recognition.onerror = (err) => {
-      console.warn('Speech recognition warning:', err);
+      // Silence during meeting intervals or normal stream stop is not a failure
+      if (err?.error === 'no-speech' || err?.error === 'aborted') return;
+      console.warn('Speech recognition notice:', err?.error || err);
     };
   }
 
@@ -1995,6 +1995,7 @@ export async function render(container) {
   let lastAudioBlob = null; // Stores the most recent recorded audio blob for AI transcription
   let lastRecordingBlob = null; // Full recording blob (audio or video)
   let uploadedDriveRecording = null; // Stored Google Drive upload result
+  let recordingUploadPromise = null; // In-flight upload promise to prevent duplicate concurrent uploads
   let recordStream = null;
   let recInterval = null;
   let recSeconds = 0;
@@ -2123,7 +2124,7 @@ export async function render(container) {
 
     // Automatically upload recording to Google Drive
     showToast('☁️ Uploading recording to Google Drive folder...', 'info');
-    MeetingService.uploadRecording(meetingId, blob, {
+    recordingUploadPromise = MeetingService.uploadRecording(meetingId, blob, {
       mode: recordingMode || 'audio',
       duration: recordingDuration,
       filename: recordingFileName
@@ -2133,9 +2134,11 @@ export async function render(container) {
       if (viewLink) {
         showToast('📁 Recording uploaded & linked to Google Drive!', 'success');
       }
+      return driveRes;
     }).catch(driveErr => {
       console.warn('Google Drive upload notice:', driveErr.message);
       showToast('Recording downloaded locally (Drive sync pending)', 'info');
+      return null;
     });
 
     // Auto-prompt AI extraction if transcript is available
@@ -4331,14 +4334,30 @@ Standard syllabus topics, coursework materials, and project documentation review
     let driveDownload = uploadedDriveRecording?.downloadLink || meeting.recordingDownloadUrl || '';
     let driveFileId = uploadedDriveRecording?.fileId || meeting.recordingDriveId || '';
 
+    // If an upload is already running from manual recording stop, await it
+    if (!driveUrl && recordingUploadPromise) {
+      try {
+        const existingRes = await recordingUploadPromise;
+        if (existingRes) {
+          uploadedDriveRecording = existingRes;
+          driveUrl = existingRes.webViewLink || existingRes.url || '';
+          driveDownload = existingRes.downloadLink || '';
+          driveFileId = existingRes.fileId || '';
+        }
+      } catch (e) {
+        console.warn('Existing upload promise wait error:', e);
+      }
+    }
+
     if (audioBlob && !driveUrl) {
       try {
         const cleanTopic = (meeting.type || meeting.description || 'Mentorship_Session').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const driveRes = await MeetingService.uploadRecording(meetingId, audioBlob, {
+        recordingUploadPromise = MeetingService.uploadRecording(meetingId, audioBlob, {
           mode: 'audio',
           duration: recSeconds || 0,
           filename: `${cleanTopic}_voice_${new Date().toISOString().slice(0, 10)}.webm`
         });
+        const driveRes = await recordingUploadPromise;
         if (driveRes) {
           uploadedDriveRecording = driveRes;
           driveUrl = driveRes.webViewLink || driveRes.url || '';

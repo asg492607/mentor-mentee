@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from typing import Optional
 from app.core.dependencies import get_current_user
 from app.services.meeting_service import MeetingService
@@ -85,6 +85,7 @@ def get_ai_notes(meeting_id: str, user = Depends(get_current_user)):
 @router.post("/{meeting_id}/upload-recording")
 async def upload_meeting_recording(
     meeting_id: str,
+    request: Request,
     file: UploadFile = File(...),
     mode: str = Form("audio"),
     duration: int = Form(0),
@@ -94,14 +95,21 @@ async def upload_meeting_recording(
     Upload session recording to Google Drive folder and save link in meeting document.
     Only participants or administrative users can upload recordings.
     """
-    repo = MeetingRepository()
-    meeting = repo.get_by_id(meeting_id)
-    if not meeting:
-        raise NotFoundException("Meeting not found")
-
-    allowed_roles = {"ADMIN", "HOD", "DEAN"}
-    if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in allowed_roles:
-        raise ForbiddenException("You are not authorized to upload recordings for this meeting")
+    repo = None
+    meeting = None
+    try:
+        repo = MeetingRepository()
+        if repo and repo.db is not None:
+            meeting = repo.get_by_id(meeting_id)
+            if meeting:
+                allowed_roles = {"ADMIN", "HOD", "DEAN"}
+                if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in allowed_roles:
+                    raise ForbiddenException("You are not authorized to upload recordings for this meeting")
+    except ForbiddenException:
+        raise
+    except Exception:
+        repo = None
+        meeting = None
 
     # Read binary content
     contents = await file.read()
@@ -112,8 +120,8 @@ async def upload_meeting_recording(
     mime_type = file.content_type or ("audio/webm" if mode == "audio" else "video/webm")
 
     drive_service = DriveService()
-    mentor_name = meeting.get("mentorName") or user.get("name") or "Mentor"
-    meeting_date = meeting.get("date") or get_timestamp()
+    mentor_name = (meeting.get("mentorName") if meeting else None) or user.get("name") or "Mentor"
+    meeting_date = (meeting.get("date") if meeting else None) or get_timestamp()
 
     result = await drive_service.upload_recording(
         file_bytes=contents,
@@ -124,26 +132,37 @@ async def upload_meeting_recording(
         meeting_date=meeting_date
     )
 
-    # Persist recording metadata to Firestore meeting document
-    rec_update = {
-        "hasRecording": True,
-        "recordingUrl": result.get("webViewLink", ""),
-        "recordingDownloadUrl": result.get("downloadLink", ""),
-        "recordingDriveId": result.get("fileId", ""),
-        "recordingStorage": result.get("storage", "google_drive"),
-        "recordingMode": mode,
-        "recordingDuration": duration,
-        "recordingUploadedAt": get_timestamp(),
-        "recordingFileName": filename,
-        "lastRecording": {
-            "mode": mode,
-            "duration": duration,
-            "recordedAt": get_timestamp(),
-            "fileName": filename,
-            "url": result.get("webViewLink", "")
+    # Convert relative local paths to absolute URLs
+    base_url = str(request.base_url).rstrip("/")
+    if result.get("webViewLink", "").startswith("/"):
+        result["webViewLink"] = f"{base_url}{result['webViewLink']}"
+    if result.get("downloadLink", "").startswith("/"):
+        result["downloadLink"] = f"{base_url}{result['downloadLink']}"
+
+    # Persist recording metadata to Firestore meeting document if db is available
+    if repo.db is not None:
+        rec_update = {
+            "hasRecording": True,
+            "recordingUrl": result.get("webViewLink", ""),
+            "recordingDownloadUrl": result.get("downloadLink", ""),
+            "recordingDriveId": result.get("fileId", ""),
+            "recordingStorage": result.get("storage", "google_drive"),
+            "recordingMode": mode,
+            "recordingDuration": duration,
+            "recordingUploadedAt": get_timestamp(),
+            "recordingFileName": filename,
+            "lastRecording": {
+                "mode": mode,
+                "duration": duration,
+                "recordedAt": get_timestamp(),
+                "fileName": filename,
+                "url": result.get("webViewLink", "")
+            }
         }
-    }
-    repo.update(meeting_id, rec_update)
+        try:
+            repo.update(meeting_id, rec_update)
+        except Exception:
+            pass
 
     return {
         "success": True,

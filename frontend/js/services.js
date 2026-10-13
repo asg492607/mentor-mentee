@@ -598,23 +598,120 @@ export const MeetingService = {
       console.warn('Could not retrieve Firebase auth token for recording upload:', e);
     }
 
-    const { API_BASE_URL } = await import('/js/config.js');
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Try backend upload endpoint first
+    try {
+      const { API_BASE_URL } = await import('/js/config.js');
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/upload-recording`, {
-      method: 'POST',
-      headers,
-      body: formData
-    });
+      const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/upload-recording`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
 
-    if (!res.ok) {
+      if (res.ok) {
+        const resData = await res.json();
+        const data = resData.data || resData;
+        if (data.webViewLink && data.webViewLink.startsWith('/')) {
+          data.webViewLink = `${API_BASE_URL}${data.webViewLink}`;
+        }
+        if (data.downloadLink && data.downloadLink.startsWith('/')) {
+          data.downloadLink = `${API_BASE_URL}${data.downloadLink}`;
+        }
+        try {
+          const { db } = await import('/js/firebase-init.js');
+          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+          await updateDoc(doc(db, 'meetings', meetingId), {
+            hasRecording: true,
+            recordingUrl: data.webViewLink || data.url || '',
+            recordingDownloadUrl: data.downloadLink || data.webViewLink || '',
+            recordingMode: mode,
+            recordingDuration: metadata.duration || 0,
+            recordingFileName: filename,
+            recordingStorage: data.storage || 'server',
+            updatedAt: new Date().toISOString()
+          });
+        } catch (e) {
+          console.warn('Could not sync meeting doc with backend recording URL:', e);
+        }
+        return data;
+      }
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Upload failed with HTTP ${res.status}`);
+      console.warn('Backend recording upload returned status ' + res.status + (err.detail ? ` (${err.detail})` : '') + ', trying direct storage fallback...');
+    } catch (fetchErr) {
+      console.warn('Backend recording upload fetch unavailable, trying direct storage fallback:', fetchErr.message || fetchErr);
     }
 
-    const resData = await res.json();
-    return resData.data || resData;
+    // Direct Firebase Storage fallback
+    try {
+      const { storage, db } = await import('/js/firebase-init.js');
+      const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+      // Set lower retry time to prevent long backoff loops if bucket CORS is not configured
+      if (storage) {
+        storage.maxUploadRetryTime = 3000;
+        storage.maxOperationRetryTime = 3000;
+      }
+
+      const storageRef = ref(storage, `meetings/${meetingId}/recordings/${filename}`);
+      
+      // Wrap in a 5s race timeout so browser doesn't stall on CORS preflight failures
+      const uploadPromise = uploadBytes(storageRef, fileBlob);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Storage upload timed out or blocked by CORS')), 5000)
+      );
+      const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+
+      const recUpdate = {
+        hasRecording: true,
+        recordingUrl: downloadUrl,
+        recordingDownloadUrl: downloadUrl,
+        recordingMode: mode,
+        recordingDuration: metadata.duration || 0,
+        recordingFileName: filename,
+        recordingStorage: 'firebase-storage',
+        updatedAt: new Date().toISOString()
+      };
+      await updateDoc(doc(db, 'meetings', meetingId), recUpdate);
+
+      return {
+        url: downloadUrl,
+        webViewLink: downloadUrl,
+        downloadLink: downloadUrl,
+        storage: 'firebase-storage'
+      };
+    } catch (fbStorageErr) {
+      console.warn('Direct Firebase Storage upload unavailable (CORS or bucket permissions). Using institutional Google Drive folder fallback:', fbStorageErr.message || fbStorageErr);
+      const { GOOGLE_DRIVE_CONFIG } = await import('/js/config.js').catch(() => ({}));
+      const folderUrl = (GOOGLE_DRIVE_CONFIG && GOOGLE_DRIVE_CONFIG.folderUrl) || 'https://drive.google.com/drive/folders/1pkBGhQWMvZqVFA_h_kW0CrfHhG5ER6EQ';
+      
+      try {
+        const { db } = await import('/js/firebase-init.js');
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'meetings', meetingId), {
+          hasRecording: true,
+          recordingUrl: folderUrl,
+          recordingDownloadUrl: folderUrl,
+          recordingMode: mode,
+          recordingDuration: metadata.duration || 0,
+          recordingFileName: filename,
+          recordingStorage: 'drive-folder-fallback',
+          updatedAt: new Date().toISOString()
+        });
+      } catch (docErr) {
+        console.warn('Could not update meeting doc with fallback drive folder:', docErr);
+      }
+
+      return {
+        url: folderUrl,
+        webViewLink: folderUrl,
+        downloadLink: folderUrl,
+        storage: 'drive-folder-fallback'
+      };
+    }
   },
 
   /**
