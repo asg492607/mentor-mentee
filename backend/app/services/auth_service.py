@@ -65,13 +65,16 @@ class AuthService:
     def get_user_profile(self, uid: str):
         if not db:
             raise ServiceUnavailableException("Firestore is not configured")
-        doc = db.collection('students').document(uid).get()
-        if doc.exists:
-            return doc.to_dict()
-        
-        doc = db.collection('faculty').document(uid).get()
-        if doc.exists:
-            return doc.to_dict()
+        faculty_doc = db.collection('faculty').document(uid).get()
+        student_doc = db.collection('students').document(uid).get()
+        if faculty_doc.exists:
+            faculty = faculty_doc.to_dict() or {}
+            if faculty.get('role') != UserRole.STUDENT.value:
+                return faculty
+        if student_doc.exists:
+            return student_doc.to_dict()
+        if faculty_doc.exists:
+            return faculty_doc.to_dict()
             
         raise NotFoundException("User profile not found")
 

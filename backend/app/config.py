@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = 'serviceAccountKey.json'
     FIREBASE_CREDENTIALS_JSON: str = ''
     FIREBASE_PROJECT_ID: str = 'mentorv1-848ef'
+    LEGACY_SUPER_ADMIN_EMAIL: str = 'gandhiatharv565@gmail.com'
     CORS_ORIGINS: str = ''
     SMTP_HOST: str = 'smtp.gmail.com'
     SMTP_PORT: int = 587

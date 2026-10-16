@@ -62,7 +62,12 @@ api_routers = (
     security_router,
 )
 for api_router in api_routers:
-    app.include_router(api_router, prefix="/api", dependencies=[Depends(get_current_user)])
+    if api_router is auth_router:
+        # Auth routes carry their own dependencies; bootstrap-claims validates a
+        # Firebase ID token before granting the minimum migration claims.
+        app.include_router(api_router, prefix="/api")
+    else:
+        app.include_router(api_router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(websocket_router, prefix="/ws")
 
 

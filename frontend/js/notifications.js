@@ -31,6 +31,12 @@ export function initNotificationListener() {
     currentNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     currentNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     renderNotifications();
+  }, (error) => {
+    console.warn('Notification listener stopped:', error.code || error.message);
+    if (unsubscribe) unsubscribe();
+    unsubscribe = null;
+    currentNotifications = [];
+    renderNotifications();
   });
 }
 

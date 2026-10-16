@@ -20,9 +20,16 @@ def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials
         if not uid:
             raise UnauthorizedException("Invalid authentication credentials")
 
-        user_doc = db.collection('students').document(uid).get()
-        if not user_doc.exists:
-            user_doc = db.collection('faculty').document(uid).get()
+        student_doc = db.collection('students').document(uid).get()
+        faculty_doc = db.collection('faculty').document(uid).get()
+        if decoded_token.get("admin") is True and faculty_doc.exists:
+            user_doc = faculty_doc
+        elif student_doc.exists and (student_doc.to_dict() or {}).get("role") == UserRole.STUDENT.value:
+            user_doc = student_doc
+        elif faculty_doc.exists:
+            user_doc = faculty_doc
+        else:
+            user_doc = student_doc
         if not user_doc.exists:
             raise UnauthorizedException("User profile not found")
         user_data = user_doc.to_dict()

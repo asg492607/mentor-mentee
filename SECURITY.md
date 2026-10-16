@@ -19,11 +19,13 @@ Set these Render environment variables:
 - `CORS_ORIGINS`: the exact deployed frontend origin, plus any required local development origins, comma separated. Wildcards are rejected.
 - `GROQ_API_KEY` and/or `GEMINI_API_KEY`: optional provider credentials for the authenticated, rate-limited AI proxy. These values are never sent to frontend code.
 
-The only anonymous backend route is `/health`. Every `/api` REST route also has an application-wide Firebase authentication dependency as a backstop, in addition to endpoint role checks. Account signup uses Firebase Authentication in the browser and Firestore rules allow only pending self-created student and faculty profiles. HOD and section-head roles must be assigned by a trusted administrator after approval. The backend no longer exposes a duplicate account-creation route. API documentation routes are disabled.
+The only anonymous backend route is `/health`. The authenticated `/api/auth/bootstrap-claims` migration route verifies a Firebase ID token itself; all other `/api` routes have an application-wide Firebase authentication dependency as a backstop, in addition to endpoint role checks. Account signup uses Firebase Authentication in the browser and Firestore rules allow only pending self-created student and faculty profiles. HOD and section-head roles must be assigned by a trusted administrator after approval. The backend no longer exposes a duplicate account-creation route. API documentation routes are disabled.
 
 ## Administrator accounts
 
 All API, Firestore, Storage, and WebSocket access requires the trusted `platform_approved: true` custom claim as well as an approved profile. Elevated roles also require `admin: true` for administrators or `platform_role` matching `DEAN`, `HOD`, or `SECTION_HEAD`. Claims are issued only by trusted backend operations. Review existing accounts against the institution's roster before migrating them: old rules allowed client-created approved and elevated profiles, so do not grant claims mechanically to every profile. Every existing account needs this one-time review and migration before it can use protected pages and APIs. New account provisioning and approvals set claims through the backend.
+
+The authenticated `/api/auth/bootstrap-claims` endpoint migrates approved legacy student and faculty accounts on their next sign-in. It does not infer elevated roles from profile data. The former root administrator email is configured only on the backend as `LEGACY_SUPER_ADMIN_EMAIL`; that Firebase account must have a verified email. Existing dean, HOD, and section-head users need to be re-provisioned by a trusted administrator before access is restored.
 
 ## Security activity logs
 

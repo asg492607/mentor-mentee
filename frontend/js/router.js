@@ -83,6 +83,7 @@ export function getCurrentRoute() {
 }
 
 let currentModule = null;
+let authEnhancementsStarted = false;
 
 async function handleRoute() {
   let path = getCurrentRoute();
@@ -140,6 +141,15 @@ async function handleRoute() {
         </div>`;
         return;
       }
+    }
+
+    // Starting listeners from onAuthStateChanged races custom-claim migration.
+    // Start authenticated background features only after fetchUserProfile/login
+    // has verified the account's trusted claims.
+    if (!authEnhancementsStarted) {
+      initNotificationListener();
+      initAIAssistant();
+      authEnhancementsStarted = true;
     }
 
     // Strict Role Route Protection
@@ -277,12 +287,10 @@ onLanguageChange(() => {
 let isInitialLoad = true;
 
 onAuthChange((user) => {
-    if (user) {
-        initNotificationListener();
-        initAIAssistant();
-    } else {
+    if (!user) {
         stopNotificationListener();
         aiAssistantWidget.unmount();
+        authEnhancementsStarted = false;
     }
 
     if (isInitialLoad) {

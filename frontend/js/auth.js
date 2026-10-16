@@ -16,6 +16,7 @@ import {
   setDoc,
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
+import { API_BASE_URL } from './config.js';
 
 /** Cached user profile object; populated after login or page reload. */
 let cachedUserProfile = null;
@@ -53,6 +54,54 @@ function getCollectionForRole(role) {
   return 'faculty';
 }
 
+function isApprovedProfile(profile) {
+  return String(profile?.status || '').toLowerCase() === 'approved' && profile?.isApproved === true;
+}
+
+async function readOwnProfile(uid, preferredRole = '') {
+  const role = String(preferredRole || '').toUpperCase();
+  const collections = ['ADMIN', 'DEAN', 'HOD', 'SECTION_HEAD', 'FACULTY', 'MENTOR'].includes(role)
+    ? ['faculty', 'students']
+    : ['students', 'faculty'];
+
+  for (const collectionName of collections) {
+    const userDoc = await getDoc(doc(db, collectionName, uid));
+    if (userDoc.exists()) return { id: uid, ...userDoc.data() };
+  }
+  return null;
+}
+
+async function bootstrapTrustedClaims(user) {
+  const token = await user.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/auth/bootstrap-claims`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  } catch (_error) {
+    throw new Error('Secure account migration is unavailable. Please retry in a moment.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.detail || 'Your account could not be securely verified. Contact your department administrator.');
+  }
+
+  if (payload.profile) cachedUserProfile = payload.profile;
+  const refreshed = await user.getIdTokenResult(true);
+  return { profile: payload.profile || null, claims: refreshed.claims };
+}
+
+function hasExpectedRoleClaim(claims, role) {
+  const normalizedRole = String(role || '').toUpperCase();
+  if (normalizedRole === 'ADMIN') return claims.admin === true;
+  if (['DEAN', 'HOD', 'SECTION_HEAD'].includes(normalizedRole)) {
+    return claims.platform_role === normalizedRole;
+  }
+  return true;
+}
+
 
 export async function login(email, password) {
   const normEmail = String(email || '').trim().toLowerCase();
@@ -60,37 +109,37 @@ export async function login(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, normEmail, password);
     const uid = userCredential.user.uid;
     
-    // Check students collection first, then faculty
-    let profile = null;
-
-    let userDoc = await getDoc(doc(db, 'students', uid));
-    if (userDoc.exists()) {
-      profile = { id: uid, ...userDoc.data() };
-      if (profile.status !== 'approved' || profile.isApproved !== true) {
+    let tokenResult = await userCredential.user.getIdTokenResult();
+    let profile = await readOwnProfile(
+      uid,
+      tokenResult.claims.admin === true ? 'ADMIN' : tokenResult.claims.platform_role
+    );
+    if (tokenResult.claims.platform_approved !== true || !hasExpectedRoleClaim(tokenResult.claims, profile?.role)) {
+      try {
+        const migrated = await bootstrapTrustedClaims(userCredential.user);
+        profile = migrated.profile || await readOwnProfile(uid, profile?.role);
+        tokenResult = { claims: migrated.claims };
+      } catch (error) {
         await signOut(auth);
-        throw new Error('Your account is pending approval by your assigned Mentor/Teacher.');
-      }
-    } else {
-      userDoc = await getDoc(doc(db, 'faculty', uid));
-      if (userDoc.exists()) {
-        profile = { id: uid, ...userDoc.data() };
-        
-        if (profile.status !== 'approved' || profile.isApproved !== true) {
-          await signOut(auth);
-          let approver = 'the Admin';
-          if (profile.role === 'HOD') approver = 'the Dean';
-          if (profile.role === 'FACULTY' || profile.role === 'MENTOR') approver = 'your HOD';
-          throw new Error(`Your account is pending approval by ${approver}.`);
-        }
+        throw error;
       }
     }
-    
-    if (!profile) throw new Error('User profile not found in database. Please register first.');
 
-    const tokenResult = await userCredential.user.getIdTokenResult(true);
-    if (tokenResult.claims.platform_approved !== true) {
+    profile = profile || await readOwnProfile(uid, tokenResult.claims.admin === true ? 'ADMIN' : '');
+    if (!profile) {
       await signOut(auth);
-      throw new Error('Your account needs trusted approval. Contact your department administrator.');
+      throw new Error('User profile not found in database. Please register first.');
+    }
+    if (!isApprovedProfile(profile)) {
+      await signOut(auth);
+      let approver = 'the Admin';
+      if (profile.role === 'HOD') approver = 'the Dean';
+      if (profile.role === 'FACULTY' || profile.role === 'MENTOR') approver = 'your HOD';
+      throw new Error(`Your account is pending approval by ${approver}.`);
+    }
+    if (tokenResult.claims.platform_approved !== true || !hasExpectedRoleClaim(tokenResult.claims, profile.role)) {
+      await signOut(auth);
+      throw new Error('This account needs trusted administrator provisioning. Contact your department administrator.');
     }
     
     cachedUserProfile = profile;
@@ -209,36 +258,32 @@ export async function fetchUserProfile() {
   const user = auth.currentUser;
   if (!user) return null;
   const uid = user.uid;
-  const email = user.email;
   try {
-    let userDoc = await getDoc(doc(db, 'students', uid));
-    let profile = null;
-    if (userDoc.exists()) {
-      profile = { id: uid, ...userDoc.data() };
-      // If pending, force logout
-      if (profile.status !== 'approved' || profile.isApproved !== true) {
-        await signOut(auth);
+    let tokenResult = await user.getIdTokenResult();
+    let profile = await readOwnProfile(
+      uid,
+      tokenResult.claims.admin === true ? 'ADMIN' : tokenResult.claims.platform_role
+    );
+    if (tokenResult.claims.platform_approved !== true || !hasExpectedRoleClaim(tokenResult.claims, profile?.role)) {
+      try {
+        const migrated = await bootstrapTrustedClaims(user);
+        tokenResult = { claims: migrated.claims };
+        profile = migrated.profile || await readOwnProfile(uid, profile?.role);
+      } catch (error) {
+        // Pending accounts are not signed out here; the login page can show the
+        // approval error and an existing session remains available for retry.
+        console.warn('Trusted account migration was not completed:', error.message);
         cachedUserProfile = null;
         return null;
-      }
-    } else {
-      userDoc = await getDoc(doc(db, 'faculty', uid));
-      if (userDoc.exists()) {
-        profile = { id: uid, ...userDoc.data() };
-        if (profile.status !== 'approved' || profile.isApproved !== true) {
-          await signOut(auth);
-          cachedUserProfile = null;
-          return null;
-        }
       }
     }
-    if (profile) {
-      const tokenResult = await user.getIdTokenResult(true);
-      if (tokenResult.claims.platform_approved !== true) {
+    if (!profile && tokenResult.claims.admin === true) {
+      profile = await readOwnProfile(uid, 'ADMIN');
+    }
+    if (!profile || !isApprovedProfile(profile) || !hasExpectedRoleClaim(tokenResult.claims, profile.role)) {
         await signOut(auth);
         cachedUserProfile = null;
         return null;
-      }
     }
     cachedUserProfile = profile;
     return cachedUserProfile;
