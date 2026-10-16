@@ -1,14 +1,96 @@
+import os
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
-from typing import Optional
+from fastapi.responses import FileResponse
 from app.core.dependencies import get_current_user
 from app.services.meeting_service import MeetingService
 from app.services.drive_service import DriveService
 from app.repositories.meeting_repository import MeetingRepository
-from app.core.exceptions import NotFoundException, ForbiddenException
+from app.firebase.client import firebase_auth
+from app.core.exceptions import NotFoundException, ForbiddenException, ServiceUnavailableException
 from app.schemas.ai_notes import AINotesRequest
 from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
+
+
+def _can_access_meeting(user: dict, meeting: dict) -> bool:
+    if user["uid"] in {meeting.get("studentId"), meeting.get("mentorId")}:
+        return True
+    if meeting.get("studentId") == "ALL" and user.get("role") == "STUDENT":
+        profile = MeetingRepository().db.collection("students").document(user["uid"]).get()
+        student = profile.to_dict() if profile.exists else {}
+        return meeting.get("mentorId") in {
+            student.get("mentorId"), student.get("secondaryMentorId")
+        }
+    if user.get("role") in {"ADMIN", "DEAN"}:
+        return True
+    if user.get("role") == "HOD":
+        department = meeting.get("department")
+        if not department and meeting.get("studentId") not in (None, "ALL"):
+            student = MeetingRepository().db.collection("students").document(meeting["studentId"]).get()
+            department = (student.to_dict() or {}).get("department") if student.exists else None
+        return bool(department) and department == user.get("department")
+    return False
+
+
+def _can_access_private_notes(user: dict, meeting: dict) -> bool:
+    if (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+            or user.get("role") in {"ADMIN", "DEAN"}:
+        return True
+    if user.get("role") != "HOD":
+        return False
+    department = meeting.get("department")
+    student_id = meeting.get("studentId")
+    if not department and student_id not in (None, "ALL"):
+        student = MeetingRepository().db.collection("students").document(student_id).get()
+        department = (student.to_dict() or {}).get("department") if student.exists else None
+    return bool(department) and department == user.get("department")
+
+
+def _sanitize_meeting_for_student(meeting: dict) -> dict:
+    safe = dict(meeting)
+    for field in ("aiNotes", "report", "transcript", "extractedSentences", "confidentialObservations"):
+        safe.pop(field, None)
+    notes = safe.get("notes")
+    if isinstance(notes, dict):
+        notes = dict(notes)
+        for field in ("confidentialObservations", "confidentialNotes", "transcript", "extractedSentences"):
+            notes.pop(field, None)
+        safe["notes"] = notes
+    return safe
+
+
+def _recording_recipient_emails(repo: MeetingRepository, meeting: dict) -> list[str]:
+    recipient_ids = {meeting.get("mentorId")}
+    student_id = meeting.get("studentId")
+    if student_id and student_id != "ALL":
+        recipient_ids.add(student_id)
+    elif meeting.get("mentorId"):
+        for field in ("mentorId", "secondaryMentorId"):
+            for student in repo.db.collection("students").where(field, "==", meeting["mentorId"]).stream():
+                recipient_ids.add(student.id)
+
+    emails = set()
+    for user_id in recipient_ids:
+        if not user_id:
+            continue
+        for collection_name in ("students", "faculty"):
+            profile = repo.db.collection(collection_name).document(user_id).get()
+            if profile.exists:
+                user_data = profile.to_dict()
+                if user_data.get("status") == "approved" and user_data.get("isApproved") is True:
+                    if user_data.get("email"):
+                        emails.add(user_data["email"])
+                break
+
+    department = meeting.get("department")
+    for profile in repo.db.collection("faculty").stream():
+        data = profile.to_dict()
+        role = data.get("role")
+        if (role in {"ADMIN", "DEAN"} or (role == "HOD" and data.get("department") == department)) \
+                and data.get("status") == "approved" and data.get("isApproved") is True and data.get("email"):
+            emails.add(data["email"])
+    return sorted(emails)
 
 @router.get("/{meeting_id}")
 def get_meeting(meeting_id: str, user = Depends(get_current_user)):
@@ -16,9 +98,9 @@ def get_meeting(meeting_id: str, user = Depends(get_current_user)):
     meeting = repo.get_by_id(meeting_id)
     if not meeting:
         raise NotFoundException("Meeting not found")
-    if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in {"ADMIN", "HOD", "DEAN"}:
+    if not _can_access_meeting(user, meeting):
         raise ForbiddenException("You are not a participant in this meeting")
-    return meeting
+    return _sanitize_meeting_for_student(meeting) if user.get("role") == "STUDENT" else meeting
 
 @router.put("/{meeting_id}/start")
 def start_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
@@ -26,7 +108,8 @@ def start_meeting(meeting_id: str, user = Depends(get_current_user), meeting_ser
 
 @router.put("/{meeting_id}/end")
 def end_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
-    return meeting_service.end_meeting(meeting_id, user["uid"])
+    meeting = meeting_service.end_meeting(meeting_id, user["uid"])
+    return _sanitize_meeting_for_student(meeting) if user.get("role") == "STUDENT" else meeting
 
 
 # ── AI NOTES ENDPOINTS ─────────────────────────────────────────────────────────
@@ -42,17 +125,20 @@ def save_ai_notes(meeting_id: str, data: AINotesRequest, user = Depends(get_curr
     meeting = repo.get_by_id(meeting_id)
     if not meeting:
         raise NotFoundException("Meeting not found")
-    if user["uid"] != meeting.get("mentorId") and user["role"] not in {"ADMIN"}:
+    if not (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+            and user.get("role") != "ADMIN":
         raise ForbiddenException("Only the meeting mentor can save AI notes")
 
     ai_notes_dict = data.dict()
     ai_notes_dict["savedAt"] = get_timestamp()
 
-    repo.update(meeting_id, {
-        "aiNotes": ai_notes_dict,
-        "hasAiNotes": True,
-        "updatedAt": get_timestamp()
-    })
+    if not firebase_auth:
+        raise ServiceUnavailableException("Firebase authentication is not configured")
+    saved_at = get_timestamp()
+    repo.db.collection("meeting_private").document(meeting_id).set(
+        {"aiNotes": ai_notes_dict, "updatedAt": saved_at}, merge=True
+    )
+    repo.update(meeting_id, {"hasAiNotes": True, "updatedAt": saved_at})
 
     return {"success": True, "message": "AI notes saved successfully", "meetingId": meeting_id}
 
@@ -68,16 +154,82 @@ def get_ai_notes(meeting_id: str, user = Depends(get_current_user)):
     if not meeting:
         raise NotFoundException("Meeting not found")
 
-    allowed_roles = {"ADMIN", "HOD", "DEAN"}
-    if (user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")}
-            and user["role"] not in allowed_roles):
+    if not _can_access_private_notes(user, meeting):
         raise ForbiddenException("You do not have access to this meeting's AI notes")
 
-    ai_notes = meeting.get("aiNotes")
+    private_doc = repo.db.collection("meeting_private").document(meeting_id).get()
+    private_data = private_doc.to_dict() if private_doc.exists else {}
+    ai_notes = private_data.get("aiNotes") or meeting.get("aiNotes")
     if not ai_notes:
         return {"hasAiNotes": False, "aiNotes": None}
 
     return {"hasAiNotes": True, "aiNotes": ai_notes, "meetingId": meeting_id}
+
+
+@router.post("/{meeting_id}/report")
+def save_private_report(meeting_id: str, data: dict, user=Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+            and user.get("role") != "ADMIN":
+        raise ForbiddenException("Only the meeting mentor or an administrator can save this report")
+    if not firebase_auth:
+        raise ServiceUnavailableException("Firebase authentication is not configured")
+
+    if len(str(data)) > 1_000_000:
+        raise HTTPException(status_code=413, detail="Meeting report exceeds the size limit")
+    allowed_fields = {
+        "topic", "date", "time", "students", "issuesDiscussed", "transcript",
+        "extractedSentences", "actionItems", "remarks", "confidentialObservations",
+        "confidentialNotes", "riskLevel", "riskSignals", "tasks", "department",
+        "preparedBy", "checkedBy", "verifiedBy", "hodName", "savedAt", "aiGenerated",
+        "verifiedAt", "generatedAt",
+    }
+    report = {key: value for key, value in data.items() if key in allowed_fields}
+    saved_at = get_timestamp()
+    repo.db.collection("meeting_private").document(meeting_id).set(
+        {"report": report, "updatedAt": saved_at}, merge=True
+    )
+    repo.update(meeting_id, {"hasAiNotes": True, "updatedAt": saved_at})
+    return {"success": True, "meetingId": meeting_id}
+
+
+@router.get("/{meeting_id}/report")
+def get_private_report(meeting_id: str, user=Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_private_notes(user, meeting):
+        raise ForbiddenException("You do not have access to this meeting's report")
+    private_doc = repo.db.collection("meeting_private").document(meeting_id).get()
+    private_data = private_doc.to_dict() if private_doc.exists else {}
+    return {"report": private_data.get("report") or meeting.get("report"), "meetingId": meeting_id}
+
+
+@router.get("/{meeting_id}/minutes")
+def get_student_safe_minutes(meeting_id: str, user=Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_meeting(user, meeting):
+        raise ForbiddenException("You are not a participant in this meeting")
+
+    private_doc = repo.db.collection("meeting_private").document(meeting_id).get()
+    private_data = private_doc.to_dict() if private_doc.exists else {}
+    report = private_data.get("report") or meeting.get("report") or {}
+    ai_notes = private_data.get("aiNotes") or meeting.get("aiNotes") or {}
+    shared_notes = meeting.get("notes") if isinstance(meeting.get("notes"), dict) else {}
+    return {
+        "topic": report.get("topic") or ai_notes.get("topic") or meeting.get("type"),
+        "issuesDiscussed": report.get("issuesDiscussed") or ai_notes.get("issuesDiscussed") or shared_notes.get("issuesDiscussed") or shared_notes.get("problem"),
+        "actionItems": report.get("actionItems") or ai_notes.get("actionItems") or shared_notes.get("actionTaken") or shared_notes.get("advice"),
+        "tasks": report.get("tasks") or ai_notes.get("tasks") or shared_notes.get("tasks") or [],
+        "remarks": report.get("remarks") or shared_notes.get("summary") or shared_notes.get("remarks"),
+    }
 
 
 # ── GOOGLE DRIVE & RECORDING ENDPOINTS ──────────────────────────────────────────
@@ -95,29 +247,29 @@ async def upload_meeting_recording(
     Upload session recording to Google Drive folder and save link in meeting document.
     Only participants or administrative users can upload recordings.
     """
-    repo = None
-    meeting = None
-    try:
-        repo = MeetingRepository()
-        if repo and repo.db is not None:
-            meeting = repo.get_by_id(meeting_id)
-            if meeting:
-                allowed_roles = {"ADMIN", "HOD", "DEAN"}
-                if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in allowed_roles:
-                    raise ForbiddenException("You are not authorized to upload recordings for this meeting")
-    except ForbiddenException:
-        raise
-    except Exception:
-        repo = None
-        meeting = None
+    repo = MeetingRepository()
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_meeting(user, meeting):
+        raise ForbiddenException("You are not authorized to upload recordings for this meeting")
+
+    if mode not in {"audio", "video"}:
+        raise HTTPException(status_code=400, detail="Unsupported recording mode")
+    allowed_types = {"audio/webm", "audio/ogg", "audio/mp4", "audio/wav", "video/webm", "video/mp4"}
+    mime_type = (file.content_type or ("audio/webm" if mode == "audio" else "video/webm")).split(";")[0].lower()
+    if mime_type not in allowed_types:
+        raise HTTPException(status_code=415, detail="Unsupported recording type")
 
     # Read binary content
-    contents = await file.read()
+    max_size = 100 * 1024 * 1024
+    contents = await file.read(max_size + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="Empty recording file provided")
+    if len(contents) > max_size:
+        raise HTTPException(status_code=413, detail="Recording exceeds the 100 MB upload limit")
 
-    filename = file.filename or f"Meeting_{meeting_id}_{mode}.webm"
-    mime_type = file.content_type or ("audio/webm" if mode == "audio" else "video/webm")
+    filename = os.path.basename(file.filename or f"Meeting_{meeting_id}_{mode}.webm")
 
     drive_service = DriveService()
     mentor_name = (meeting.get("mentorName") if meeting else None) or user.get("name") or "Mentor"
@@ -131,6 +283,10 @@ async def upload_meeting_recording(
         mentor_name=mentor_name,
         meeting_date=meeting_date
     )
+    if result.get("storage") == "google_drive" and result.get("fileId"):
+        await drive_service.share_file_with_users(
+            result["fileId"], _recording_recipient_emails(repo, meeting)
+        )
 
     # Convert relative local paths to absolute URLs
     base_url = str(request.base_url).rstrip("/")
@@ -140,8 +296,7 @@ async def upload_meeting_recording(
         result["downloadLink"] = f"{base_url}{result['downloadLink']}"
 
     # Persist recording metadata to Firestore meeting document if db is available
-    if repo.db is not None:
-        rec_update = {
+    rec_update = {
             "hasRecording": True,
             "recordingUrl": result.get("webViewLink", ""),
             "recordingDownloadUrl": result.get("downloadLink", ""),
@@ -151,6 +306,7 @@ async def upload_meeting_recording(
             "recordingDuration": duration,
             "recordingUploadedAt": get_timestamp(),
             "recordingFileName": filename,
+            "recordingMimeType": mime_type,
             "lastRecording": {
                 "mode": mode,
                 "duration": duration,
@@ -158,11 +314,12 @@ async def upload_meeting_recording(
                 "fileName": filename,
                 "url": result.get("webViewLink", "")
             }
-        }
-        try:
-            repo.update(meeting_id, rec_update)
-        except Exception:
-            pass
+    }
+    if result.get("storage") == "local_storage":
+        protected_url = f"/api/meetings/{meeting_id}/recording/content"
+        rec_update["recordingUrl"] = protected_url
+        rec_update["recordingDownloadUrl"] = protected_url
+    repo.update(meeting_id, rec_update)
 
     return {
         "success": True,
@@ -182,8 +339,7 @@ def get_meeting_recording(meeting_id: str, user = Depends(get_current_user)):
     if not meeting:
         raise NotFoundException("Meeting not found")
 
-    allowed_roles = {"ADMIN", "HOD", "DEAN"}
-    if user["uid"] not in {meeting.get("studentId"), meeting.get("mentorId")} and user["role"] not in allowed_roles:
+    if not _can_access_meeting(user, meeting):
         raise ForbiddenException("You do not have permission to view this recording")
 
     if not meeting.get("hasRecording"):
@@ -200,3 +356,24 @@ def get_meeting_recording(meeting_id: str, user = Depends(get_current_user)):
         "duration": meeting.get("recordingDuration", 0),
         "uploadedAt": meeting.get("recordingUploadedAt")
     }
+
+
+@router.get("/{meeting_id}/recording/content")
+def get_meeting_recording_content(meeting_id: str, user = Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_meeting(user, meeting):
+        raise ForbiddenException("You do not have permission to view this recording")
+    if meeting.get("recordingStorage") != "local_storage":
+        raise NotFoundException("This recording is not stored on this server")
+
+    file_id = str(meeting.get("recordingDriveId") or "")
+    if not file_id or os.path.basename(file_id) != file_id or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for ch in file_id):
+        raise NotFoundException("Recording file not found")
+    recording_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "recordings"))
+    file_path = os.path.abspath(os.path.join(recording_dir, file_id))
+    if not file_path.startswith(recording_dir + os.sep) or not os.path.isfile(file_path):
+        raise NotFoundException("Recording file not found")
+    return FileResponse(file_path, media_type=meeting.get("recordingMimeType", "application/octet-stream"))

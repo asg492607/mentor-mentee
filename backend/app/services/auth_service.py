@@ -5,23 +5,23 @@ from app.firebase.client import firebase_auth, db
 from app.models.enums import UserRole
 from app.utils.helpers import get_timestamp
 from app.core.exceptions import BadRequestException, LuminaException, NotFoundException, ServiceUnavailableException
+from app.core.role_claims import claims_for_account
 
 class AuthService:
     def register_user(self, data):
         try:
             if not firebase_auth or not db:
                 raise ServiceUnavailableException("Firebase is not configured")
-            public_roles = {UserRole.STUDENT, UserRole.FACULTY, UserRole.HOD, UserRole.DEAN, UserRole.ADMIN}
-            privileged_roles = {UserRole.HOD, UserRole.DEAN, UserRole.ADMIN}
+            public_roles = {UserRole.STUDENT, UserRole.FACULTY}
             if data.role not in public_roles:
-                raise BadRequestException("Invalid registration role")
+                raise BadRequestException("Self-registration is limited to students and faculty")
             user = firebase_auth.create_user(
                 email=data.email,
                 password=data.password,
                 display_name=data.name
             )
-            firebase_auth.set_custom_user_claims(user.uid, {'role': data.role.value})
-            
+            firebase_auth.set_custom_user_claims(user.uid, claims_for_account(data.role.value, False))
+
             profile_data = {
                 'id': user.uid,
                 'email': data.email,
@@ -40,28 +40,16 @@ class AuthService:
                     'attendance': 0,
                     'riskLevel': 'LOW',
                     'mentorId': None,
+                    'status': 'pending',
+                    'isApproved': False,
                 })
-            elif data.role == UserRole.FACULTY:
+            else:
                 profile_data.update({
                     'designation': data.designation,
                     'employeeId': data.employeeId,
                     'status': 'pending',
                     'isApproved': False,
                     'maxStudents': 20,
-                    'assignedStudentCount': 0,
-                })
-            elif data.role in privileged_roles:
-                default_designations = {
-                    UserRole.HOD: 'Head of Department',
-                    UserRole.DEAN: 'Dean',
-                    UserRole.ADMIN: 'Administrator',
-                }
-                profile_data.update({
-                    'designation': data.designation or default_designations[data.role],
-                    'employeeId': data.employeeId,
-                    'status': 'approved',
-                    'isApproved': True,
-                    'maxStudents': 0,
                     'assignedStudentCount': 0,
                 })
             
@@ -89,9 +77,19 @@ class AuthService:
 
     def update_user_role(self, uid: str, role: UserRole):
         try:
-            if not firebase_auth:
+            if not firebase_auth or not db:
                 raise ServiceUnavailableException("Firebase authentication is not configured")
-            firebase_auth.set_custom_user_claims(uid, {'role': role.value})
+            profile = self.get_user_profile(uid)
+            is_student = profile.get('role') == UserRole.STUDENT.value
+            if is_student != (role == UserRole.STUDENT):
+                raise BadRequestException("Student and staff accounts cannot change account type")
+            collection_name = 'students' if is_student else 'faculty'
+            db.collection(collection_name).document(uid).update({
+                'role': role.value,
+                'updatedAt': get_timestamp(),
+            })
+            approved = profile.get('status') == 'approved' and profile.get('isApproved') is True
+            firebase_auth.set_custom_user_claims(uid, claims_for_account(role.value, approved))
             return {"message": "Role updated successfully"}
         except LuminaException:
             raise

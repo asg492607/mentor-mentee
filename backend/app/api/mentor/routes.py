@@ -8,7 +8,11 @@ from app.schemas.meeting import MeetingUpdateRequest, MeetingNotesRequest
 from app.schemas.issue import IssueEscalateRequest
 from app.schemas.action_item import ActionItemCreateRequest
 from app.repositories.action_item_repository import ActionItemRepository
-from app.core.exceptions import NotFoundException, ForbiddenException
+from app.repositories.issue_repository import IssueRepository
+from app.repositories.student_repository import StudentRepository
+from app.firebase.client import firebase_auth
+from app.core.role_claims import claims_for_account
+from app.core.exceptions import NotFoundException, ForbiddenException, BadRequestException
 from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/mentor", tags=["Mentor"])
@@ -42,6 +46,11 @@ def update_meeting(meeting_id: str, data: MeetingUpdateRequest, user = Depends(g
 
 @router.post("/meetings/{meeting_id}/notes")
 def add_meeting_notes(meeting_id: str, data: MeetingNotesRequest, user = Depends(get_mentor_user), meeting_service: MeetingService = Depends()):
+    meeting = meeting_service.meeting_repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if meeting.get("mentorId") != user["uid"]:
+        raise ForbiddenException("You cannot edit notes for this meeting")
     return meeting_service.add_notes(meeting_id, data)
 
 @router.post("/meetings/{meeting_id}/action-items")
@@ -52,6 +61,13 @@ def add_action_item(meeting_id: str, data: ActionItemCreateRequest, user = Depen
         raise NotFoundException("Meeting not found")
     if meeting.get("mentorId") != user["uid"]:
         raise ForbiddenException("You cannot add action items to this meeting")
+    if meeting.get("studentId") != "ALL" and meeting.get("studentId") != data.studentId:
+        raise ForbiddenException("Task student must be a participant in this meeting")
+    student = StudentRepository().get_by_id(data.studentId)
+    if not student or user["uid"] not in {
+        student.get("mentorId"), student.get("secondaryMentorId")
+    }:
+        raise ForbiddenException("You can only assign tasks to your mentees")
     item = {
         "meetingId": meeting_id,
         "studentId": data.studentId,
@@ -75,10 +91,27 @@ def get_issues(user = Depends(get_mentor_user), issue_service: IssueService = De
 
 @router.put("/issues/{issue_id}/escalate")
 def escalate_issue(issue_id: str, data: IssueEscalateRequest, user = Depends(get_mentor_user), issue_service: IssueService = Depends()):
+    issue = IssueRepository().get_by_id(issue_id)
+    if not issue:
+        raise NotFoundException("Issue not found")
+    if issue.get("mentorId") != user["uid"]:
+        raise ForbiddenException("You can only escalate issues assigned to you")
+    if issue.get("escalationLevel") != "MENTOR":
+        raise ForbiddenException("This issue is no longer at the mentor escalation level")
+    if data.targetLevel.value != "HOD":
+        raise BadRequestException("Mentors can escalate issues only to the HOD")
     return issue_service.escalate_issue(issue_id, user['uid'], data.reason, data.targetLevel)
 
 @router.put("/issues/{issue_id}")
 def update_issue(issue_id: str, data: dict, user = Depends(get_mentor_user), issue_service: IssueService = Depends()):
+    issue = IssueRepository().get_by_id(issue_id)
+    if not issue:
+        raise NotFoundException("Issue not found")
+    if issue.get("mentorId") != user["uid"]:
+        raise ForbiddenException("You can only update issues assigned to you")
+    allowed_fields = {"status", "resolution", "actionTaken", "updatedAt"}
+    if not set(data).issubset(allowed_fields):
+        raise BadRequestException("Unsupported issue fields")
     if data.get('status') == 'RESOLVED':
         return issue_service.resolve_issue(issue_id, data.get('resolution', 'Resolved by mentor'))
     return issue_service.update_issue(issue_id, data)
@@ -88,3 +121,20 @@ def get_reports(user = Depends(get_mentor_user)):
     from app.services.report_service import ReportService
     report_service = ReportService()
     return report_service.get_mentor_report(user['uid'])
+
+
+@router.put("/students/{student_id}/approve")
+def approve_student(student_id: str, user=Depends(get_mentor_user)):
+    student_repo = StudentRepository()
+    student = student_repo.get_by_id(student_id)
+    if not student:
+        raise NotFoundException("Student account not found")
+    if user["uid"] not in {student.get("mentorId"), student.get("secondaryMentorId")}:
+        raise ForbiddenException("You can only approve students assigned to you")
+    if not firebase_auth:
+        raise BadRequestException("Firebase authentication is not configured")
+
+    updated_at = get_timestamp()
+    student_repo.update(student_id, {"status": "approved", "isApproved": True, "updatedAt": updated_at})
+    firebase_auth.set_custom_user_claims(student_id, claims_for_account(UserRole.STUDENT.value, True))
+    return {**student, "status": "approved", "isApproved": True, "updatedAt": updated_at}

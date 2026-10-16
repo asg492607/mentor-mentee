@@ -35,15 +35,13 @@ class StudentProfileResponse(BaseModel):
 
 class StudentProfileUpdate(BaseModel):
     name: Optional[str] = None
-    department: Optional[str] = None
-    year: Optional[int] = None
-    rollNumber: Optional[str] = None
-    cgpa: Optional[float] = None
-    attendance: Optional[float] = None
+    phone: Optional[str] = None
     interests: Optional[list[str]] = None
     skills: Optional[list[str]] = None
     careerGoal: Optional[str] = None
-    academicStatus: Optional[str] = None
+
+    class Config:
+        extra = 'forbid'
 
 class StudentDashboardResponse(BaseModel):
     profile: StudentProfileResponse

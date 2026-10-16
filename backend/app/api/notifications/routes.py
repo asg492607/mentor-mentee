@@ -13,7 +13,7 @@ def get_notifications(unread_only: bool = False, user = Depends(get_current_user
 
 @router.put("/{notification_id}/read")
 def mark_read(notification_id: str, user = Depends(get_current_user), notif_service: NotificationService = Depends()):
-    notif_service.mark_read(notification_id)
+    notif_service.mark_read(notification_id, user['uid'])
     return {"message": "Notification marked as read"}
 
 @router.put("/read-all")

@@ -51,6 +51,7 @@ const routes = {
   '/admin/allocation': './pages/admin/allocation.js',
   '/admin/compliance': './pages/admin/compliance.js',
   '/admin/settings': './pages/admin/settings.js',
+  '/admin/security-logs': './pages/admin/security-logs.js',
   '/admin/infrastructure': './pages/admin/infrastructure.js',
   '/meeting-room': './pages/meeting-room.js'
 };
@@ -226,6 +227,9 @@ async function handleRoute() {
       await module.render(appContainer);
       renderNotifications();
       if (user && !authFreeRoutes.includes(path)) {
+        import('./api.js')
+          .then(({ api }) => api.post('/security/page-view', { path }))
+          .catch(() => {});
         initAIAssistant();
       } else {
         aiAssistantWidget.unmount();

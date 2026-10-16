@@ -33,7 +33,18 @@ class StudentService:
     def get_dashboard(self, student_id: str):
         profile = self.get_profile(student_id)
         mentor = self.get_mentor(student_id)
-        meetings = self.meeting_repo.get_by_student(student_id)
+        meetings = []
+        for meeting in self.meeting_repo.get_by_student(student_id):
+            safe = dict(meeting)
+            for field in ('aiNotes', 'report', 'transcript', 'extractedSentences', 'confidentialObservations'):
+                safe.pop(field, None)
+            notes = safe.get('notes')
+            if isinstance(notes, dict):
+                notes = dict(notes)
+                for field in ('confidentialObservations', 'confidentialNotes', 'transcript', 'extractedSentences'):
+                    notes.pop(field, None)
+                safe['notes'] = notes
+            meetings.append(safe)
         tasks = self.task_repo.get_by_student(student_id)
         issues = self.issue_repo.get_by_student(student_id)
         

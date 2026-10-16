@@ -14,10 +14,6 @@ import {
   doc, 
   getDoc, 
   setDoc,
-  collection,
-  query,
-  where,
-  getDocs
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { navigateTo } from './router.js';
 
@@ -53,7 +49,7 @@ function normalizeAuthError(error) {
 // Map frontend role values to Firestore collection names
 function getCollectionForRole(role) {
   if (role === 'STUDENT') return 'students';
-  // FACULTY, MENTOR, HOD, DEAN, ADMIN all go in 'faculty'
+  // Staff profiles are stored in 'faculty'; elevated roles still require trusted claims.
   return 'faculty';
 }
 
@@ -64,27 +60,13 @@ export async function login(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, normEmail, password);
     const uid = userCredential.user.uid;
     
-    // Super Admin Override
-    if (normEmail === 'gandhiatharv565@gmail.com') {
-      const adminProfile = {
-        id: uid,
-        email: normEmail,
-        name: 'Super Admin',
-        role: 'ADMIN',
-        status: 'approved',
-        isApproved: true
-      };
-      cachedUserProfile = adminProfile;
-      return cachedUserProfile;
-    }
-
     // Check students collection first, then faculty
     let profile = null;
 
     let userDoc = await getDoc(doc(db, 'students', uid));
     if (userDoc.exists()) {
       profile = { id: uid, ...userDoc.data() };
-      if (profile.status === 'pending' || !profile.isApproved) {
+      if (profile.status !== 'approved' || profile.isApproved !== true) {
         await signOut(auth);
         throw new Error('Your account is pending approval by your assigned Mentor/Teacher.');
       }
@@ -93,7 +75,7 @@ export async function login(email, password) {
       if (userDoc.exists()) {
         profile = { id: uid, ...userDoc.data() };
         
-        if (profile.status === 'pending' || !profile.isApproved) {
+        if (profile.status !== 'approved' || profile.isApproved !== true) {
           await signOut(auth);
           let approver = 'the Admin';
           if (profile.role === 'HOD') approver = 'the Dean';
@@ -104,6 +86,12 @@ export async function login(email, password) {
     }
     
     if (!profile) throw new Error('User profile not found in database. Please register first.');
+
+    const tokenResult = await userCredential.user.getIdTokenResult(true);
+    if (tokenResult.claims.platform_approved !== true) {
+      await signOut(auth);
+      throw new Error('Your account needs trusted approval. Contact your department administrator.');
+    }
     
     cachedUserProfile = profile;
     return cachedUserProfile;
@@ -118,29 +106,9 @@ export async function register(data) {
     const cleanEmail = String(data.email || '').trim().toLowerCase();
     if (!cleanEmail) throw new Error('Email address is required.');
 
-    // Pre-flight duplicate check across Firestore collections
-    const [stuEmailSnap, facEmailSnap] = await Promise.all([
-      getDocs(query(collection(db, 'students'), where('email', '==', cleanEmail))),
-      getDocs(query(collection(db, 'faculty'), where('email', '==', cleanEmail)))
-    ]);
-
-    if (!stuEmailSnap.empty || !facEmailSnap.empty) {
-      throw new Error(`The email "${cleanEmail}" is already registered in the platform. Please log in instead.`);
-    }
-
-    // Pre-flight duplicate check for Enrollment Number or Employee ID
-    if (data.role === 'STUDENT' && data.profile?.enrollmentNumber) {
-      const cleanEnroll = String(data.profile.enrollmentNumber).trim();
-      const stuEnrollSnap = await getDocs(query(collection(db, 'students'), where('enrollmentNumber', '==', cleanEnroll)));
-      if (!stuEnrollSnap.empty) {
-        throw new Error(`The Enrollment Number "${cleanEnroll}" is already registered. Please log in or contact your department admin.`);
-      }
-    } else if (data.role !== 'STUDENT' && data.profile?.employeeId) {
-      const cleanEmpId = String(data.profile.employeeId).trim();
-      const facEmpSnap = await getDocs(query(collection(db, 'faculty'), where('employeeId', '==', cleanEmpId)));
-      if (!facEmpSnap.empty) {
-        throw new Error(`The Employee ID "${cleanEmpId}" is already registered. Please log in or contact your administrator.`);
-      }
+    const allowedSelfRegistrationRoles = ['STUDENT', 'FACULTY'];
+    if (!allowedSelfRegistrationRoles.includes(data.role)) {
+      throw new Error('Administrator and dean accounts must be provisioned by an administrator.');
     }
 
     const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
@@ -172,7 +140,7 @@ export async function register(data) {
       profileData.mentorId = null;
     }
 
-    // Faculty / HOD / Dean / Admin staff fields
+    // Staff profile fields. New accounts always remain pending until approval.
     if (role !== 'STUDENT') {
       if (data.profile.designation) profileData.designation = data.profile.designation;
       if (data.profile.employeeId)  profileData.employeeId  = data.profile.employeeId;
@@ -187,12 +155,8 @@ export async function register(data) {
       profileData.isApproved = false;
     }
 
-    if (data.email === 'gandhiatharv565@gmail.com') {
-      // NOTE: For true security, this should be moved to Custom Claims on the backend
-      profileData.role = 'ADMIN';
-      profileData.status = 'approved';
-      profileData.isApproved = true;
-    }
+    profileData.status = 'pending';
+    profileData.isApproved = false;
 
     // Strip any remaining undefined values to be safe
     Object.keys(profileData).forEach(key => {
@@ -247,22 +211,12 @@ export async function fetchUserProfile() {
   const uid = user.uid;
   const email = user.email;
   try {
-    // Super Admin bypass
-    if (email === 'gandhiatharv565@gmail.com') {
-      const adminProfile = {
-        id: uid, email, name: 'Super Admin',
-        role: 'ADMIN', status: 'approved', isApproved: true
-      };
-      cachedUserProfile = adminProfile;
-      return cachedUserProfile;
-    }
-
     let userDoc = await getDoc(doc(db, 'students', uid));
     let profile = null;
     if (userDoc.exists()) {
       profile = { id: uid, ...userDoc.data() };
       // If pending, force logout
-      if (profile.status === 'pending' || !profile.isApproved) {
+      if (profile.status !== 'approved' || profile.isApproved !== true) {
         await signOut(auth);
         cachedUserProfile = null;
         return null;
@@ -271,11 +225,19 @@ export async function fetchUserProfile() {
       userDoc = await getDoc(doc(db, 'faculty', uid));
       if (userDoc.exists()) {
         profile = { id: uid, ...userDoc.data() };
-        if (profile.status === 'pending' || !profile.isApproved) {
+        if (profile.status !== 'approved' || profile.isApproved !== true) {
           await signOut(auth);
           cachedUserProfile = null;
           return null;
         }
+      }
+    }
+    if (profile) {
+      const tokenResult = await user.getIdTokenResult(true);
+      if (tokenResult.claims.platform_approved !== true) {
+        await signOut(auth);
+        cachedUserProfile = null;
+        return null;
       }
     }
     cachedUserProfile = profile;

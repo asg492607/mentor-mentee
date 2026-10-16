@@ -12,7 +12,9 @@ def initialize_firebase():
     global _initialized, db, firebase_auth
     if not _initialized:
         try:
-            firebase_admin.get_app()
+            app = firebase_admin.get_app()
+            if app.project_id and app.project_id != settings.FIREBASE_PROJECT_ID:
+                raise RuntimeError("Firebase Admin project does not match FIREBASE_PROJECT_ID")
             db = firestore.client()
             firebase_auth = auth
             _initialized = True
@@ -29,7 +31,10 @@ def initialize_firebase():
                     raise RuntimeError("Firebase Admin credentials are not configured")
 
                 cred = credentials.Certificate(credential_source)
-                firebase_admin.initialize_app(cred)
+                credential_project = getattr(cred, "project_id", None)
+                if credential_project and credential_project != settings.FIREBASE_PROJECT_ID:
+                    raise RuntimeError("Firebase service account project does not match FIREBASE_PROJECT_ID")
+                firebase_admin.initialize_app(cred, {"projectId": settings.FIREBASE_PROJECT_ID})
                 db = firestore.client()
                 firebase_auth = auth
                 print("Firebase Admin successfully initialized.")

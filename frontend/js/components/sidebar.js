@@ -55,6 +55,7 @@ export function createSidebar(role, activePath) {
       { path: '/admin/departments', label: t('nav.departments', 'Departments'), icon: '<i class="ph ph-buildings"></i>' },
       { path: '/admin/allocation',  label: t('nav.allocation', 'Allocation'),  icon: '<i class="ph ph-users-three"></i>' },
       { path: '/admin/settings',    label: t('nav.settings', 'Settings'),    icon: '<i class="ph ph-gear"></i>' },
+      { path: '/admin/security-logs', label: 'Security Logs', icon: '<i class="ph ph-shield-check"></i>' },
       { path: '/admin/infrastructure', label: t('nav.infrastructure', 'System Intelligence'), icon: '<i class="ph ph-cpu"></i>' },
       { path: '#profile-modal', label: t('nav.profile', 'My Profile'), icon: '<i class="ph ph-user"></i>' }
     ];

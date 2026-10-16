@@ -8,7 +8,6 @@ import { showToast } from '/js/components/toast.js';
 import { MeetingService, TaskService, NotificationService } from '/js/services.js';
 import { exportMeetingSessionReport } from '/js/report-export.js';
 import { AIService } from '/js/services/ai-service.js';
-import { GOOGLE_DRIVE_CONFIG } from '/js/config.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
@@ -4479,9 +4478,9 @@ Standard syllabus topics, coursework materials, and project documentation review
         }
       } catch (driveErr) {
         console.warn('Google Drive direct upload notice:', driveErr);
-        // Fallback to configured institutional Google Drive folder
-        const folderId = (GOOGLE_DRIVE_CONFIG && GOOGLE_DRIVE_CONFIG.folderId) || '1pkBGhQWMvZqVFA_h_kW0CrfHhG5ER6EQ';
-        driveUrl = `https://drive.google.com/drive/folders/${folderId}`;
+        driveUrl = '';
+        driveDownload = '';
+        driveFileId = '';
       }
     }
 
@@ -4598,7 +4597,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       recordingUrl: driveUrl,
       recordingDownloadUrl: driveDownload,
       recordingDriveId: driveFileId,
-      recordingStorage: 'google_drive',
+      recordingStorage: uploadedDriveRecording?.storage || meeting.recordingStorage || 'google_drive',
       department: meeting.department || 'Department of Computer Science & Engineering (Core)',
       preparedBy: meeting.mentorName || user.name || 'Faculty Mentor',
       checkedBy: '',
@@ -4631,12 +4630,8 @@ Standard syllabus topics, coursework materials, and project documentation review
     // Save AI notes and update meeting document
     try {
       await MeetingService.saveAINotes(meetingId, aiNotes);
+      await MeetingService.saveReport(meetingId, reportData);
       await MeetingService.update(meetingId, {
-        report: reportData,
-        recordingUrl: driveUrl,
-        recordingDownloadUrl: driveDownload,
-        recordingDriveId: driveFileId,
-        hasRecording: !!driveUrl,
         hasAiNotes: true,
         notes: {
           ...(meeting.notes || {}),
@@ -4644,7 +4639,6 @@ Standard syllabus topics, coursework materials, and project documentation review
           actionTaken: finalActions,
           tasks: finalTasks,
           remarks: finalRemarks,
-          confidentialObservations: finalConfidential,
           summary: finalIssues
         }
       });

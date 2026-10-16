@@ -486,13 +486,25 @@ export async function render(container) {
 
     // Individual Meeting PDF Report Download Handlers
     container.querySelectorAll('.meeting-report-dl-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const m = meetings.find(x => x.id === btn.dataset.id);
         if (!m) {
           showToast('Meeting record not found', 'error');
           return;
         }
-        exportMeetingSessionReport(m);
+        try {
+          const [reportResult, notesResult] = await Promise.all([
+            MeetingService.getReport(m.id),
+            MeetingService.getAINotes(m.id)
+          ]);
+          exportMeetingSessionReport({
+            ...m,
+            report: reportResult?.report || {},
+            aiNotes: notesResult?.aiNotes || {}
+          });
+        } catch (error) {
+          showToast(error.message || 'Could not load the private meeting report.', 'error');
+        }
       });
     });
 
@@ -546,41 +558,57 @@ export async function render(container) {
         body.innerHTML = '<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div><span style="margin-left:12px;color:var(--text-muted);">AI generating enhanced report...</span></div>';
 
         try {
+          const [privateReportResult, privateNotesResult, recordingResult] = await Promise.all([
+            MeetingService.getReport(m.id).catch(() => ({})),
+            MeetingService.getAINotes(m.id).catch(() => ({})),
+            MeetingService.getRecording(m.id).catch(() => ({}))
+          ]);
+          const meetingData = {
+            ...m,
+            report: privateReportResult?.report || m.report || {},
+            aiNotes: privateNotesResult?.aiNotes || m.aiNotes || {}
+          };
           const studentProfile = students.find(s => s.id === m.studentId) || {};
-          const hasValidIssues = m.report?.issuesDiscussed && m.report.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(m.report.issuesDiscussed.trim());
+          const hasValidIssues = meetingData.report?.issuesDiscussed && meetingData.report.issuesDiscussed.trim().length > 4 && !/^(n|na|nil|none)$/i.test(meetingData.report.issuesDiscussed.trim());
           const report = hasValidIssues
-            ? m.report
+            ? meetingData.report
             : await AIService.generateMentorMeetingReport({
-                meeting: m,
+                meeting: meetingData,
                 studentName: m.studentName || studentProfile.name || '',
                 studentProfile,
-                transcript: '',
+                transcript: meetingData.report?.transcript || '',
                 notes: m.notes?.issuesDiscussed || m.notes?.summary || m.description || ''
               });
 
-          const topic = m.report?.topic || m.type || m.description || 'Mentorship Session';
+          const topic = meetingData.report?.topic || m.type || m.description || 'Mentorship Session';
           const dateStr = m.scheduledAt
             ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
             : 'Date not set';
 
-          const existingRisk = m.report?.riskLevel || m.aiNotes?.riskLevel || report.riskLevel || 'LOW';
-          const existingConfidential = m.report?.confidentialObservations || m.report?.confidentialNotes || m.aiNotes?.confidentialObservations || '';
-          const existingTasks = Array.isArray(m.aiNotes?.actionItems)
-            ? m.aiNotes.actionItems.join('\n')
+          const existingRisk = meetingData.report?.riskLevel || meetingData.aiNotes?.riskLevel || report.riskLevel || 'LOW';
+          const existingConfidential = meetingData.report?.confidentialObservations || meetingData.report?.confidentialNotes || meetingData.aiNotes?.confidentialObservations || meetingData.aiNotes?.confidentialNotes || '';
+          const existingTasks = Array.isArray(meetingData.aiNotes?.actionItems)
+            ? meetingData.aiNotes.actionItems.join('\n')
             : (Array.isArray(report.tasks) ? report.tasks.join('\n') : (report.actionItems || ''));
-          const recUrl = m.recordingUrl || m.report?.recordingUrl || m.lastRecording?.url || '';
+          const recUrl = recordingResult?.recordingUrl || '';
+          const protectedLocalRecording = recordingResult?.recordingStorage === 'local_storage'
+            || String(recUrl).includes('/recording/content');
 
           body.innerHTML = `
             <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,rgba(255,255,255,0.03));border-radius:12px;border:1px solid var(--border);">
               <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">${topic}</div>
               <div style="font-size:0.8rem;color:var(--text-muted);">${dateStr} • ${m.studentName || 'Mentee'} • ${m.department || 'CSE'}</div>
-              ${recUrl ? `
+              ${recUrl ? (protectedLocalRecording ? `
+                <div style="margin-top:8px;font-size:0.8rem;">
+                  <button id="btn-download-protected-recording" class="btn btn-sm btn-secondary" type="button">⬇ Download protected recording</button>
+                </div>
+              ` : `
                 <div style="margin-top:8px;font-size:0.8rem;">
                   <a href="${escapeHtml(recUrl)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-weight:600;">
                     📁 View Voice Recording in Google Drive
                   </a>
                 </div>
-              ` : ''}
+              `) : ''}
             </div>
 
             <div class="form-group" style="margin-bottom:12px;">
@@ -623,6 +651,18 @@ export async function render(container) {
           `;
 
           body.querySelector('#btn-ai-rpt-close')?.addEventListener('click', () => modal.style.display = 'none');
+          body.querySelector('#btn-download-protected-recording')?.addEventListener('click', async (event) => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+              await MeetingService.downloadRecording(m.id);
+              showToast('Recording download started.', 'success');
+            } catch (error) {
+              showToast(error.message || 'Could not download recording.', 'error');
+            } finally {
+              button.disabled = false;
+            }
+          });
           body.querySelector('#btn-ai-rpt-save-dl')?.addEventListener('click', async () => {
             const saveBtn = body.querySelector('#btn-ai-rpt-save-dl');
             if (saveBtn) {
@@ -640,10 +680,10 @@ export async function render(container) {
             const taskLines = tasksRaw.split('\n').map(t => t.replace(/^[-*•\d.]+\s*/, '').trim()).filter(Boolean);
 
             const updatedReport = {
-              ...(m.report || {}),
+              ...(meetingData.report || {}),
               issuesDiscussed,
-              transcript: m.transcript || m.aiNotes?.transcript || m.report?.transcript || '',
-              extractedSentences: m.extractedSentences || m.transcript || m.aiNotes?.transcript || m.report?.extractedSentences || '',
+              transcript: meetingData.report?.transcript || '',
+              extractedSentences: meetingData.report?.extractedSentences || '',
               actionItems,
               remarks,
               riskLevel,
@@ -651,11 +691,11 @@ export async function render(container) {
               tasks: taskLines,
               preparedBy: user.name || m.mentorName || 'Faculty Mentor',
               verifiedAt: new Date().toISOString(),
-              generatedAt: m.report?.generatedAt || new Date().toISOString()
+              generatedAt: meetingData.report?.generatedAt || new Date().toISOString()
             };
 
             const updatedAiNotes = {
-              ...(m.aiNotes || {}),
+              ...(meetingData.aiNotes || {}),
               topic: m.type || m.description || 'Mentorship Session',
               issuesDiscussed,
               actionItems: taskLines.length > 0 ? taskLines : (actionItems ? [actionItems] : []),
@@ -665,11 +705,11 @@ export async function render(container) {
               extractedAt: new Date().toISOString()
             };
 
-            // Persist to Firestore
+            // Keep reports private on the server; meeting documents contain only student-safe notes.
             try {
+              await MeetingService.saveReport(m.id, updatedReport);
+              await MeetingService.saveAINotes(m.id, updatedAiNotes);
               await MeetingService.update(m.id, {
-                report: updatedReport,
-                aiNotes: updatedAiNotes,
                 hasAiNotes: true,
                 status: m.status === 'REQUESTED' ? 'APPROVED' : (m.status || 'COMPLETED'),
                 notes: {
@@ -681,8 +721,6 @@ export async function render(container) {
                   aiGeneratedAt: new Date().toISOString()
                 }
               });
-
-              await MeetingService.saveAINotes(m.id, updatedAiNotes);
 
               // Sync action tasks into TaskService if single student
               if (taskLines.length > 0 && m.studentId && m.studentId !== 'ALL') {
@@ -703,6 +741,8 @@ export async function render(container) {
               }
 
               // Update local memory
+              meetingData.report = updatedReport;
+              meetingData.aiNotes = updatedAiNotes;
               m.report = updatedReport;
               m.aiNotes = updatedAiNotes;
               m.notes = { ...(m.notes || {}), issuesDiscussed, actionItems, remarks };
@@ -711,7 +751,7 @@ export async function render(container) {
             }
 
             // Export official PDF report
-            exportMeetingSessionReport({ ...m, report: updatedReport });
+            exportMeetingSessionReport({ ...meetingData, report: updatedReport });
             modal.style.display = 'none';
             showToast('Official AI-enhanced report saved and PDF downloaded!', 'success');
           });

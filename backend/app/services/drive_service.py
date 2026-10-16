@@ -10,6 +10,8 @@ Supports:
 import os
 import json
 import logging
+import re
+import secrets
 import httpx
 from typing import Optional, Dict, Any
 from app.config import settings
@@ -89,6 +91,27 @@ class DriveService:
         creds = self._get_credentials()
         if not creds:
             return None
+
+    async def share_file_with_users(self, file_id: str, email_addresses: list[str]) -> None:
+        """Grant reader access to named institutional accounts; never enable link-wide access."""
+        token = await self.get_access_token()
+        if not token or not file_id:
+            return
+        url = f"https://www.googleapis.com/drive/v3/files/{file_id}/permissions"
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            for email in sorted({str(value).strip().lower() for value in email_addresses if value}):
+                try:
+                    response = await client.post(
+                        url,
+                        params={"sendNotificationEmail": "false"},
+                        headers=headers,
+                        json={"role": "reader", "type": "user", "emailAddress": email},
+                    )
+                    if response.status_code not in (200, 201):
+                        logger.warning("Could not grant recording access to an authorized user (%s)", response.status_code)
+                except Exception as error:
+                    logger.warning("Could not grant recording access to an authorized user: %s", error)
 
         try:
             import google.auth.transport.requests
@@ -194,15 +217,6 @@ class DriveService:
         file_info = resp.json()
         file_id = file_info.get("id")
 
-        # Set permissions to anyone with link as reader
-        try:
-            perm_url = f"https://www.googleapis.com/drive/v3/files/{file_id}/permissions"
-            perm_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                await client.post(perm_url, headers=perm_headers, json={"role": "reader", "type": "anyone"})
-        except Exception as e:
-            logger.warning(f"Could not update Drive file permissions: {e}")
-
         # Fetch final links
         web_link = file_info.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
         download_link = file_info.get("webContentLink") or f"https://drive.google.com/uc?export=download&id={file_id}"
@@ -234,13 +248,14 @@ class DriveService:
         recordings_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "recordings")
         os.makedirs(recordings_dir, exist_ok=True)
 
-        safe_name = f"{meeting_id}_{filename}"
+        clean_name = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.basename(filename))[:120] or "recording.webm"
+        safe_name = f"{secrets.token_hex(16)}_{clean_name}"
         file_path = os.path.join(recordings_dir, safe_name)
 
         with open(file_path, "wb") as f:
             f.write(file_bytes)
 
-        file_url = f"/static/recordings/{safe_name}"
+        file_url = f"/api/meetings/{meeting_id}/recording/content"
 
         return {
             "status": "success",

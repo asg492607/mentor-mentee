@@ -114,6 +114,8 @@ Since the backend Python server has been fully deprecated in favor of Firebase, 
 
 4. **Deployment**: Drag and drop the `frontend/` folder into Netlify, Vercel, or GitHub Pages. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
 
+For Firebase rule deployment, backend CORS configuration, and administrator claim migration, see [SECURITY.md](SECURITY.md).
+
 ## Scaling Risks & Architectural Considerations
 
 While the MVP is robust for early adoption, there are important architectural trade-offs to keep in mind as the platform scales:

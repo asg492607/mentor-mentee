@@ -22,7 +22,11 @@ class NotificationService:
     def get_notifications(self, user_id: str, unread_only: bool = False):
         return self.notification_repo.get_by_user(user_id, unread_only)
 
-    def mark_read(self, id: str):
+    def mark_read(self, id: str, user_id: str):
+        notification = self.notification_repo.get_by_id(id)
+        if not notification or notification.get('userId') != user_id:
+            from app.core.exceptions import NotFoundException
+            raise NotFoundException("Notification not found")
         self.notification_repo.mark_as_read(id)
 
     def mark_all_read(self, user_id: str):

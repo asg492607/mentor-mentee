@@ -1,0 +1,76 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function studentProfile(userId) {
+      return firestore.get(/databases/(default)/documents/students/$(userId)).data;
+    }
+
+    function facultyProfile(userId) {
+      return firestore.get(/databases/(default)/documents/faculty/$(userId)).data;
+    }
+
+    function isApprovedStudent(userId) {
+      return signedIn()
+        && request.auth.token.platform_approved == true
+        && firestore.exists(/databases/(default)/documents/students/$(userId))
+        && studentProfile(userId).role == 'STUDENT'
+        && studentProfile(userId).status == 'approved'
+        && studentProfile(userId).isApproved == true;
+    }
+
+    function isApprovedFaculty(userId) {
+      return signedIn()
+        && request.auth.token.platform_approved == true
+        && firestore.exists(/databases/(default)/documents/faculty/$(userId))
+        && (
+          facultyProfile(userId).role in ['FACULTY', 'MENTOR']
+          || (facultyProfile(userId).role == 'HOD' && request.auth.token.platform_role == 'HOD')
+          || (facultyProfile(userId).role == 'SECTION_HEAD' && request.auth.token.platform_role == 'SECTION_HEAD')
+          || (facultyProfile(userId).role == 'DEAN' && request.auth.token.platform_role == 'DEAN')
+          || (facultyProfile(userId).role == 'ADMIN' && request.auth.token.admin == true)
+        )
+        && facultyProfile(userId).status == 'approved'
+        && facultyProfile(userId).isApproved == true;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true
+        && isApprovedFaculty(request.auth.uid)
+        && facultyProfile(request.auth.uid).role == 'ADMIN';
+    }
+
+    function canAccessStudent(studentId) {
+      return signedIn() && (
+        (studentId == request.auth.uid && isApprovedStudent(studentId))
+        || isAdmin()
+        || (isApprovedFaculty(request.auth.uid)
+          && isApprovedStudent(studentId)
+          && studentId != request.auth.uid
+          && (
+            studentProfile(studentId).mentorId == request.auth.uid
+            || studentProfile(studentId).secondaryMentorId == request.auth.uid
+            || (studentProfile(studentId).mentorIds is list && request.auth.uid in studentProfile(studentId).mentorIds)
+          ))
+      );
+    }
+
+    match /booklets/{studentId}/profile.jpg {
+      allow read: if canAccessStudent(studentId);
+      allow create, update: if signedIn()
+        && studentId == request.auth.uid
+        && isApprovedStudent(studentId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if signedIn() && studentId == request.auth.uid && isApprovedStudent(studentId);
+    }
+
+    // All other uploaded objects remain private until an explicit rule is added.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

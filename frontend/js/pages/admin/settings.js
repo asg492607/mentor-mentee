@@ -6,7 +6,6 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { SettingsService, WebIssueService } from '/js/services.js';
 import { AIService } from '/js/services/ai-service.js';
-import { GROQ_CONFIG, GOOGLE_DRIVE_CONFIG } from '/js/config.js';
 import { MIT_UNIVERSITY_CELLS, getCellsByCategory } from '/js/utils/mit-cells-data.js';
 import { db } from '/js/firebase-init.js';
 import {
@@ -122,11 +121,11 @@ export async function render(container) {
                     <span class="badge badge-accent" style="font-size:0.7rem;padding:2px 8px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;">GEMINI 3.5 ACTIVE</span>
                   </h3>
                   <p style="color:var(--text-secondary);font-size:0.82rem;margin-top:4px;line-height:1.5;">
-                    Powered by Google Gemini Generative AI (Project: <code>projects/724957359401</code>, #724957359401) with ultra-low-latency Groq fallback.
+                    AI requests use the authenticated backend. Provider keys are configured in server environment settings and are never stored in this browser.
                   </p>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <span class="badge badge-success" style="font-size:0.75rem;padding:4px 10px;">● GEMINI ACTIVE</span>
+                  <span class="badge badge-success" style="font-size:0.75rem;padding:4px 10px;">● SERVER-SIDE PROVIDERS</span>
                 </div>
               </div>
 
@@ -135,20 +134,15 @@ export async function render(container) {
                 <div class="form-group">
                   <label class="form-label" style="font-weight:600;">Active Gemini Model (Primary)</label>
                   <select id="setting-gemini-model" class="form-select">
-                    <option value="gemini-3.5-flash" ${AIService.getGeminiModel()==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash (Recommended &amp; Highly Intelligent)</option>
+                    <option value="gemini-3.8-flash" ${AIService.getGeminiModel()==='gemini-3.8-flash'?'selected':''}>Gemini 3.8 Flash (Recommended)</option>
                     <option value="gemini-3.5-flash-lite" ${AIService.getGeminiModel()==='gemini-3.5-flash-lite'?'selected':''}>Gemini 3.5 Flash Lite (Ultra-fast response time)</option>
-                    <option value="gemini-3.7-flash" ${AIService.getGeminiModel()==='gemini-3.7-flash'?'selected':''}>Gemini 3.7 Flash</option>
+                    <option value="gemini-3.5-flash" ${AIService.getGeminiModel()==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash</option>
                   </select>
                   <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Google Generative AI multimodal copilot engine</p>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label" style="font-weight:600;">Gemini API Key</label>
-                  <div style="display:flex;gap:8px;">
-                    <input type="password" id="setting-gemini-key" class="form-input" placeholder="AQ...." value="${escapeHtml(AIService.getGeminiApiKey())}">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-gemini-key-vis" title="Toggle visibility">👁</button>
-                  </div>
-                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Official key for Gemini Copilot &amp; Multimodal Transcription</p>
+                <div class="form-group" style="align-self:center;">
+                  <p style="font-size:0.82rem;color:var(--text-secondary);">Gemini credentials are held by the backend and are not available to browser code.</p>
                 </div>
               </div>
 
@@ -164,30 +158,8 @@ export async function render(container) {
                   <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Secondary failover engine</p>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label" style="font-weight:600;">Groq API Key Override</label>
-                  <div style="display:flex;gap:8px;">
-                    <input type="password" id="setting-ai-key" class="form-input" placeholder="gsk_..." value="${escapeHtml(AIService.getApiKey())}">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-ai-key-vis" title="Toggle visibility">👁</button>
-                  </div>
-                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">Leave as default or provide a custom key</p>
-                </div>
-              </div>
-              <!-- Google Drive Recording Folder -->
-              <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);">
-                <div class="form-group">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <label class="form-label" style="font-weight:600;margin:0;">Google Drive Recording Storage Folder</label>
-                    <a href="${GOOGLE_DRIVE_CONFIG.folderUrl || 'https://drive.google.com/drive/folders/' + (localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;text-decoration:none;font-weight:600;">
-                      <i class="ph-bold ph-arrow-square-out"></i> Open in Google Drive
-                    </a>
-                  </div>
-                  <div style="display:flex;gap:8px;">
-                    <input type="text" id="setting-drive-folder" class="form-input" placeholder="Google Drive Folder Link or ID" value="${escapeHtml(localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}">
-                  </div>
-                  <p style="font-size:0.76rem;color:var(--text-muted);margin-top:4px;">
-                    Active Folder ID: <code>${escapeHtml(localStorage.getItem('lumina_drive_folder_id') || GOOGLE_DRIVE_CONFIG.folderId)}</code> — Meeting recordings and audio are stored here.
-                  </p>
+                <div class="form-group" style="align-self:center;">
+                  <p style="font-size:0.82rem;color:var(--text-secondary);">Groq credentials are held by the backend and are not available to browser code.</p>
                 </div>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid var(--border);padding-top:16px;">
@@ -208,24 +180,18 @@ export async function render(container) {
               <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                 <div>
                   <h3 style="font-size:1.1rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;color:var(--text-primary);">
-                    🏛️ MIT-ADT University Statutory Cells &amp; Section Head Accounts
+                    🏛️ MIT-ADT University Cells Directory
                     <span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;">20 OFFICIAL CELLS</span>
                   </h3>
                   <p style="color:var(--text-secondary);font-size:0.84rem;margin-top:4px;line-height:1.5;">
-                    Central directory for Statutory &amp; Welfare (ICC, WDC, Anti-Ragging, EOC, GRC), Innovation &amp; Skill (EDC, IIC, TBI, IPR, T&amp;P, IIIC), and Student Growth Cells (NSS, NCC, Counseling, Alumni, IQAC).
+                    Contact directory for Statutory &amp; Welfare, Innovation &amp; Skill, Student Growth, and Campus Operational Cells. Create and approve staff accounts from the Users page; shared default passwords are not used.
                   </p>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                  <button class="btn btn-secondary btn-sm" id="btn-export-cells-csv" style="gap:6px;">
-                    📥 Export CSV
-                  </button>
-                  <button class="btn btn-secondary btn-sm" id="btn-copy-all-cells" style="gap:6px;">
-                    📋 Copy All Credentials
-                  </button>
-                  <button class="btn btn-primary btn-sm" id="btn-seed-cells-firestore" style="gap:6px;background:linear-gradient(135deg, #2563eb, #7c3aed);font-weight:700;">
-                    ⚡ Auto-Provision All 20 Cells
-                  </button>
+                  <button class="btn btn-secondary btn-sm" id="btn-export-cells-csv" style="gap:6px;">📥 Export Directory</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-copy-all-cells" style="gap:6px;">📋 Copy Contacts</button>
                 </div>
+
               </div>
 
               <!-- Filter Tabs & Search -->
@@ -452,42 +418,14 @@ export async function render(container) {
     showToast('Settings saved!', 'success');
   });
 
-  // AI Settings Event Listeners (Gemini & Groq)
-  const geminiKeyInput = document.getElementById('setting-gemini-key');
-  const geminiVisBtn = document.getElementById('btn-toggle-gemini-key-vis');
-  geminiVisBtn?.addEventListener('click', () => {
-    if (geminiKeyInput) {
-      geminiKeyInput.type = geminiKeyInput.type === 'password' ? 'text' : 'password';
-      geminiVisBtn.textContent = geminiKeyInput.type === 'password' ? '👁' : '🔒';
-    }
-  });
-
-  const groqKeyInput = document.getElementById('setting-ai-key');
-  const groqVisBtn = document.getElementById('btn-toggle-ai-key-vis');
-  groqVisBtn?.addEventListener('click', () => {
-    if (groqKeyInput) {
-      groqKeyInput.type = groqKeyInput.type === 'password' ? 'text' : 'password';
-      groqVisBtn.textContent = groqKeyInput.type === 'password' ? '👁' : '🔒';
-    }
-  });
-
+  // AI provider keys remain server-side; the browser stores model preferences only.
   document.getElementById('btn-save-ai-settings')?.addEventListener('click', () => {
     const geminiModel = document.getElementById('setting-gemini-model')?.value;
-    const customGeminiKey = geminiKeyInput?.value?.trim();
     if (geminiModel) AIService.setGeminiModel(geminiModel);
-    if (customGeminiKey) AIService.setGeminiApiKey(customGeminiKey);
 
     const groqModel = document.getElementById('setting-ai-model')?.value;
-    const customGroqKey = groqKeyInput?.value?.trim();
     if (groqModel) AIService.setModel(groqModel);
-    if (customGroqKey) AIService.setApiKey(customGroqKey);
 
-    const driveFolderInput = document.getElementById('setting-drive-folder')?.value?.trim();
-    if (driveFolderInput) {
-      const match = driveFolderInput.match(/\/folders\/([a-zA-Z0-9_-]+)/);
-      const folderId = match ? match[1] : driveFolderInput;
-      localStorage.setItem('lumina_drive_folder_id', folderId);
-    }
     showToast('✨ Lumina Gemini AI Copilot settings updated successfully!', 'success');
   });
 
@@ -570,10 +508,6 @@ export async function render(container) {
             <span style="color:var(--text-muted);">Official Email:</span>
             <code style="font-size:0.74rem;color:#38bdf8;cursor:pointer;" class="copy-cell-val" data-val="${escapeHtml(cell.email)}" title="Click to copy">${escapeHtml(cell.email)}</code>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-            <span style="color:var(--text-muted);">Password:</span>
-            <code style="font-size:0.74rem;color:#a855f7;cursor:pointer;" class="copy-cell-val" data-val="${escapeHtml(cell.defaultPassword)}" title="Click to copy">${escapeHtml(cell.defaultPassword)}</code>
-          </div>
         </div>
       </div>
     `).join('');
@@ -608,97 +542,28 @@ export async function render(container) {
     renderMitCells();
   });
 
-  // Export CSV
+  // Export the public contact directory without account credentials.
   document.getElementById('btn-export-cells-csv')?.addEventListener('click', () => {
-    let csv = 'Category,Cell Name,Short Code,Official Email,Default Password,Role\n';
+    let csv = 'Category,Cell Name,Short Code,Official Email,Role\n';
     MIT_UNIVERSITY_CELLS.forEach(c => {
-      csv += `"${c.category}","${c.name}","${c.shortCode}","${c.email}","${c.defaultPassword}","${c.role}"\n`;
+      csv += `"${c.category}","${c.name}","${c.shortCode}","${c.email}","${c.role}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'MIT_ADT_University_Cells_Directory_Credentials.csv';
+    link.download = 'MIT_ADT_University_Cells_Directory.csv';
     link.click();
-    showToast('Credentials CSV exported successfully!', 'success');
+    showToast('Cell contact directory exported.', 'success');
   });
 
-  // Copy all credentials
+  // Copy the public contact directory without account credentials.
   document.getElementById('btn-copy-all-cells')?.addEventListener('click', () => {
-    let text = '=== MIT-ADT UNIVERSITY STATUTORY & WELFARE CELLS DIRECTORY ===\n\n';
+    let text = '=== MIT-ADT UNIVERSITY CELL CONTACT DIRECTORY ===\n\n';
     MIT_UNIVERSITY_CELLS.forEach(c => {
-      text += `• ${c.name} (${c.category})\n  Email: ${c.email}\n  Password: ${c.defaultPassword}\n  Role: ${c.role}\n\n`;
+      text += `• ${c.name} (${c.category})\n  Email: ${c.email}\n  Role: ${c.role}\n\n`;
     });
     navigator.clipboard.writeText(text);
-    showToast('All 20 Cell credentials copied to clipboard!', 'success');
-  });
-
-  // Auto-provision all 20 cells in Firestore
-  document.getElementById('btn-seed-cells-firestore')?.addEventListener('click', async () => {
-    const btn = document.getElementById('btn-seed-cells-firestore');
-    if (!confirm('Auto-provision and approve all 20 MIT-ADT Statutory & Welfare Cell accounts in Firestore?')) return;
-
-    btn.disabled = true;
-    btn.innerHTML = '<div class="spinner spinner-xs" style="width:14px;height:14px;border-width:2px;"></div> Provisioning...';
-
-    try {
-      // 1. Sync sections in settings
-      const allNames = MIT_UNIVERSITY_CELLS.map(c => c.name);
-      await SettingsService.updateSections(allNames);
-
-      // 2. Provision each cell into faculty collection
-      const batch = writeBatch(db);
-      const existingFacultySnap = await getDocs(collection(db, 'faculty'));
-      const existingEmailMap = new Map();
-      existingFacultySnap.forEach(d => {
-        const data = d.data();
-        if (data.email) existingEmailMap.set(data.email.toLowerCase(), d.id);
-      });
-
-      let addedCount = 0;
-      let updatedCount = 0;
-
-      for (const cell of MIT_UNIVERSITY_CELLS) {
-        const emailLower = cell.email.toLowerCase();
-        const payload = {
-          name: cell.name,
-          email: emailLower,
-          role: 'SECTION_HEAD',
-          department: cell.name,
-          designation: 'Section Head / Incharge',
-          employeeId: `EMP-${cell.shortCode}`,
-          status: 'approved',
-          isApproved: true,
-          cellId: cell.id,
-          category: cell.category,
-          updatedAt: new Date().toISOString()
-        };
-
-        if (existingEmailMap.has(emailLower)) {
-          const docId = existingEmailMap.get(emailLower);
-          batch.set(doc(db, 'faculty', docId), payload, { merge: true });
-          updatedCount++;
-        } else {
-          const newDocRef = doc(collection(db, 'faculty'));
-          batch.set(newDocRef, {
-            id: newDocRef.id,
-            ...payload,
-            createdAt: new Date().toISOString()
-          });
-          addedCount++;
-        }
-      }
-
-      await batch.commit();
-      showToast(`⚡ Successfully provisioned all 20 MIT-ADT Cells! (${addedCount} added, ${updatedCount} synced)`, 'success');
-      loadSections();
-      renderMitCells();
-    } catch (err) {
-      console.error('Error seeding MIT cells:', err);
-      showToast('Failed to auto-provision cells: ' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '⚡ Auto-Provision All 20 Cells';
-    }
+    showToast('Cell contact directory copied to clipboard.', 'success');
   });
 
   renderMitCells();

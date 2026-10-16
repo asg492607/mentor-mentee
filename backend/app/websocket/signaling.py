@@ -1,6 +1,5 @@
 from uuid import uuid4
 from fastapi import WebSocket, APIRouter, WebSocketDisconnect
-from app.config import settings
 from app.firebase.client import firebase_auth, db
 
 router = APIRouter()
@@ -59,29 +58,65 @@ async def signaling_endpoint(websocket: WebSocket, meeting_id: str):
     participant_id = None
     try:
         token = websocket.query_params.get("token")
-        authenticated_user = None
-        if token and firebase_auth:
-            authenticated_user = firebase_auth.verify_id_token(token, check_revoked=True)
-        elif not settings.ALLOW_ANONYMOUS_MEETINGS:
+        if not token or not firebase_auth or not db:
             await websocket.close(code=4401, reason="Authentication required")
             return
 
-        if authenticated_user and db:
-            meeting_doc = db.collection("meetings").document(meeting_id).get()
-            if not meeting_doc.exists:
-                await websocket.close(code=4404, reason="Meeting not found")
-                return
-            meeting = meeting_doc.to_dict()
-            uid = authenticated_user.get("uid")
-            if uid not in {meeting.get("studentId"), meeting.get("mentorId")}:
-                await websocket.close(code=4403, reason="Not a meeting participant")
-                return
+        try:
+            authenticated_user = firebase_auth.verify_id_token(token, check_revoked=True)
+        except Exception:
+            await websocket.close(code=4401, reason="Invalid authentication credentials")
+            return
+
+        if authenticated_user.get("platform_approved") is not True:
+            await websocket.close(code=4403, reason="Approved account required")
+            return
+
+        uid = authenticated_user.get("uid")
+        profile_doc = db.collection("students").document(uid).get()
+        if not profile_doc.exists:
+            profile_doc = db.collection("faculty").document(uid).get()
+        if not profile_doc.exists:
+            await websocket.close(code=4403, reason="Approved account required")
+            return
+        profile = profile_doc.to_dict()
+        if profile.get("status") != "approved" or profile.get("isApproved") is not True:
+            await websocket.close(code=4403, reason="Approved account required")
+            return
+        role = profile.get("role")
+        if role == "ADMIN":
+            role_is_trusted = authenticated_user.get("admin") is True
+        elif role in {"DEAN", "HOD", "SECTION_HEAD"}:
+            role_is_trusted = authenticated_user.get("platform_role") == role
+        else:
+            role_is_trusted = role in {"STUDENT", "FACULTY"}
+        if not role_is_trusted:
+            await websocket.close(code=4403, reason="Account role is not configured")
+            return
+
+        meeting_doc = db.collection("meetings").document(meeting_id).get()
+        if not meeting_doc.exists:
+            await websocket.close(code=4404, reason="Meeting not found")
+            return
+        meeting = meeting_doc.to_dict()
+        is_participant = uid in {meeting.get("studentId"), meeting.get("mentorId")}
+        if meeting.get("studentId") == "ALL" and profile_doc.reference.parent.id == "students":
+            is_participant = meeting.get("mentorId") in {
+                profile.get("mentorId"),
+                profile.get("secondaryMentorId"),
+            }
+        if not is_participant:
+            await websocket.close(code=4403, reason="Not a meeting participant")
+            return
+
+        if meeting.get("status") not in {"APPROVED", "ONGOING", "IN_PROGRESS"}:
+            await websocket.close(code=4403, reason="Meeting is not open")
+            return
 
         await websocket.accept()
         join_message = await websocket.receive_json()
         name = str(
-            authenticated_user.get("name") if authenticated_user
-            else join_message.get("name") or "Guest"
+            profile.get("name") or authenticated_user.get("name") or "Participant"
         )[:80]
         participant_id = await manager.connect(meeting_id, websocket, name)
         while True:

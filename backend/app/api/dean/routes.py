@@ -7,6 +7,10 @@ from app.repositories.student_repository import StudentRepository
 from app.repositories.faculty_repository import FacultyRepository
 from app.repositories.issue_repository import IssueRepository
 from app.repositories.meeting_repository import MeetingRepository
+from app.core.exceptions import BadRequestException, NotFoundException, ServiceUnavailableException
+from app.firebase.client import firebase_auth
+from app.core.role_claims import claims_for_account
+from app.utils.helpers import get_timestamp
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/dean", tags=["Dean"])
@@ -77,3 +81,45 @@ def get_analytics(user=Depends(get_dean_user)):
         "meetingsTrend": meetings_trend,
         "mentorPerformance": []
     }
+
+
+@router.put("/faculty/{faculty_id}/approve")
+def approve_faculty(faculty_id: str, user=Depends(get_dean_user)):
+    faculty_repo = FacultyRepository()
+    profile = faculty_repo.get_by_id(faculty_id)
+    if not profile:
+        raise NotFoundException("Faculty account not found")
+    if profile.get("role") != "FACULTY" or profile.get("status") != "pending":
+        raise BadRequestException("This account is not eligible for dean approval")
+    if not firebase_auth:
+        raise ServiceUnavailableException("Firebase authentication is not configured")
+
+    updated_at = get_timestamp()
+    faculty_repo.update(faculty_id, {"status": "approved", "isApproved": True, "updatedAt": updated_at})
+    firebase_auth.set_custom_user_claims(faculty_id, claims_for_account(profile["role"], True))
+    return {**profile, "status": "approved", "isApproved": True, "updatedAt": updated_at}
+
+
+@router.put("/faculty/{faculty_id}/role")
+def update_faculty_role(faculty_id: str, data: dict, user=Depends(get_dean_user)):
+    role = str(data.get("role", "")).upper()
+    if role not in {"FACULTY", "HOD", "SECTION_HEAD"}:
+        raise BadRequestException("A dean can assign only faculty, HOD, or section-head roles")
+    faculty_repo = FacultyRepository()
+    profile = faculty_repo.get_by_id(faculty_id)
+    if not profile:
+        raise NotFoundException("Faculty account not found")
+    if profile.get("status") != "approved" or profile.get("isApproved") is not True:
+        raise BadRequestException("Approve this account before changing its role")
+    if not firebase_auth:
+        raise ServiceUnavailableException("Firebase authentication is not configured")
+
+    updates = {"role": role, "updatedAt": get_timestamp()}
+    if "department" in data:
+        department = data.get("department")
+        if department is not None and not isinstance(department, str):
+            raise BadRequestException("Department must be a string")
+        updates["department"] = department.strip() if department else None
+    faculty_repo.update(faculty_id, updates)
+    firebase_auth.set_custom_user_claims(faculty_id, claims_for_account(role, True))
+    return {**profile, **updates}

@@ -1,107 +1,57 @@
-import base64
-import json
-import time
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.firebase.client import firebase_auth, db
-from app.core.exceptions import UnauthorizedException, ForbiddenException
+from app.core.exceptions import UnauthorizedException, ForbiddenException, ServiceUnavailableException
 from app.models.enums import UserRole
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
-def _decode_unverified_token(token: str) -> dict:
-    try:
-        parts = token.split('.')
-        if len(parts) != 3:
-            return {}
-        payload_b64 = parts[1]
-        payload_b64 += '=' * ((4 - len(payload_b64) % 4) % 4)
-        payload_bytes = base64.urlsafe_b64decode(payload_b64)
-        return json.loads(payload_bytes.decode('utf-8'))
-    except Exception:
-        return {}
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise UnauthorizedException("Authentication required")
+    if not firebase_auth or not db:
+        raise ServiceUnavailableException("Authentication service is not configured")
     try:
         token = credentials.credentials
-
-        # When Firebase Admin SDK is not configured, gracefully decode token claims
-        if not firebase_auth:
-            payload = _decode_unverified_token(token)
-            if not payload:
-                raise UnauthorizedException("Invalid authentication credentials")
-            
-            exp = payload.get("exp")
-            if exp and exp < time.time():
-                raise UnauthorizedException("Token has expired")
-            
-            uid = payload.get("user_id") or payload.get("uid") or payload.get("sub")
-            if not uid:
-                raise UnauthorizedException("Token does not contain a user id")
-
-            if db:
-                try:
-                    user_doc = db.collection('students').document(uid).get()
-                    if not user_doc.exists:
-                        user_doc = db.collection('faculty').document(uid).get()
-                    if user_doc.exists:
-                        user_data = user_doc.to_dict()
-                        return {
-                            "uid": uid,
-                            "email": user_data.get("email") or payload.get("email"),
-                            "role": user_data.get("role") or payload.get("role", "STUDENT"),
-                            "name": user_data.get("name") or payload.get("name", "User"),
-                            "department": user_data.get("department")
-                        }
-                except Exception:
-                    pass
-
-            return {
-                "uid": uid,
-                "email": payload.get("email", ""),
-                "role": payload.get("role", "STUDENT"),
-                "name": payload.get("name", "User"),
-                "department": payload.get("department", "General")
-            }
-
         decoded_token = firebase_auth.verify_id_token(token, check_revoked=True)
+        if decoded_token.get("platform_approved") is not True:
+            raise ForbiddenException("Account approval is not configured")
         uid = decoded_token.get('uid')
         if not uid:
-            raise UnauthorizedException("Token does not contain a user id")
-
-        if not db:
-            return {
-                "uid": uid,
-                "email": decoded_token.get("email", ""),
-                "role": decoded_token.get("role", "STUDENT"),
-                "name": decoded_token.get("name", "User"),
-                "department": decoded_token.get("department", "General")
-            }
+            raise UnauthorizedException("Invalid authentication credentials")
 
         user_doc = db.collection('students').document(uid).get()
         if not user_doc.exists:
             user_doc = db.collection('faculty').document(uid).get()
         if not user_doc.exists:
-            return {
-                "uid": uid,
-                "email": decoded_token.get("email", ""),
-                "role": decoded_token.get("role", "STUDENT"),
-                "name": decoded_token.get("name", "User"),
-                "department": None
-            }
+            raise UnauthorizedException("User profile not found")
         user_data = user_doc.to_dict()
-            
-        return {
+        if user_data.get("status") != "approved" or user_data.get("isApproved") is not True:
+            raise ForbiddenException("Account is pending approval")
+
+        role = user_data.get("role")
+        if role == UserRole.ADMIN.value:
+            if decoded_token.get("admin") is not True:
+                raise ForbiddenException("Administrator access is not configured for this account")
+        elif role in {UserRole.DEAN.value, UserRole.HOD.value, UserRole.SECTION_HEAD.value}:
+            # These claims are issued only by trusted provisioning/approval endpoints.
+            # A legacy or client-edited profile cannot grant institutional privileges.
+            if decoded_token.get("platform_role") != role:
+                raise ForbiddenException("This account's privileged role is not configured")
+
+        current_user = {
             "uid": uid,
-            "email": user_data.get("email"),
-            "role": user_data.get("role"),
-            "name": user_data.get("name"),
+            "email": user_data.get("email") or decoded_token.get("email", ""),
+            "role": role,
+            "name": user_data.get("name") or decoded_token.get("name", "User"),
             "department": user_data.get("department")
         }
-    except (UnauthorizedException, ForbiddenException):
+        request.state.audit_actor = current_user
+        return current_user
+    except (UnauthorizedException, ForbiddenException, ServiceUnavailableException):
         raise
-    except Exception as e:
-        raise UnauthorizedException(f"Invalid authentication credentials: {str(e)}")
+    except Exception:
+        raise UnauthorizedException("Invalid authentication credentials")
 
 def require_role(*roles: UserRole):
     def role_checker(current_user: dict = Depends(get_current_user)):

@@ -253,7 +253,15 @@ export const StudentService = {
   },
 
   async approve(uid) {
-    await updateDoc(doc(db, 'students', uid), { status: 'approved', isApproved: true, updatedAt: now() });
+    const { auth } = await import('/js/firebase-init.js');
+    if (!auth.currentUser) throw new Error('Sign in to approve student accounts.');
+    const { claims } = await auth.currentUser.getIdTokenResult(true);
+    const { api } = await import('/js/api.js');
+    let path = null;
+    if (claims.admin === true) path = `/admin/users/${uid}/approve`;
+    else if (claims.role === 'FACULTY' || claims.role === 'MENTOR') path = `/mentor/students/${uid}/approve`;
+    if (!path) throw new Error('Your account is not authorized to approve student accounts.');
+    await api.put(path, {});
     CacheManager.invalidate(`student_${uid}`);
     CacheManager.invalidatePrefix('students_');
   },
@@ -467,8 +475,22 @@ export const FacultyService = {
     return res;
   },
 
+  async getDeans() {
+    return snaps(await getDocs(query(
+      collection(db, 'faculty'),
+      where('role', '==', 'DEAN'),
+      where('status', '==', 'approved'),
+      where('isApproved', '==', true)
+    )));
+  },
+
   async update(uid, data) {
-    await updateDoc(doc(db, 'faculty', uid), { ...data, updatedAt: now() });
+    if (data?.role) {
+      const { api } = await import('/js/api.js');
+      await api.put(`/dean/faculty/${uid}/role`, data);
+    } else {
+      await updateDoc(doc(db, 'faculty', uid), { ...data, updatedAt: now() });
+    }
     CacheManager.invalidate(`faculty_${uid}`);
     CacheManager.invalidatePrefix('faculty_');
   },
@@ -478,7 +500,16 @@ export const FacultyService = {
   },
 
   async approve(uid) {
-    await updateDoc(doc(db, 'faculty', uid), { status: 'approved', isApproved: true, updatedAt: now() });
+    const { auth } = await import('/js/firebase-init.js');
+    if (!auth.currentUser) throw new Error('Sign in to approve faculty accounts.');
+    const { claims } = await auth.currentUser.getIdTokenResult(true);
+    const { api } = await import('/js/api.js');
+    let path = null;
+    if (claims.admin === true) path = `/admin/users/${uid}/approve`;
+    else if (claims.platform_role === 'DEAN') path = `/dean/faculty/${uid}/approve`;
+    else if (claims.platform_role === 'HOD') path = `/hod/faculty/${uid}/approve`;
+    if (!path) throw new Error('Your account is not authorized to approve faculty accounts.');
+    await api.put(path, {});
     CacheManager.invalidate(`faculty_${uid}`);
     CacheManager.invalidatePrefix('faculty_');
   }
@@ -565,7 +596,8 @@ export const MeetingService = {
   },
 
   async get(id) {
-    return snap(await getDoc(doc(db, 'meetings', id)));
+    const { api } = await import('/js/api.js');
+    return deepEscape(await api.get(`/meetings/${id}`));
   },
 
   async getById(id) {
@@ -573,40 +605,9 @@ export const MeetingService = {
   },
 
   async getByStudent(studentId) {
-    try {
-      const q1 = query(collection(db, 'meetings'), where('studentId', '==', studentId));
-      let myMeetings = [];
-      let mentorProfile = null;
-      try {
-        const [mRes, sRes] = await Promise.all([
-          getDocs(q1).then(snaps),
-          getDoc(doc(db, 'students', studentId)).then(snap)
-        ]);
-        myMeetings = mRes;
-        mentorProfile = sRes;
-      } catch (err1) {
-        console.warn('Could not fetch student individual meetings:', err1);
-        myMeetings = snaps(await getDocs(q1));
-      }
-      
-      let allMeetings = myMeetings || [];
-      if (mentorProfile && mentorProfile.mentorId) {
-        try {
-          const q2 = query(collection(db, 'meetings'), where('mentorId', '==', mentorProfile.mentorId), where('studentId', '==', 'ALL'), where('isGroup', '==', true));
-          const groupMeetings = await getDocs(q2).then(snaps);
-          const seen = new Set(allMeetings.map(m => m.id));
-          for (const gm of groupMeetings) {
-            if (!seen.has(gm.id)) allMeetings.push(gm);
-          }
-        } catch (grpErr) {
-          console.warn('Could not fetch group meetings:', grpErr);
-        }
-      }
-      return allMeetings.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    } catch (e) {
-      console.warn('MeetingService.getByStudent overall fallback:', e);
-      return [];
-    }
+    const { api } = await import('/js/api.js');
+    const meetings = deepEscape(await api.get('/student/meetings'));
+    return meetings.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   },
 
   async getByMentor(mentorId) {
@@ -635,14 +636,31 @@ export const MeetingService = {
    * @param {Object} aiNotes - Structured AI notes (topic, issuesDiscussed, actionItems, tasks, riskSignals, etc.)
    */
   async saveAINotes(id, aiNotes) {
-    await updateDoc(doc(db, 'meetings', id), {
-      aiNotes: {
-        ...aiNotes,
-        savedAt: new Date().toISOString()
-      },
-      hasAiNotes: true,
-      updatedAt: now()
+    const { api } = await import('/js/api.js');
+    return api.post(`/meetings/${id}/ai-notes`, {
+      ...aiNotes,
+      savedAt: new Date().toISOString()
     });
+  },
+
+  async getAINotes(id) {
+    const { api } = await import('/js/api.js');
+    return deepEscape(await api.get(`/meetings/${id}/ai-notes`));
+  },
+
+  async saveReport(id, report) {
+    const { api } = await import('/js/api.js');
+    return api.post(`/meetings/${id}/report`, report);
+  },
+
+  async getReport(id) {
+    const { api } = await import('/js/api.js');
+    return deepEscape(await api.get(`/meetings/${id}/report`));
+  },
+
+  async getMinutes(id) {
+    const { api } = await import('/js/api.js');
+    return deepEscape(await api.get(`/meetings/${id}/minutes`));
   },
 
   /**
@@ -669,150 +687,58 @@ export const MeetingService = {
       console.warn('Could not retrieve Firebase auth token for recording upload:', e);
     }
 
-    // Try backend upload endpoint first
-    try {
-      const { API_BASE_URL } = await import('/js/config.js');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/upload-recording`, {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-
-      if (res.ok) {
-        const resData = await res.json();
-        const data = resData.data || resData;
-        if (data.webViewLink && data.webViewLink.startsWith('/')) {
-          data.webViewLink = `${API_BASE_URL}${data.webViewLink}`;
-        }
-        if (data.downloadLink && data.downloadLink.startsWith('/')) {
-          data.downloadLink = `${API_BASE_URL}${data.downloadLink}`;
-        }
-        try {
-          const { db } = await import('/js/firebase-init.js');
-          const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-          await updateDoc(doc(db, 'meetings', meetingId), {
-            hasRecording: true,
-            recordingUrl: data.webViewLink || data.url || '',
-            recordingDownloadUrl: data.downloadLink || data.webViewLink || '',
-            recordingMode: mode,
-            recordingDuration: metadata.duration || 0,
-            recordingFileName: filename,
-            recordingStorage: data.storage || 'server',
-            updatedAt: new Date().toISOString()
-          });
-        } catch (e) {
-          console.warn('Could not sync meeting doc with backend recording URL:', e);
-        }
-        return data;
-      }
-      const err = await res.json().catch(() => ({}));
-      console.warn('Backend recording upload returned status ' + res.status + (err.detail ? ` (${err.detail})` : '') + ', trying direct storage fallback...');
-    } catch (fetchErr) {
-      console.warn('Backend recording upload fetch unavailable, trying direct storage fallback:', fetchErr.message || fetchErr);
+    if (!token) throw new Error('Sign in before uploading a meeting recording.');
+    const { API_BASE_URL } = await import('/js/config.js');
+    const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/upload-recording`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+    const resData = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(resData.detail || `Recording upload failed (${res.status})`);
     }
-
-    // Direct Firebase Storage fallback
-    try {
-      const { storage, db } = await import('/js/firebase-init.js');
-      const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-
-      // Set lower retry time to prevent long backoff loops if bucket CORS is not configured
-      if (storage) {
-        storage.maxUploadRetryTime = 3000;
-        storage.maxOperationRetryTime = 3000;
-      }
-
-      const storageRef = ref(storage, `meetings/${meetingId}/recordings/${filename}`);
-      
-      // Wrap in a 5s race timeout so browser doesn't stall on CORS preflight failures
-      const uploadPromise = uploadBytes(storageRef, fileBlob);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Storage upload timed out or blocked by CORS')), 5000)
-      );
-      const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
-      const downloadUrl = await getDownloadURL(snapshot.ref);
-
-      const recUpdate = {
-        hasRecording: true,
-        recordingUrl: downloadUrl,
-        recordingDownloadUrl: downloadUrl,
-        recordingMode: mode,
-        recordingDuration: metadata.duration || 0,
-        recordingFileName: filename,
-        recordingStorage: 'firebase-storage',
-        updatedAt: new Date().toISOString()
-      };
-      await updateDoc(doc(db, 'meetings', meetingId), recUpdate);
-
-      return {
-        url: downloadUrl,
-        webViewLink: downloadUrl,
-        downloadLink: downloadUrl,
-        storage: 'firebase-storage'
-      };
-    } catch (fbStorageErr) {
-      console.warn('Direct Firebase Storage upload unavailable (CORS or bucket permissions). Using institutional Google Drive folder fallback:', fbStorageErr.message || fbStorageErr);
-      const { GOOGLE_DRIVE_CONFIG } = await import('/js/config.js').catch(() => ({}));
-      const folderUrl = (GOOGLE_DRIVE_CONFIG && GOOGLE_DRIVE_CONFIG.folderUrl) || 'https://drive.google.com/drive/folders/1pkBGhQWMvZqVFA_h_kW0CrfHhG5ER6EQ';
-      
-      try {
-        const { db } = await import('/js/firebase-init.js');
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        await updateDoc(doc(db, 'meetings', meetingId), {
-          hasRecording: true,
-          recordingUrl: folderUrl,
-          recordingDownloadUrl: folderUrl,
-          recordingMode: mode,
-          recordingDuration: metadata.duration || 0,
-          recordingFileName: filename,
-          recordingStorage: 'drive-folder-fallback',
-          updatedAt: new Date().toISOString()
-        });
-      } catch (docErr) {
-        console.warn('Could not update meeting doc with fallback drive folder:', docErr);
-      }
-
-      return {
-        url: folderUrl,
-        webViewLink: folderUrl,
-        downloadLink: folderUrl,
-        storage: 'drive-folder-fallback'
-      };
+    const data = resData.data || resData;
+    for (const field of ['webViewLink', 'downloadLink']) {
+      if (data[field]?.startsWith('/')) data[field] = `${API_BASE_URL}${data[field]}`;
     }
+    return data;
   },
 
   /**
    * Retrieve recording details and Google Drive link for a meeting.
    */
   async getRecording(meetingId) {
-    try {
-      let token = null;
-      const { auth } = await import('/js/firebase-init.js');
-      if (auth.currentUser) {
-        token = await auth.currentUser.getIdToken();
-      }
-      const { API_BASE_URL } = await import('/js/config.js');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+    const { auth } = await import('/js/firebase-init.js');
+    if (!auth.currentUser) throw new Error('Sign in to view recording details.');
+    const { API_BASE_URL } = await import('/js/config.js');
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/recording`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || 'Could not retrieve recording details.');
+    return data;
+  },
 
-      const res = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/recording`, { headers });
-      if (res.ok) return await res.json();
-    } catch (e) {
-      console.warn('Could not fetch recording from backend:', e);
+  async downloadRecording(meetingId) {
+    const { auth } = await import('/js/firebase-init.js');
+    if (!auth.currentUser) throw new Error('Sign in to view this recording.');
+    const { API_BASE_URL } = await import('/js/config.js');
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${API_BASE_URL}/api/meetings/${meetingId}/recording/content`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.detail || 'Could not download this recording.');
     }
-    const meeting = snap(await getDoc(doc(db, 'meetings', meetingId)));
-    return {
-      hasRecording: !!meeting?.hasRecording,
-      recordingUrl: meeting?.recordingUrl || meeting?.lastRecording?.url || '',
-      recordingDownloadUrl: meeting?.recordingDownloadUrl || '',
-      recordingDriveId: meeting?.recordingDriveId || '',
-      mode: meeting?.recordingMode || meeting?.lastRecording?.mode || 'audio',
-      duration: meeting?.recordingDuration || meeting?.lastRecording?.duration || 0
-    };
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `meeting-${meetingId}-recording`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
   },
 
   generateGoogleCalendarUrl(meeting) {
@@ -1463,34 +1389,26 @@ export const DepartmentService = {
   },
 
   async changeHOD(departmentId, deptName, newHodFacultyId = null, previousHodFacultyId = null, newHodName = '') {
-    const batch = writeBatch(db);
     const time = now();
 
-    // 1. Promote new faculty to HOD if specified
+    // Role changes must go through the trusted backend so matching Firebase claims are set.
     if (newHodFacultyId) {
-      batch.update(doc(db, 'faculty', newHodFacultyId), {
+      await AdminService.updateUser(newHodFacultyId, {
         role: 'HOD',
         department: deptName,
-        updatedAt: time
       });
     }
 
-    // 2. Safely revert previous HOD to FACULTY role (leaving their mentees and tasks untouched)
     if (previousHodFacultyId && previousHodFacultyId !== newHodFacultyId) {
-      batch.update(doc(db, 'faculty', previousHodFacultyId), {
-        role: 'FACULTY',
-        updatedAt: time
-      });
+      await AdminService.updateUser(previousHodFacultyId, { role: 'FACULTY' });
     }
 
-    // 3. Update department document with new HOD info
-    batch.update(doc(db, 'departments', departmentId), {
+    await updateDoc(doc(db, 'departments', departmentId), {
       hodName: newHodName || '—',
       hodId: newHodFacultyId || null,
       updatedAt: time
     });
 
-    await batch.commit();
     CacheManager.invalidate('departments');
     CacheManager.invalidatePrefix('faculty_');
   },
@@ -1823,193 +1741,29 @@ export const StatsService = {
 
 // ─── ADMIN TOOLS ─────────────────────────────────────────────────────────────
 
-import { firebaseConfig } from '/js/config.js';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-
-let secondaryApp = null;
-let secondaryAuth = null;
-
 export const AdminService = {
   async createUser(data) {
-    const role = (data.role || 'STUDENT').toUpperCase();
-    const collectionName = role === 'STUDENT' ? 'students' : 'faculty';
-    const email = (data.email || '').trim().toLowerCase();
-
-    if (!email) throw new Error('Email is required.');
-
-    // ── Pre-check: targeted O(1) reads for 20k scalability ──
-    const normEmail = email.toLowerCase().trim();
-    const normEnroll = (data.enrollmentNumber || data.enrollmentNo || data.employeeId || '').toLowerCase().trim();
-
-    const [stuEmailSnap, facEmailSnap] = await Promise.all([
-      getDocs(query(collection(db, 'students'), where('email', '==', normEmail), limit(1))),
-      getDocs(query(collection(db, 'faculty'), where('email', '==', normEmail), limit(1)))
-    ]);
-
-    if (!stuEmailSnap.empty || !facEmailSnap.empty) {
-      const dupErr = new Error('This email is already registered.');
-      dupErr.code = 'auth/email-already-in-use';
-      throw dupErr;
+    const payload = { ...data };
+    payload.email = String(payload.email || '').trim().toLowerCase();
+    if (!payload.email) throw new Error('Email is required.');
+    if (String(payload.password || '').length < 6) {
+      throw new Error('A password with at least 6 characters is required.');
     }
+    const { api } = await import('/js/api.js');
+    const profile = await api.post('/admin/users', payload);
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
+    return profile;
+  },
 
-    if (normEnroll) {
-      const [stuEnrollSnap, facEnrollSnap] = await Promise.all([
-        getDocs(query(collection(db, 'students'), where('enrollmentNumber', '==', normEnroll), limit(1))),
-        getDocs(query(collection(db, 'faculty'), where('employeeId', '==', normEnroll), limit(1)))
-      ]);
-
-      if (!stuEnrollSnap.empty || !facEnrollSnap.empty) {
-        const dupErr = new Error(`An account with ID "${normEnroll}" already exists.`);
-        dupErr.code = 'auth/id-already-in-use';
-        throw dupErr;
-      }
-    }
-    
-    let password = String(data.password || data.mobileNumber || '').trim();
-    if (password.length < 6) {
-      password = password.padEnd(6, '0');
-    }
-
-    let uid = null;
-
-    // Try secondary Auth registration
-    try {
-      // Safely initialize or reuse the secondary Firebase app
-      if (!secondaryApp) {
-        try {
-          secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
-        } catch (appErr) {
-          // 'app/duplicate-app' means it was already initialized — reuse it
-          if (appErr.code === 'app/duplicate-app') {
-            const { getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-            secondaryApp = getApp('SecondaryApp');
-          } else {
-            throw appErr;
-          }
-        }
-      }
-      // Always re-fetch auth instance (ensures a clean state after signOut)
-      secondaryAuth = getAuth(secondaryApp);
-
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-      uid = userCredential.user.uid;
-      // Sign out the secondary session so the primary user stays logged in
-      try { await signOut(secondaryAuth); } catch (_) { /* ignore */ }
-    } catch (authErr) {
-      if (authErr.code === 'auth/email-already-in-use') {
-        const dupErr = new Error('This email is already registered.');
-        dupErr.code = 'auth/email-already-in-use';
-        throw dupErr;
-      }
-      // Only fall back to a Firestore-only doc for rate-limit / network errors.
-      // For all other auth errors (invalid email, weak password, etc.) re-throw.
-      const benignCodes = ['auth/too-many-requests', 'auth/network-request-failed', 'auth/quota-exceeded'];
-      if (!benignCodes.includes(authErr.code)) {
-        throw authErr;
-      }
-      console.warn(`Auth API rate-limited/skipped for ${email} (${authErr.code || authErr.message}). Writing profile to Firestore directly.`);
-      const newDocRef = doc(collection(db, collectionName));
-      uid = newDocRef.id;
-    }
-
-    const profileData = {
-      id: uid,
-      email: email,
-      name: data.name || '',
-      role: role,
-      department: data.department || null,
-      mobileNumber: data.mobileNumber || data.phone || data.mobile || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    if (role === 'STUDENT') {
-      profileData.enrollmentNumber = data.enrollmentNumber || data.enrollmentNo || data.employeeId || null;
-      profileData.cgpa = data.cgpa || 0;
-      profileData.attendance = data.attendance || 0;
-      profileData.riskLevel = data.riskLevel || 'LOW';
-      profileData.mentorId = data.mentorId || null;
-      profileData.status = 'approved';
-      profileData.isApproved = true;
-      if (data.class) profileData.class = data.class;
-      if (data.year) profileData.year = data.year;
-      if (data.specialization) profileData.specialization = data.specialization;
-      if (data.fatherContact || data.parentContact || data.fatherPhoneM) {
-        profileData.fatherContact = data.fatherContact || data.parentContact || data.fatherPhoneM;
-      }
-      if (data.rollNumber || data.rollNo) profileData.rollNumber = data.rollNumber || data.rollNo;
-      if (data.batch) profileData.batch = data.batch;
-      if (data.practicalBatch) profileData.practicalBatch = data.practicalBatch;
-      if (data.mentorId) {
-        profileData.allocatedBy = data.allocatedBy || 'Admin';
-        profileData.allocatedAt = new Date().toISOString();
-        profileData.allocationType = data.allocationType || 'MANUAL';
-      }
-    } else if (role === 'SECTION_HEAD') {
-      profileData.employeeId = data.employeeId || data.enrollmentNumber || null;
-      profileData.designation = data.designation || 'Section Head';
-      profileData.maxStudents = 0;
-      profileData.assignedStudentCount = 0;
-      profileData.status = 'approved';
-      profileData.isApproved = true;
-    } else {
-      profileData.employeeId = data.employeeId || data.enrollmentNumber || null;
-      profileData.designation = data.designation || (role === 'HOD' ? 'Head of Department' : role === 'DEAN' ? 'Dean' : 'Faculty / Mentor');
-      profileData.maxStudents = role === 'FACULTY' || role === 'TEACHER' || role === 'MENTOR' ? 20 : 0;
-      profileData.assignedStudentCount = 0;
-      profileData.status = 'approved';
-      profileData.isApproved = true;
-    }
-
-    if (role === 'ADMIN') {
-      profileData.status = 'approved';
-      profileData.isApproved = true;
-    }
-
-    // Remove undefined values
-    Object.keys(profileData).forEach(key => {
-      if (profileData[key] === undefined) delete profileData[key];
-    });
-
-    // Admin has global write access, so this will succeed on the primary db
-    await setDoc(doc(db, collectionName, uid), profileData);
-
-    // If student was created with an assigned mentor, increment the mentor's count
-    if (role === 'STUDENT' && profileData.mentorId) {
-      try {
-        await updateDoc(doc(db, 'faculty', profileData.mentorId), { assignedStudentCount: increment(1) });
-      } catch (fErr) {
-        console.warn('Could not increment faculty count:', fErr);
-      }
-    }
-
-    // Initialize/prefill booklet document for student
-    if (role === 'STUDENT') {
-      const fatherContactVal = data.fatherContact || data.parentContact || data.fatherPhoneM || '';
-      try {
-        await setDoc(doc(db, 'booklets', uid), {
-          personal: {
-            name: data.name || '',
-            email: email,
-            class: data.class || data.batch || '',
-            enrollmentNumber: profileData.enrollmentNumber || '',
-            fatherPhoneM: fatherContactVal,
-            studentPhone: data.mobileNumber || data.phone || data.mobile || ''
-          },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      } catch (bErr) {
-        console.warn('Could not prefill booklet doc:', bErr);
-      }
-      CacheManager.invalidatePrefix('students_');
-    } else {
-      CacheManager.invalidatePrefix('faculty_');
-    }
-    
-    return profileData;
+  async updateUser(userId, data) {
+    const { api } = await import('/js/api.js');
+    const profile = await api.put(`/admin/users/${userId}`, data);
+    CacheManager.invalidate(`faculty_${userId}`);
+    CacheManager.invalidate(`student_${userId}`);
+    CacheManager.invalidatePrefix('faculty_');
+    CacheManager.invalidatePrefix('students_');
+    return profile;
   }
 };
 

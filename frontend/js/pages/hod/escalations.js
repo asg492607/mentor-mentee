@@ -16,8 +16,7 @@ async function notifyDeans(issueId, title, message) {
     if (user?.department) {
       students = await StudentService.getByDepartment(user.department).catch(() => []);
     }
-    const allFaculty = await FacultyService.getAll();
-    const deans = (allFaculty || []).filter(f => (f.role || '').toUpperCase() === 'DEAN');
+    const deans = await FacultyService.getDeans();
     for (const dean of deans) {
       const targetUid = dean.id || dean.uid;
       if (targetUid) {
@@ -333,18 +332,19 @@ export async function render(container) {
                   </p>
                 ` : ''}
               </div>
-              ${issue.status !== 'RESOLVED' ? `
-                ${issue.status !== 'RESOLVED' && issue.escalationLevel !== 'DEAN' ? `
-                <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
-                  <button class="btn btn-sm btn-success res-btn" data-id="${issue.id}" data-sid="${issue.studentId}">✓ Resolve</button>
-                  <button class="btn btn-sm btn-danger dean-btn" data-id="${issue.id}">↗ To Dean</button>
-                </div>
-              ` : issue.escalationLevel === 'DEAN' && issue.status !== 'RESOLVED' ? `
+              ${issue.status !== 'RESOLVED' ? (
+                issue.escalationLevel === 'DEAN' ? `
                 <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;align-items:flex-end;">
                   <span class="badge badge-accent" style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-shield-check"></i> Escalated to Dean</span>
                   <span style="font-size:0.75rem;color:var(--text-muted);"><i class="ph ph-clock"></i> Awaiting Dean Review</span>
                 </div>
-              ` : ''}
+              ` : `
+                <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+                  <button class="btn btn-sm btn-success res-btn" data-id="${issue.id}" data-sid="${issue.studentId}">✓ Resolve</button>
+                  <button class="btn btn-sm btn-danger dean-btn" data-id="${issue.id}">↗ To Dean</button>
+                </div>
+              `
+              ) : ''}
             </div>
           </div>
         `).join('')}
@@ -426,8 +426,6 @@ export async function render(container) {
                 `HOD ${user.name} escalated issue "${target?.title || 'Department Issue'}" to Dean: ${reason}`
               );
               showToast('Escalated to Dean', 'info');
-              const target = issues.find(i => i.id === issueId);
-              if (target) target.escalationLevel = 'DEAN';
               close();
               renderList();
             } catch (err) { showToast(err.message, 'error'); }

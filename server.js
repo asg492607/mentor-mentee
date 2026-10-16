@@ -42,28 +42,29 @@ function getLocalIp() {
 
 function startServer(port) {
   const server = http.createServer((req, res) => {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204);
-      res.end();
+    let reqPath;
+    try {
+      reqPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    } catch (_error) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=UTF-8' });
+      res.end('Bad Request');
       return;
     }
-
-    let reqPath = decodeURIComponent(req.url.split('?')[0]);
     if (reqPath === '/') reqPath = '/index.html';
 
-    let filePath = path.join(FRONTEND_DIR, reqPath);
+    let filePath = path.resolve(FRONTEND_DIR, `.${reqPath}`);
+    const frontendRoot = path.resolve(FRONTEND_DIR);
 
-    // Prevent directory traversal
-    if (!filePath.startsWith(FRONTEND_DIR)) {
+    // Serve only files inside the frontend root.
+    if (filePath !== frontendRoot && !filePath.startsWith(`${frontendRoot}${path.sep}`)) {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
       res.end('Forbidden');
       return;
     }
+
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     fs.stat(filePath, (err, stats) => {
       if (err || !stats.isFile()) {

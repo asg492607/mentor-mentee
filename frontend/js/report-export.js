@@ -7,14 +7,19 @@
 import { FacultyService, StudentService, IssueService, MeetingService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { escapeHtml } from '/js/utils.js';
+import { getUserProfile } from '/js/auth.js';
 
 export async function exportMentorStudentReport(format = 'excel') {
   showToast(`Preparing ${format.toUpperCase()} classwise allocation report...`, 'info');
   try {
-    const [allMentors, allStudents] = await Promise.all([
-      FacultyService.getAll(),
-      StudentService.getAll()
-    ]);
+    const currentUser = getUserProfile();
+    const directoryRequests = currentUser?.role === 'HOD'
+      ? [
+          FacultyService.getByDepartment(currentUser.department),
+          StudentService.getByDepartment(currentUser.department)
+        ]
+      : [FacultyService.getAll(), StudentService.getAll()];
+    const [allMentors, allStudents] = await Promise.all(directoryRequests);
 
     const mentors = allMentors.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR' || f.role === 'HOD' || (f.assignedStudentCount && f.assignedStudentCount > 0));
 
@@ -930,7 +935,10 @@ export function exportMeetingSessionReport(meeting) {
   const confidential = getValidFirst(rpt.confidentialObservations, ai.confidentialObservations, meeting.notes?.confidentialObservations, meeting.notes?.privateObservations);
   const riskLevel = (rpt.riskLevel || ai.riskLevel || 'LOW').toUpperCase();
   const riskSignals = rpt.riskSignals || ai.riskSignals || [];
-  const recordingUrl = meeting.recordingUrl || meeting.lastRecording?.url || meeting.recordingDownloadUrl || rpt.recordingUrl || ai.recordingUrl || '';
+  const rawRecordingUrl = meeting.recordingUrl || meeting.lastRecording?.url || meeting.recordingDownloadUrl || rpt.recordingUrl || ai.recordingUrl || '';
+  const isProtectedLocalRecording = meeting.recordingStorage === 'local_storage'
+    || String(rawRecordingUrl).includes('/recording/content');
+  const recordingUrl = isProtectedLocalRecording ? '' : rawRecordingUrl;
 
   // Collect students list for attendance sheet (excluding placeholder non-student strings)
   const isPlaceholderStudent = (name) => {

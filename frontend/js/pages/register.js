@@ -32,7 +32,7 @@ export async function render(container) {
 
         <div class="text-center mb-8">
           <h2 class="text-gradient mb-2">${t('register.title', 'Join Lumina')}</h2>
-          <p class="text-secondary">${t('register.subtitle', 'Create your student, faculty, HOD, dean, or admin account to get started')}</p>
+          <p class="text-secondary">${t('register.subtitle', 'Create a student or faculty account. Staff accounts require approval.')}</p>
         </div>
 
         <form id="register-form">
@@ -42,8 +42,6 @@ export async function render(container) {
               <select id="role" class="form-select" required>
                 <option value="STUDENT">${t('role.student', 'Student')}</option>
                 <option value="FACULTY">${t('role.faculty', 'Teacher / Faculty')}</option>
-                <option value="HOD">${t('role.hod', 'HOD')}</option>
-                <option value="SECTION_HEAD">${t('role.section_head', 'Section Head')}</option>
               </select>
             </div>
 
@@ -259,9 +257,7 @@ export async function render(container) {
       
       const pendingMessages = {
         STUDENT: 'Registration submitted! Your account needs approval from your assigned Mentor.',
-        FACULTY: 'Registration submitted! Awaiting HOD approval.',
-        HOD: 'Registration submitted! Awaiting Dean approval.',
-        SECTION_HEAD: 'Registration submitted! Awaiting Dean approval.'
+        FACULTY: 'Registration submitted! Awaiting HOD approval.'
       };
       showToast(pendingMessages[role] || 'Registration submitted! Please wait for approval.', 'success');
       navigateTo('/login');

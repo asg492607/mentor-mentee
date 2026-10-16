@@ -9,6 +9,8 @@ from app.schemas.meeting import MeetingCreateRequest
 from app.schemas.issue import IssueCreateRequest
 from app.schemas.action_item import ActionItemUpdateRequest
 from app.repositories.action_item_repository import ActionItemRepository
+from app.repositories.student_repository import StudentRepository
+from app.repositories.meeting_repository import MeetingRepository
 from app.core.exceptions import NotFoundException, ForbiddenException
 
 router = APIRouter(prefix="/student", tags=["Student"])
@@ -26,10 +28,31 @@ def get_mentor(user = Depends(get_student_user), student_service: StudentService
 
 @router.get("/meetings")
 def get_meetings(user = Depends(get_student_user), meeting_service: MeetingService = Depends()):
-    return meeting_service.get_meetings_for_user(user['uid'], user.get('role', 'STUDENT'))
+    meetings = meeting_service.get_meetings_for_user(user['uid'], user.get('role', 'STUDENT'))
+    student = StudentRepository().get_by_id(user['uid']) or {}
+    meeting_repo = MeetingRepository()
+    for mentor_id in {student.get('mentorId'), student.get('secondaryMentorId')} - {None, ''}:
+        meetings.extend(meeting_repo.query(filters=[('studentId', '==', 'ALL'), ('mentorId', '==', mentor_id), ('isGroup', '==', True)]))
+    unique = {meeting['id']: meeting for meeting in meetings if meeting.get('id')}
+    safe_meetings = []
+    for meeting in unique.values():
+        safe = dict(meeting)
+        for field in ('aiNotes', 'report', 'transcript', 'extractedSentences', 'confidentialObservations'):
+            safe.pop(field, None)
+        notes = safe.get('notes')
+        if isinstance(notes, dict):
+            notes = dict(notes)
+            for field in ('confidentialObservations', 'confidentialNotes', 'transcript', 'extractedSentences'):
+                notes.pop(field, None)
+            safe['notes'] = notes
+        safe_meetings.append(safe)
+    return sorted(safe_meetings, key=lambda meeting: str(meeting.get('createdAt') or ''), reverse=True)
 
 @router.post("/meetings/request")
 def request_meeting(data: MeetingCreateRequest, user = Depends(get_student_user), meeting_service: MeetingService = Depends()):
+    student = StudentRepository().get_by_id(user['uid'])
+    if not student or not data.mentorId or data.mentorId not in {student.get('mentorId'), student.get('secondaryMentorId')}:
+        raise ForbiddenException("You can only request meetings with your assigned mentor")
     return meeting_service.request_meeting(user['uid'], user.get('name', 'Student'), data.mentorId, data)
 
 @router.get("/issues")
@@ -38,7 +61,11 @@ def get_issues(user = Depends(get_student_user), issue_service: IssueService = D
 
 @router.post("/issues")
 def create_issue(data: IssueCreateRequest, user = Depends(get_student_user), issue_service: IssueService = Depends()):
-    return issue_service.create_issue(user['uid'], user.get('name', 'Student'), data.mentorId, data)
+    student = StudentRepository().get_by_id(user['uid'])
+    mentor_id = (student or {}).get('mentorId') or (student or {}).get('secondaryMentorId')
+    if not student or not mentor_id:
+        raise ForbiddenException("An assigned mentor is required before raising an issue")
+    return issue_service.create_issue(user['uid'], user.get('name', 'Student'), mentor_id, data)
 
 @router.get("/tasks")
 def get_tasks(user = Depends(get_student_user), student_service: StudentService = Depends()):

@@ -376,11 +376,23 @@ export async function render(container) {
 
       // Attach row action listeners
       wrap.querySelectorAll('.btn-download-meet-pdf').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const mId = btn.dataset.id;
           const targetMeeting = meetings.find(x => x.id === mId);
           if (targetMeeting) {
-            exportMeetingSessionReport(targetMeeting);
+            try {
+              const [reportResult, notesResult] = await Promise.all([
+                MeetingService.getReport(mId),
+                MeetingService.getAINotes(mId)
+              ]);
+              exportMeetingSessionReport({
+                ...targetMeeting,
+                report: reportResult?.report || {},
+                aiNotes: notesResult?.aiNotes || {}
+              });
+            } catch (error) {
+              showToast(error.message || 'Could not load the private meeting report.', 'error');
+            }
           } else {
             showToast('Meeting data not found', 'error');
           }
@@ -388,13 +400,23 @@ export async function render(container) {
       });
 
       wrap.querySelectorAll('.btn-view-report').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const mId = btn.dataset.id;
           const targetMeeting = meetings.find(x => x.id === mId);
           if (!targetMeeting) return showToast('Meeting data not found', 'error');
-          
-          const rpt = targetMeeting.report || {};
-          const ai = targetMeeting.aiNotes || {};
+          let rpt = {};
+          let ai = {};
+          try {
+            const [reportResult, notesResult] = await Promise.all([
+              MeetingService.getReport(mId),
+              MeetingService.getAINotes(mId)
+            ]);
+            rpt = reportResult?.report || {};
+            ai = notesResult?.aiNotes || {};
+          } catch (error) {
+            showToast(error.message || 'Could not load the private meeting report.', 'error');
+            return;
+          }
           const topic = targetMeeting.type || rpt.topic || ai.topic || 'Mentorship Session';
           const issues = rpt.issuesDiscussed || ai.issuesDiscussed || targetMeeting.notes?.issuesDiscussed || targetMeeting.notes?.summary || 'No issues recorded';
           const action = rpt.actionItems || ai.actionItems || targetMeeting.notes?.actionTaken || targetMeeting.notes?.advice || 'No action specified';

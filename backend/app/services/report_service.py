@@ -17,7 +17,19 @@ class ReportService:
         Aggregate AI-generated notes from completed meetings into cohort intelligence.
         Returns a structured aiInsights block for the mentor reports page.
         """
-        meetings_with_ai = [m for m in meetings if m.get('hasAiNotes') and m.get('aiNotes')]
+        meetings_with_ai = []
+        for meeting in meetings:
+            if not meeting.get('hasAiNotes'):
+                continue
+            meeting_data = dict(meeting)
+            meeting_id = meeting_data.get('id')
+            if meeting_id:
+                private_doc = self.meeting_repo.db.collection('meeting_private').document(meeting_id).get()
+                if private_doc.exists:
+                    private_data = private_doc.to_dict() or {}
+                    meeting_data['aiNotes'] = private_data.get('aiNotes') or meeting_data.get('aiNotes')
+            if meeting_data.get('aiNotes'):
+                meetings_with_ai.append(meeting_data)
 
         if not meetings_with_ai:
             return {

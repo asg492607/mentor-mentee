@@ -18,8 +18,7 @@ function riskBadge(r) {
 
 async function notifyDeans(issueId, title, message) {
   try {
-    const allFaculty = await FacultyService.getAll();
-    const deans = (allFaculty || []).filter(f => (f.role || '').toUpperCase() === 'DEAN');
+    const deans = await FacultyService.getDeans();
     for (const dean of deans) {
       const targetUid = dean.id || dean.uid;
       if (targetUid) {

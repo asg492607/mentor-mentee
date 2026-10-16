@@ -15,6 +15,8 @@ services:
       - key: FIREBASE_CREDENTIALS_JSON
         sync: false
       - key: FIREBASE_PROJECT_ID
-        value: mentee-93ae9
-      - key: ALLOW_ANONYMOUS_MEETINGS
-        value: "false"
+        value: mentorv1-848ef
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
