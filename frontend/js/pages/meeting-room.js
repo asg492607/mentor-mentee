@@ -1,3 +1,4 @@
+import { showModal } from '/js/components/modal.js';
 import { createSignaling } from '/js/webrtc/signaling.js';
 import { createPeerConnection } from '/js/webrtc/peer.js';
 import { getLocalStream, toggleCamera, toggleMic, shareScreen, stopScreenShare, createAudioEnergyMonitor } from '/js/webrtc/media.js';
@@ -48,6 +49,13 @@ export async function render(container) {
   }
 
   const isMentor = isFacultyRole || (meeting?.mentorId === user.id);
+  // Automatically record attendance and joined timestamp
+  try {
+    MeetingService.recordAttendance(meetingId, user);
+  } catch (attErr) {
+    console.warn('[Meeting Attendance] Error recording attendee:', attErr);
+  }
+
 
   container.innerHTML = `
       <div class="meeting-room-layout">
@@ -665,7 +673,7 @@ export async function render(container) {
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
                         <div class="report-sig-name">Approved By</div>
-                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name" value="Dr. Suwarna Pawar">
+                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name" value="Dr. Suvarna Pawar">
                         <div class="report-sig-role">Head of Department (CSE Core)</div>
                       </div>
                     </div>
@@ -1168,7 +1176,13 @@ export async function render(container) {
         vTrack.onmute = checkVideo;
         vTrack.onunmute = checkVideo;
         checkVideo();
+      } else {
+        tile.classList.add('video-off');
+        if (avatar) avatar.style.display = 'flex';
       }
+    } else {
+      tile.classList.add('video-off');
+      if (avatar) avatar.style.display = 'flex';
     }
 
     updateGridClass();
@@ -1473,11 +1487,35 @@ export async function render(container) {
       if (!localStream) localStream = await getLocalStream();
       addVideo('local', `${user.name} (You)`, localStream, true, isMentor);
 
-      // Autostart voice recording for official session report & Drive storage
+      const hasAudio = localStream && localStream.getAudioTracks().length > 0;
+      const hasVideo = localStream && localStream.getVideoTracks().length > 0;
+
+      const btnMic = document.getElementById('btn-mic');
+      const btnCam = document.getElementById('btn-cam');
+      if (!hasAudio && btnMic) {
+        btnMic.classList.add('active');
+        btnMic.title = 'Microphone not detected or permission denied (click to request access)';
+      }
+      if (!hasVideo && btnCam) {
+        btnCam.classList.add('active');
+        btnCam.title = 'Camera not detected or permission denied (click to request access)';
+      }
+
+      if (!hasAudio && !hasVideo) {
+        showToast('Camera and microphone unavailable or blocked. Joined in listen-only mode.', 'warning');
+      } else if (!hasVideo) {
+        showToast('Camera not detected or permission denied. Joined with audio only.', 'info');
+      }
+
+      // Autostart voice recording for official session report & Drive storage (only if mic is available)
       if (isMentor) {
         setTimeout(() => {
           if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-            startRecording('audio', { isAuto: true });
+            if (localStream && localStream.getAudioTracks().length > 0) {
+              startRecording('audio', { isAuto: true });
+            } else {
+              console.info('[Meeting] Auto voice recording deferred: microphone track not available');
+            }
           }
         }, 1200);
       }
@@ -1784,23 +1822,41 @@ export async function render(container) {
     }
   }
 
-  document.getElementById('btn-mic').onclick = event => {
+  document.getElementById('btn-mic').onclick = async event => {
     if (!isMentor && activeRoomSettings.micLocked) {
       showToast('Microphone is locked by the meeting host', 'warning');
       return;
     }
-    if (localStream) {
+    if (localStream && localStream.getAudioTracks().length > 0) {
       const isEnabled = toggleMic(localStream);
       event.currentTarget.classList.toggle('active', !isEnabled);
+    } else {
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const newTrack = newStream.getAudioTracks()[0];
+        if (newTrack) {
+          if (!localStream) localStream = new MediaStream();
+          localStream.addTrack(newTrack);
+          peers.forEach(peer => {
+            if (peer.pc && typeof peer.pc.addTrack === 'function') {
+              try { peer.pc.addTrack(newTrack, localStream); } catch (e) {}
+            }
+          });
+          event.currentTarget.classList.remove('active');
+          showToast('Microphone connected', 'success');
+        }
+      } catch (err) {
+        showToast('Microphone access is blocked in your browser. Please click the lock icon in the address bar to allow microphone access.', 'warning');
+      }
     }
   };
 
-  document.getElementById('btn-cam').onclick = event => {
+  document.getElementById('btn-cam').onclick = async event => {
     if (!isMentor && activeRoomSettings.cameraLocked) {
       showToast('Camera is locked by the meeting host', 'warning');
       return;
     }
-    if (localStream) {
+    if (localStream && localStream.getVideoTracks().length > 0) {
       const isEnabled = toggleCamera(localStream);
       event.currentTarget.classList.toggle('active', !isEnabled);
       const localTile = container.querySelector('[data-peer="local"]');
@@ -1808,6 +1864,35 @@ export async function render(container) {
         localTile.classList.toggle('video-off', !isEnabled);
         const localAvatar = localTile.querySelector('.tile-avatar');
         if (localAvatar) localAvatar.style.display = isEnabled ? 'none' : 'flex';
+      }
+    } else {
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const newTrack = newStream.getVideoTracks()[0];
+        if (newTrack) {
+          if (!localStream) localStream = new MediaStream();
+          localStream.addTrack(newTrack);
+          peers.forEach(peer => {
+            if (peer.pc && typeof peer.pc.addTrack === 'function') {
+              try { peer.pc.addTrack(newTrack, localStream); } catch (e) {}
+            }
+          });
+          event.currentTarget.classList.remove('active');
+          const localTile = container.querySelector('[data-peer="local"]');
+          if (localTile) {
+            localTile.classList.remove('video-off');
+            const localVideo = localTile.querySelector('video');
+            if (localVideo) {
+              localVideo.srcObject = localStream;
+              localVideo.play().catch(() => {});
+            }
+            const localAvatar = localTile.querySelector('.tile-avatar');
+            if (localAvatar) localAvatar.style.display = 'none';
+          }
+          showToast('Camera connected', 'success');
+        }
+      } catch (err) {
+        showToast('Camera access is blocked in your browser. Please click the lock icon in the address bar to allow camera access.', 'warning');
       }
     }
   };
@@ -2182,6 +2267,10 @@ export async function render(container) {
       } else if (mode === 'audio') {
         recordStream = localStream;
         if (!recordStream || recordStream.getAudioTracks().length === 0) {
+          if (options.isAuto) {
+            console.info('[Recording] Skipping auto voice recording: microphone track not available');
+            return;
+          }
           recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
 
@@ -2267,8 +2356,19 @@ export async function render(container) {
         showToast(`🔴 Recording started (${modeNames[mode]}) — Live transcription active`, 'info');
       }
     } catch (err) {
-      console.error(err);
-      showToast('Recording cancelled or not supported', 'warning');
+      if (options.isAuto) {
+        console.warn('[Recording] Auto voice recording was not started:', err.message || err);
+        return;
+      }
+      if (err.name === 'NotAllowedError') {
+        const msg = mode === 'screen'
+          ? 'Screen recording was cancelled or permission denied'
+          : 'Microphone/Camera permission denied. Please allow device access in browser settings.';
+        showToast(msg, 'warning');
+      } else {
+        console.error('Recording error:', err);
+        showToast('Recording could not be started: ' + (err.message || 'Not supported'), 'warning');
+      }
     }
   }
 
@@ -2463,7 +2563,7 @@ export async function render(container) {
     document.querySelectorAll('.side-panel-tab').forEach(item => {
       item.classList.toggle('active', item.dataset.panel === panelName);
     });
-    ['chat', 'participants', 'tools', 'transcript', 'controls', 'notes', 'report'].forEach(name => {
+    ['chat', 'copilot', 'participants', 'tools', 'transcript', 'controls', 'notes', 'report'].forEach(name => {
       const panel = document.getElementById(`panel-${name}`);
       if (panel) panel.hidden = panelName !== name;
     });
@@ -2473,6 +2573,7 @@ export async function render(container) {
     if (sidePanelTitle) {
       const titles = { 
         chat: 'Meeting Chat', 
+        copilot: 'AI Mentorship Copilot',
         participants: 'People in Call', 
         tools: 'Interactive Collaboration Suite', 
         transcript: 'Live Speech Transcript',
@@ -3593,7 +3694,7 @@ Standard syllabus topics, coursework materials, and project documentation review
         preparedBy: meeting.mentorName || user.name,
         checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
         verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-        hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar',
+        hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suvarna Pawar',
         savedAt: new Date().toISOString()
       };
 
@@ -3647,7 +3748,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       preparedBy: meeting.mentorName || user.name || '',
       checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
       verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-      hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suwarna Pawar'
+      hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suvarna Pawar'
     };
 
     exportMeetingSessionReport({ ...meeting, report: reportData });
@@ -3716,27 +3817,39 @@ Standard syllabus topics, coursework materials, and project documentation review
     appendCopilotMessage(user.name, promptText, false);
     if (copilotInput) copilotInput.value = '';
 
-    // Synthesize contextual AI response
-    let responseText = '';
-    const q = promptText.toLowerCase();
+    // Show thinking indicator
+    const typingMsg = document.createElement('div');
+    typingMsg.className = 'copilot-message-ai';
+    typingMsg.innerHTML = '<span style="color:#a5b4fc; font-style:italic;">🧠 AI Copilot is thinking...</span>';
+    copilotFeed?.appendChild(typingMsg);
+    if (copilotFeed) copilotFeed.scrollTop = copilotFeed.scrollHeight;
 
-    if (q.includes('summarize') || q.includes('summary')) {
-      const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
-      responseText = `📌 **Session Summary & Progress:**\n• Completed Agendas: ${checkedAgendas.join(', ') || 'Academic and attendance review underway'}.\n• Diagnostic Assessment: ${quizScore}/${quizQuestions.length} score recorded.\n• Engagement Level: Strong interactive dialogue between Mentor & Mentee. Action items are being populated.`;
-    } else if (q.includes('remedial') || q.includes('schedule') || q.includes('backlog')) {
-      responseText = `📝 **4-Week Structured Remedial Action Blueprint:**\n• Week 1: Fundamental Concept Mastery & Tutorial Re-attempts.\n• Week 2: Laboratory practical practice & debugging sessions.\n• Week 3: Previous Year Question Paper (PYQ) Mock Assessment.\n• Week 4: Final Faculty Pre-exam clearance evaluation.`;
-    } else if (q.includes('b-tree') || q.includes('concept') || q.includes('explain')) {
-      responseText = `💡 **Conceptual Clarification (DBMS Indexing):**\n• **B-Tree**: Keys and data records are stored in both internal and leaf nodes. Searching may stop at an internal node.\n• **B+ Tree**: All data pointers are stored *only* in leaf nodes linked as a doubly-linked list. Provides superior range query performance (O(log N) + O(K)).`;
-    } else if (q.includes('question') || q.includes('interview') || q.includes('graph')) {
-      responseText = `🎯 **Recommended Technical Interview Questions:**\n1. *Course Schedule (LeetCode 207)* - Topological Sort & Cycle Detection in DAG.\n2. *Rotting Oranges (LeetCode 994)* - Multi-source BFS Shortest Path.\n3. *Number of Islands (LeetCode 200)* - Connected Components via DFS.`;
-    } else {
-      responseText = `🧠 **AI Mentorship Analysis:**\nRegarding "${promptText}":\nFor optimal academic performance and compliance at MIT-ADT University, students should maintain balanced theoretical fundamentals and hands-on laboratory implementation. Prioritize resolving backlogs early in the semester and log all deliverables in the digital dossier.`;
+    let responseText = '';
+    try {
+      const res = await AIService.chat({
+        messages: [{ role: 'user', content: promptText }],
+        activeRoute: '/meeting-room',
+        temperature: 0.2,
+        maxTokens: 500
+      });
+      responseText = res.content || '';
+    } catch (aiErr) {
+      console.warn('Meeting Copilot chat fallback:', aiErr);
+      const q = promptText.toLowerCase();
+      if (q.includes('summarize') || q.includes('summary')) {
+        const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
+        responseText = `📌 **Session Summary & Progress:**\n• Completed Agendas: ${checkedAgendas.join(', ') || 'Academic and attendance review underway'}.\n• Diagnostic Assessment: ${quizScore}/${quizQuestions.length} score recorded.\n• Engagement Level: Strong interactive dialogue between Mentor & Mentee. Action items are being populated.`;
+      } else if (q.includes('remedial') || q.includes('schedule') || q.includes('backlog')) {
+        responseText = `📝 **4-Week Structured Remedial Action Blueprint:**\n• Week 1: Fundamental Concept Mastery & Tutorial Re-attempts.\n• Week 2: Laboratory practical practice & debugging sessions.\n• Week 3: Previous Year Question Paper (PYQ) Mock Assessment.\n• Week 4: Final Faculty Pre-exam clearance evaluation.`;
+      } else if (q.includes('b-tree') || q.includes('concept') || q.includes('explain')) {
+        responseText = `💡 **Conceptual Clarification (DBMS Indexing):**\n• **B-Tree**: Keys and data records are stored in both internal and leaf nodes. Searching may stop at an internal node.\n• **B+ Tree**: All data pointers are stored *only* in leaf nodes linked as a doubly-linked list. Provides superior range query performance (O(log N) + O(K)).`;
+      } else {
+        responseText = `🧠 **AI Mentorship Analysis:**\nRegarding "${promptText}":\nFor optimal academic performance and compliance at MIT-ADT University, students should maintain balanced theoretical fundamentals and hands-on laboratory implementation. Prioritize resolving backlogs early in the semester and log all deliverables in the digital dossier.`;
+      }
     }
 
-    setTimeout(() => {
-      appendCopilotMessage('AI Copilot', responseText, true);
-    }, 400);
-
+    typingMsg.remove();
+    appendCopilotMessage('AI Copilot', responseText, true);
     await signaling.sendCopilotQuery(promptText, responseText);
   }
 
@@ -3873,7 +3986,7 @@ Standard syllabus topics, coursework materials, and project documentation review
               <div style="font-size:0.65rem; color:#64748b;">${certHash} • ${certDate}</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Dr. Suwarna Pawar</div>
+              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Dr. Suvarna Pawar</div>
               <div style="font-size:0.7rem; color:#94a3b8;">Head of Department (CSE)</div>
             </div>
           </div>
@@ -4490,7 +4603,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       preparedBy: meeting.mentorName || user.name || 'Faculty Mentor',
       checkedBy: '',
       verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-      hodName: 'Dr. Suwarna Pawar',
+      hodName: 'Dr. Suvarna Pawar',
       savedAt: new Date().toISOString(),
       aiGenerated: true
     };

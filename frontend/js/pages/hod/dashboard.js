@@ -1,9 +1,11 @@
-// HOD � Department Dashboard
+// HOD � Department Dashboard
 // Department-specific mentoring performance, mentor rosters, and risk summaries.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StatsService, IssueService, FacultyService } from '/js/services.js';
+import { StatsService, IssueService, FacultyService, NotificationService } from '/js/services.js';
+import { showModal } from '/js/components/modal.js';
+import { escapeHtml } from '/js/utils.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
@@ -11,6 +13,229 @@ import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
   return `<span class="badge ${cls}">${r||'N/A'}</span>`;
+}
+
+
+async function notifyDeans(issueId, title, message) {
+  try {
+    const allFaculty = await FacultyService.getAll();
+    const deans = (allFaculty || []).filter(f => (f.role || '').toUpperCase() === 'DEAN');
+    for (const dean of deans) {
+      const targetUid = dean.id || dean.uid;
+      if (targetUid) {
+        await NotificationService.create({
+          userId: targetUid,
+          type: 'ISSUE_ESCALATED',
+          title: title,
+          message: message,
+          relatedId: issueId
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[HOD Dashboard] Failed to notify Dean(s):', err);
+  }
+}
+
+function openRaiseIssueModal(user, dept, students, onIssueCreated) {
+  const studentsSorted = [...(students || [])].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  showModal({
+    title: 'Raise & Escalate Issue',
+    size: 'lg',
+    content: `
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0;">
+          Log a student grievance or departmental concern, with the option to immediately escalate it to the Dean for university-level review.
+        </p>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-weight:600; font-size:0.85rem;">Student (Optional - Select Student or Department-Wide)</label>
+          <select id="hod-new-issue-student" class="form-select">
+            <option value="">-- Department-Wide / General Concern (No specific student) --</option>
+            ${studentsSorted.map(s => `
+              <option value="${s.id}">
+                ${escapeHtml(s.name)} ${s.enrollmentNumber ? '(' + escapeHtml(s.enrollmentNumber) + ')' : ''} ${s.class ? '- Class ' + escapeHtml(s.class) : ''}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-weight:600; font-size:0.85rem;">Issue Title <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="hod-new-issue-title" class="form-input" placeholder="e.g. Critical attendance penalty appeal / Equipment shortage in IoT lab / Fee barrier">
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:600; font-size:0.85rem;">Category</label>
+            <select id="hod-new-issue-cat" class="form-select">
+              <option value="Academic">Academic</option>
+              <option value="Examination">Examination / Backlog</option>
+              <option value="Accounts & Fees">Accounts &amp; Fees</option>
+              <option value="Discipline & Conduct">Discipline &amp; Conduct</option>
+              <option value="Hostel & Campus">Hostel &amp; Campus</option>
+              <option value="Laboratory & Infrastructure">Laboratory &amp; Infrastructure</option>
+              <option value="Placements & Internships">Placements &amp; Internships</option>
+              <option value="Mentorship & Faculty">Mentorship &amp; Faculty</option>
+              <option value="General Grievance">General Grievance</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:600; font-size:0.85rem;">Priority</label>
+            <select id="hod-new-issue-pri" class="form-select">
+              <option value="HIGH" selected>High (Urgent Attention)</option>
+              <option value="CRITICAL">Critical (Immediate Policy/Administrative Action)</option>
+              <option value="MEDIUM">Medium (Standard Review)</option>
+              <option value="LOW">Low (Informational)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0; background:linear-gradient(135deg, rgba(99,102,241,0.06), rgba(168,85,247,0.06)); padding:14px; border-radius:12px; border:1px solid rgba(99,102,241,0.25);">
+          <label class="form-label" style="font-weight:700; font-size:0.88rem; color:var(--text); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-shield-warning" style="color:var(--accent);"></i> Escalation Routing
+          </label>
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer; font-weight:600;">
+              <input type="radio" name="hod-target-level" value="DEAN" checked id="hod-target-dean">
+              🎓 Escalate to Dean Immediately
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer; font-weight:600;">
+              <input type="radio" name="hod-target-level" value="HOD" id="hod-target-hod">
+              🏛️ Retain at Department / HOD Level
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" id="hod-dean-reason-wrap" style="margin-bottom:0;">
+          <label class="form-label" style="font-weight:600; font-size:0.85rem;">
+            Escalation Reason / Notes for Dean <span style="color:var(--danger);">*</span>
+          </label>
+          <textarea id="hod-new-issue-dean-reason" class="form-textarea" style="min-height:80px;" placeholder="Explain why Dean-level review, executive exception, or institutional sanction is necessary..."></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-weight:600; font-size:0.85rem;">Description &amp; Details <span style="color:var(--danger);">*</span></label>
+          <textarea id="hod-new-issue-desc" class="form-textarea" style="min-height:90px;" placeholder="Provide comprehensive details, background, observations, and expected resolution..."></textarea>
+        </div>
+      </div>
+    `,
+    confirmText: 'Submit & Escalate',
+    cancelText: 'Cancel',
+    onConfirm: async (close) => {
+      const title = document.getElementById('hod-new-issue-title')?.value.trim();
+      const desc = document.getElementById('hod-new-issue-desc')?.value.trim();
+      const cat = document.getElementById('hod-new-issue-cat')?.value || 'General Grievance';
+      const pri = document.getElementById('hod-new-issue-pri')?.value || 'HIGH';
+      const studentId = document.getElementById('hod-new-issue-student')?.value || null;
+      const targetLevel = document.querySelector('input[name="hod-target-level"]:checked')?.value || 'DEAN';
+      const isDeanEscalation = targetLevel === 'DEAN';
+      const deanReason = document.getElementById('hod-new-issue-dean-reason')?.value.trim();
+
+      if (!title) {
+        return showToast('Issue title is required', 'error');
+      }
+      if (!desc) {
+        return showToast('Issue description is required', 'error');
+      }
+      if (isDeanEscalation && !deanReason) {
+        return showToast('Please provide an escalation reason for the Dean', 'error');
+      }
+
+      const selectedStudent = studentId ? students.find(s => s.id === studentId) : null;
+
+      const issuePayload = {
+        title,
+        description: desc,
+        category: cat,
+        priority: pri,
+        department: dept || user.department || '',
+        studentId: selectedStudent?.id || null,
+        studentName: selectedStudent?.name || (studentId ? 'Department Student' : 'Department Wide'),
+        studentEnrollment: selectedStudent?.enrollmentNumber || null,
+        mentorId: selectedStudent?.mentorId || null,
+        raisedBy: user.id || user.uid,
+        raisedByName: user.name,
+        raisedByRole: 'HOD',
+        status: isDeanEscalation ? 'ESCALATED' : 'OPEN',
+        escalationLevel: targetLevel,
+        escalationHistory: isDeanEscalation ? [{
+          from: 'HOD',
+          to: 'DEAN',
+          reason: deanReason,
+          escalatedBy: user.name,
+          byRole: 'HOD',
+          at: new Date().toISOString()
+        }] : []
+      };
+
+      try {
+        const newIssueId = await IssueService.create(issuePayload);
+
+        // Notify Dean if escalated
+        if (isDeanEscalation) {
+          await notifyDeans(
+            newIssueId,
+            `New Issue Escalated by HOD (${user.department || dept})`,
+            `HOD ${user.name} raised and escalated an issue: "${title}". Reason: ${deanReason}`
+          );
+        }
+
+        // Notify Student if selected
+        if (selectedStudent?.id) {
+          await NotificationService.create({
+            userId: selectedStudent.id,
+            type: 'ISSUE_RAISED',
+            title: 'Department Issue Logged',
+            message: `HOD ${user.name} logged an issue regarding "${title}". ${isDeanEscalation ? 'Escalated to Dean.' : ''}`,
+            relatedId: newIssueId
+          });
+        }
+
+        // Notify Mentor if student has an assigned mentor
+        if (selectedStudent?.mentorId) {
+          await NotificationService.create({
+            userId: selectedStudent.mentorId,
+            type: 'ISSUE_RAISED',
+            title: `Issue Logged for Mentee (${selectedStudent.name})`,
+            message: `HOD logged an issue for your mentee: "${title}". ${isDeanEscalation ? 'Escalated to Dean.' : ''}`,
+            relatedId: newIssueId
+          });
+        }
+
+        showToast(isDeanEscalation ? 'Issue raised and escalated to Dean successfully!' : 'Issue logged successfully!', 'success');
+        close();
+        if (onIssueCreated) onIssueCreated();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+  });
+
+  // Attach dynamic toggle listeners inside modal
+  setTimeout(() => {
+    const deanRadio = document.getElementById('hod-target-dean');
+    const hodRadio = document.getElementById('hod-target-hod');
+    const reasonWrap = document.getElementById('hod-dean-reason-wrap');
+    const confirmBtn = document.getElementById('custom-modal-confirm');
+
+    if (deanRadio && hodRadio && reasonWrap) {
+      deanRadio.addEventListener('change', () => {
+        if (deanRadio.checked) {
+          reasonWrap.style.display = 'block';
+          if (confirmBtn) confirmBtn.textContent = 'Submit & Escalate';
+        }
+      });
+      hodRadio.addEventListener('change', () => {
+        if (hodRadio.checked) {
+          reasonWrap.style.display = 'none';
+          if (confirmBtn) confirmBtn.textContent = 'Submit Issue';
+        }
+      });
+    }
+  }, 50);
 }
 
 export async function render(container) {
@@ -42,11 +267,15 @@ export async function render(container) {
       issues = [] 
     } = data || {};
 
-    const highRiskList = (students || [])
+        const severeIssues = (issues || [])
+      .filter(i => (i.priority === 'CRITICAL' || i.priority === 'HIGH' || i.riskLevel === 'HIGH' || i.isSevere) && i.status !== 'RESOLVED')
+      .sort((a,b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+
+const highRiskList = (students || [])
       .filter(s => s.riskLevel === 'HIGH')
       .sort((a,b) => (b.riskScore||0) - (a.riskScore||0));
 
-    const escalations = issues.filter(i => i.escalationLevel === 'HOD');
+    const escalations = (issues || []).filter(i => i.escalationLevel === 'HOD' || i.escalationLevel === 'DEAN' || (i.department === dept && (i.status === 'ESCALATED' || i.status === 'OPEN'))).sort((a,b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
     // Build mentor performance
     const mentorStats = mentors.map(m => {
@@ -68,11 +297,15 @@ export async function render(container) {
             <i class="ph ph-users-three" style="font-size:1.1rem; color:var(--accent);"></i> Allocation
           </a>
           <a href="#/hod/risk-students" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
-            <i class="ph ph-warning" style="font-size:1.1rem; color:var(--danger);"></i> Risk Students
+            <i class="ph ph-warning-octagon" style="font-size:1.1rem; color:var(--danger);"></i> Severe Issues
           </a>
           <a href="#/hod/escalations" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
             <i class="ph ph-siren" style="font-size:1.1rem; color:var(--warning);"></i> Escalations
           </a>
+        
+          <button id="btn-hod-raise-issue" class="btn btn-sm btn-primary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:700; margin-left:auto; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border:none; box-shadow:0 3px 10px rgba(99,102,241,0.25);">
+            <i class="ph ph-plus-circle" style="font-size:1.1rem;"></i> Raise &amp; Escalate Issue
+          </button>
         </div>
 
         <!-- Stats -->
@@ -80,7 +313,7 @@ export async function render(container) {
         ${[
           ['Total Students',   totalStudents,    'var(--info)',    'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z'],
           ['Mentors',          totalMentors,     'var(--accent)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
-          ['High Risk',        highRiskStudents, 'var(--danger)', 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'],
+          ['Severe Issues',     severeIssues.length, 'var(--danger)', 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'],
           ['Open Issues',      openIssues,       'var(--warning)','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'],
           ['Resolved Issues',  resolvedIssues,   'var(--success)','M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'],
         ].map(([l,v,c,i]) => `
@@ -124,51 +357,124 @@ export async function render(container) {
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <!-- High Risk -->
-        <div class="card">
-          <div class="card-header">
-            <h3>High Risk Students</h3>
-            <a href="#/hod/risk-students" style="font-size:0.8rem;color:var(--accent);">View All</a>
+        <!-- Severe Issues (In Place of High Risk) -->
+        <div class="card" style="border-top:3px solid var(--danger);">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="stat-icon" style="background:rgba(239,68,68,0.15); color:var(--danger); width:32px; height:32px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:1.1rem;">
+                <i class="ph ph-warning-octagon"></i>
+              </span>
+              <div>
+                <h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--danger);">Severe Issues</h3>
+                <p style="margin:2px 0 0; font-size:0.75rem; color:var(--text-muted);">Urgent grievances &amp; critical concerns requiring immediate resolution</p>
+              </div>
+            </div>
+            <span class="badge badge-danger" style="font-weight:700; font-size:0.75rem;">${severeIssues.length} Severe Flagged</span>
           </div>
-          ${highRiskList.length === 0
-            ? '<p style="padding:20px;color:var(--text-muted);">No high-risk students.</p>'
-            : `<table class="data-table">
-                <thead><tr><th>Student</th><th>Mentor</th><th>CGPA</th><th>Att.</th><th>Risk</th><th>Action</th></tr></thead>
-                <tbody>
-                  ${highRiskList.slice(0,6).map(s => {
-                    const mentor = mentors.find(m => m.id === s.mentorId);
-                    return `<tr>
-                      <td style="font-weight:600;font-size:0.875rem;">${s.name}</td>
-                      <td style="font-size:0.8rem;color:var(--text-secondary);">${mentor?.name||'Unassigned'}</td>
-                      <td>${s.cgpa||'—'}</td>
-                      <td>${s.attendance||0}%</td>
-                      <td>${riskBadge(s.riskLevel)}</td>
-                      <td><a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-primary">Booklet</a></td>
-                    </tr>`;
-                  }).join('')}
-                </tbody>
-              </table>`
+          ${severeIssues.length === 0
+            ? '<p style="padding:24px; color:var(--text-muted); text-align:center;">No active severe or critical issues flagged in this department.</p>'
+            : `<div style="display:flex; flex-direction:column;">
+                ${severeIssues.slice(0, 6).map(si => `
+                  <div class="list-item" style="padding:14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div style="flex:1;">
+                      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                        <span style="font-weight:700; font-size:0.88rem; color:var(--text);">${escapeHtml(si.title)}</span>
+                        <span class="badge badge-danger" style="font-size:0.68rem; font-weight:700; letter-spacing:0.03em; display:inline-flex; align-items:center; gap:3px;">
+                          <i class="ph ph-warning"></i> ${escapeHtml(si.priority || 'SEVERE')}
+                        </span>
+                        <span class="badge ${si.status === 'ESCALATED' ? 'badge-danger' : 'badge-warning'}" style="font-size:0.68rem;">
+                          ${escapeHtml(si.status)}
+                        </span>
+                        ${si.escalationLevel === 'DEAN' 
+                          ? `<span class="badge badge-accent" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-shield-check"></i> At Dean</span>`
+                          : `<span class="badge badge-info" style="font-size:0.68rem; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-user-circle"></i> At HOD</span>`
+                        }
+                      </div>
+                      <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:2px;">
+                        <strong>Student:</strong> ${escapeHtml(si.studentName || 'Department-Wide')} 
+                        ${si.category ? `&bull; <strong>Category:</strong> ${escapeHtml(si.category)}` : ''}
+                      </div>
+                      ${si.description ? `<p style="font-size:0.76rem; color:var(--text-muted); margin:3px 0 0; line-clamp:2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(si.description)}</p>` : ''}
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+                      ${si.status !== 'RESOLVED' && si.escalationLevel !== 'DEAN' ? `
+                        <button class="btn btn-xs btn-outline-danger btn-dash-escalate-dean" data-id="${si.id}" data-title="${escapeHtml(si.title)}" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:0.75rem; white-space:nowrap; border-radius:6px;">
+                          <i class="ph ph-arrow-up-right"></i> Escalate to Dean
+                        </button>
+                        <button class="btn btn-xs btn-outline-success btn-dash-resolve" data-id="${si.id}" data-title="${escapeHtml(si.title)}" data-sid="${si.studentId || ''}" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; font-size:0.75rem; white-space:nowrap; border-radius:6px;">
+                          <i class="ph ph-check"></i> Resolve
+                        </button>
+                      ` : si.escalationLevel === 'DEAN' && si.status !== 'RESOLVED' ? `
+                        <span style="font-size:0.75rem; color:var(--accent); font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                          <i class="ph ph-clock"></i> Under Dean Review
+                        </span>
+                      ` : `
+                        <span class="badge badge-success" style="font-size:0.72rem;">Resolved</span>
+                      `}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>`
           }
         </div>
 
         <!-- Escalations -->
         <div class="card">
-          <div class="card-header">
-            <h3>Escalated Issues</h3>
-            <a href="#/hod/escalations" style="font-size:0.8rem;color:var(--accent);">View All</a>
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 style="margin:0; font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-siren" style="color:var(--warning);"></i> Escalated &amp; Department Issues
+              </h3>
+              <p style="margin:2px 0 0; font-size:0.75rem; color:var(--text-muted);">Manage department grievances and escalate critical matters to the Dean</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button id="btn-card-raise-issue" class="btn btn-xs btn-primary" style="display:inline-flex; align-items:center; gap:4px; font-weight:600;">
+                <i class="ph ph-plus"></i> Raise Issue
+              </button>
+              <a href="#/hod/escalations" style="font-size:0.8rem; color:var(--accent); font-weight:600;">View All</a>
+            </div>
           </div>
           ${escalations.length === 0
-            ? '<p style="padding:20px;color:var(--text-muted);">No escalations.</p>'
-            : escalations.slice(0,5).map(e => `
-                <div class="list-item">
-                  <div>
-                    <p style="font-weight:600;font-size:0.875rem;">${e.studentName||'—'}</p>
-                    <p style="color:var(--text-secondary);font-size:0.8rem;">${e.title}</p>
+            ? '<p style="padding:20px;color:var(--text-muted);">No escalations or pending issues found.</p>'
+            : `<div style="display:flex; flex-direction:column;">
+                ${escalations.slice(0,6).map(e => `
+                  <div class="list-item" style="padding:14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:12px;" id="dash-esc-${e.id}">
+                    <div style="flex:1;">
+                      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                        <span style="font-weight:700; font-size:0.88rem; color:var(--text);">${escapeHtml(e.title)}</span>
+                        <span class="badge ${e.status==='RESOLVED'?'badge-success':e.status==='ESCALATED'?'badge-danger':'badge-warning'}" style="font-size:0.7rem;">${escapeHtml(e.status)}</span>
+                        ${e.priority ? `<span class="badge ${e.priority==='CRITICAL'||e.priority==='HIGH'?'badge-danger':'badge-warning'}" style="font-size:0.68rem;">${escapeHtml(e.priority)}</span>` : ''}
+                        ${e.escalationLevel === 'DEAN' 
+                          ? `<span class="badge badge-accent" style="font-size:0.7rem; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-shield-check"></i> At Dean</span>`
+                          : `<span class="badge badge-info" style="font-size:0.7rem; display:inline-flex; align-items:center; gap:3px;"><i class="ph ph-user-circle"></i> At HOD</span>`
+                        }
+                      </div>
+                      <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:2px;">
+                        <strong>Student:</strong> ${escapeHtml(e.studentName || 'Department-Wide')} 
+                        ${e.category ? `&bull; <strong>Category:</strong> ${escapeHtml(e.category)}` : ''}
+                      </div>
+                      ${e.description ? `<p style="font-size:0.76rem; color:var(--text-muted); margin:4px 0 0; line-clamp:2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${escapeHtml(e.description)}</p>` : ''}
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+                      ${e.status !== 'RESOLVED' && e.escalationLevel !== 'DEAN' ? `
+                        <button class="btn btn-xs btn-outline-danger btn-dash-escalate-dean" data-id="${e.id}" data-title="${escapeHtml(e.title)}" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; white-space:nowrap; border-radius:6px;">
+                          <i class="ph ph-arrow-up-right"></i> Escalate to Dean
+                        </button>
+                        <button class="btn btn-xs btn-outline-success btn-dash-resolve" data-id="${e.id}" data-title="${escapeHtml(e.title)}" data-sid="${e.studentId || ''}" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; white-space:nowrap; border-radius:6px;">
+                          <i class="ph ph-check"></i> Resolve
+                        </button>
+                      ` : e.escalationLevel === 'DEAN' && e.status !== 'RESOLVED' ? `
+                        <span style="font-size:0.75rem; color:var(--accent); font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                          <i class="ph ph-clock"></i> Awaiting Dean
+                        </span>
+                      ` : `
+                        <span class="badge badge-success" style="font-size:0.72rem;">Resolved</span>
+                      `}
+                    </div>
                   </div>
-                  <span class="badge ${e.status==='OPEN'?'badge-warning':'badge-success'}">${e.status}</span>
-                </div>
-              `).join('')
-            }
+                `).join('')}
+              </div>`
+          }
         </div>
       </div>
 
@@ -283,6 +589,100 @@ export async function render(container) {
 
     </div>
   `;
+
+    
+    // --- Raise Issue & Escalations Listeners ---
+    container.querySelector('#btn-hod-raise-issue')?.addEventListener('click', () => {
+      openRaiseIssueModal(user, dept, students, () => render(container));
+    });
+
+    container.querySelector('#btn-card-raise-issue')?.addEventListener('click', () => {
+      openRaiseIssueModal(user, dept, students, () => render(container));
+    });
+
+    // Escalate existing issue to Dean
+    container.querySelectorAll('.btn-dash-escalate-dean').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const issueTitle = e.currentTarget?.dataset?.title || btn.dataset.title || 'Department Issue';
+
+        showModal({
+          title: 'Escalate Issue to Dean',
+          content: `
+            <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:14px;">
+              You are escalating <strong>"${escapeHtml(issueTitle)}"</strong> to the Dean for university-level review and administrative intervention.
+            </p>
+            <div class="form-group">
+              <label class="form-label" style="font-weight:600;">Reason for Escalation to Dean <span style="color:var(--danger);">*</span></label>
+              <textarea id="dash-dean-reason" class="form-textarea" style="min-height:110px;" placeholder="State why Dean intervention or policy exception is required..."></textarea>
+            </div>
+          `,
+          confirmText: 'Escalate to Dean',
+          onConfirm: async (close) => {
+            const reason = document.getElementById('dash-dean-reason')?.value.trim();
+            if (!reason) {
+              return showToast('Escalation reason is required', 'error');
+            }
+            try {
+              await IssueService.escalate(issueId, 'DEAN', reason, user.name, 'HOD');
+              await notifyDeans(
+                issueId,
+                `Issue Escalated to Dean by HOD (${user.department || dept})`,
+                `HOD ${user.name} escalated issue "${issueTitle}" to Dean: ${reason}`
+              );
+              showToast('Issue escalated to Dean successfully!', 'success');
+              close();
+              render(container);
+            } catch (err) {
+              showToast(err.message, 'error');
+            }
+          }
+        });
+      });
+    });
+
+    // Resolve issue directly from dashboard
+    container.querySelectorAll('.btn-dash-resolve').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const issueId = e.currentTarget?.dataset?.id || btn.dataset.id;
+        const studentId = e.currentTarget?.dataset?.sid || btn.dataset.sid;
+        const issueTitle = e.currentTarget?.dataset?.title || btn.dataset.title || 'Issue';
+
+        showModal({
+          title: 'Resolve Issue',
+          content: `
+            <div class="form-group">
+              <label class="form-label" style="font-weight:600;">Resolution Notes <span style="color:var(--danger);">*</span></label>
+              <textarea id="dash-resolution-notes" class="form-textarea" style="min-height:110px;" placeholder="Describe what was resolved and any follow-up actions..."></textarea>
+            </div>
+          `,
+          confirmText: 'Resolve',
+          onConfirm: async (close) => {
+            const resolution = document.getElementById('dash-resolution-notes')?.value.trim();
+            if (!resolution) {
+              return showToast('Resolution notes are required', 'error');
+            }
+            try {
+              await IssueService.resolve(issueId, resolution, 'HOD');
+              if (studentId) {
+                await NotificationService.create({
+                  userId: studentId,
+                  type: 'ISSUE_RESOLVED',
+                  title: 'Issue Resolved',
+                  message: `Your issue "${issueTitle}" has been resolved by HOD: ${resolution}`,
+                  relatedId: issueId
+                });
+              }
+              showToast('Issue marked as resolved!', 'success');
+              close();
+              render(container);
+            } catch (err) {
+              showToast(err.message, 'error');
+            }
+          }
+        });
+      });
+    });
 
     container.querySelectorAll('.btn-approve').forEach(btn => {
       btn.addEventListener('click', async (e) => {

@@ -1,10 +1,11 @@
-// HOD � Departmental Reports
+// HOD � Departmental Reports
 // Generates mentoring compliance and semester progress reports for the department.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
-import { StatsService } from '/js/services.js';
-import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
+import { StatsService, MeetingService } from '/js/services.js';
+import { showModal } from '/js/components/modal.js';
+import { exportMentorStudentReport, exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
 import { showToast } from '/js/components/toast.js';
 import { escapeHtml } from '/js/utils.js';
 
@@ -25,7 +26,10 @@ export async function render(container) {
 
   try {
     const dept = user.department;
-    const data = await StatsService.getDeptStats(dept);
+    const [data, meetings] = await Promise.all([
+      StatsService.getDeptStats(dept),
+      MeetingService.getByDepartment(dept).catch(() => [])
+    ]);
     const { totalStudents = 0, totalMentors = 0, highRiskStudents = 0, resolvedIssues = 0, students = [], mentors = [] } = data;
 
     const content = container.querySelector('#hod-reports-content');
@@ -176,36 +180,46 @@ export async function render(container) {
           }
         </div>
 
-        <!-- 🔍 SEARCH & ADVANCED MULTI-FILTER MENTEE LIST -->
-        <div class="card" style="margin-bottom:24px;">
-          <div class="card-header" style="padding:16px 20px; border-bottom:1px solid var(--border);">
-            <h3 style="font-size:0.95rem; font-weight:700; margin:0; margin-bottom:12px;">🔍 Department Mentee Directory & Multi-Filter</h3>
-            
-            <!-- Filters Control Bar -->
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
-              <input type="text" id="filter-search-prn" class="form-input" placeholder="🔍 Search Name / PRN / Enrollment..." style="padding:8px 12px; font-size:0.85rem;">
-              
-              <select id="filter-mentor" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
-                <option value="">All Mentors</option>
-                ${mentors.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
-                <option value="UNASSIGNED">Unassigned Mentees</option>
-              </select>
-
-              <select id="filter-class" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
-                <option value="">All Classes</option>
-                ${classesList.map(c => `<option value="${c}">Class ${escapeHtml(c)}</option>`).join('')}
-              </select>
-
-              <select id="filter-risk" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
-                <option value="">All Risk Levels</option>
-                <option value="HIGH">High Risk</option>
-                <option value="MEDIUM">Medium Risk</option>
-                <option value="LOW">Low Risk</option>
-              </select>
+        <!-- 📁 CENTRALIZED MEETING REPORTS REPOSITORY (SINGLE PLACE FOR ALL MEETINGS) -->
+        <div class="card" style="margin-bottom:24px; border:1px solid var(--border);">
+          <div class="card-header" style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h3 style="font-size:1.05rem; font-weight:800; margin:0; display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-folder-notch-open" style="color:var(--primary); font-size:1.25rem;"></i> Centralized Meeting Reports &amp; Documentation Hub
+              </h3>
+              <p style="font-size:0.8rem; color:var(--text-secondary); margin:3px 0 0;">
+                All mentorship session reports, attendee rosters with timestamps &amp; AI-extracted minutes stored in a single repository
+              </p>
             </div>
+            <span class="badge badge-primary" style="font-size:0.8rem; font-weight:700;" id="meet-repo-count">${(meetings || []).length} Meeting Reports</span>
           </div>
 
-          <div id="mentee-directory-table-wrap" style="overflow-x:auto;"></div>
+          <!-- Filters Control Bar -->
+          <div style="padding:14px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
+            <input type="text" id="filter-meeting-search" class="form-input" placeholder="🔍 Search Topic, Mentor, or Mentee..." style="padding:8px 12px; font-size:0.85rem;">
+            
+            <select id="filter-meeting-mentor" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
+              <option value="">All Faculty Mentors</option>
+              ${mentors.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+            </select>
+
+            <select id="filter-meeting-type" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
+              <option value="">All Session Types</option>
+              <option value="1-on-1">1-on-1 Mentorship</option>
+              <option value="Group">Group Session</option>
+              <option value="Academic">Academic Review</option>
+              <option value="Attendance">Attendance Review</option>
+            </select>
+
+            <select id="filter-meeting-status" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
+              <option value="">All Statuses</option>
+              <option value="COMPLETED">Completed Reports</option>
+              <option value="HAS_ATTENDEES">With Verified Attendance</option>
+              <option value="HAS_AI">AI Intelligence Generated</option>
+            </select>
+          </div>
+
+          <div id="meeting-reports-table-wrap" style="overflow-x:auto;"></div>
         </div>
 
         <!-- 📜 ALLOCATION & REASSIGNMENT AUDIT HISTORY -->
@@ -225,40 +239,55 @@ export async function render(container) {
     `;
 
     // Render Mentee Directory Table with filter logic
-    function renderMenteeDirectory() {
-      const wrap = container.querySelector('#mentee-directory-table-wrap');
+    function renderMeetingReports() {
+      const wrap = container.querySelector('#meeting-reports-table-wrap');
+      const countBadge = container.querySelector('#meet-repo-count');
       if (!wrap) return;
 
-      const prnQuery = (container.querySelector('#filter-search-prn')?.value || '').toLowerCase().trim();
-      const selectedMentor = container.querySelector('#filter-mentor')?.value || '';
-      const selectedClass = container.querySelector('#filter-class')?.value || '';
-      const selectedRisk = container.querySelector('#filter-risk')?.value || '';
+      const query = (container.querySelector('#filter-meeting-search')?.value || '').toLowerCase().trim();
+      const selectedMentor = container.querySelector('#filter-meeting-mentor')?.value || '';
+      const selectedType = (container.querySelector('#filter-meeting-type')?.value || '').toLowerCase();
+      const selectedStatus = container.querySelector('#filter-meeting-status')?.value || '';
 
-      let filtered = [...students];
+      let filtered = [...(meetings || [])];
 
-      if (prnQuery) {
-        filtered = filtered.filter(s =>
-          (s.name || '').toLowerCase().includes(prnQuery) ||
-          (s.enrollmentNumber || s.rollNumber || s.prn || '').toLowerCase().includes(prnQuery)
+      if (query) {
+        filtered = filtered.filter(m =>
+          (m.type || '').toLowerCase().includes(query) ||
+          (m.topic || '').toLowerCase().includes(query) ||
+          (m.mentorName || '').toLowerCase().includes(query) ||
+          (m.studentName || '').toLowerCase().includes(query) ||
+          (m.description || '').toLowerCase().includes(query)
         );
       }
 
-      if (selectedMentor === 'UNASSIGNED') {
-        filtered = filtered.filter(s => !s.mentorId);
-      } else if (selectedMentor) {
-        filtered = filtered.filter(s => s.mentorId === selectedMentor);
+      if (selectedMentor) {
+        filtered = filtered.filter(m => m.mentorId === selectedMentor);
       }
 
-      if (selectedClass) {
-        filtered = filtered.filter(s => s.class === selectedClass);
+      if (selectedType) {
+        filtered = filtered.filter(m =>
+          (m.type || '').toLowerCase().includes(selectedType) ||
+          (m.topic || '').toLowerCase().includes(selectedType)
+        );
       }
 
-      if (selectedRisk) {
-        filtered = filtered.filter(s => (s.riskLevel || 'LOW') === selectedRisk);
+      if (selectedStatus === 'COMPLETED') {
+        filtered = filtered.filter(m => m.status === 'COMPLETED');
+      } else if (selectedStatus === 'HAS_ATTENDEES') {
+        filtered = filtered.filter(m => Array.isArray(m.attendees) && m.attendees.length > 0);
+      } else if (selectedStatus === 'HAS_AI') {
+        filtered = filtered.filter(m => m.hasAiNotes || m.aiNotes);
       }
+
+      if (countBadge) countBadge.textContent = `${filtered.length} Meeting Reports`;
 
       if (filtered.length === 0) {
-        wrap.innerHTML = `<p style="padding:24px; color:var(--text-muted); text-align:center;">No matching mentees found for selected filters.</p>`;
+        wrap.innerHTML = `<div style="padding:48px 20px; text-align:center; color:var(--text-muted);">
+          <i class="ph ph-folder-notch-open" style="font-size:2.5rem; opacity:0.4; display:block; margin-bottom:8px;"></i>
+          <h4 style="margin:0 0 4px; font-weight:700; color:var(--text-secondary);">No Meeting Reports Found</h4>
+          <p style="margin:0; font-size:0.85rem;">No mentorship meetings match the specified search or filter criteria.</p>
+        </div>`;
         return;
       }
 
@@ -266,117 +295,225 @@ export async function render(container) {
         <table class="data-table" style="width:100%;">
           <thead>
             <tr>
-              <th>Student Name</th>
-              <th>PRN / Enrollment</th>
-              <th>Class</th>
-              <th>Assigned Mentor</th>
-              <th>CGPA</th>
-              <th>Attendance</th>
-              <th>Risk Level</th>
+              <th style="padding:12px; width:40px;">#</th>
+              <th style="padding:12px;">Session Topic &amp; Type</th>
+              <th style="padding:12px;">Faculty Mentor</th>
+              <th style="padding:12px;">Mentee / Target</th>
+              <th style="padding:12px;">Attendance &amp; Timestamps</th>
+              <th style="padding:12px;">Key Summary / Notes</th>
+              <th style="padding:12px; text-align:center;">Status</th>
+              <th style="padding:12px; text-align:center;">Report Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${filtered.map(s => {
-              const m = mentors.find(x => x.id === s.mentorId);
-              const rBadge = s.riskLevel === 'HIGH' ? 'badge-danger' : s.riskLevel === 'MEDIUM' ? 'badge-warning' : 'badge-success';
+            ${filtered.map((m, idx) => {
+              const dtStr = m.scheduledAt || m.createdAt;
+              const dateFormatted = dtStr ? new Date(dtStr).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+              const timeFormatted = dtStr ? new Date(dtStr).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '';
+              
+              const attendees = Array.isArray(m.attendees) ? m.attendees : [];
+              const attendeeCount = attendees.length > 0 ? attendees.length : (m.attendanceCount || (m.studentId && m.studentId !== 'ALL' ? 1 : 0));
+              
+              const notesSnippet = m.notes?.issuesDiscussed || m.notes?.problem || m.notes?.summary || m.aiNotes?.summary || m.description || 'No written minutes';
+              const cleanNotes = String(notesSnippet).replace(/<[^>]*>/g, '').slice(0, 75) + (notesSnippet.length > 75 ? '...' : '');
+
               return `
                 <tr>
-                  <td style="font-weight:600;">${escapeHtml(s.name)}</td>
-                  <td>${escapeHtml(s.enrollmentNumber || s.rollNumber || '—')}</td>
-                  <td><span class="badge badge-muted">${s.class ? `Class ${escapeHtml(s.class)}` : 'Unassigned'}</span></td>
-                  <td style="color:var(--accent); font-weight:600;">${m ? escapeHtml(m.name) : '<span style="color:var(--warning);">Unassigned</span>'}</td>
-                  <td>${s.cgpa || '0'}</td>
-                  <td>${s.attendance || 0}%</td>
-                  <td><span class="badge ${rBadge}">${escapeHtml(s.riskLevel || 'LOW')}</span></td>
+                  <td style="padding:12px; color:var(--text-muted); font-size:0.8rem;">${idx + 1}</td>
+                  <td style="padding:12px;">
+                    <div style="font-weight:700; font-size:0.88rem; color:var(--text-primary); margin-bottom:2px;">
+                      ${escapeHtml(m.type || m.topic || 'Mentorship Session')}
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                      <i class="ph ph-calendar"></i> ${dateFormatted} ${timeFormatted ? '• ' + timeFormatted : ''}
+                      ${m.hasAiNotes || m.aiNotes ? '<span class="badge badge-accent" style="font-size:0.65rem; padding:1px 6px;">🤖 AI Extracted</span>' : ''}
+                    </div>
+                  </td>
+                  <td style="padding:12px;">
+                    <div style="font-weight:600; font-size:0.84rem;">${escapeHtml(m.mentorName || 'Faculty Mentor')}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(dept || 'Department')}</div>
+                  </td>
+                  <td style="padding:12px;">
+                    <div style="font-weight:600; font-size:0.84rem;">
+                      ${m.studentId === 'ALL' ? '<span class="badge badge-info" style="font-size:0.72rem;">👥 All Mentees (Group)</span>' : escapeHtml(m.studentName || 'Student')}
+                    </div>
+                    ${m.studentEnrollment ? `<div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(m.studentEnrollment)}</div>` : ''}
+                  </td>
+                  <td style="padding:12px;">
+                    <button class="badge ${attendeeCount > 0 ? 'badge-success' : 'badge-secondary'} btn-view-attendance" data-id="${m.id}" style="cursor:pointer; border:none; display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:4px 8px;" title="Click to view attendee timestamps">
+                      <i class="ph ph-users"></i> ${attendeeCount} Attended
+                    </button>
+                    ${attendees.length > 0 && attendees[0]?.joinedAt ? `
+                      <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px;">
+                        First joined: ${new Date(attendees[0].joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
+                      </div>
+                    ` : ''}
+                  </td>
+                  <td style="padding:12px; font-size:0.8rem; color:var(--text-secondary); max-width:220px;">
+                    ${escapeHtml(cleanNotes)}
+                  </td>
+                  <td style="padding:12px; text-align:center;">
+                    <span class="badge ${m.status==='COMPLETED'?'badge-success':m.status==='APPROVED'?'badge-info':'badge-warning'}" style="font-size:0.72rem;">
+                      ${escapeHtml(m.status || 'SCHEDULED')}
+                    </span>
+                  </td>
+                  <td style="padding:12px; text-align:center;">
+                    <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:nowrap;">
+                      <button class="btn btn-xs btn-primary btn-view-report" data-id="${m.id}" title="View official meeting report" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
+                        <i class="ph ph-file-text"></i> View
+                      </button>
+                      <button class="btn btn-xs btn-secondary btn-download-meet-pdf" data-id="${m.id}" title="Download / Print Official PDF" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
+                        <i class="ph ph-printer" style="color:var(--danger);"></i> PDF
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
-        <div style="padding:10px 16px; border-top:1px solid var(--border); font-size:0.8rem; color:var(--text-muted);">
-          Showing ${filtered.length} of ${students.length} mentees in ${escapeHtml(dept || 'Department')}
-        </div>
       `;
-    }
 
-    // Render Allocation Audit Trail
-    function renderAuditTrail() {
-      const wrap = container.querySelector('#audit-trail-table-wrap');
-      if (!wrap) return;
-
-      const auditEntries = [];
-
-      students.forEach(s => {
-        if (s.reassignmentHistory && Array.isArray(s.reassignmentHistory)) {
-          s.reassignmentHistory.forEach(h => {
-            auditEntries.push({
-              studentName: s.name,
-              enrollmentNumber: s.enrollmentNumber || '—',
-              className: s.class || '—',
-              type: 'REASSIGNMENT',
-              prevMentor: h.previousMentorName || 'Unassigned',
-              newMentor: h.newMentorName || 'Unassigned',
-              allocatedBy: h.reassignedBy || 'HOD',
-              timestamp: h.reassignedAt || s.updatedAt || s.createdAt || '—',
-              reason: h.reason || 'Academic Reassignment'
-            });
-          });
-        } else if (s.mentorId) {
-          const m = mentors.find(x => x.id === s.mentorId);
-          auditEntries.push({
-            studentName: s.name,
-            enrollmentNumber: s.enrollmentNumber || '—',
-            className: s.class || '—',
-            type: s.allocationType || 'INITIAL_ALLOCATION',
-            prevMentor: 'Unassigned',
-            newMentor: m ? m.name : 'Assigned',
-            allocatedBy: s.allocatedBy || 'Admin / System',
-            timestamp: s.allocatedAt || s.createdAt || '—',
-            reason: s.allocationType === 'AUTO' ? 'Auto-Allocation Algorithm' : 'Manual Allocation'
-          });
-        }
+      // Attach row action listeners
+      wrap.querySelectorAll('.btn-download-meet-pdf').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mId = btn.dataset.id;
+          const targetMeeting = meetings.find(x => x.id === mId);
+          if (targetMeeting) {
+            exportMeetingSessionReport(targetMeeting);
+          } else {
+            showToast('Meeting data not found', 'error');
+          }
+        });
       });
 
-      auditEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      wrap.querySelectorAll('.btn-view-report').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mId = btn.dataset.id;
+          const targetMeeting = meetings.find(x => x.id === mId);
+          if (!targetMeeting) return showToast('Meeting data not found', 'error');
+          
+          const rpt = targetMeeting.report || {};
+          const ai = targetMeeting.aiNotes || {};
+          const topic = targetMeeting.type || rpt.topic || ai.topic || 'Mentorship Session';
+          const issues = rpt.issuesDiscussed || ai.issuesDiscussed || targetMeeting.notes?.issuesDiscussed || targetMeeting.notes?.summary || 'No issues recorded';
+          const action = rpt.actionItems || ai.actionItems || targetMeeting.notes?.actionTaken || targetMeeting.notes?.advice || 'No action specified';
+          const attendees = Array.isArray(targetMeeting.attendees) ? targetMeeting.attendees : [];
 
-      if (auditEntries.length === 0) {
-        wrap.innerHTML = `<p style="padding:24px; color:var(--text-muted); text-align:center;">No allocation or reassignment history logged yet.</p>`;
-        return;
-      }
+          showModal({
+            title: 'Official Mentorship Session Report',
+            size: 'lg',
+            content: `
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Topic</strong><div style="font-weight:700; font-size:0.9rem;">${escapeHtml(topic)}</div></div>
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Faculty Mentor</strong><div style="font-weight:600;">${escapeHtml(targetMeeting.mentorName || 'Faculty')}</div></div>
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Department</strong><div>${escapeHtml(dept || 'CSE Core')}</div></div>
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Head of Department</strong><div style="font-weight:600; color:var(--accent);">Dr. Suvarna Pawar</div></div>
+                </div>
 
-      wrap.innerHTML = `
-        <table class="data-table" style="width:100%; font-size:0.825rem;">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Class</th>
-              <th>Type</th>
-              <th>Previous Mentor</th>
-              <th>New Mentor</th>
-              <th>Allocated / Reassigned By</th>
-              <th>When</th>
-              <th>Reason / Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${auditEntries.slice(0, 30).map(a => `
-              <tr>
-                <td style="font-weight:600;">${escapeHtml(a.studentName)}<br><span style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(a.enrollmentNumber)}</span></td>
-                <td><span class="badge badge-muted">${escapeHtml(a.className)}</span></td>
-                <td><span class="badge ${a.type === 'REASSIGNMENT' ? 'badge-warning' : 'badge-info'}">${escapeHtml(a.type)}</span></td>
-                <td style="color:var(--text-secondary);">${escapeHtml(a.prevMentor)}</td>
-                <td style="color:var(--accent); font-weight:600;">${escapeHtml(a.newMentor)}</td>
-                <td><strong>${escapeHtml(a.allocatedBy)}</strong></td>
-                <td style="font-size:0.75rem; color:var(--text-muted);">${a.timestamp !== '—' ? new Date(a.timestamp).toLocaleString() : '—'}</td>
-                <td style="color:var(--text-secondary);">${escapeHtml(a.reason)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" style="font-weight:700; font-size:0.85rem;">Issues Discussed &amp; Academic Observations</label>
+                  <div style="padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:0.85rem; line-height:1.5;">
+                    ${escapeHtml(issues)}
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label" style="font-weight:700; font-size:0.85rem;">Remedial Measures &amp; Action Taken</label>
+                  <div style="padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:0.85rem; line-height:1.5;">
+                    ${escapeHtml(action)}
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <label class="form-label" style="font-weight:700; font-size:0.85rem; margin:0;">Verified Attendee Roster &amp; Timestamps</label>
+                    <span class="badge badge-success">${attendees.length} Present</span>
+                  </div>
+                  ${attendees.length === 0 ? `
+                    <p style="color:var(--text-muted); font-size:0.82rem; margin:0;">No individual attendees logged.</p>
+                  ` : `
+                    <div style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                      <table class="data-table" style="width:100%; margin:0;">
+                        <thead><tr><th>#</th><th>Name</th><th>Role</th><th>PRN / Enrollment</th><th>Joined Timestamp</th></tr></thead>
+                        <tbody>
+                          ${attendees.map((a, i) => `
+                            <tr>
+                              <td style="font-size:0.8rem; color:var(--text-muted);">${i + 1}</td>
+                              <td style="font-weight:600;">${escapeHtml(a.name || 'Participant')}</td>
+                              <td><span class="badge badge-secondary" style="font-size:0.7rem;">${escapeHtml(a.role || 'STUDENT')}</span></td>
+                              <td>${escapeHtml(a.enrollmentNumber || a.prn || '—')}</td>
+                              <td style="color:var(--accent); font-weight:600;">${a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : (a.timestamp || 'Joined')}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  `}
+                </div>
+              </div>
+            `,
+            confirmText: 'Download Official PDF',
+            cancelText: 'Close',
+            onConfirm: (close) => {
+              exportMeetingSessionReport(targetMeeting);
+              close();
+            }
+          });
+        });
+      });
+
+      wrap.querySelectorAll('.btn-view-attendance').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mId = btn.dataset.id;
+          const targetMeeting = meetings.find(x => x.id === mId);
+          if (!targetMeeting) return showToast('Meeting data not found', 'error');
+          const attendees = Array.isArray(targetMeeting.attendees) ? targetMeeting.attendees : [];
+
+          showModal({
+            title: 'Session Attendance & Join Timestamps',
+            size: 'md',
+            content: `
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">
+                  Session: <strong>${escapeHtml(targetMeeting.type || 'Mentorship Session')}</strong>
+                </div>
+                ${attendees.length === 0 ? `
+                  <p style="padding:20px; text-align:center; color:var(--text-muted);">No attendee check-in records found.</p>
+                ` : `
+                  <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                    <table class="data-table" style="width:100%; margin:0;">
+                      <thead><tr><th>#</th><th>Name</th><th>PRN / ID</th><th>Join Timestamp</th></tr></thead>
+                      <tbody>
+                        ${attendees.map((a, i) => `
+                          <tr>
+                            <td>${i + 1}</td>
+                            <td style="font-weight:600;">${escapeHtml(a.name || 'Participant')}</td>
+                            <td>${escapeHtml(a.enrollmentNumber || a.prn || '—')}</td>
+                            <td style="color:var(--success); font-weight:700;">${a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : (a.timestamp || 'Joined')}</td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                `}
+              </div>
+            `,
+            confirmText: 'Close',
+            cancelText: 'Cancel'
+          });
+        });
+      });
     }
 
-    renderMenteeDirectory();
+    // Attach search and filter listeners
+    container.querySelector('#filter-meeting-search')?.addEventListener('input', renderMeetingReports);
+    container.querySelector('#filter-meeting-mentor')?.addEventListener('change', renderMeetingReports);
+    container.querySelector('#filter-meeting-type')?.addEventListener('change', renderMeetingReports);
+    container.querySelector('#filter-meeting-status')?.addEventListener('change', renderMeetingReports);
+
+    renderMeetingReports();
     renderAuditTrail();
 
     // Attach Event Listeners for Filters

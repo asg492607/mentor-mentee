@@ -586,7 +586,7 @@ export async function render(container) {
           </h2>
 
           <p style="font-size:1.02rem;color:var(--text-secondary);max-width:880px;margin:0 auto;line-height:1.7;">
-            ${t('landing.pilot_desc', 'We extend our heartfelt gratitude and special recognition to Dr. Suwarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.')}
+            ${t('landing.pilot_desc', 'We extend our heartfelt gratitude and special recognition to Dr. Suvarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.')}
           </p>
         </div>
       </section>

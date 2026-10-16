@@ -864,7 +864,7 @@ export function exportMeetingSessionReport(meeting) {
   const dept = rpt.department || meeting.department || 'Department of Computer Science & Engineering (Core)';
   const preparedBy = rpt.preparedBy || meeting.mentorName || 'Faculty Mentor';
   const checkedBy = rpt.checkedBy || '';
-  const hodName = rpt.hodName || 'Dr. Suwarna Pawar';
+  const hodName = rpt.hodName || 'Dr. Suvarna Pawar';
 
   // Validate and sanitize content strings against single-character/dummy placeholders like "n", "na", etc.
   const isValidReportContent = (str) => {
@@ -938,8 +938,14 @@ export function exportMeetingSessionReport(meeting) {
     return !n || n === 'group meeting' || n === 'group' || n === 'all' || n === 'student' || n === 'student attendee' || n === 'unassigned';
   };
 
-  let studentsList = [];
-  if (Array.isArray(rpt.students) && rpt.students.length > 0) {
+    let studentsList = [];
+  if (Array.isArray(meeting.attendees) && meeting.attendees.length > 0) {
+    studentsList = meeting.attendees.map(a => ({
+      name: a.name || 'Participant',
+      enrollment: a.enrollmentNumber || a.enrollment || a.prn || 'Verified',
+      timestamp: a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : (a.timestamp || 'Joined')
+    }));
+  } else if (Array.isArray(rpt.students) && rpt.students.length > 0) {
     studentsList = rpt.students.filter(s => !isPlaceholderStudent(s.name || s.studentName));
   } else if (Array.isArray(meeting.students) && meeting.students.length > 0) {
     studentsList = meeting.students.filter(s => !isPlaceholderStudent(s.name || s.studentName));
@@ -961,7 +967,7 @@ export function exportMeetingSessionReport(meeting) {
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${i + 1}</td>
       <td style="border:1px solid #64748b;padding:5px 8px;font-weight:600;">${escapeHtml(s.name || s.studentName || '—')}</td>
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${escapeHtml(s.enrollment || s.enrollmentNumber || s.rollNumber || '—')}</td>
-      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;color:#475569;font-size:8pt;font-style:italic;">[Verified Digital Attendance]</td>
+      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;color:#059669;font-size:8.5pt;font-weight:600;">Present ${s.timestamp ? `(Joined: ${escapeHtml(s.timestamp)})` : '[Verified Digital Attendance]'}</td>
     </tr>
   `).join('') : `
     <tr>

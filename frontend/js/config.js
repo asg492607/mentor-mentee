@@ -20,9 +20,9 @@ export const STUN_SERVERS = {
 export const GROQ_CONFIG = {
   apiKey: (typeof localStorage !== 'undefined' && localStorage.getItem('lumina_groq_api_key')) 
     || ['gsk_tpWy', 'Ex8n5e0c', '0oHLmkj0', 'WGdyb3FY', 'sfMgppdf', 'vDYfhK6N', 'FDbxmFvQ'].join(''),
-  defaultModel: "llama-3.3-70b-versatile",
-  fastModel: "llama-3.1-8b-instant",
-  fallbackModel: "mixtral-8x7b-32768",
+  defaultModel: "qwen/qwen3.8-27b",
+  fastModel: "openai/gpt-oss-20b",
+  fallbackModel: "openai/gpt-oss-120b",
   audioModel: "whisper-large-v3-turbo",
   endpoint: "https://api.groq.com/openai/v1/chat/completions",
   audioEndpoint: "https://api.groq.com/openai/v1/audio/transcriptions"

@@ -95,6 +95,7 @@ service cloud.firestore {
           resource.data.studentId == uid() ||
           resource.data.mentorId  == uid() ||
           resource.data.studentId == 'ALL' ||
+          isHOD() ||
           isDean() || isSuperAdmin()
         );
       }
@@ -104,13 +105,15 @@ service cloud.firestore {
         resource.data.studentId == uid() ||
         resource.data.mentorId == uid() ||
         resource.data.studentId == 'ALL' ||
+        isHOD() ||
         isDean() || isSuperAdmin()
       );
       allow create: if (isStudent() && request.resource.data.studentId == uid() && (request.resource.data.status == 'REQUESTED' || request.resource.data.status == 'APPROVED')) ||
                        (isFaculty() && request.resource.data.mentorId == uid()) || isSuperAdmin();
       allow update: if isAuth() && (
         (resource.data.studentId == uid() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && request.resource.data.status == 'CANCELLED') ||
-        resource.data.mentorId == uid() || isSuperAdmin()
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['attendees', 'attendanceCount', 'updatedAt', 'studentAcknowledged', 'acknowledgedAt', 'acknowledgedByStudentId', 'studentFeedback', 'studentRating']) ||
+        resource.data.mentorId == uid() || isHOD() || isDean() || isSuperAdmin()
       );
       allow delete: if isSuperAdmin();
       
@@ -149,7 +152,8 @@ service cloud.firestore {
         isDean() || isSuperAdmin()
       );
       allow create: if (isStudent() && request.resource.data.studentId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']) ||
-                       (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']);
+                       (isFaculty() && request.resource.data.mentorId == uid() && request.resource.data.status in ['OPEN', 'ESCALATED']) ||
+                       isHOD() || isDean() || isSuperAdmin();
       allow update: if isAuth() && (
         resource.data.mentorId  == uid() ||
         isHOD() ||

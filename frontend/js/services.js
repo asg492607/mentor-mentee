@@ -487,6 +487,73 @@ export const FacultyService = {
 // ─── MEETINGS ─────────────────────────────────────────────────────────────────
 
 export const MeetingService = {
+  async getAll() {
+    try {
+      const list = snaps(await getDocs(collection(db, 'meetings')));
+      return list.sort((a, b) => new Date(b.scheduledAt || b.createdAt || 0) - new Date(a.scheduledAt || a.createdAt || 0));
+    } catch (e) {
+      console.warn('MeetingService.getAll error:', e);
+      return [];
+    }
+  },
+
+  async getByDepartment(dept) {
+    if (!dept) return this.getAll();
+    try {
+      const allMeetings = await this.getAll();
+      const userDept = String(dept).trim().toLowerCase();
+      const filtered = allMeetings.filter(m => {
+        if (!m) return false;
+        const mDept = String(m.department || m.mentorDepartment || '').trim().toLowerCase();
+        return mDept === userDept;
+      });
+      return filtered.length > 0 ? filtered : allMeetings;
+    } catch (e) {
+      console.warn('MeetingService.getByDepartment error:', e);
+      return [];
+    }
+  },
+
+  async recordAttendance(meetingId, user) {
+    if (!meetingId || !user) return;
+    try {
+      const attendee = {
+        userId: user.id || user.uid,
+        name: user.name || 'Participant',
+        email: user.email || '',
+        role: user.role || 'STUDENT',
+        class: user.class || '',
+        enrollmentNumber: user.enrollmentNumber || user.prn || '',
+        department: user.department || '',
+        joinedAt: new Date().toISOString(),
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        status: 'ATTENDED',
+        attended: true
+      };
+
+      const meetingRef = doc(db, 'meetings', meetingId);
+      const meetingSnap = await getDoc(meetingRef);
+      if (!meetingSnap.exists()) return;
+      const data = meetingSnap.data();
+      const attendees = Array.isArray(data.attendees) ? [...data.attendees] : [];
+
+      const existingIdx = attendees.findIndex(a => a.userId === attendee.userId || (a.email && a.email === attendee.email));
+      if (existingIdx >= 0) {
+        attendees[existingIdx] = { ...attendees[existingIdx], ...attendee };
+      } else {
+        attendees.push(attendee);
+      }
+
+      await updateDoc(meetingRef, {
+        attendees,
+        attendanceCount: attendees.length,
+        updatedAt: now()
+      });
+    } catch (err) {
+      console.warn('[Meeting Attendance] Error recording attendance:', err);
+    }
+  },
+
   async create(data) {
     const ref = await addDoc(collection(db, 'meetings'), {
       status: 'REQUESTED',

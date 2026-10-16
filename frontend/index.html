@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <script>
-        localStorage.removeItem('theme');
-        document.documentElement.setAttribute('data-theme', 'light');
+        const savedTheme = localStorage.getItem('lumina_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', savedTheme);
         const savedLang = localStorage.getItem('lumina_locale') || 'en';
         document.documentElement.setAttribute('lang', savedLang);
         document.documentElement.setAttribute('data-lang', savedLang);
         const metaTheme = document.createElement('meta');
         metaTheme.name = 'theme-color';
-        metaTheme.content = '#6254e7';
+        metaTheme.content = savedTheme === 'dark' ? '#0b0f19' : '#6254e7';
         document.head.appendChild(metaTheme);
     </script>
     <meta charset="UTF-8">
@@ -24,12 +24,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="/css/main.css?v=15">
-    <link rel="stylesheet" href="/css/components.css?v=15">
-    <link rel="stylesheet" href="/css/dashboard.css?v=15">
+    <link rel="stylesheet" href="/css/main.css?v=16">
+    <link rel="stylesheet" href="/css/components.css?v=16">
+    <link rel="stylesheet" href="/css/dashboard.css?v=16">
 
-    <link rel="stylesheet" href="/css/meeting.css?v=15">
-    <link rel="stylesheet" href="/css/ai-assistant.css?v=15">
+    <link rel="stylesheet" href="/css/meeting.css?v=16">
+    <link rel="stylesheet" href="/css/ai-assistant.css?v=16">
 
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -50,7 +50,7 @@
     <div id="toast-container"></div>
 
     <!-- Application Reliability & Entry Point -->
-    <script type="module" src="/js/reliability.js?v=14"></script>
-    <script type="module" src="/js/router.js?v=14"></script>
+    <script type="module" src="/js/reliability.js?v=16"></script>
+    <script type="module" src="/js/router.js?v=16"></script>
 </body>
 </html>

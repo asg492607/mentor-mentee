@@ -2144,3 +2144,132 @@ input:checked + .switch-slider:before {
 }
 
 
+
+
+/* ============================================================
+   Lumina Meeting Room Dark Mode Tokens & Overrides
+   ============================================================ */
+html[data-theme="dark"] .meeting-room-layout {
+  background: #090d16;
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .meeting-topbar {
+  background: rgba(13, 19, 33, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .meeting-title {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .btn-meet-secondary {
+  background: #172033;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .btn-meet-secondary:hover {
+  background: #1f2c44;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .meeting-side-panel {
+  background: #0d1321;
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .side-panel-title {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .side-panel-tabs {
+  background: #090d16;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .side-panel-tab {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .side-panel-tab:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] .side-panel-tab.active {
+  color: #a5b4fc;
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(129, 140, 248, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] .side-panel-body {
+  background: #0d1321;
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .chat-input-wrap {
+  background: #0d1321;
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .chat-input {
+  background: #141c2e;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .chat-input:focus {
+  background: #172033;
+  border-color: #6366f1;
+}
+
+html[data-theme="dark"] .chat-message .chat-bubble {
+  background: #172033;
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .chat-message.own .chat-bubble {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .report-input,
+html[data-theme="dark"] .report-textarea {
+  background: #141c2e;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .report-input:focus,
+html[data-theme="dark"] .report-textarea:focus {
+  background: #172033;
+  border-color: #6366f1;
+}
+
+html[data-theme="dark"] .report-label {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .report-section-title {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .report-sig-section {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+html[data-theme="dark"] .report-sig-box {
+  background: rgba(20, 28, 46, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme="dark"] .meeting-controls-bar {
+  background: rgba(13, 19, 33, 0.95);
+  border-top-color: rgba(255, 255, 255, 0.1);
+}

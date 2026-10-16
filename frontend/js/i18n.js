@@ -265,7 +265,7 @@ export const translations = {
     // Pilot Recognition
     'landing.pilot_badge': 'TY CSE Core Pilot Recognition',
     'landing.pilot_title': 'Special Thanks & Mentorship Recognition',
-    'landing.pilot_desc': 'We extend our heartfelt gratitude and special recognition to Dr. Suwarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.',
+    'landing.pilot_desc': 'We extend our heartfelt gratitude and special recognition to Dr. Suvarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.',
 
     // Credits
     'landing.credits_tag': 'Project Credits',

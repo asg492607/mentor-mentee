@@ -626,3 +626,64 @@
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+/* ─── Markdown Tables in AI Output ────────────────────────────────────────── */
+.ai-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(226, 232, 240, 0.8));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ai-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-align: left;
+  background: var(--surface, #ffffff);
+}
+
+.ai-table th {
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-heading, #1e293b);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.ai-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  color: var(--text-color, #334155);
+}
+
+.ai-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ai-table tr:hover td {
+  background: var(--bg-hover, rgba(241, 245, 249, 0.6));
+}
+
+html[data-theme="dark"] .ai-table {
+  background: #1e293b;
+}
+
+html[data-theme="dark"] .ai-table th {
+  background: #0f172a;
+  color: #f1f5f9;
+  border-bottom-color: #334155;
+}
+
+html[data-theme="dark"] .ai-table td {
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .ai-table tr:hover td {
+  background: rgba(51, 65, 85, 0.5);
+}

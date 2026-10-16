@@ -155,7 +155,65 @@ STRICT SUPER-PROMPTER OUTPUT RULES:
     const user = getUserProfile();
     const systemPrompt = this.buildSystemPrompt(user, activeRoute);
 
-    // 1. Primary: Google Gemini Generative AI
+    // 1. Primary: Groq API (ultra-fast sub-second response: Qwen 2.5 / GPT-OSS)
+    const groqApiKey = this.getApiKey();
+    const fullMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ];
+
+    const modelsToTry = [
+      this.getModel(),
+      GROQ_CONFIG.fastModel,
+      GROQ_CONFIG.fallbackModel
+    ].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
+
+    let lastError = null;
+
+    if (groqApiKey) {
+      for (const model of modelsToTry) {
+        try {
+          const response = await fetch(GROQ_CONFIG.endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${groqApiKey}`
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: fullMessages,
+              temperature: temperature,
+              max_tokens: maxTokens
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error?.message || `Groq API returned HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          const choice = data.choices?.[0];
+          let reply = choice?.message?.content;
+          // Fallback to reasoning if content is empty on reasoning models
+          if ((!reply || !reply.trim()) && choice?.message?.reasoning) {
+            reply = choice.message.reasoning;
+          }
+          if (reply && reply.trim()) {
+            return {
+              content: reply.trim(),
+              model: model,
+              usage: data.usage
+            };
+          }
+        } catch (err) {
+          console.warn(`AIService: Model ${model} attempt failed:`, err.message);
+          lastError = err;
+        }
+      }
+    }
+
+    // 2. Secondary: Google Gemini Generative AI fallback
     const geminiKey = this.getGeminiApiKey();
     if (geminiKey) {
       const geminiModels = [
@@ -221,65 +279,8 @@ STRICT SUPER-PROMPTER OUTPUT RULES:
             }
           } catch (geminiErr) {
             console.warn(`Gemini (${model}) execution failed:`, geminiErr.message);
+            lastError = geminiErr;
           }
-        }
-      }
-    }
-
-    // 2. Secondary: Groq API fallback
-    const groqApiKey = this.getApiKey();
-    const fullMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages
-    ];
-
-    const modelsToTry = [
-      this.getModel(),
-      GROQ_CONFIG.fastModel,
-      GROQ_CONFIG.fallbackModel
-    ];
-
-    let lastError = null;
-
-    if (groqApiKey) {
-      for (const model of modelsToTry) {
-        try {
-          const response = await fetch(GROQ_CONFIG.endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${groqApiKey}`
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: fullMessages,
-              temperature: temperature,
-              max_tokens: maxTokens
-            })
-          });
-
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error?.message || `Groq API returned HTTP ${response.status}`);
-          }
-
-          const data = await response.json();
-          const choice = data.choices?.[0];
-          let reply = choice?.message?.content;
-          // Fallback to reasoning if content is empty on reasoning models
-          if ((!reply || !reply.trim()) && choice?.message?.reasoning) {
-            reply = choice.message.reasoning;
-          }
-          if (reply && reply.trim()) {
-            return {
-              content: reply.trim(),
-              model: model,
-              usage: data.usage
-            };
-          }
-        } catch (err) {
-          console.warn(`AIService: Model ${model} attempt failed:`, err.message);
-          lastError = err;
         }
       }
     }
@@ -535,6 +536,36 @@ ${notes || '(No manual notes)'}
         }
       } catch (e) {
         // Continue to markdown parsing
+      }
+    }
+
+    // Check if output was formatted as a Markdown table (e.g. | Category | Detail |)
+    if (content.includes('|')) {
+      const rows = content.split('\n').filter(r => r.includes('|'));
+      for (const row of rows) {
+        if (/^\|(?:\s*:?-+:?\s*\|)+$/.test(row.trim())) continue;
+        const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+        if (cells.length >= 2) {
+          const header = cells[0].toLowerCase().replace(/\*/g, '').trim();
+          const val = cells[1].replace(/<br\s*\/?>/gi, '\n').replace(/\*/g, '').trim();
+          if ((header.includes('agenda') || header.includes('topic')) && !result.topic) {
+            result.topic = val;
+            result.agenda = val;
+          } else if ((header.includes('issue') || header.includes('problem') || header.includes('concern')) && !result.issuesDiscussed) {
+            result.issuesDiscussed = val;
+          } else if ((header.includes('action') || header.includes('remedial')) && !result.actionItems) {
+            result.actionItems = val;
+          } else if (header.includes('task') && result.tasks.length === 0) {
+            result.tasks = val.split('\n').map(l => l.replace(/^[\s•\-*\d.)]+/, '').trim()).filter(Boolean);
+          } else if (header.includes('confidential') && !result.confidentialObservations) {
+            result.confidentialObservations = val;
+          } else if (header.includes('remark') && !result.remarks) {
+            result.remarks = val;
+          } else if (header.includes('risk') && result.riskLevel === 'LOW') {
+            result.riskLevel = /high/i.test(val) ? 'HIGH' : /medium/i.test(val) ? 'MEDIUM' : 'LOW';
+            result.requiresEscalation = result.riskLevel === 'HIGH';
+          }
+        }
       }
     }
 
@@ -836,13 +867,36 @@ Format strictly as:
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-    // Unordered lists
-    html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li class="ai-md-li">$1</li>');
-    html = html.replace(/(<li class="ai-md-li">.*<\/li>)/gms, '<ul class="ai-md-ul">$1</ul>');
+    // Markdown Tables (| Header | Detail |)
+    html = html.replace(/((?:\|[^\n]+\|\r?\n?)+)/g, (tableMatch) => {
+      const lines = tableMatch.trim().split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return tableMatch;
+      let tableHtml = '<div class="ai-table-wrap"><table class="ai-table">';
+      let isHeader = true;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^\|(?:\s*:?-+:?\s*\|)+$/.test(line)) {
+          isHeader = false;
+          continue;
+        }
+        const cells = line.split('|').slice(1, -1);
+        if (isHeader && i === 0) {
+          tableHtml += '<thead><tr>' + cells.map(c => `<th>${c.trim()}</th>`).join('') + '</tr></thead><tbody>';
+        } else {
+          tableHtml += '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+        }
+      }
+      tableHtml += '</tbody></table></div>';
+      return tableHtml;
+    });
 
-    // Ordered lists
+    // Unordered lists (contiguous items)
+    html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li class="ai-md-li">$1</li>');
+    html = html.replace(/((?:<li class="ai-md-li">.*?<\/li>\s*)+)/gs, '<ul class="ai-md-ul">$1</ul>');
+
+    // Ordered lists (contiguous items)
     html = html.replace(/^\s*(\d+)\.\s+(.*)$/gim, '<li class="ai-md-oli"><span class="oli-num">$1.</span> $2</li>');
-    html = html.replace(/(<li class="ai-md-oli">.*<\/li>)/gms, '<ol class="ai-md-ol">$1</ol>');
+    html = html.replace(/((?:<li class="ai-md-oli">.*?<\/li>\s*)+)/gs, '<ol class="ai-md-ol">$1</ol>');
 
     // Paragraphs / Linebreaks
     html = html.replace(/\n\n/g, '<div class="ai-md-p-gap"></div>');
@@ -852,7 +906,7 @@ Format strictly as:
   }
 
   /**
-   * Transcribe an audio Blob using Google Gemini multimodal or Groq Whisper fallback.
+   * Transcribe an audio Blob using Groq Whisper (ultra-fast 1-2s) with Gemini multimodal fallback.
    * Transcribes ALL audio in the blob — both mentor and student speakers.
    * @param {Blob} audioBlob - The recorded audio blob (webm/ogg/mp4/wav)
    * @returns {Promise<string>} Full verbatim transcript
@@ -860,7 +914,40 @@ Format strictly as:
   async transcribeAudioBlob(audioBlob) {
     if (!audioBlob) throw new Error('No audio recording provided for transcription.');
 
-    // 1. Primary: Google Gemini Multimodal Audio Transcription
+    // 1. Primary: Groq Whisper API (whisper-large-v3-turbo, ultra-fast 1-2s and reliable)
+    const groqKey = this.getApiKey();
+    if (groqKey) {
+      try {
+        const formData = new FormData();
+        const mimeType = audioBlob.type || 'audio/webm';
+        const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+        formData.append('file', audioBlob, `meeting_recording.${ext}`);
+        formData.append('model', GROQ_CONFIG.audioModel || 'whisper-large-v3-turbo');
+        formData.append('temperature', '0.0');
+
+        const response = await fetch(GROQ_CONFIG.audioEndpoint || 'https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.text && data.text.trim()) {
+            return data.text.trim();
+          }
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          console.warn('Groq Whisper transcription non-200:', errData);
+        }
+      } catch (whisperErr) {
+        console.warn('Groq Whisper audio transcription attempt error:', whisperErr.message);
+      }
+    }
+
+    // 2. Secondary: Google Gemini Multimodal Audio Transcription fallback
     const geminiKey = this.getGeminiApiKey();
     if (geminiKey) {
       try {
@@ -914,39 +1001,6 @@ Format strictly as:
       }
     }
 
-    // 2. Secondary: Groq Whisper API (whisper-large-v3-turbo, ultra-fast and reliable)
-    const groqKey = this.getApiKey();
-    if (groqKey) {
-      try {
-        const formData = new FormData();
-        const mimeType = audioBlob.type || 'audio/webm';
-        const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
-        formData.append('file', audioBlob, `meeting_recording.${ext}`);
-        formData.append('model', GROQ_CONFIG.audioModel || 'whisper-large-v3-turbo');
-        formData.append('temperature', '0.0');
-
-        const response = await fetch(GROQ_CONFIG.audioEndpoint || 'https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${groqKey}`
-          },
-          body: formData
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.text && data.text.trim()) {
-            return data.text.trim();
-          }
-        } else {
-          const errData = await response.json().catch(() => ({}));
-          console.warn('Groq Whisper transcription non-200:', errData);
-        }
-      } catch (whisperErr) {
-        console.warn('Groq Whisper audio transcription attempt error:', whisperErr.message);
-      }
-    }
-
     throw new Error('Audio transcription service unavailable. Live captions (CC) transcript will be utilized.');
   }
 
@@ -959,99 +1013,26 @@ Format strictly as:
    * @returns {Promise<Object>}
    */
   async analyzeMeetingAudioWithGemini(audioBlob, context = {}) {
-    // 1. If Gemini key exists, perform direct multimodal audio analysis
-    const geminiKey = this.getGeminiApiKey();
-    if (geminiKey) {
-      try {
-        const base64Audio = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const res = reader.result;
-            const b64 = typeof res === 'string' ? res.split(',')[1] : '';
-            resolve(b64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(audioBlob);
-        });
-
-        if (base64Audio) {
-          const mimeType = audioBlob.type || 'audio/webm';
-          const model = GEMINI_CONFIG.audioModel || 'gemini-3.5-flash';
-          const endpoint = `${GEMINI_CONFIG.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models'}/${model}:generateContent?key=${geminiKey}`;
-
-          const promptText = `Analyze this university mentorship audio recording. Student: ${context.studentName || 'Student'}, Topic: ${context.meetingTopic || 'Session'}.
-Respond with a JSON object strictly conforming to:
-{
-  "transcript": "[Mentor]: ...\\n[Student]: ...",
-  "topic": "Concise Meeting Agenda & Topic identified from the voice discussion.",
-  "issuesDiscussed": "Detailed summary of student academic or personal issues raised in this voice recording grouped with bold categories.",
-  "actionItems": "Numbered next steps and remedial measures agreed upon.",
-  "tasks": ["Task 1", "Task 2"],
-  "confidentialObservations": "Confidential faculty notes on student stress, attitude, and engagement.",
-  "riskLevel": "LOW|MEDIUM|HIGH",
-  "riskSignals": ["Signal 1"],
-  "requiresEscalation": false,
-  "remarks": "Official qualitative mentorship remarks."
-}`;
-
-          const requestBody = {
-            contents: [{
-              parts: [
-                { inlineData: { mimeType: mimeType, data: base64Audio } },
-                { text: promptText }
-              ]
-            }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 4096,
-              responseMimeType: 'application/json',
-              thinkingConfig: { thinkingBudget: 0 }
-            }
-          };
-
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (rawJson) {
-              const parsed = JSON.parse(rawJson);
-              return {
-                transcript: parsed.transcript || '',
-                topic: parsed.topic || context.meetingTopic || 'Mentorship Session',
-                issuesDiscussed: parsed.issuesDiscussed || '',
-                actionItems: parsed.actionItems || '',
-                tasks: parsed.tasks || [],
-                confidentialObservations: parsed.confidentialObservations || '',
-                remarks: parsed.remarks || '',
-                riskLevel: parsed.riskLevel || 'LOW',
-                riskSignals: parsed.riskSignals || [],
-                requiresEscalation: parsed.requiresEscalation || false
-              };
-            }
-          }
-        }
-      } catch (geminiErr) {
-        console.warn('Gemini multimodal failed, falling back to Whisper + Groq pipeline:', geminiErr.message);
-      }
-    }
-
-    // 2. High-performance fallback pipeline: Whisper audio transcription + Lumina AI extraction
+    // 1. High-speed speech transcription via Groq Whisper (1-2s)
     const transcript = await this.transcribeAudioBlob(audioBlob);
     if (!transcript) throw new Error('Audio could not be transcribed');
 
-    const insights = await this.extractMeetingInsights({
-      transcript,
-      meetingTopic: context.meetingTopic || '',
-      studentName: context.studentName || '',
-      department: context.department || ''
-    });
-
-    const riskData = await this.extractRiskSignals(transcript, context.studentName || 'Student');
+    // 2. Parallel concurrent extraction for sub-second intelligence generation
+    const [insights, riskData] = await Promise.all([
+      this.extractMeetingInsights({
+        transcript,
+        meetingTopic: context.meetingTopic || '',
+        studentName: context.studentName || '',
+        department: context.department || ''
+      }).catch(err => {
+        console.warn('extractMeetingInsights error in analyzeMeetingAudioWithGemini:', err);
+        return {};
+      }),
+      this.extractRiskSignals(transcript, context.studentName || 'Student').catch(err => {
+        console.warn('extractRiskSignals error in analyzeMeetingAudioWithGemini:', err);
+        return { riskLevel: 'LOW', signals: [] };
+      })
+    ]);
 
     return {
       transcript,
@@ -1067,13 +1048,6 @@ Respond with a JSON object strictly conforming to:
     };
   }
 
-  /**
-   * Extract risk signals from a transcript or meeting notes using AI.
-   * Returns structured risk data for the mentor report's "Risk Intelligence" section.
-   * @param {string} transcript
-   * @param {string} studentName
-   * @returns {Promise<{riskLevel: string, signals: string[], recommendations: string[]}>}
-   */
   async extractRiskSignals(transcript, studentName = 'Student') {
     if (!transcript || transcript.trim().length < 50) {
       return { riskLevel: 'LOW', signals: [], recommendations: [] };

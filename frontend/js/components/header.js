@@ -55,6 +55,8 @@ export function createHeader(title, user, notificationCount = 0) {
   };
 
   const localizedTitle = titleKeyMap[title] ? t(titleKeyMap[title], title) : title;
+  const isDark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
+  const themeIconClass = isDark ? 'ph ph-sun' : 'ph ph-moon';
 
   return `
     <header class="header">
@@ -69,6 +71,9 @@ export function createHeader(title, user, notificationCount = 0) {
       </div>
       <div class="header-actions">
         ${renderLanguageSelector('header')}
+        <button id="global-theme-toggle" type="button" class="lumina-theme-toggle" title="Toggle Light / Dark Theme" aria-label="Toggle theme">
+          <i class="${themeIconClass}" id="global-theme-icon" style="font-size:1.15rem;"></i>
+        </button>
         <button id="global-ai-copilot-btn" type="button" class="btn btn-secondary btn-sm" style="gap:6px; font-weight:600; background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(219,39,119,0.15)); color:#c084fc; border:1px solid rgba(168,85,247,0.35); display:inline-flex; align-items:center;" title="${t('header.copilot_title', 'Open Lumina AI Copilot (Ctrl + /)')}">
           <i class="ph-bold ph-sparkle" style="font-size:1.1rem;color:#c084fc;"></i><span class="header-ai-text"> ${t('header.copilot', 'Copilot')}</span>
         </button>
