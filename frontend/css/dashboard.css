@@ -2509,4 +2509,62 @@
     padding: 8px 12px !important;
     font-size: 0.78rem !important;
   }
-}
+}
+
+/* ── Dashboard Layout & Navigation Polish ── */
+.sidebar {
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-item {
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-item.active {
+  background: var(--accent-light) !important;
+  color: var(--accent) !important;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.sidebar-item:hover:not(.active) {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.header {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-card .stat-value {
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+.modal-backdrop {
+  background: rgba(4, 7, 15, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.modal {
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border) !important;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
