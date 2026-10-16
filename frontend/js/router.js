@@ -66,6 +66,7 @@ function getRoleDashboardPath(role) {
     case 'MENTOR':   return '/mentor/dashboard';
     case 'HOD':      return '/hod/dashboard';
     case 'DEAN':     return '/dean/dashboard';
+    case 'SECTION':
     case 'SECTION_HEAD': return '/section/dashboard';
     case 'ADMIN':    return '/admin/dashboard';
     default:         return '/student/dashboard';

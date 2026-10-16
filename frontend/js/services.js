@@ -568,6 +568,10 @@ export const MeetingService = {
     return snap(await getDoc(doc(db, 'meetings', id)));
   },
 
+  async getById(id) {
+    return this.get(id);
+  },
+
   async getByStudent(studentId) {
     try {
       const q1 = query(collection(db, 'meetings'), where('studentId', '==', studentId));
