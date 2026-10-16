@@ -16,7 +16,7 @@ Set these Render environment variables:
 
 - `FIREBASE_PROJECT_ID`: `mentorv1-848ef`, matching `frontend/js/config.js`.
 - `FIREBASE_CREDENTIALS_JSON`: a service account from that Firebase project with Firebase Authentication and Firestore access.
-- `CORS_ORIGINS`: the exact deployed frontend origin, plus any required local development origins, comma separated. Wildcards are rejected.
+- `CORS_ORIGINS`: the exact deployed frontend origin, plus any required local development origins, comma separated. The Render blueprint allows `https://mentormenteemitadt.netlify.app`; wildcards are rejected.
 - `GROQ_API_KEY` and/or `GEMINI_API_KEY`: optional provider credentials for the authenticated, rate-limited AI proxy. These values are never sent to frontend code.
 
 The only anonymous backend route is `/health`. The authenticated `/api/auth/bootstrap-claims` migration route verifies a Firebase ID token itself; all other `/api` routes have an application-wide Firebase authentication dependency as a backstop, in addition to endpoint role checks. Account signup uses Firebase Authentication in the browser and Firestore rules allow only pending self-created student and faculty profiles. HOD and section-head roles must be assigned by a trusted administrator after approval. The backend no longer exposes a duplicate account-creation route. API documentation routes are disabled.
