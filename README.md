@@ -91,28 +91,28 @@ The platform includes a built-in, Google Meet-style video conferencing tool that
 * `/frontend/index.html`: The main entry point.
 * `/frontend/css/`: Modular stylesheets (`main.css`, `dashboard.css`, `meeting.css`).
 * `/frontend/js/router.js`: Core SPA navigation logic.
-* `/frontend/js/services.js`: The central Firebase Firestore data layer (contains all CRUD operations).
-* `/frontend/js/auth.js`: Firebase Authentication logic and session management.
+* `/frontend/js/services.js`: Client data-service compatibility layer, being migrated to backend endpoints.
+* `/frontend/js/auth.js`: Server-session authentication client.
 * `/frontend/js/pages/`: Controller logic for every specific dashboard view (Admin, Dean, HOD, Mentor, Section, Student).
 * `/frontend/js/webrtc/`: WebRTC peer connection, media capture, and Firestore signaling logic.
 
 ## Local Setup & Deployment
 
-Since the backend Python server has been fully deprecated in favor of Firebase, setup is incredibly simple:
+The backend owns authentication credentials and trusted Firebase access.
 
 1. **Firebase Setup**:
    * Create a Firebase project.
    * Enable **Authentication** (Email/Password).
    * Enable **Firestore Database**.
-2. **Configuration**: Update `frontend/js/config.js` with your Firebase API keys and credentials.
-3. **Local Development**: Run a simple local HTTP server in the frontend directory.
+2. **Configuration**: Set `FIREBASE_WEB_API_KEY` and `FIREBASE_CREDENTIALS_JSON` only in the backend environment. Do not place Firebase keys or credentials in frontend files.
+3. **Local Development**: Run the backend and serve the frontend from an allowed local origin.
 
    ```powershell
    cd frontend
    python -m http.server 4173
    ```
 
-4. **Deployment**: Drag and drop the `frontend/` folder into Netlify, Vercel, or GitHub Pages. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
+4. **Deployment**: Deploy the backend first, set its CORS allow-list to the exact frontend origin, then deploy the frontend. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
 
 For Firebase rule deployment, backend CORS configuration, and administrator claim migration, see [SECURITY.md](SECURITY.md).
 

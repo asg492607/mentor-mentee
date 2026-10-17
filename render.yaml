@@ -16,6 +16,8 @@ services:
         sync: false
       - key: FIREBASE_PROJECT_ID
         value: mentorv1-848ef
+      - key: FIREBASE_WEB_API_KEY
+        sync: false
       - key: LEGACY_SUPER_ADMIN_EMAIL
         value: gandhiatharv565@gmail.com
       - key: GROQ_API_KEY

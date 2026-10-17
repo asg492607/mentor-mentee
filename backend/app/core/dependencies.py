@@ -1,19 +1,25 @@
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.firebase.client import firebase_auth, db
+from app.config import settings
 from app.core.exceptions import UnauthorizedException, ForbiddenException, ServiceUnavailableException
 from app.models.enums import UserRole
 
 security = HTTPBearer(auto_error=False)
 
 def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    if not credentials:
-        raise UnauthorizedException("Authentication required")
     if not firebase_auth or not db:
         raise ServiceUnavailableException("Authentication service is not configured")
     try:
-        token = credentials.credentials
-        decoded_token = firebase_auth.verify_id_token(token, check_revoked=True)
+        # Browser clients use an HttpOnly session cookie. Keep Bearer-token
+        # support for non-browser API consumers.
+        if credentials:
+            decoded_token = firebase_auth.verify_id_token(credentials.credentials, check_revoked=True)
+        else:
+            session_cookie = request.cookies.get(settings.SESSION_COOKIE_NAME)
+            if not session_cookie:
+                raise UnauthorizedException("Authentication required")
+            decoded_token = firebase_auth.verify_session_cookie(session_cookie, check_revoked=True)
         if decoded_token.get("platform_approved") is not True:
             raise ForbiddenException("Account approval is not configured")
         uid = decoded_token.get('uid')

@@ -4,6 +4,11 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = 'serviceAccountKey.json'
     FIREBASE_CREDENTIALS_JSON: str = ''
     FIREBASE_PROJECT_ID: str = 'mentorv1-848ef'
+    # Used only by the backend to exchange an email/password login for a
+    # Firebase session. Never expose this value to the browser.
+    FIREBASE_WEB_API_KEY: str = ''
+    SESSION_COOKIE_NAME: str = 'lumina_session'
+    SESSION_COOKIE_SECURE: bool = True
     LEGACY_SUPER_ADMIN_EMAIL: str = 'gandhiatharv565@gmail.com'
     CORS_ORIGINS: str = 'https://mentormenteemitadt.netlify.app'
     SMTP_HOST: str = 'smtp.gmail.com'

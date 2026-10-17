@@ -14,12 +14,13 @@ Only allowlisted department and class registration metadata remains anonymously 
 
 Set these Render environment variables:
 
-- `FIREBASE_PROJECT_ID`: `mentorv1-848ef`, matching `frontend/js/config.js`.
+- `FIREBASE_PROJECT_ID`: `mentorv1-848ef`.
 - `FIREBASE_CREDENTIALS_JSON`: a service account from that Firebase project with Firebase Authentication and Firestore access.
+- `FIREBASE_WEB_API_KEY`: the Firebase web API key used only by the backend to complete email/password sign-in and password-reset requests. Set it as a secret; do not add it to frontend code.
 - `CORS_ORIGINS`: the exact deployed frontend origin, plus any required local development origins, comma separated. The Render blueprint allows `https://mentormenteemitadt.netlify.app`; wildcards are rejected.
 - `GROQ_API_KEY` and/or `GEMINI_API_KEY`: optional provider credentials for the authenticated, rate-limited AI proxy. These values are never sent to frontend code.
 
-The only anonymous backend route is `/health`. The authenticated `/api/auth/bootstrap-claims` migration route verifies a Firebase ID token itself; all other `/api` routes have an application-wide Firebase authentication dependency as a backstop, in addition to endpoint role checks. Account signup uses Firebase Authentication in the browser and Firestore rules allow only pending self-created student and faculty profiles. HOD and section-head roles must be assigned by a trusted administrator after approval. The backend no longer exposes a duplicate account-creation route. API documentation routes are disabled.
+The only anonymous backend route is `/health`. Browser authentication uses a Secure, HttpOnly Firebase session cookie; the legacy `/api/auth/bootstrap-claims` migration route continues to verify a Firebase ID token itself. All other `/api` routes have an application-wide Firebase authentication dependency as a backstop, in addition to endpoint role checks. Account signup runs on the backend and creates only pending student and faculty profiles. HOD and section-head roles must be assigned by a trusted administrator after approval. API documentation routes are disabled.
 
 ## Administrator accounts
 
@@ -37,4 +38,4 @@ The app cannot reliably tell when browser developer tools are open. VPN/proxy cl
 
 Groq and Gemini keys, browser-side key entry, the shared default passwords for the institutional cell accounts, and the public Drive folder link were removed from frontend code. Old browser-stored AI keys are cleared by the updated client. Revoke and replace any provider keys that were previously committed, reset the affected account passwords, remove link-wide access from existing Drive recordings and folders, and revoke legacy Firebase Storage download tokens; deleting a value from the current files does not invalidate copies in Git history or deployed assets. New Drive uploads grant access to named accounts only. Configure replacement provider keys only in the backend environment.
 
-The Firebase web API key and project configuration must remain in browser code for Firebase client SDKs. That API key is a project identifier, not an authentication token. Restrict it in Google Cloud to the required Firebase APIs and the deployed website referrers, and keep Firebase authorization in the deployed rules.
+The Firebase web API key is held only in the backend environment. Rotate the previously exposed key in Google Cloud, then restrict its replacement to the required Identity Toolkit APIs and backend egress where supported. Do not restore Firebase configuration to browser code.

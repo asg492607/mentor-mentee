@@ -1,7 +1,11 @@
 """
 User authentication, login credentials, and session refresh
 """
-from fastapi import APIRouter, Depends
+from datetime import timedelta
+from typing import Any
+
+import httpx
+from fastapi import APIRouter, Depends, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.config import settings
 from app.firebase.client import firebase_auth, db
@@ -31,6 +35,166 @@ def _get_profile(uid: str):
     if student_doc.exists:
         return 'students', student_doc, student_doc.to_dict() or {}
     return None, None, None
+
+
+def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
+    """Issue claims from a server-verified profile and return that profile."""
+    uid = decoded.get('uid')
+    email = str(decoded.get('email') or '').strip().lower()
+    if not uid:
+        raise UnauthorizedException("Invalid authentication credentials")
+
+    trusted_admin_email = settings.LEGACY_SUPER_ADMIN_EMAIL.strip().lower()
+    profile_collection, _profile_doc, profile = _get_profile(uid)
+    if email and email == trusted_admin_email and decoded.get('email_verified') is True:
+        if profile_collection == 'faculty' and profile.get('role') not in (None, 'ADMIN'):
+            raise ForbiddenException("This administrator account has a conflicting staff profile")
+        profile = {
+            **(profile or {}), 'id': uid, 'email': email,
+            'name': (profile or {}).get('name') or decoded.get('name') or 'Administrator',
+            'role': 'ADMIN', 'status': 'approved', 'isApproved': True,
+            'updatedAt': get_timestamp(),
+        }
+        if not profile.get('createdAt'):
+            profile['createdAt'] = get_timestamp()
+        db.collection('faculty').document(uid).set(profile, merge=True)
+        firebase_auth.set_custom_user_claims(uid, claims_for_account('ADMIN', True))
+        return profile
+
+    if not profile:
+        raise ForbiddenException("User profile not found. Register first or contact your administrator.")
+    role = str(profile.get('role') or '').upper()
+    approved = str(profile.get('status') or '').lower() == 'approved' and profile.get('isApproved') is True
+    if not approved:
+        raise ForbiddenException("Your account is pending approval by your department administrator.")
+    if role not in {'STUDENT', 'FACULTY', 'MENTOR'}:
+        raise ForbiddenException("This privileged account needs trusted administrator provisioning.")
+    if (role == 'STUDENT') != (profile_collection == 'students'):
+        raise ForbiddenException("Account role does not match its profile")
+    if str(profile.get('email') or '').strip().lower() not in {'', email}:
+        raise ForbiddenException("Account email does not match its profile")
+    firebase_auth.set_custom_user_claims(uid, claims_for_account(role, True))
+    return {**profile, 'id': uid}
+
+
+def _identity_request(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if not settings.FIREBASE_WEB_API_KEY:
+        raise ServiceUnavailableException("Server authentication is not configured")
+    try:
+        response = httpx.post(
+            f"https://identitytoolkit.googleapis.com/v1/accounts:{action}?key={settings.FIREBASE_WEB_API_KEY}",
+            json=payload,
+            timeout=15,
+        )
+    except httpx.HTTPError:
+        raise ServiceUnavailableException("Authentication service is temporarily unavailable")
+    if response.status_code >= 400:
+        error = response.json().get('error', {}).get('message', 'Authentication failed')
+        raise UnauthorizedException(error.replace('_', ' ').lower())
+    return response.json()
+
+
+def _set_session(response: Response, id_token: str) -> None:
+    try:
+        session_cookie = firebase_auth.create_session_cookie(id_token, expires_in=timedelta(days=5))
+    except Exception:
+        raise ServiceUnavailableException("Unable to create a secure session")
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=session_cookie,
+        max_age=5 * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite='none',
+        path='/',
+    )
+
+
+@router.post('/login')
+def login_with_server_session(payload: dict[str, Any], response: Response):
+    """Authenticate without ever sending the Firebase Web API key to a browser."""
+    if not firebase_auth or not db:
+        raise ServiceUnavailableException("Authentication service is not configured")
+    email = str(payload.get('email') or '').strip().lower()
+    password = str(payload.get('password') or '')
+    if not email or not password:
+        raise UnauthorizedException("Email and password are required")
+    sign_in = _identity_request('signInWithPassword', {
+        'email': email, 'password': password, 'returnSecureToken': True,
+    })
+    try:
+        decoded = firebase_auth.verify_id_token(sign_in['idToken'], check_revoked=True)
+        profile = _provision_claims(decoded)
+        # Claims are minted by the Admin SDK. Exchange a custom token so the
+        # session contains the newly issued claims immediately.
+        custom_token = firebase_auth.create_custom_token(decoded['uid']).decode('utf-8')
+        refreshed = _identity_request('signInWithCustomToken', {
+            'token': custom_token, 'returnSecureToken': True,
+        })
+        _set_session(response, refreshed['idToken'])
+    except (ForbiddenException, UnauthorizedException, ServiceUnavailableException):
+        raise
+    except Exception:
+        raise UnauthorizedException("Unable to verify this account")
+    return {'profile': profile}
+
+
+@router.post('/logout', status_code=204)
+def logout_server_session(response: Response):
+    response.delete_cookie(settings.SESSION_COOKIE_NAME, path='/', samesite='none', secure=settings.SESSION_COOKIE_SECURE)
+
+
+@router.post('/password-reset', status_code=204)
+def password_reset(payload: dict[str, Any]):
+    email = str(payload.get('email') or '').strip().lower()
+    if not email:
+        raise UnauthorizedException("Email is required")
+    _identity_request('sendOobCode', {'requestType': 'PASSWORD_RESET', 'email': email})
+
+
+@router.post('/register')
+def register_account(payload: dict[str, Any]):
+    """Create pending self-registration accounts with the Admin SDK only."""
+    if not firebase_auth or not db:
+        raise ServiceUnavailableException("Registration service is not configured")
+    email = str(payload.get('email') or '').strip().lower()
+    password = str(payload.get('password') or '')
+    role = str(payload.get('role') or '').upper()
+    profile_input = payload.get('profile') or {}
+    if role not in {'STUDENT', 'FACULTY'}:
+        raise ForbiddenException("Only student and faculty accounts can self-register")
+    if not email or len(password) < 6 or not str(profile_input.get('name') or '').strip():
+        raise UnauthorizedException("Provide a name, valid email address, and a password of at least 6 characters")
+    try:
+        user = firebase_auth.create_user(email=email, password=password)
+    except Exception as exc:
+        message = str(exc).lower()
+        if 'already exists' in message or 'email already' in message:
+            raise UnauthorizedException("This email is already registered")
+        raise ServiceUnavailableException("Unable to create the account")
+
+    profile = {
+        'id': user.uid, 'email': email, 'name': str(profile_input['name']).strip(),
+        'role': role, 'department': profile_input.get('department') or None,
+        'createdAt': get_timestamp(), 'updatedAt': get_timestamp(),
+        'status': 'pending', 'isApproved': False,
+    }
+    if role == 'STUDENT':
+        profile.update({
+            'year': profile_input.get('year'), 'class': profile_input.get('class') or None,
+            'enrollmentNumber': profile_input.get('enrollmentNumber') or None,
+            'cgpa': 0, 'attendance': 0, 'riskLevel': 'LOW', 'mentorId': None,
+        })
+        collection = 'students'
+    else:
+        profile.update({
+            'designation': profile_input.get('designation') or None,
+            'employeeId': profile_input.get('employeeId') or None,
+            'maxStudents': 20, 'assignedStudentCount': 0,
+        })
+        collection = 'faculty'
+    db.collection(collection).document(user.uid).set(profile)
+    return {'profile': profile}
 
 
 @router.post("/bootstrap-claims")
