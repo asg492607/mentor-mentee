@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     FIREBASE_WEB_API_KEY: str = ''
     SESSION_COOKIE_NAME: str = 'lumina_session'
     SESSION_COOKIE_SECURE: bool = True
-    LEGACY_SUPER_ADMIN_EMAIL: str = 'gandhiatharv565@gmail.com'
+    LEGACY_SUPER_ADMIN_EMAIL: str = ''
     CORS_ORIGINS: str = 'https://mentormenteemitadt.netlify.app'
     SMTP_HOST: str = 'smtp.gmail.com'
     SMTP_PORT: int = 587

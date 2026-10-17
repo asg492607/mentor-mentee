@@ -91,6 +91,14 @@ class DriveService:
         creds = self._get_credentials()
         if not creds:
             return None
+        try:
+            import google.auth.transport.requests
+            request = google.auth.transport.requests.Request()
+            creds.refresh(request)
+            return creds.token
+        except Exception as e:
+            logger.error(f"Failed to refresh Drive access token: {e}")
+            return None
 
     async def share_file_with_users(self, file_id: str, email_addresses: list[str]) -> None:
         """Grant reader access to named institutional accounts; never enable link-wide access."""
@@ -113,14 +121,6 @@ class DriveService:
                 except Exception as error:
                     logger.warning("Could not grant recording access to an authorized user: %s", error)
 
-        try:
-            import google.auth.transport.requests
-            request = google.auth.transport.requests.Request()
-            creds.refresh(request)
-            return creds.token
-        except Exception as e:
-            logger.error(f"Failed to refresh Drive access token: {e}")
-            return None
 
     async def upload_recording(
         self,

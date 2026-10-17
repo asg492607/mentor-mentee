@@ -5,7 +5,9 @@ from datetime import timedelta
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, Response
+import time
+from collections import defaultdict, deque
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.config import settings
 from app.firebase.client import firebase_auth, db
@@ -17,6 +19,19 @@ from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 token_security = HTTPBearer(auto_error=False)
+_auth_rate_limits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+
+def _auth_rate_limit(key: str, action: str, maximum: int, seconds: int) -> None:
+    now = time.monotonic()
+    requests = _auth_rate_limits[(key, action)]
+    while requests and now - requests[0] > seconds:
+        requests.popleft()
+    if len(requests) >= maximum:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many authentication attempts. Please try again shortly."
+        )
+    requests.append(now)
 
 
 def _get_profile(uid: str):
@@ -46,7 +61,7 @@ def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
 
     trusted_admin_email = settings.LEGACY_SUPER_ADMIN_EMAIL.strip().lower()
     profile_collection, _profile_doc, profile = _get_profile(uid)
-    if email and email == trusted_admin_email and decoded.get('email_verified') is True:
+    if trusted_admin_email and email == trusted_admin_email and decoded.get('email_verified') is True:
         if profile_collection == 'faculty' and profile.get('role') not in (None, 'ADMIN'):
             raise ForbiddenException("This administrator account has a conflicting staff profile")
         profile = {
@@ -90,6 +105,8 @@ def _identity_request(action: str, payload: dict[str, Any]) -> dict[str, Any]:
         raise ServiceUnavailableException("Authentication service is temporarily unavailable")
     if response.status_code >= 400:
         error = response.json().get('error', {}).get('message', 'Authentication failed')
+        if action == 'signInWithPassword':
+            raise UnauthorizedException("Invalid email or password")
         raise UnauthorizedException(error.replace('_', ' ').lower())
     return response.json()
 
@@ -111,11 +128,15 @@ def _set_session(response: Response, id_token: str) -> None:
 
 
 @router.post('/login')
-def login_with_server_session(payload: dict[str, Any], response: Response):
+def login_with_server_session(payload: dict[str, Any], response: Response, request: Request):
     """Authenticate without ever sending the Firebase Web API key to a browser."""
+    client_ip = request.client.host if request.client else "unknown"
+    _auth_rate_limit(client_ip, "login_ip", maximum=10, seconds=60)
     if not firebase_auth or not db:
         raise ServiceUnavailableException("Authentication service is not configured")
     email = str(payload.get('email') or '').strip().lower()
+    if email:
+        _auth_rate_limit(email, "login_account", maximum=6, seconds=60)
     password = str(payload.get('password') or '')
     if not email or not password:
         raise UnauthorizedException("Email and password are required")
@@ -145,16 +166,22 @@ def logout_server_session(response: Response):
 
 
 @router.post('/password-reset', status_code=204)
-def password_reset(payload: dict[str, Any]):
+def password_reset(payload: dict[str, Any], request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _auth_rate_limit(client_ip, "password_reset", maximum=4, seconds=60)
     email = str(payload.get('email') or '').strip().lower()
+    if email:
+        _auth_rate_limit(email, "password_reset_account", maximum=3, seconds=60)
     if not email:
         raise UnauthorizedException("Email is required")
     _identity_request('sendOobCode', {'requestType': 'PASSWORD_RESET', 'email': email})
 
 
 @router.post('/register')
-def register_account(payload: dict[str, Any]):
+def register_account(payload: dict[str, Any], request: Request):
     """Create pending self-registration accounts with the Admin SDK only."""
+    client_ip = request.client.host if request.client else "unknown"
+    _auth_rate_limit(client_ip, "register_ip", maximum=5, seconds=60)
     if not firebase_auth or not db:
         raise ServiceUnavailableException("Registration service is not configured")
     email = str(payload.get('email') or '').strip().lower()
@@ -228,7 +255,7 @@ def bootstrap_legacy_claims(credentials: HTTPAuthorizationCredentials = Depends(
 
     # Preserve the repository's former root-admin account, but bind the exception
     # to its verified Firebase email and provision the role only on the server.
-    if email and email == trusted_admin_email and decoded.get('email_verified') is True:
+    if trusted_admin_email and email == trusted_admin_email and decoded.get('email_verified') is True:
         if profile_collection == 'faculty' and profile.get('role') not in (None, 'ADMIN'):
             raise ForbiddenException("This administrator account has a conflicting staff profile")
         admin_profile = {

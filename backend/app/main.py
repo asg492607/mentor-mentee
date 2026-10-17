@@ -4,6 +4,8 @@ FastAPI application factory, CORS policies, and routing mount
 from contextlib import asynccontextmanager
 from time import perf_counter
 from fastapi import Depends, FastAPI, Request
+from fastapi.responses import PlainTextResponse
+from urllib.parse import urlparse
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -70,6 +72,29 @@ for api_router in api_routers:
     else:
         app.include_router(api_router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(websocket_router, prefix="/ws")
+
+
+@app.middleware("http")
+async def verify_csrf_and_origin(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        candidate = origin
+        if not candidate and referer:
+            parsed = urlparse(referer)
+            candidate = f"{parsed.scheme}://{parsed.netloc}"
+
+        allowed = set(settings.cors_origins_list)
+        allowed.update({
+            "http://localhost:5000", "http://127.0.0.1:5000",
+            "http://localhost:5500", "http://127.0.0.1:5500",
+            "http://localhost:3000", "http://127.0.0.1:3000",
+        })
+
+        if candidate and candidate not in allowed:
+            return PlainTextResponse("Cross-site request blocked: untrusted origin", status_code=403)
+
+    return await call_next(request)
 
 
 @app.middleware("http")
