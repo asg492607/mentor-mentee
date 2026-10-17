@@ -129,6 +129,22 @@ export const translations = {
     'login.reset_desc': 'Enter your registered email address and we will send you a link to reset your password.',
     'login.send_reset_link': 'Send Reset Link',
 
+    // Terms, Privacy & Security Disclaimer
+    'auth.terms_agreement_prefix': 'I have read and agree to the',
+    'auth.terms_conditions': 'Terms & Conditions',
+    'auth.and': '&',
+    'auth.privacy_policy': 'Privacy Policy',
+    'auth.important_notice': 'Important Liability Disclaimer',
+    'auth.liability_disclaimer_short': 'Security Disclaimer: In the event of cyber attacks, unauthorized breaches, zero-day exploits, or data leaks perpetrated by malicious third parties, Lumina and the institution are not liable; the individual or entity committing such acts bears sole legal responsibility.',
+    'auth.read_full_disclaimer': 'Read Full Terms →',
+    'auth.must_accept_terms': 'Please review and accept the Terms & Conditions and Privacy Policy to proceed.',
+    'auth.terms_modal_title': 'Terms of Service, Privacy Policy & Security Disclaimer',
+    'auth.tab_terms': 'Terms & Conditions',
+    'auth.tab_privacy': 'Privacy Policy',
+    'auth.tab_security': 'Cybersecurity & Liability Disclaimer',
+    'auth.accept_terms_btn': 'I Understand & Accept',
+    'auth.last_updated': 'Last Updated',
+
     // Registration Page
     'register.title': 'Join Lumina',
     'register.subtitle': 'Create your academic profile to connect with mentors & advisors',
@@ -521,6 +537,22 @@ export const translations = {
     'login.reset_desc': 'आपला नोंदणीकृत ईमेल प्रविष्ट करा, पासवर्ड बदलण्यासाठी लिंक पाठवली जाईल.',
     'login.send_reset_link': 'रीसेट लिंक पाठवा',
 
+    // Terms, Privacy & Security Disclaimer
+    'auth.terms_agreement_prefix': 'मी',
+    'auth.terms_conditions': 'अटी व शर्ती',
+    'auth.and': 'आणि',
+    'auth.privacy_policy': 'गोपनीयता धोरण',
+    'auth.important_notice': 'महत्त्वाचे दायित्व अस्वीकरण',
+    'auth.liability_disclaimer_short': 'सुरक्षा अस्वीकरण: कोणत्याही सायबर हल्ल्यात किंवा बाह्य हॅकर्सद्वारे डेटा लीक झाल्यास प्लॅटफॉर्म किंवा संस्था जबाबदार असणार नाही; असा हल्ला किंवा गैरवापर करणारा स्वतः पूर्णपणे जबाबदार असेल.',
+    'auth.read_full_disclaimer': 'संपूर्ण अटी वाचा →',
+    'auth.must_accept_terms': 'कृपया पुढे जाण्यासाठी अटी व शर्ती आणि गोपनीयता धोरण स्वीकारा.',
+    'auth.terms_modal_title': 'सेवा अटी, गोपनीयता धोरण आणि सुरक्षा अस्वीकरण',
+    'auth.tab_terms': 'अटी व शर्ती',
+    'auth.tab_privacy': 'गोपनीयता धोरण',
+    'auth.tab_security': 'सायबर सुरक्षा व दायित्व अस्वीकरण',
+    'auth.accept_terms_btn': 'मला मान्य आहे',
+    'auth.last_updated': 'शेवटचे अद्यतन',
+
     // Registration Page
     'register.title': 'ल्युमिनामध्ये सामील व्हा',
     'register.subtitle': 'मार्गदर्शक आणि प्राध्यापकांशी जोडण्यासाठी आपले खाते तयार करा',
@@ -912,6 +944,22 @@ export const translations = {
     'login.reset_title': 'पासवर्ड रीसेट करें',
     'login.reset_desc': 'अपना पंजीकृत ईमेल दर्ज करें और हम पासवर्ड रीसेट करने का लिंक भेजेंगे।',
     'login.send_reset_link': 'रीसेट लिंक भेजें',
+
+    // Terms, Privacy & Security Disclaimer
+    'auth.terms_agreement_prefix': 'मैंने',
+    'auth.terms_conditions': 'नियम व शर्तें',
+    'auth.and': 'और',
+    'auth.privacy_policy': 'गोपनीयता नीति',
+    'auth.important_notice': 'महत्वपूर्ण दायित्व अस्वीकरण',
+    'auth.liability_disclaimer_short': 'सुरक्षा अस्वीकरण: दुर्भावनापूर्ण तीसरे पक्षों द्वारा साइबर हमले या डेटा लीक होने की स्थिति में प्लेटफ़ॉर्म और संस्थान ज़िम्मेदार नहीं होंगे; ऐसा हमला या हानि पहुँचाने वाला व्यक्ति स्वयं पूर्ण रूप से ज़िम्मेदार होगा।',
+    'auth.read_full_disclaimer': 'संपूर्ण नियम व शर्तें पढ़ें →',
+    'auth.must_accept_terms': 'कृपया आगे बढ़ने के लिए नियम व शर्तें और गोपनीयता नीति स्वीकार करें।',
+    'auth.terms_modal_title': 'सेवा की शर्तें, गोपनीयता नीति एवं सुरक्षा अस्वीकरण',
+    'auth.tab_terms': 'नियम व शर्तें',
+    'auth.tab_privacy': 'गोपनीयता नीति',
+    'auth.tab_security': 'साइबर सुरक्षा एवं दायित्व अस्वीकरण',
+    'auth.accept_terms_btn': 'मुझे स्वीकार है',
+    'auth.last_updated': 'अंतिम अद्यतन',
 
     // Registration Page
     'register.title': 'ल्यूमिना से जुड़ें',

@@ -6,6 +6,7 @@ import { login, forgotPassword } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
 import { t, renderLanguageSelector } from '../i18n.js';
+import { renderTermsCheckbox, initTermsTriggers } from '../components/terms-modal.js';
 
 export async function render(container) {
   container.innerHTML = `
@@ -43,6 +44,8 @@ export async function render(container) {
             </div>
             <input type="password" id="password" class="form-input" placeholder="${t('login.password_placeholder', '••••••••')}" required>
           </div>
+
+          ${renderTermsCheckbox({ id: 'login-terms-agree', required: true })}
 
           <button type="submit" class="btn btn-primary w-full btn-lg mt-6" id="login-btn">
             ${t('login.sign_in', 'Sign In')}
@@ -123,10 +126,17 @@ export async function render(container) {
     }
   });
 
+  initTermsTriggers(container, 'login-terms-agree');
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    const termsAgree = document.getElementById('login-terms-agree');
+    if (!termsAgree || !termsAgree.checked) {
+      showToast(t('auth.must_accept_terms', 'Please review and accept the Terms & Conditions and Privacy Policy to proceed.'), 'warning');
+      return;
+    }
 
     if (!email || !password) {
       showToast('Please enter both email and password.', 'warning');

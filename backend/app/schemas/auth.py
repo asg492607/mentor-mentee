@@ -13,6 +13,7 @@ class RegisterRequest(BaseModel):
     rollNumber: Optional[str] = None
     designation: Optional[str] = None
     employeeId: Optional[str] = None
+    termsAccepted: Optional[bool] = False
 
 class UserProfileResponse(BaseModel):
     uid: str

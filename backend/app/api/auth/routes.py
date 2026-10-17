@@ -165,6 +165,9 @@ def register_account(payload: dict[str, Any]):
         raise ForbiddenException("Only student and faculty accounts can self-register")
     if not email or len(password) < 6 or not str(profile_input.get('name') or '').strip():
         raise UnauthorizedException("Provide a name, valid email address, and a password of at least 6 characters")
+    terms_accepted = bool(payload.get('termsAccepted') or profile_input.get('termsAccepted'))
+    if not terms_accepted:
+        raise UnauthorizedException("You must accept the Terms & Conditions and Privacy Policy to register")
     try:
         user = firebase_auth.create_user(email=email, password=password)
     except Exception as exc:
@@ -178,6 +181,7 @@ def register_account(payload: dict[str, Any]):
         'role': role, 'department': profile_input.get('department') or None,
         'createdAt': get_timestamp(), 'updatedAt': get_timestamp(),
         'status': 'pending', 'isApproved': False,
+        'termsAccepted': True, 'termsAcceptedAt': get_timestamp(),
     }
     if role == 'STUDENT':
         profile.update({
