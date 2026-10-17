@@ -1,7 +1,6 @@
 // Browser authentication is backed by a Secure, HttpOnly session cookie.
 // No Firebase client SDK or Firebase configuration is loaded in this module.
 import { API_BASE_URL } from './config.js';
-import { navigateTo } from './router.js';
 
 let cachedUserProfile = null;
 const authListeners = new Set();
@@ -36,7 +35,9 @@ export async function logout() {
   await request('/api/auth/logout', { method: 'POST' });
   cachedUserProfile = null;
   notify();
-  navigateTo('/login');
+  // Avoid importing the router here: router.js imports auth.js during app
+  // startup, and the reciprocal import leaves auth state uninitialized.
+  window.location.hash = '/login';
 }
 
 export function getCurrentUser() {
