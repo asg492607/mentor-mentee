@@ -4,7 +4,6 @@ import { register } from '../auth.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
 import { t, renderLanguageSelector } from '../i18n.js';
-import { renderTermsCheckbox, initTermsTriggers } from '../components/terms-modal.js';
 
 // No longer need PRIVILEGED_ROLES here — auth.js handles all approval logic
 
@@ -114,8 +113,6 @@ export async function render(container) {
             </div>
           </div>
 
-          ${renderTermsCheckbox({ id: 'register-terms-agree', required: true })}
-
           <button type="submit" class="btn btn-primary w-full btn-lg mt-6" id="register-btn">
             ${t('register.submit', 'Create Account')}
           </button>
@@ -217,16 +214,8 @@ export async function render(container) {
     }
   });
 
-  initTermsTriggers(container, 'register-terms-agree');
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    const termsAgree = document.getElementById('register-terms-agree');
-    if (!termsAgree || !termsAgree.checked) {
-      showToast(t('auth.must_accept_terms', 'Please review and accept the Terms & Conditions and Privacy Policy to proceed.'), 'warning');
-      return;
-    }
 
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
@@ -241,12 +230,8 @@ export async function render(container) {
       email: document.getElementById('email').value.trim(),
       password: password,
       role: role,
-      termsAccepted: true,
-      termsAcceptedAt: new Date().toISOString(),
       profile: {
         name: document.getElementById('name').value.trim(),
-        termsAccepted: true,
-        termsAcceptedAt: new Date().toISOString()
       }
     };
 
