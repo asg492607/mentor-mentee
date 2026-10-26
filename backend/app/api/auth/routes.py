@@ -85,7 +85,7 @@ def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
     approved = str(profile.get('status') or '').lower() == 'approved' and profile.get('isApproved') is True
     if not approved:
         raise ForbiddenException("Your account is pending approval by your department administrator.")
-    if role not in {'STUDENT', 'FACULTY', 'MENTOR'}:
+    if role not in {'STUDENT', 'FACULTY', 'MENTOR', 'ADMIN', 'HOD', 'DEAN', 'SECTION_HEAD'}:
         raise ForbiddenException("This privileged account needs trusted administrator provisioning.")
     if (role == 'STUDENT') != (profile_collection == 'students'):
         raise ForbiddenException("Account role does not match its profile")
@@ -293,7 +293,7 @@ def bootstrap_legacy_claims(credentials: HTTPAuthorizationCredentials = Depends(
 
     # Existing ordinary accounts can be migrated from their own approved profile.
     # Legacy privileged roles are never inferred from a client-editable profile.
-    if role not in {'STUDENT', 'FACULTY', 'MENTOR'}:
+    if role not in {'STUDENT', 'FACULTY', 'MENTOR', 'ADMIN', 'HOD', 'DEAN', 'SECTION_HEAD'}:
         raise ForbiddenException("This privileged account needs trusted administrator provisioning.")
     if (role == 'STUDENT') != (profile_collection == 'students'):
         raise ForbiddenException("Account role does not match its profile")
