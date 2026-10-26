@@ -156,10 +156,10 @@ async function handleRoute() {
     const role = String(profile.role).toUpperCase();
     const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
 
-    // 🔒 Mandatory 25% Booklet Lock for Students: Block all other pages until 25% filled!
+    // 🔒 Mandatory 25% Booklet Lock for Students: Disabled for now
+    /*
     if (role === 'STUDENT') {
       try {
-        // Wait briefly for Firebase client auth to sync before querying Firestore.
         const { auth } = await import('./firebase-init.js');
         if (auth && !auth.currentUser) {
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -176,6 +176,7 @@ async function handleRoute() {
         console.warn('Booklet completion route check warning:', err);
       }
     }
+    */
 
     if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));

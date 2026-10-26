@@ -79,7 +79,8 @@ export async function render(container) {
     const content = container.querySelector('#dash-content');
     if (!content) return;
 
-    const isBookletIncomplete = bookletCompletionPct < 25;
+    // Mandatory 25% Booklet Lock disabled for now
+    const isBookletIncomplete = false;
 
     content.innerHTML = `
       <div class="dashboard-container">
