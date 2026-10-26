@@ -15,7 +15,8 @@ async function fetchWithAuth(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${API_BASE_URL}${path}`;
+  const normalizedPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
   
   const response = await fetch(url, {
     ...options,

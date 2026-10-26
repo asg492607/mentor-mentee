@@ -1,15 +1,21 @@
-// Browser authentication is backed by a Secure, HttpOnly session cookie.
-// No Firebase client SDK or Firebase configuration is loaded in this module.
+// Browser authentication is backed by a Secure, HttpOnly session cookie
+// and synchronized with the Firebase Client SDK for realtime Firestore queries.
 import { API_BASE_URL } from './config.js';
 
 let cachedUserProfile = null;
 const authListeners = new Set();
 
 async function request(path, options = {}) {
+  const token = await getIdToken().catch(() => null);
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  };
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.detail || body.message || 'Authentication request failed');
@@ -17,12 +23,17 @@ async function request(path, options = {}) {
 }
 
 function notify() {
-  for (const listener of authListeners) listener(cachedUserProfile ? { uid: cachedUserProfile.id || cachedUserProfile.uid } : null);
+  const currentUser = getCurrentUser();
+  for (const listener of authListeners) listener(currentUser);
 }
 
 export async function login(email, password) {
   const result = await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-  cachedUserProfile = result.profile;
+  cachedUserProfile = { ...result.profile, id: result.profile.id || result.profile.uid };
+  try {
+    localStorage.setItem('lumina_profile', JSON.stringify(cachedUserProfile));
+  } catch (_) {}
+
   if (result.customToken) {
     try {
       const { auth } = await import('./firebase-init.js');
@@ -48,30 +59,75 @@ export async function logout() {
     await signOut(auth);
   } catch (_) {}
   cachedUserProfile = null;
+  try {
+    localStorage.removeItem('lumina_profile');
+  } catch (_) {}
   notify();
-  // Avoid importing the router here: router.js imports auth.js during app
-  // startup, and the reciprocal import leaves auth state uninitialized.
   window.location.hash = '/login';
 }
 
 export function getCurrentUser() {
-  return cachedUserProfile ? { uid: cachedUserProfile.id || cachedUserProfile.uid } : null;
+  if (cachedUserProfile) {
+    return { uid: cachedUserProfile.id || cachedUserProfile.uid, email: cachedUserProfile.email };
+  }
+  try {
+    const raw = localStorage.getItem('lumina_profile');
+    if (raw) {
+      const p = JSON.parse(raw);
+      return { uid: p.id || p.uid, email: p.email };
+    }
+  } catch (_) {}
+  return null;
 }
 
-// Tokens deliberately never enter JavaScript; requests use the HttpOnly cookie.
-export async function getIdToken() { return null; }
+export async function getIdToken() {
+  try {
+    const { auth } = await import('./firebase-init.js');
+    if (auth && auth.currentUser) {
+      return await auth.currentUser.getIdToken();
+    }
+  } catch (_) {}
+  return null;
+}
 
 export function onAuthChange(callback) {
   authListeners.add(callback);
+  
+  import('./firebase-init.js').then(({ auth }) => {
+    if (auth) {
+      import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js').then(({ onAuthStateChanged }) => {
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            await fetchUserProfile().catch(() => {});
+          }
+          callback(getCurrentUser());
+        });
+      }).catch(() => {});
+    }
+  }).catch(() => {});
+
   fetchUserProfile().finally(() => callback(getCurrentUser()));
   return () => authListeners.delete(callback);
 }
 
-export function getUserProfile() { return cachedUserProfile; }
+export function getUserProfile() {
+  if (cachedUserProfile) return cachedUserProfile;
+  try {
+    const raw = localStorage.getItem('lumina_profile');
+    if (raw) {
+      cachedUserProfile = JSON.parse(raw);
+      return cachedUserProfile;
+    }
+  } catch (_) {}
+  return null;
+}
 
 export async function updateUserProfileData(updates) {
   if (!cachedUserProfile) return null;
   cachedUserProfile = { ...cachedUserProfile, ...updates };
+  try {
+    localStorage.setItem('lumina_profile', JSON.stringify(cachedUserProfile));
+  } catch (_) {}
   return cachedUserProfile;
 }
 
@@ -79,10 +135,12 @@ export async function fetchUserProfile() {
   try {
     const profile = await request('/api/auth/me');
     cachedUserProfile = { ...profile, id: profile.id || profile.uid };
+    try {
+      localStorage.setItem('lumina_profile', JSON.stringify(cachedUserProfile));
+    } catch (_) {}
     return cachedUserProfile;
   } catch (_) {
-    cachedUserProfile = null;
-    return null;
+    return getUserProfile();
   }
 }
 
