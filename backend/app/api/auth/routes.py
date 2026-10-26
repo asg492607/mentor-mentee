@@ -161,7 +161,7 @@ def login_with_server_session(payload: dict[str, Any], response: Response, reque
     except Exception as exc:
         logger.exception("Login verification failed: %s", exc)
         raise UnauthorizedException(f"Unable to verify this account: {str(exc)}")
-    return {'profile': profile}
+    return {'profile': profile, 'customToken': custom_token}
 
 
 @router.post('/logout', status_code=204)

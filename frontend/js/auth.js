@@ -23,6 +23,15 @@ function notify() {
 export async function login(email, password) {
   const result = await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   cachedUserProfile = result.profile;
+  if (result.customToken) {
+    try {
+      const { auth } = await import('./firebase-init.js');
+      const { signInWithCustomToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      await signInWithCustomToken(auth, result.customToken);
+    } catch (e) {
+      console.warn('Firebase client sign-in notice:', e);
+    }
+  }
   notify();
   return cachedUserProfile;
 }
@@ -32,7 +41,12 @@ export async function register(data) {
 }
 
 export async function logout() {
-  await request('/api/auth/logout', { method: 'POST' });
+  await request('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  try {
+    const { auth } = await import('./firebase-init.js');
+    const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+    await signOut(auth);
+  } catch (_) {}
   cachedUserProfile = null;
   notify();
   // Avoid importing the router here: router.js imports auth.js during app
