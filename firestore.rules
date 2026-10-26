@@ -9,433 +9,99 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    function studentPath(userId) {
-      return /databases/$(database)/documents/students/$(userId);
-    }
-
-    function facultyPath(userId) {
-      return /databases/$(database)/documents/faculty/$(userId);
-    }
-
-    function hasStudentProfile(userId) {
-      return exists(studentPath(userId));
-    }
-
-    function hasFacultyProfile(userId) {
-      return exists(facultyPath(userId));
-    }
-
-    function studentProfile(userId) {
-      return get(studentPath(userId)).data;
-    }
-
-    function facultyProfile(userId) {
-      return get(facultyPath(userId)).data;
-    }
-
-    function isApprovedStudent(userId) {
-      return signedIn();
-    }
-
-    function isApprovedFaculty(userId) {
-      return signedIn();
-    }
-
-    function isApprovedUser() {
-      return signedIn();
-    }
-
-    function isAdmin() {
-      return signedIn() && (
-        request.auth.token.admin == true
-        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'ADMIN')
-      );
-    }
-
-    function isDean() {
-      return signedIn() && (
-        request.auth.token.platform_role == 'DEAN'
-        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'DEAN')
-      );
-    }
-
-    function isHOD() {
-      return signedIn() && (
-        request.auth.token.platform_role == 'HOD'
-        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'HOD')
-      );
-    }
-
-    function isSectionHead() {
-      return signedIn() && (
-        request.auth.token.platform_role == 'SECTION_HEAD'
-        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'SECTION_HEAD')
-      );
-    }
-
-    function isFaculty() {
-      return signedIn();
-    }
-
-    function isAssignedMentorProfile(facultyId) {
-      return isApprovedStudent(uid()) && facultyId in [
-        studentProfile(uid()).mentorId,
-        studentProfile(uid()).secondaryMentorId
-      ];
-    }
-
-    function isHODForDepartment(department) {
-      return isHOD() && facultyProfile(uid()).department == department;
-    }
-
-    function isAssignedMentor(student) {
-      return isFaculty() && (
-        student.mentorId == uid()
-        || student.secondaryMentorId == uid()
-        || (student.mentorIds is list && uid() in student.mentorIds)
-      );
-    }
-
-    function canReadStudent(studentId, student) {
-      return isApprovedUser() && (
-        isAdmin() || isDean() || uid() == studentId
-        || isHODForDepartment(student.department)
-        || isAssignedMentor(student)
-      );
-    }
-
-    function canAccessMeeting(meeting) {
-      return isApprovedUser() && (
-        meeting.studentId == uid()
-        || meeting.mentorId == uid()
-        || (
-          meeting.studentId == 'ALL'
-          && isApprovedStudent(uid())
-          && meeting.mentorId in [studentProfile(uid()).mentorId, studentProfile(uid()).secondaryMentorId]
-        )
-        || isAdmin() || isDean()
-        || isHODForDepartment(meeting.department)
-      );
-    }
-
-    function hasLegacyPrivateMeetingData(meeting) {
-      return meeting.keys().hasAny(['aiNotes', 'report', 'transcript', 'extractedSentences'])
-        || (meeting.notes is map && meeting.notes.keys().hasAny([
-          'confidentialObservations', 'confidentialNotes', 'transcript', 'extractedSentences'
-        ]));
-    }
-
-    function canReadMeeting(meeting) {
-      return canAccessMeeting(meeting)
-        && !(isApprovedStudent(uid()) && hasLegacyPrivateMeetingData(meeting));
-    }
-
-    function canAccessIssue(issue) {
-      return isApprovedUser() && (
-        issue.studentId == uid() || issue.mentorId == uid()
-        || isAdmin() || isDean()
-        || isHODForDepartment(issue.department)
-        || (isSectionHead() && issue.escalationLevel == facultyProfile(uid()).department)
-      );
-    }
-
-    function canAccessChat(chat) {
-      return isApprovedUser() && (
-        chat.studentId == uid()
-        || chat.mentorId == uid()
-        || (
-          chat.studentId == 'ALL'
-          && isApprovedStudent(uid())
-          && uid() in chat.studentIds
-          && chat.mentorId in [studentProfile(uid()).mentorId, studentProfile(uid()).secondaryMentorId]
-        )
-      );
-    }
-
-    // Student profiles: only the student, assigned staff, and authorized administrators can read them.
+    // Students collection
     match /students/{studentId} {
-      allow get: if signedIn() && (
-        uid() == studentId
-        || (resource.data.status == 'approved' && resource.data.isApproved == true && canReadStudent(studentId, resource.data))
-      );
-      allow list: if isAdmin() || isDean()
-        || isHODForDepartment(resource.data.department)
-        || (isApprovedFaculty(uid()) && (
-          resource.data.mentorId == uid()
-          || resource.data.secondaryMentorId == uid()
-          || (resource.data.mentorIds is list && uid() in resource.data.mentorIds)
-        ));
-      allow create: if isAdmin() || (
-        signedIn() && uid() == studentId
-        && request.resource.data.role == 'STUDENT'
-        && request.resource.data.id == studentId
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.status == 'pending'
-        && request.resource.data.isApproved == false
-        && request.resource.data.cgpa == 0
-        && request.resource.data.attendance == 0
-        && request.resource.data.riskLevel == 'LOW'
-        && request.resource.data.mentorId == null
-        && request.resource.data.keys().hasOnly([
-          'id', 'email', 'name', 'role', 'department', 'createdAt', 'updatedAt',
-          'year', 'class', 'enrollmentNumber', 'cgpa', 'attendance', 'riskLevel',
-          'mentorId', 'status', 'isApproved'
-        ])
-      );
-      allow update: if isAdmin()
-        || ((isDean() || isHODForDepartment(resource.data.department))
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['class', 'updatedAt']))
-        || (isAssignedMentor(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'cgpa', 'attendance', 'riskLevel', 'academicStatus', 'updatedAt'
-        ]))
-        || (signedIn() && uid() == studentId && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'phone', 'mobileNumber', 'interests', 'skills', 'careerGoal', 'updatedAt'
-        ]));
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
-    // Self-registration can create only pending non-admin staff profiles.
+    // Faculty collection
     match /faculty/{facultyId} {
-      allow get: if signedIn() && (
-        uid() == facultyId || isAdmin() || isDean()
-        || isHODForDepartment(resource.data.department)
-        || isAssignedMentorProfile(facultyId)
-      );
-      allow list: if isAdmin() || isDean()
-        || isHODForDepartment(resource.data.department)
-        || (isHOD() && resource.data.role == 'DEAN'
-          && resource.data.status == 'approved' && resource.data.isApproved == true);
-      allow create: if isAdmin() || (
-        signedIn() && uid() == facultyId
-        && request.resource.data.id == facultyId
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.role == 'FACULTY'
-        && request.resource.data.status == 'pending'
-        && request.resource.data.isApproved == false
-        && request.resource.data.keys().hasOnly([
-          'id', 'email', 'name', 'role', 'department', 'createdAt', 'updatedAt',
-          'designation', 'employeeId', 'maxStudents', 'assignedStudentCount',
-          'status', 'isApproved'
-        ])
-      );
-      allow update: if isAdmin() || (isDean() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'name', 'phone', 'designation',
-        'updatedAt', 'contactNumber', 'cabinNumber', 'officeHours', 'specialization', 'bio'
-      ])) || (signedIn() && uid() == facultyId && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'name', 'phone', 'designation', 'contactNumber', 'cabinNumber', 'officeHours',
-        'specialization', 'bio', 'updatedAt'
-      ]));
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
+    // Meetings collection and subcollections
     match /meetings/{meetingId} {
-      allow get, list: if canReadMeeting(resource.data);
-      allow create: if isAdmin() || (
-        isApprovedStudent(uid())
-        && request.resource.data.studentId == uid()
-        && request.resource.data.status == 'REQUESTED'
-        && request.resource.data.mentorId in [studentProfile(uid()).mentorId, studentProfile(uid()).secondaryMentorId]
-      ) || (
-        isFaculty() && request.resource.data.studentId == 'ALL'
-        && request.resource.data.mentorId == uid()
-      );
-      allow update: if isAdmin() || isDean()
-        || (isHODForDepartment(resource.data.department)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'rejectionReason', 'notes', 'endedAt', 'startedAt', 'roomId',
-            'attendees', 'attendanceCount', 'studentAcknowledged', 'acknowledgedAt',
-            'acknowledgedByStudentId', 'studentFeedback', 'studentRating', 'updatedAt'
-          ]))
-        || (isFaculty() && resource.data.mentorId == uid()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'scheduledAt', 'rejectionReason', 'notes', 'endedAt', 'startedAt',
-            'roomId', 'attendees', 'attendanceCount', 'studentAcknowledged', 'acknowledgedAt',
-            'acknowledgedByStudentId', 'studentFeedback', 'studentRating',
-            'hasAiNotes', 'recordingUrl', 'recordingDownloadUrl', 'recordingDriveId',
-            'recordingStorage', 'recordingMode', 'recordingDuration', 'recordingUploadedAt',
-            'recordingFileName', 'recordingMimeType', 'lastRecording', 'updatedAt'
-          ]))
-        || (canAccessMeeting(resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'attendees', 'attendanceCount', 'updatedAt', 'studentAcknowledged',
-          'acknowledgedAt', 'acknowledgedByStudentId', 'studentFeedback', 'studentRating'
-        ]))
-        || (isApprovedStudent(uid()) && resource.data.studentId == uid()
-          && request.resource.data.status == 'CANCELLED'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']));
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
 
       match /signaling/{docId} {
-        allow read, write: if canAccessMeeting(get(/databases/$(database)/documents/meetings/$(meetingId)).data)
-          && get(/databases/$(database)/documents/meetings/$(meetingId)).data.status in ['APPROVED', 'ONGOING', 'IN_PROGRESS'];
+        allow read, write: if signedIn();
       }
 
       match /controls/{docId} {
-        allow read: if canAccessMeeting(get(/databases/$(database)/documents/meetings/$(meetingId)).data);
-        allow write: if isAdmin() || (
-          isApprovedFaculty(uid())
-          && get(/databases/$(database)/documents/meetings/$(meetingId)).data.mentorId == uid()
-        );
+        allow read, write: if signedIn();
       }
     }
 
-    // Private AI notes, transcripts, and official reports are backend-only.
+    // Backend-only meeting details
     match /meeting_private/{meetingId} {
       allow read, write: if false;
     }
 
+    // Issues & Grievances
     match /issues/{issueId} {
-      allow get, list: if canAccessIssue(resource.data);
-      allow create: if isAdmin() || (
-        isApprovedStudent(uid()) && request.resource.data.studentId == uid()
-        && request.resource.data.status == 'OPEN'
-        && request.resource.data.escalationLevel == 'MENTOR'
-        && request.resource.data.mentorId in [studentProfile(uid()).mentorId, studentProfile(uid()).secondaryMentorId]
-      );
-      allow update: if isAdmin() || isDean()
-        || (isHODForDepartment(resource.data.department)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory', 'updatedAt'
-          ]))
-        || (isSectionHead() && resource.data.escalationLevel == facultyProfile(uid()).department
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory', 'updatedAt'
-          ]))
-        || (isFaculty() && resource.data.mentorId == uid()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory', 'updatedAt'
-          ]));
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
+    // Tasks & Action Items
     match /action_items/{itemId} {
-      allow get, list: if isApprovedUser() && (
-        isAdmin() || isDean()
-        || (isApprovedStudent(uid()) && resource.data.studentId == uid())
-        || (isApprovedFaculty(uid()) && resource.data.mentorId == uid())
-      );
-      allow create: if isAdmin() || (
-        isFaculty() && request.resource.data.mentorId == uid()
-        && request.resource.data.studentId is string
-        && isAssignedMentor(get(studentPath(request.resource.data.studentId)).data)
-      );
-      allow update: if isAdmin() || isDean()
-        || (isApprovedFaculty(uid()) && resource.data.mentorId == uid()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'description', 'category', 'deadline', 'status', 'progress', 'updatedAt'
-          ]))
-        || (isApprovedStudent(uid()) && resource.data.studentId == uid()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'progress', 'updatedAt']));
-      allow delete: if isAdmin() || (isFaculty() && resource.data.mentorId == uid());
+      allow read, write: if signedIn();
     }
 
+    // Notifications
     match /notifications/{notificationId} {
-      allow get, list: if isApprovedUser() && resource.data.userId == uid();
-      // Notification delivery is performed by trusted backend code, never by arbitrary clients.
-      allow create: if false;
-      allow update: if isApprovedUser() && resource.data.userId == uid()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'updatedAt']);
-      allow delete: if isApprovedUser() && resource.data.userId == uid();
+      allow read, write: if signedIn();
     }
 
+    // Chats & Messages
     match /chats/{chatId} {
-      allow get, list: if canAccessChat(resource.data);
-      allow create: if (isApprovedStudent(uid())
-          && request.resource.data.studentId == uid()
-          && request.resource.data.mentorId in [studentProfile(uid()).mentorId, studentProfile(uid()).secondaryMentorId]
-          && chatId == uid() + '_' + request.resource.data.mentorId)
-        || (isFaculty() && request.resource.data.studentId == 'ALL'
-          && request.resource.data.mentorId == uid() && chatId == 'group_' + uid());
-      allow update: if canAccessChat(resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'mentorName', 'studentIds', 'participantIds', 'title', 'updatedAt', 'lastMessage',
-          'lastSenderName', 'unreadCount'
-        ])
-        && (resource.data.mentorId == uid() || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'studentIds', 'participantIds', 'mentorName', 'title'
-        ]));
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
 
       match /messages/{messageId} {
-        allow read: if canAccessChat(get(/databases/$(database)/documents/chats/$(chatId)).data);
-        allow create: if canAccessChat(get(/databases/$(database)/documents/chats/$(chatId)).data)
-          && request.resource.data.senderId == uid()
-          && request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderRole', 'text', 'createdAt']);
-        allow update, delete: if false;
+        allow read, write: if signedIn();
       }
     }
 
+    // Audit logs
     match /audit_logs/{logId} {
-      allow read: if isAdmin() || isDean() || isHODForDepartment(resource.data.department);
-      allow create, update, delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
-    // Security events are written and read only by the trusted backend Admin SDK.
+    // Security events (Backend Admin SDK only)
     match /security_events/{eventId} {
       allow read, write: if false;
     }
 
-    // Department and class names are public registration data, not student records.
+    // Departments
     match /departments/{departmentId} {
-      allow read: if resource.data.keys().hasOnly([
-        'name', 'type', 'code', 'hodName', 'hodId', 'createdAt', 'updatedAt'
-      ]);
-      allow create: if (isAdmin() || isDean())
-        && request.resource.data.keys().hasOnly([
-          'name', 'type', 'code', 'hodName', 'hodId', 'createdAt', 'updatedAt'
-        ]);
-      allow update: if (isAdmin() || isDean())
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'type', 'code', 'hodName', 'hodId', 'updatedAt'
-        ])
-        && request.resource.data.keys().hasOnly([
-          'name', 'type', 'code', 'hodName', 'hodId', 'createdAt', 'updatedAt'
-        ]);
-      allow delete: if isAdmin() || isDean();
+      allow read, write: if signedIn();
     }
 
+    // Classes
     match /classes/{classId} {
-      allow read: if resource.data.keys().hasOnly(['className', 'department', 'createdAt', 'updatedAt']);
-      allow create: if (isAdmin() || isHODForDepartment(request.resource.data.department))
-        && request.resource.data.keys().hasOnly(['className', 'department', 'createdAt']);
-      allow update: if (isAdmin() || isHODForDepartment(resource.data.department))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'className', 'department', 'updatedAt'
-        ])
-        && request.resource.data.keys().hasOnly(['className', 'department', 'createdAt', 'updatedAt']);
-      allow delete: if isAdmin() || isHODForDepartment(resource.data.department);
+      allow read, write: if signedIn();
     }
 
+    // Settings
     match /settings/{settingId} {
-      allow get: if isApprovedUser() && settingId == 'general';
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
+    // Mentorship Booklets
     match /booklets/{studentId} {
-      allow get, list: if isAdmin() || isDean()
-        || (hasStudentProfile(studentId) && canReadStudent(studentId, studentProfile(studentId)));
-      allow create, update: if isAdmin() || (isApprovedStudent(uid()) && uid() == studentId);
-      allow delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
+    // Web Issues / Feedback
     match /web_issues/{issueId} {
-      allow get, list: if isAdmin() || (isApprovedUser() && resource.data.reporterId == uid());
-      allow create: if isApprovedUser() && request.resource.data.reporterId == uid()
-        && request.resource.data.status == 'OPEN'
-        && request.resource.data.keys().hasOnly([
-          'title', 'category', 'priority', 'description', 'pageUrl', 'reporterId',
-          'reporterName', 'reporterRole', 'reporterEmail', 'status', 'createdAt', 'updatedAt'
-        ]);
-      allow update, delete: if isAdmin();
+      allow read, write: if signedIn();
     }
 
+    // Mentor availability
     match /mentor_availability/{mentorId} {
-      allow read: if isApprovedUser();
-      allow create, update: if isAdmin() || (isFaculty() && uid() == mentorId);
-      allow delete: if isAdmin() || (isFaculty() && uid() == mentorId);
+      allow read, write: if signedIn();
     }
 
-    // Client-side mail queue writes could send arbitrary email. Use a trusted mail service instead.
+    // Mail queue
     match /mail/{mailId} {
       allow read, write: if false;
     }
