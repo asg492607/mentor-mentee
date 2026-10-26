@@ -4,9 +4,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = 'serviceAccountKey.json'
     FIREBASE_CREDENTIALS_JSON: str = ''
     FIREBASE_PROJECT_ID: str = 'mentorv1-848ef'
-    # Used only by the backend to exchange an email/password login for a
-    # Firebase session. Never expose this value to the browser.
-    FIREBASE_WEB_API_KEY: str = ''
+    FIREBASE_WEB_API_KEY: str = 'AIzaSyD3UkvB-sNMNEKzC9Cuat4mw0SOe19vIDU'
     SESSION_COOKIE_NAME: str = 'lumina_session'
     SESSION_COOKIE_SECURE: bool = True
     LEGACY_SUPER_ADMIN_EMAIL: str = ''
