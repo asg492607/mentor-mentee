@@ -46,8 +46,8 @@ app.add_middleware(
     allow_origins=settings.cors_origins_list,
     # The frontend authenticates with a Secure, HttpOnly session cookie.
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Defense in depth: every REST route requires a verified, approved Firebase user,
