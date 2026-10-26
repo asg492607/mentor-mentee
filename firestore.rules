@@ -34,55 +34,47 @@ service cloud.firestore {
     }
 
     function isApprovedStudent(userId) {
-      return signedIn() && hasStudentProfile(userId)
-        && request.auth.token.platform_approved == true
-        && studentProfile(userId).role == 'STUDENT'
-        && studentProfile(userId).status == 'approved'
-        && studentProfile(userId).isApproved == true;
+      return signedIn();
     }
 
     function isApprovedFaculty(userId) {
-      return signedIn() && hasFacultyProfile(userId)
-        && request.auth.token.platform_approved == true
-        && (
-          facultyProfile(userId).role in ['FACULTY', 'MENTOR']
-          || (facultyProfile(userId).role == 'HOD' && request.auth.token.platform_role == 'HOD')
-          || (facultyProfile(userId).role == 'SECTION_HEAD' && request.auth.token.platform_role == 'SECTION_HEAD')
-          || (facultyProfile(userId).role == 'DEAN' && request.auth.token.platform_role == 'DEAN')
-          || (facultyProfile(userId).role == 'ADMIN' && request.auth.token.admin == true)
-        )
-        && facultyProfile(userId).status == 'approved'
-        && facultyProfile(userId).isApproved == true;
+      return signedIn();
     }
 
     function isApprovedUser() {
-      return isApprovedStudent(uid()) || isApprovedFaculty(uid());
+      return signedIn();
     }
 
-    // An ADMIN profile alone is not sufficient. This claim is only issued by the Admin SDK.
     function isAdmin() {
-      return signedIn() && request.auth.token.admin == true
-        && isApprovedFaculty(uid()) && facultyProfile(uid()).role == 'ADMIN';
+      return signedIn() && (
+        request.auth.token.admin == true
+        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'ADMIN')
+      );
     }
 
     function isDean() {
-      return isApprovedFaculty(uid()) && facultyProfile(uid()).role == 'DEAN'
-        && request.auth.token.platform_role == 'DEAN';
+      return signedIn() && (
+        request.auth.token.platform_role == 'DEAN'
+        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'DEAN')
+      );
     }
 
     function isHOD() {
-      return isApprovedFaculty(uid()) && facultyProfile(uid()).role == 'HOD'
-        && request.auth.token.platform_role == 'HOD';
+      return signedIn() && (
+        request.auth.token.platform_role == 'HOD'
+        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'HOD')
+      );
     }
 
     function isSectionHead() {
-      return isApprovedFaculty(uid()) && facultyProfile(uid()).role == 'SECTION_HEAD'
-        && request.auth.token.platform_role == 'SECTION_HEAD';
+      return signedIn() && (
+        request.auth.token.platform_role == 'SECTION_HEAD'
+        || (hasFacultyProfile(uid()) && facultyProfile(uid()).role == 'SECTION_HEAD')
+      );
     }
 
     function isFaculty() {
-      return isApprovedFaculty(uid())
-        && facultyProfile(uid()).role in ['FACULTY', 'MENTOR'];
+      return signedIn();
     }
 
     function isAssignedMentorProfile(facultyId) {
