@@ -75,16 +75,16 @@ export async function render(container) {
                 <h3 style="font-size:1.15rem; font-weight:800; margin:0; color:var(--text);">Schedule Mentorship Session</h3>
                 <p style="font-size:0.8rem; color:var(--text-muted); margin:2px 0 0 0;">Book an available office hours slot or send a custom request</p>
               </div>
-              <button class="btn btn-ghost btn-sm" id="btn-close-form" style="width:32px; height:32px; padding:0; border-radius:50%;">âœ•</button>
+              <button class="btn btn-ghost btn-sm" id="btn-close-form" style="width:32px; height:32px; padding:0; border-radius:50%;">✕</button>
             </div>
 
             <!-- Booking Mode Selector -->
             <div style="display:flex; gap:10px; margin-bottom:18px;">
               <button type="button" class="btn btn-sm btn-primary" id="btn-mode-slot" style="flex:1; border-radius:8px; font-weight:600;">
-                âš¡ Pick Open Mentor Slot (Instant)
+                ⚡ Pick Open Mentor Slot (Instant)
               </button>
               <button type="button" class="btn btn-sm btn-secondary" id="btn-mode-custom" style="flex:1; border-radius:8px; font-weight:600;">
-                ðŸ“� Custom Date &amp; Time
+                📅 Custom Date &amp; Time
               </button>
             </div>
 
@@ -104,7 +104,7 @@ export async function render(container) {
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <label class="form-label" style="font-weight:600; margin:0;">Why / Agenda Description</label>
                 <button type="button" class="btn-ai-sparkle" id="btn-student-ai-agenda">
-                  <i class="ph-bold ph-sparkle"></i> âœ¨ AI Suggest Questions &amp; Topics
+                  <i class="ph-bold ph-sparkle"></i> ✨ AI Suggest Questions &amp; Topics
                 </button>
               </div>
               <textarea id="m-desc" class="form-textarea" placeholder="Explain the context, problems or questions you wish to discuss with your mentor..." style="border-radius:10px; min-height:80px;"></textarea>
@@ -113,7 +113,7 @@ export async function render(container) {
             <!-- Calendly-Style Slot Picker Section -->
             <div id="slot-picker-section" style="margin-bottom:18px; padding:14px; background:rgba(99, 102, 241, 0.04); border-radius:12px; border:1px solid rgba(99, 102, 241, 0.15);">
               <label class="form-label" style="font-weight:700; color:var(--primary); margin-bottom:6px; display:block;">
-                ðŸ“… Select Date to View Mentor's Open Slots:
+                📅 Select Date to View Mentor's Open Slots:
               </label>
               <input type="date" id="slot-date-picker" class="form-input" style="border-radius:8px; margin-bottom:12px; background:#fff;">
               
@@ -170,7 +170,7 @@ export async function render(container) {
       mentorSel.innerHTML = '<option value="">No mentor assigned yet</option>';
     } else {
       mentorSel.innerHTML = assignedMentorsList.map(m =>
-        `<option value="${m.id}">${m.name} (${m.roleLabel} â€” ${m.department || ''})</option>`
+        `<option value="${m.id}">${m.name} (${m.roleLabel} — ${m.department || ''})</option>`
       ).join('');
     }
   }
@@ -224,14 +224,14 @@ Keep it structured, polite, and student-focused with clear discussion questions.
 
       const descEl = container.querySelector('#m-desc');
       if (descEl) descEl.value = res.content;
-      showToast('âœ¨ Discussion agenda and questions drafted with AI!', 'success');
+      showToast('✨ Discussion agenda and questions drafted with AI!', 'success');
     } catch (e) {
       console.error('Student AI Agenda error:', e);
       showToast('Could not generate agenda with AI.', 'error');
     } finally {
       if (aiBtn) {
         aiBtn.disabled = false;
-        aiBtn.innerHTML = '<i class="ph-bold ph-sparkle"></i> âœ¨ AI Suggest Questions &amp; Topics';
+        aiBtn.innerHTML = '<i class="ph-bold ph-sparkle"></i> ✨ AI Suggest Questions &amp; Topics';
       }
     }
   });
@@ -281,7 +281,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
         return `
           <button type="button" class="btn btn-sm slot-pill ${s.isAvailable ? 'btn-outline' : 'btn-disabled'}" data-iso="${s.iso}" ${s.isAvailable ? '' : 'disabled'}
                   style="border-radius:20px; font-weight:600; font-size:0.8rem; padding:6px 12px; margin-bottom:4px; ${s.isAvailable ? 'border-color:var(--primary); color:var(--primary); background:#fff;' : 'opacity:0.4;'}">
-            ðŸ•� ${s.label} (${s.duration}m)
+            🕒 ${s.label} (${s.duration}m)
           </button>
         `;
       }).join('');
@@ -450,7 +450,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
                   <i class="ph ph-warning-circle" style="font-size:1.1rem;"></i> Action Required: Review &amp; Acknowledge Mentor's Meeting Notes
                 </div>
                 <button class="btn btn-sm btn-primary btn-signoff" data-id="${m.id}" style="border-radius:8px; font-weight:700; padding:4px 12px; font-size:0.75rem; background:#d97706; border:none;">
-                  âœ�ï¸� Sign-Off &amp; Rate
+                  ✍️ Sign-Off &amp; Rate
                 </button>
               </div>
             ` : ''}
@@ -459,10 +459,10 @@ Keep it structured, polite, and student-focused with clear discussion questions.
               <div style="flex:1; min-width:260px;">
                 <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:6px;">
                   <strong style="font-size:0.95rem; color:var(--text);">${escapeHtml(m.type || m.topic || 'Mentorship Session')}</strong>
-                  ${isGroup ? '<span class="badge" style="background:#8b5cf6; color:#fff; font-size:0.7rem;">ðŸ‘¥ Cohort Group Meet</span>' : ''}
+                  ${isGroup ? '<span class="badge" style="background:#8b5cf6; color:#fff; font-size:0.7rem;">👥 Cohort Group Meet</span>' : ''}
                   ${statusBadge(m.status)}
                   ${m.studentAcknowledged ? '<span class="badge badge-success" style="font-size:0.7rem;"><i class="ph ph-seal-check"></i> Acknowledged by You</span>' : ''}
-                  ${m.status === 'ONGOING' ? '<span style="font-size:0.72rem; color:var(--info); font-weight:700; animation:pulse 1.5s ease-in-out infinite;">â—� LIVE NOW</span>' : ''}
+                  ${m.status === 'ONGOING' ? '<span style="font-size:0.72rem; color:var(--info); font-weight:700; animation:pulse 1.5s ease-in-out infinite;">● LIVE NOW</span>' : ''}
                 </div>
 
                 <div style="background:rgba(0,0,0,0.02); border-left:3px solid var(--primary); padding:6px 10px; border-radius:0 8px 8px 0; margin-bottom:8px;">
@@ -494,8 +494,8 @@ Keep it structured, polite, and student-focused with clear discussion questions.
 
                 ${m.status === 'COMPLETED' ? `
                   <div style="display:flex; gap:6px;">
-                    ${(m.notes || m.report || m.aiNotes) ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}" style="border-radius:8px;">ðŸ“� View MOM Notes</button>` : ''}
-                    <button class="btn btn-sm btn-outline report-btn" data-id="${m.id}" style="border-radius:8px;">ðŸ“„ Download Report</button>
+                    ${(m.notes || m.report || m.aiNotes) ? `<button class="btn btn-sm btn-secondary view-notes-btn" data-id="${m.id}" style="border-radius:8px;">📝 View MOM Notes</button>` : ''}
+                    <button class="btn btn-sm btn-outline report-btn" data-id="${m.id}" style="border-radius:8px;">📄 Download Report</button>
                   </div>
                 ` : ''}
               </div>
@@ -504,7 +504,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
             <!-- Notes Panel for Completed Meeting -->
             ${m.status === 'COMPLETED' && (m.notes || m.report || m.aiNotes) ? `
               <div id="notes-panel-${m.id}" style="display:none; margin-top:16px; padding:16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px;">
-                <h4 style="font-size:0.88rem; font-weight:700; margin-bottom:10px; color:var(--text);">ðŸ“‹ Minutes of Meeting (MOM) &amp; Guidance Provided</h4>
+                <h4 style="font-size:0.88rem; font-weight:700; margin-bottom:10px; color:var(--text);">📋 Minutes of Meeting (MOM) &amp; Guidance Provided</h4>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                   ${(() => {
                     const issues = m.report?.issuesDiscussed || m.aiNotes?.issuesDiscussed || m.notes?.issuesDiscussed || m.notes?.problem || '';
@@ -543,7 +543,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
         if (panel) {
           const isHidden = panel.style.display === 'none';
           panel.style.display = isHidden ? 'block' : 'none';
-          b.textContent = isHidden ? 'Hide MOM Notes' : 'ðŸ“� View MOM Notes';
+          b.textContent = isHidden ? 'Hide MOM Notes' : '📝 View MOM Notes';
         }
       });
     });
@@ -616,7 +616,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
             </h3>
             <p style="font-size:0.78rem; color:var(--text-muted); margin:2px 0 0 0;">Review your mentor's guidance &amp; confirm official university record</p>
           </div>
-          <button id="close-signoff-btn" class="btn btn-ghost" style="width:32px; height:32px; padding:0; border-radius:50%;">âœ•</button>
+          <button id="close-signoff-btn" class="btn btn-ghost" style="width:32px; height:32px; padding:0; border-radius:50%;">✕</button>
         </div>
 
         <div style="margin-bottom:16px; padding:12px; background:rgba(99, 102, 241, 0.04); border-left:3px solid var(--primary); border-radius:0 8px 8px 0; font-size:0.85rem;">
@@ -627,11 +627,11 @@ Keep it structured, polite, and student-focused with clear discussion questions.
         <div class="form-group" style="margin-bottom:14px;">
           <label class="form-label" style="font-weight:600;">Rate Session Usefulness (1 to 5 Stars)</label>
           <select id="signoff-rating" class="form-select" style="border-radius:8px;">
-            <option value="5" selected>â­�â­�â­�â­�â­� 5 - Highly Beneficial</option>
-            <option value="4">â­�â­�â­�â­� 4 - Very Helpful</option>
-            <option value="3">â­�â­�â­� 3 - Satisfactory</option>
-            <option value="2">â­�â­� 2 - Needs Follow-up</option>
-            <option value="1">â­� 1 - Not Helpful</option>
+            <option value="5" selected>⭐⭐⭐⭐⭐ 5 - Highly Beneficial</option>
+            <option value="4">⭐⭐⭐⭐ 4 - Very Helpful</option>
+            <option value="3">⭐⭐⭐ 3 - Satisfactory</option>
+            <option value="2">⭐⭐ 2 - Needs Follow-up</option>
+            <option value="1">⭐ 1 - Not Helpful</option>
           </select>
         </div>
 
@@ -643,7 +643,7 @@ Keep it structured, polite, and student-focused with clear discussion questions.
         <div style="display:flex; justify-content:flex-end; gap:10px;">
           <button class="btn btn-secondary" id="cancel-signoff-btn" style="border-radius:10px;">Cancel</button>
           <button class="btn btn-primary" id="confirm-signoff-btn" style="border-radius:10px; font-weight:700; background:#10b981; border:none;">
-            âœ�ï¸� Digitally Acknowledge &amp; Sign
+            ✍️ Digitally Acknowledge &amp; Sign
           </button>
         </div>
       </div>

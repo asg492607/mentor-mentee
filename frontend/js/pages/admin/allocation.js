@@ -1,4 +1,4 @@
-// Admin — Mentor Allocation Page
+// Admin â€” Mentor Allocation Page
 // Provides tools for assigning, bulk-allocating, and managing mentor-student relationships.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

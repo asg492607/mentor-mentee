@@ -1,4 +1,4 @@
-// Student — Issues Page
+// Student â€” Issues Page
 // Portal for students to raise, track, and review escalated grievance issues.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

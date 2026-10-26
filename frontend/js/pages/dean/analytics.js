@@ -1,4 +1,4 @@
-// Dean — Analytics Page
+// Dean â€” Analytics Page
 // Comparative department analytics, attendance trends, and retention forecasting.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

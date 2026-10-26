@@ -1,4 +1,4 @@
-// Admin — Compliance Dashboard
+// Admin â€” Compliance Dashboard
 // Displays system-wide compliance metrics, risk students, and pending approvals.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

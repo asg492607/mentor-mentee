@@ -1,4 +1,4 @@
-// Mentor — My Students Page
+// Mentor â€” My Students Page
 // Lists all students assigned to the logged-in mentor with risk, CGPA, and attendance.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

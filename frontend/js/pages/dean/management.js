@@ -1,4 +1,4 @@
-// Dean — Management Page
+// Dean â€” Management Page
 // Departmental leadership oversight and HOD assignment management.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

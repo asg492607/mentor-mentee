@@ -1,4 +1,4 @@
-// Dean — Escalations Page
+// Dean â€” Escalations Page
 // High-priority escalated cases requiring dean-level intervention or policy action.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

@@ -1,4 +1,4 @@
-// Admin — Infrastructure Management
+// Admin â€” Infrastructure Management
 // Manages platform-level infrastructure settings and system health indicators.
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';

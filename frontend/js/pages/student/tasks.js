@@ -1,4 +1,4 @@
-// Student — Tasks Page
+// Student â€” Tasks Page
 // Task checklist and action item management assigned by mentors.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

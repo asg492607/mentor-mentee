@@ -1,4 +1,4 @@
-// Admin — Department Management Page
+// Admin â€” Department Management Page
 // Allows the platform admin to create, rename, and delete academic departments.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

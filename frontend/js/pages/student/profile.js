@@ -1,4 +1,4 @@
-// Student — Profile Page
+// Student â€” Profile Page
 // Profile details, emergency contacts, and personal information updates.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

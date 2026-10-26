@@ -1,4 +1,4 @@
-// Mentor — Session Notes Page
+// Mentor â€” Session Notes Page
 // Allows mentors to record, view and export session notes for each student.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

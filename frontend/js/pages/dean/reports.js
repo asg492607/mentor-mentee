@@ -1,4 +1,4 @@
-// Dean — Reports Page
+// Dean â€” Reports Page
 // Institutional compliance reports and cross-departmental mentoring summaries.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

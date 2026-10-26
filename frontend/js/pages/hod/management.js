@@ -1,4 +1,4 @@
-// HOD — Mentor-Mentee Management
+// HOD â€” Mentor-Mentee Management
 // Departmental allocation oversight and mentor load balancing controls.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';

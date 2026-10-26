@@ -1,4 +1,4 @@
-// Section Head — Dashboard Page
+// Section Head â€” Dashboard Page
 // Shows section-level student data, staff roster, and pending escalations for the section.
 import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
