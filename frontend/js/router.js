@@ -159,6 +159,11 @@ async function handleRoute() {
     // 🔒 Mandatory 25% Booklet Lock for Students: Block all other pages until 25% filled!
     if (role === 'STUDENT') {
       try {
+        // Wait briefly for Firebase client auth to sync before querying Firestore.
+        const { auth } = await import('./firebase-init.js');
+        if (auth && !auth.currentUser) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         const { BookletService } = await import('./services.js');
         const { showToast } = await import('./components/toast.js');
         const completionPct = await BookletService.getCompletionPercentage(profile.id || user.uid);
