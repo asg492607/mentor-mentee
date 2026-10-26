@@ -138,6 +138,17 @@ export async function fetchUserProfile() {
     try {
       localStorage.setItem('lumina_profile', JSON.stringify(cachedUserProfile));
     } catch (_) {}
+    if (profile.customToken) {
+      try {
+        const { auth } = await import('./firebase-init.js');
+        const { signInWithCustomToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        if (auth && (!auth.currentUser || auth.currentUser.uid !== cachedUserProfile.id)) {
+          await signInWithCustomToken(auth, profile.customToken);
+        }
+      } catch (e) {
+        console.warn('Firebase client sign-in notice:', e);
+      }
+    }
     return cachedUserProfile;
   } catch (_) {
     return getUserProfile();

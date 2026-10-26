@@ -149,9 +149,10 @@ def login_with_server_session(payload: dict[str, Any], response: Response, reque
     try:
         decoded = firebase_auth.verify_id_token(sign_in['idToken'], check_revoked=True)
         profile = _provision_claims(decoded)
-        # Claims are minted by the Admin SDK. Exchange a custom token so the
-        # session contains the newly issued claims immediately.
-        custom_token = firebase_auth.create_custom_token(decoded['uid']).decode('utf-8')
+        role = str(profile.get('role') or 'STUDENT').upper()
+        claims = claims_for_account(role, True)
+        custom_token_raw = firebase_auth.create_custom_token(decoded['uid'], claims)
+        custom_token = custom_token_raw.decode('utf-8') if isinstance(custom_token_raw, bytes) else str(custom_token_raw)
         refreshed = _identity_request('signInWithCustomToken', {
             'token': custom_token, 'returnSecureToken': True,
         })
@@ -308,4 +309,18 @@ def verify_token(user = Depends(get_current_user)):
 
 @router.get("/me")
 def get_me(user = Depends(get_current_user), auth_service: AuthService = Depends()):
-    return auth_service.get_user_profile(user['uid'])
+    profile = auth_service.get_user_profile(user['uid'])
+    if not profile:
+        profile = {
+            'id': user['uid'],
+            'uid': user['uid'],
+            'email': user.get('email'),
+            'role': user.get('role'),
+            'name': user.get('name'),
+            'department': user.get('department'),
+        }
+    role = str(profile.get('role') or user.get('role') or 'STUDENT').upper()
+    claims = claims_for_account(role, True)
+    custom_token_raw = firebase_auth.create_custom_token(user['uid'], claims)
+    custom_token = custom_token_raw.decode('utf-8') if isinstance(custom_token_raw, bytes) else str(custom_token_raw)
+    return {**profile, 'customToken': custom_token}
