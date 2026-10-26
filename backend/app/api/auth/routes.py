@@ -4,10 +4,13 @@ User authentication, login credentials, and session refresh
 from datetime import timedelta
 from typing import Any
 
+import logging
 import httpx
 import time
 from collections import defaultdict, deque
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+
+logger = logging.getLogger(__name__)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.config import settings
 from app.firebase.client import firebase_auth, db
@@ -155,8 +158,9 @@ def login_with_server_session(payload: dict[str, Any], response: Response, reque
         _set_session(response, refreshed['idToken'])
     except (ForbiddenException, UnauthorizedException, ServiceUnavailableException):
         raise
-    except Exception:
-        raise UnauthorizedException("Unable to verify this account")
+    except Exception as exc:
+        logger.exception("Login verification failed: %s", exc)
+        raise UnauthorizedException(f"Unable to verify this account: {str(exc)}")
     return {'profile': profile}
 
 
