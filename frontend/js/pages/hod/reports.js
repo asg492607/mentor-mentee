@@ -536,7 +536,6 @@ export async function render(container) {
     container.querySelector('#filter-meeting-status')?.addEventListener('change', renderMeetingReports);
 
     renderMeetingReports();
-    renderAuditTrail();
 
     // Attach Event Listeners for Filters
     ['#filter-search-prn', '#filter-mentor', '#filter-class', '#filter-risk'].forEach(id => {
