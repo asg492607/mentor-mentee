@@ -9,6 +9,36 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && (request.auth.token.admin == true || role() == 'ADMIN');
+    }
+
+    function currentDepartment() {
+      return get(/databases/$(database)/documents/faculty/$(uid())).data.department;
+    }
+
+    function isAdmissionCell() {
+      return signedIn() && role() == 'SECTION_HEAD' && currentDepartment() == 'Admission Cell';
+    }
+
+    function isExamSection() {
+      return signedIn() && role() == 'SECTION_HEAD' && currentDepartment() == 'Exam Section';
+    }
+
+    function isAssignedClassTeacher(classId) {
+      return signedIn() && classId is string
+        && get(/databases/$(database)/documents/classes/$(classId)).data.classTeacherId == uid();
+    }
+
+    function mentorsStudent(studentId) {
+      let student = get(/databases/$(database)/documents/students/$(studentId)).data;
+      return student.mentorId == uid() || (student.mentorIds is list && uid() in student.mentorIds);
+    }
+
     // Students collection
     match /students/{studentId} {
       allow read, write: if signedIn();
@@ -83,7 +113,8 @@ service cloud.firestore {
 
     // Settings
     match /settings/{settingId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow write: if signedIn() && settingId != 'academics' || isAdmin() || isAdmissionCell();
     }
 
     // Mentorship Booklets
@@ -99,6 +130,34 @@ service cloud.firestore {
     // Mentor availability
     match /mentor_availability/{mentorId} {
       allow read, write: if signedIn();
+    }
+
+    // Academic records are visible to the student, their assigned mentor, and the relevant office.
+    match /academic_results/{resultId} {
+      allow read: if signedIn() && (
+        resource.data.studentId == uid() || isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        || isExamSection() || mentorsStudent(resource.data.studentId)
+      );
+      allow create, update: if isAdmin() || isExamSection();
+      allow delete: if isAdmin();
+    }
+
+    match /attendance_records/{recordId} {
+      allow read: if signedIn() && (
+        resource.data.studentId == uid() || isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        || isAssignedClassTeacher(resource.data.classId) || mentorsStudent(resource.data.studentId)
+      );
+      allow create, update: if isAdmin() || isAssignedClassTeacher(request.resource.data.classId);
+      allow delete: if isAdmin() || isAssignedClassTeacher(resource.data.classId);
+    }
+
+    match /attendance_sessions/{sessionId} {
+      allow read: if signedIn() && (
+        isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        || isAssignedClassTeacher(resource.data.classId)
+      );
+      allow create, update: if isAdmin() || isAssignedClassTeacher(request.resource.data.classId);
+      allow delete: if isAdmin() || isAssignedClassTeacher(resource.data.classId);
     }
 
     // Mail queue

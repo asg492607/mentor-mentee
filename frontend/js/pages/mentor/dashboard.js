@@ -78,6 +78,9 @@ function getBookletSnapshot(student) {
     lastMeet = booklet.meets[booklet.meets.length - 1].date || '-';
   }
 
+  if (student.latestSGPA !== undefined && student.latestSGPA !== null) latestSGPA = student.latestSGPA;
+  if (student.backlogs !== undefined && student.backlogs !== null) totalBacklogs = student.backlogs;
+
   return { latestSGPA, totalBacklogs, lastMeet, photoUrl: booklet.personal?.photoUrl };
 }
 
@@ -147,7 +150,7 @@ export async function render(container) {
   `;
 
   try {
-    const data = await StatsService.getMentorStats(user.id) || {};
+    const data = await StatsService.getMentorStats(user.id, true) || {};
     const students = data.students || [];
     const meetings = data.meetings || [];
     const totalStudents = data.totalStudents ?? students.length;
@@ -175,6 +178,7 @@ export async function render(container) {
           <a href="#/mentor/reports" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
             <i class="ph ph-chart-bar" style="font-size:1.1rem; color:var(--success);"></i> Export Reports
           </a>
+          ${String(user.role).toUpperCase() === 'CLASS_TEACHER' ? `<a href="#/mentor/attendance" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;border-radius:20px;font-weight:600;"><i class="ph ph-calendar-check" style="font-size:1.1rem;color:var(--success);"></i> Class Attendance</a>` : ''}
         </div>
 
         <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">

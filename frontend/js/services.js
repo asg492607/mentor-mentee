@@ -74,6 +74,12 @@ export const StudentService = {
     return res;
   },
 
+  async getFresh(uid) {
+    const res = snap(await getDoc(doc(db, 'students', uid)));
+    if (res) CacheManager.set(`student_${uid}`, res, 5 * 60 * 1000);
+    return res;
+  },
+
   async getAll(limitCount = null) {
     if (limitCount && typeof limitCount === 'number') {
       return snaps(await getDocs(query(collection(db, 'students'), limit(limitCount))));
@@ -83,6 +89,12 @@ export const StudentService = {
     if (cached) return cached;
     const res = snaps(await getDocs(collection(db, 'students')));
     CacheManager.set(cacheKey, res, 3 * 60 * 1000);
+    return res;
+  },
+
+  async getAllFresh() {
+    const res = snaps(await getDocs(collection(db, 'students')));
+    CacheManager.set('students_all', res, 3 * 60 * 1000);
     return res;
   },
 
@@ -102,10 +114,10 @@ export const StudentService = {
     return snap.data().count;
   },
 
-  async getByMentor(mentorId) {
+  async getByMentor(mentorId, forceRefresh = false) {
     if (!mentorId) return [];
     const cacheKey = `students_mentor_${mentorId}`;
-    const cached = CacheManager.get(cacheKey);
+    const cached = forceRefresh ? null : CacheManager.get(cacheKey);
     if (cached) return cached;
     try {
       const [p1, p2, p3] = await Promise.all([
@@ -1451,6 +1463,14 @@ export const ClassService = {
     return ref.id;
   },
 
+  async assignTeacher(classId, teacherId = null) {
+    await updateDoc(doc(db, 'classes', classId), {
+      classTeacherId: teacherId || null,
+      updatedAt: now()
+    });
+    CacheManager.invalidate('classes');
+  },
+
   async delete(id) {
     const cls = snap(await getDoc(doc(db, 'classes', id)));
     if (cls) {
@@ -1654,13 +1674,13 @@ export const StatsService = {
     return { riskScore: Math.min(100, score), riskLevel, factors };
   },
 
-  async getMentorStats(mentorId) {
+  async getMentorStats(mentorId, forceRefresh = false) {
     const cacheKey = `mentor_stats_${mentorId}`;
-    const cached = CacheManager.get(cacheKey);
+    const cached = forceRefresh ? null : CacheManager.get(cacheKey);
     if (cached) return cached;
 
     const [students, meetings, issues] = await Promise.all([
-      StudentService.getByMentor(mentorId),
+      StudentService.getByMentor(mentorId, forceRefresh),
       MeetingService.getByMentor(mentorId),
       IssueService.getByMentor(mentorId)
     ]);

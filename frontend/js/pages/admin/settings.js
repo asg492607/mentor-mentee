@@ -181,7 +181,7 @@ export async function render(container) {
                 <div>
                   <h3 style="font-size:1.1rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;color:var(--text-primary);">
                     🏛️ MIT-ADT University Cells Directory
-                    <span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;">20 OFFICIAL CELLS</span>
+                    <span class="badge badge-info" style="font-size:0.7rem;padding:2px 8px;">21 OFFICIAL CELLS</span>
                   </h3>
                   <p style="color:var(--text-secondary);font-size:0.84rem;margin-top:4px;line-height:1.5;">
                     Contact directory for Statutory &amp; Welfare, Innovation &amp; Skill, Student Growth, and Campus Operational Cells. Create and approve staff accounts from the Users page; shared default passwords are not used.

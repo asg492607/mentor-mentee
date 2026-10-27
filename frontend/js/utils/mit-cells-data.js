@@ -199,6 +199,17 @@ export const MIT_UNIVERSITY_CELLS = [
     color: '#4f46e5'
   },
   {
+    id: 'admission_cell',
+    category: 'Campus Operational Sections',
+    name: 'Admission Cell',
+    shortCode: 'Admissions',
+    description: 'Maintains admitted student lists, programme and course duration records, and student intake data for academic departments.',
+    email: 'admissions@mituniversity.edu.in',
+    role: 'SECTION_HEAD',
+    icon: 'ph-student',
+    color: '#7c3aed'
+  },
+  {
     id: 'student_section',
     category: 'Campus Operational Sections',
     name: 'Student Section',

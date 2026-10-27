@@ -9,10 +9,19 @@ import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 
 export async function render(container) {
   const user = getUserProfile();
+  const sectionName = String(user.department || user.section || '').toLowerCase();
+  if (sectionName.includes('admission')) {
+    const page = await import('./admissions.js');
+    return page.render(container);
+  }
+  if (sectionName.includes('exam')) {
+    const page = await import('./exams.js');
+    return page.render(container);
+  }
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/section/dashboard')}
+      ${createSidebar(user.role, '/section/dashboard', user.department)}
       <div class="main-content">
         ${createHeader(`${user.department || 'Section'} Dashboard`, user)}
         <div class="page-content" id="section-dash-content">

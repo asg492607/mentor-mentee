@@ -51,7 +51,7 @@ export async function render(container) {
 
   try {
     const [assigned, unassigned] = await Promise.all([
-      StudentService.getByMentor(user.id),
+      StudentService.getByMentor(user.id, true),
       StudentService.getUnassigned(user.department)
     ]);
     
@@ -116,7 +116,7 @@ export async function render(container) {
       assignedHtml = `<div class="card">
         <div class="card-header"><h3>My Assigned Students</h3></div>
       <table class="data-table">
-        <thead><tr><th>Student</th><th>Dept</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Booklet (25% Min)</th><th>Risk</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Student</th><th>Course / Dept</th><th>Year</th><th>SGPA / CGPA</th><th>Attendance</th><th>Booklet (25% Min)</th><th>Risk</th><th>Actions</th></tr></thead>
         <tbody>
           ${list.map(s => `
             <tr>
@@ -129,9 +129,9 @@ export async function render(container) {
                   </div>
                 </div>
               </td>
-              <td style="font-size:0.825rem;">${escapeHtml(s.department || '—')}</td>
-              <td>${s.year ? `Y${s.year}` : '—'}</td>
-              <td style="font-weight:600;color:${(s.cgpa||0)<6?'var(--danger)':(s.cgpa||0)<7?'var(--warning)':'var(--success)'};">${s.cgpa || '—'}</td>
+              <td style="font-size:0.825rem;">${escapeHtml(s.course || s.program || s.department || '—')}</td>
+              <td>${escapeHtml(s.yearLabel || (s.year ? `Y${s.year}` : '—'))}</td>
+              <td style="font-weight:600;color:${(s.cgpa||0)<6?'var(--danger)':(s.cgpa||0)<7?'var(--warning)':'var(--success)'};">${s.latestSGPA ?? '—'} / ${s.cgpa ?? '—'}</td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div style="flex:1;max-width:60px;" class="progress-bar-wrap">

@@ -33,7 +33,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
     if not firebase_auth:
         raise BadRequestException("Firebase authentication is not configured")
     role = str(data.get("role", "")).upper()
-    if role not in {"STUDENT", "FACULTY", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
+    if role not in {"STUDENT", "FACULTY", "CLASS_TEACHER", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
         raise BadRequestException("Invalid role")
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
@@ -59,7 +59,15 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "class": data.get("class"),
             "rollNumber": data.get("rollNumber"),
             "enrollmentNumber": data.get("enrollmentNumber"),
+            "enrollmentNumberNormalized": str(data.get("enrollmentNumber") or "").strip().casefold() or None,
             "mobileNumber": data.get("mobileNumber"),
+            "course": data.get("course") or data.get("program"),
+            "program": data.get("program") or data.get("course"),
+            "durationYears": data.get("durationYears"),
+            "yearLabel": data.get("yearLabel"),
+            "admissionYear": data.get("admissionYear"),
+            "academicYear": data.get("academicYear"),
+            "admissionStatus": data.get("admissionStatus", "ADMITTED"),
             "cgpa": data.get("cgpa", 0),
             "attendance": data.get("attendance", 0),
             "riskLevel": data.get("riskLevel", "LOW"),
@@ -75,6 +83,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "isApproved": True,
             "maxStudents": data.get("maxStudents", 20),
             "assignedStudentCount": data.get("assignedStudentCount", 0),
+            "classTeacherFor": data.get("classTeacherFor", []),
         })
     repo = StudentRepository() if role == "STUDENT" else FacultyRepository()
     repo.create(profile, doc_id=created.uid)

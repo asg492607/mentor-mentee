@@ -175,8 +175,12 @@ export async function render(container) {
               <label style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:8px;">Classes (${deptClasses.length})</label>
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
                 ${deptClasses.length ? deptClasses.map(c => `
-                  <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;padding:4px 8px;">
+                  <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;padding:5px 8px;">
                     Class ${escapeHtml(c.className)}
+                    <select class="class-teacher-select" data-id="${c.id}" aria-label="Class teacher for ${escapeHtml(c.className)}" style="max-width:160px;border:0;background:transparent;color:inherit;font-size:.72rem;">
+                      <option value="">No class teacher</option>
+                      ${faculty.filter(f => ['FACULTY','MENTOR','CLASS_TEACHER'].includes(String(f.role || '').toUpperCase())).map(f => `<option value="${escapeHtml(f.id)}" ${c.classTeacherId === f.id ? 'selected' : ''}>${escapeHtml(f.name || 'Faculty')}</option>`).join('')}
+                    </select>
                     <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;" title="Delete class">✕</button>
                   </span>
                 `).join('') : '<span style="font-size:0.75rem;color:var(--text-muted);">No classes defined</span>'}
@@ -195,6 +199,21 @@ export async function render(container) {
   }
 
   function attachDeptEventListeners() {
+    document.querySelectorAll('.class-teacher-select').forEach(select => {
+      select.addEventListener('change', async event => {
+        const target = event.currentTarget;
+        try {
+          await ClassService.assignTeacher(target.dataset.id, target.value || null);
+          const record = allClasses.find(item => item.id === target.dataset.id);
+          if (record) record.classTeacherId = target.value || null;
+          showToast('Class teacher assignment saved.', 'success');
+        } catch (error) {
+          showToast('Could not assign class teacher: ' + error.message, 'error');
+          renderDepts();
+        }
+      });
+    });
+
     // Open Change HOD Modal Listener
     document.querySelectorAll('.btn-open-change-hod').forEach(btn => {
       btn.addEventListener('click', (e) => {

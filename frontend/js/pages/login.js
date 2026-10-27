@@ -150,6 +150,7 @@ export async function render(container) {
         STUDENT: '/student/dashboard',
         FACULTY: '/mentor/dashboard',
         MENTOR:  '/mentor/dashboard',
+        CLASS_TEACHER: '/mentor/attendance',
         HOD:     '/hod/dashboard',
         DEAN:    '/dean/dashboard',
         SECTION_HEAD: '/section/dashboard',

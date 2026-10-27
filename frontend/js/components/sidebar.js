@@ -1,6 +1,6 @@
 import { t } from '../i18n.js';
 
-export function createSidebar(role, activePath) {
+export function createSidebar(role, activePath, context = '') {
   const roleUpper = role ? role.toUpperCase() : 'STUDENT';
   
   let navItems = [];
@@ -13,13 +13,21 @@ export function createSidebar(role, activePath) {
       { path: '/student/issues', label: t('nav.issues', 'Issues'), icon: '<i class="ph ph-warning-circle"></i>' },
       { path: '/student/tasks', label: t('nav.tasks', 'Tasks'), icon: '<i class="ph ph-check-square"></i>' },
       { path: '/student/profile', label: t('nav.profile', 'Profile'), icon: '<i class="ph ph-user"></i>' },
-      { path: '/student/booklet', label: t('nav.booklet', 'Mentorship Booklet'), icon: '<i class="ph ph-book-open"></i>' }
+      { path: '/student/booklet', label: t('nav.booklet', 'Mentorship Booklet'), icon: '<i class="ph ph-book-open"></i>' },
+      { path: '/student/academics', label: 'Academic Record', icon: '<i class="ph ph-graduation-cap"></i>' }
+    ];
+  } else if (roleUpper === 'CLASS_TEACHER') {
+    navItems = [
+      { path: '/mentor/attendance', label: 'Class Attendance', icon: '<i class="ph ph-calendar-check"></i>' },
+      { path: '/chat', label: t('nav.messages', 'Messages'), icon: '<i class="ph ph-chat-circle-dots"></i>' },
+      { path: '#profile-modal', label: t('nav.profile', 'My Profile'), icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'FACULTY' || roleUpper === 'MENTOR') {
     navItems = [
       { path: '/mentor/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: '<i class="ph ph-squares-four"></i>' },
       { path: '/chat', label: t('nav.messages', 'Messages'), icon: '<i class="ph ph-chat-circle-dots"></i>' },
       { path: '/mentor/students', label: t('nav.my_students', 'My Students'), icon: '<i class="ph ph-users"></i>' },
+      { path: '/mentor/attendance', label: 'Class Attendance', icon: '<i class="ph ph-calendar-check"></i>' },
       { path: '/mentor/meetings', label: t('nav.meetings', 'Meetings'), icon: '<i class="ph ph-calendar-check"></i>' },
       { path: '/mentor/issues', label: t('nav.issues', 'Issues'), icon: '<i class="ph ph-warning-circle"></i>' },
       { path: '/mentor/reports', label: t('nav.reports', 'Reports'), icon: '<i class="ph ph-chart-bar"></i>' },
@@ -60,8 +68,10 @@ export function createSidebar(role, activePath) {
       { path: '#profile-modal', label: t('nav.profile', 'My Profile'), icon: '<i class="ph ph-user"></i>' }
     ];
   } else if (roleUpper === 'SECTION_HEAD') {
+    const sectionContext = String(context || '').toLowerCase();
+    const sectionDashboardLabel = sectionContext.includes('admission') ? 'Admissions Dashboard' : sectionContext.includes('exam') ? 'Results Dashboard' : t('nav.dashboard', 'Dashboard');
     navItems = [
-      { path: '/section/dashboard', label: t('nav.dashboard', 'Dashboard'), icon: '<i class="ph ph-squares-four"></i>' },
+      { path: '/section/dashboard', label: sectionDashboardLabel, icon: '<i class="ph ph-squares-four"></i>' },
       { path: '/section/escalations', label: t('nav.escalations', 'Escalations'), icon: '<i class="ph ph-siren"></i>' },
       { path: '#profile-modal', label: t('nav.profile', 'My Profile'), icon: '<i class="ph ph-user"></i>' }
     ];

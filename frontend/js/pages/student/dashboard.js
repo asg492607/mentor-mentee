@@ -36,7 +36,7 @@ export async function render(container) {
   try {
     // Load all data from Firestore directly with fallbacks
     const [profile, meetings, issues, tasks, bookletCompletionPct] = await Promise.all([
-      StudentService.get(user.id).catch(e => { console.warn('StudentService.get fallback:', e); return null; }),
+      StudentService.getFresh(user.id).catch(e => { console.warn('StudentService.get fallback:', e); return null; }),
       MeetingService.getByStudent(user.id).catch(e => { console.warn('MeetingService fallback:', e); return []; }),
       IssueService.getByStudent(user.id).catch(e => { console.warn('IssueService fallback:', e); return []; }),
       TaskService.getByStudent(user.id).catch(e => { console.warn('TaskService fallback:', e); return []; }),
@@ -160,6 +160,9 @@ export async function render(container) {
           <a href="#/student/profile" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
             <i class="ph ph-user"></i> ${t('nav.profile', 'Profile')}
           </a>
+          <a href="#/student/academics" class="btn btn-sm btn-ghost" style="display:flex; align-items:center; gap:6px; border-radius:10px; font-weight:600; padding:8px 14px; color:var(--text-secondary); white-space:nowrap;">
+            <i class="ph ph-graduation-cap"></i> Academic Record
+          </a>
         </div>
 
         <!-- Quick Actions Bar -->
@@ -175,6 +178,9 @@ export async function render(container) {
           </a>
           <a href="#/student/issues" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
             <i class="ph ph-warning-circle" style="font-size:1.1rem; color:var(--warning);"></i> ${t('nav.issues', 'Grievances & Issues')}
+          </a>
+          <a href="#/student/academics" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
+            <i class="ph ph-graduation-cap" style="font-size:1.1rem;color:var(--accent);"></i> Results &amp; Attendance
           </a>
         </div>
 

@@ -15,7 +15,7 @@ export async function render(container) {
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/section/escalations')}
+      ${createSidebar(user.role, '/section/escalations', user.department)}
       <div class="main-content">
         ${createHeader('Section Escalations', user)}
         <div class="page-content">

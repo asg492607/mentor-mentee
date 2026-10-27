@@ -19,6 +19,7 @@ from app.api.mentor.routes import router as mentor_router
 from app.api.hod.routes import router as hod_router
 from app.api.dean.routes import router as dean_router
 from app.api.admin.routes import router as admin_router
+from app.api.admissions.routes import router as admissions_router
 from app.api.meetings.routes import router as meetings_router
 from app.api.notifications.routes import router as notifications_router
 from app.api.ai.routes import router as ai_router
@@ -59,6 +60,7 @@ api_routers = (
     hod_router,
     dean_router,
     admin_router,
+    admissions_router,
     meetings_router,
     notifications_router,
     ai_router,

@@ -21,9 +21,11 @@ const routes = {
   '/student/tasks': './pages/student/tasks.js',
   '/student/profile': './pages/student/profile.js',
   '/student/booklet': './pages/student/booklet.js',
+  '/student/academics': './pages/student/academics.js',
   '/chat': './pages/chat.js',
   '/mentor/dashboard': './pages/mentor/dashboard.js',
   '/mentor/students': './pages/mentor/students.js',
+  '/mentor/attendance': './pages/mentor/attendance.js',
   '/mentor/meetings': './pages/mentor/meetings.js',
   '/mentor/issues': './pages/mentor/issues.js',
   '/mentor/notes': './pages/mentor/notes.js',
@@ -64,7 +66,8 @@ function getRoleDashboardPath(role) {
   switch (role.toUpperCase()) {
     case 'STUDENT':  return '/student/dashboard';
     case 'FACULTY':
-    case 'MENTOR':   return '/mentor/dashboard';
+    case 'MENTOR': return '/mentor/dashboard';
+    case 'CLASS_TEACHER': return '/mentor/attendance';
     case 'HOD':      return '/hod/dashboard';
     case 'DEAN':     return '/dean/dashboard';
     case 'SECTION':
@@ -180,7 +183,7 @@ async function handleRoute() {
 
     if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
-      if (path.startsWith('/mentor') && path !== '/mentor/booklet' && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/mentor') && path !== '/mentor/booklet' && !['FACULTY', 'MENTOR', 'CLASS_TEACHER'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path === '/mentor/booklet' && !['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'ADMIN'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/hod') && role !== 'HOD') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/dean') && role !== 'DEAN') return navigateTo(getRoleDashboardPath(role));
