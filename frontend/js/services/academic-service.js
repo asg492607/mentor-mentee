@@ -34,6 +34,19 @@ export function yearLabel(value, duration = 4) {
   return labels[n] || `Year ${n}`;
 }
 
+export function getAttendanceStatus(student) {
+  const attendance = Number(student?.attendance);
+  const storedStatus = String(student?.attendanceStatus || '').toUpperCase();
+  if (storedStatus === 'LOW') return { key: 'LOW', label: 'Low attendance', badgeClass: 'badge-danger', isLow: true };
+  if (storedStatus === 'BELOW_TARGET') return { key: 'BELOW_TARGET', label: 'Below target', badgeClass: 'badge-warning', isLow: false };
+  if (storedStatus === 'ON_TRACK') return { key: 'ON_TRACK', label: 'On track', badgeClass: 'badge-success', isLow: false };
+  const hasRecordedAttendance = Number(student?.attendanceSessions || 0) > 0 || (Number.isFinite(attendance) && attendance > 0);
+  if (!hasRecordedAttendance) return { key: 'NOT_RECORDED', label: 'Not recorded', badgeClass: 'badge-muted', isLow: false };
+  if (attendance <= 40) return { key: 'LOW', label: 'Low attendance', badgeClass: 'badge-danger', isLow: true };
+  if (attendance < 75) return { key: 'BELOW_TARGET', label: 'Below target', badgeClass: 'badge-warning', isLow: false };
+  return { key: 'ON_TRACK', label: 'On track', badgeClass: 'badge-success', isLow: false };
+}
+
 export const AcademicConfigService = {
   async get() {
     const snap = await getDoc(doc(db, 'settings', 'academics'));
@@ -125,9 +138,11 @@ export const AttendanceService = {
       const attended = history.docs.reduce((sum, item) => sum + (item.data().present ? 1 : 0), 0);
       const profileSnap = await getDoc(doc(db, 'students', studentId));
       const nextAttendance = count ? Math.round((attended / count) * 1000) / 10 : 0;
+      const attendanceStatus = !count ? 'NOT_RECORDED' : nextAttendance <= 40 ? 'LOW' : nextAttendance < 75 ? 'BELOW_TARGET' : 'ON_TRACK';
       const risk = academicRisk({ ...(profileSnap.exists() ? profileSnap.data() : {}), attendance: nextAttendance });
       await StudentService.update(studentId, {
         attendance: nextAttendance,
+        attendanceStatus,
         attendanceSessions: count,
         attendancePresent: attended,
         ...risk,

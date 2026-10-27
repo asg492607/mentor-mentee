@@ -91,7 +91,7 @@ The platform includes a built-in, Google Meet-style video conferencing tool that
 
 * **Admission Cell:** The Admission Cell dashboard accepts CSV/Excel student lists, checks duplicate emails and enrollment numbers, provisions approved student accounts, and stores course, course duration, FY/SY/TY/LY year, class, admission year, and academic year on the student profile. Course durations and the active academic year are configurable from the same dashboard.
 * **Exam Section:** The Exam Section dashboard imports semester results by enrollment number. SGPA, CGPA, backlogs, exam label, academic year, and optional subject marks are retained as academic result records and summarized on the student profile.
-* **Class Teachers:** Admins assign a class teacher to each configured class from Institutions & Departments. Assigned teachers can mark a roster or upload a CSV attendance register. Attendance percentages and risk summaries are recalculated on the student profile.
+* **Class Teachers:** Admins assign a class teacher to each configured class from Institutions & Departments. Assigned teachers can mark a roster or upload a CSV attendance register. Attendance percentages and risk summaries are recalculated on the student profile; attendance at or below 40% is flagged as Low Attendance for students and mentors.
 * **Student and Mentor Views:** Students can see their semester results and attendance history in Academic Record. Assigned mentors see the updated course, year, result summary, attendance, and risk status in their student lists.
 
 ## Directory Structure

@@ -8,6 +8,7 @@ import { showToast } from '/js/components/toast.js';
 import { StudentService, FacultyService, MeetingService, IssueService, TaskService, StatsService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
 import { t } from '/js/i18n.js';
+import { getAttendanceStatus } from '/js/services/academic-service.js';
 
 function fmt(iso) {
   return iso ? new Date(iso).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' }) : '—';
@@ -50,6 +51,7 @@ export async function render(container) {
     }
     // Update risk if needed
     const risk = StatsService.computeRisk(fullProfile);
+    const attendanceStatus = getAttendanceStatus(fullProfile);
 
     const upcomingMeetings = (meetings || []).filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
     const unacknowledgedMeets = (meetings || []).filter(m => m.status === 'COMPLETED' && !m.studentAcknowledged && !m.isGroup);
@@ -256,6 +258,7 @@ export async function render(container) {
                   <div class="progress-bar-wrap" style="height:8px; border-radius:4px; background:var(--bg-input);">
                     <div class="progress-bar-fill ${(fullProfile.attendance||0)<75?'fill-danger':(fullProfile.attendance||0)<85?'fill-warning':'fill-success'}" style="width:${fullProfile.attendance||0}%; border-radius:4px;"></div>
                   </div>
+                  ${attendanceStatus.isLow ? `<span class="badge ${attendanceStatus.badgeClass}" style="display:inline-flex;margin-top:8px;">${attendanceStatus.label} · threshold 40%</span>` : ''}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
                   <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.risk_score', 'Academic Risk')}</span>

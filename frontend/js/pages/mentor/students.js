@@ -8,6 +8,7 @@ import { StudentService, StatsService, BookletService, NotificationService } fro
 import { db } from '/js/firebase-init.js';
 import { doc, getDoc, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { escapeHtml } from '/js/utils.js';
+import { getAttendanceStatus } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -31,6 +32,7 @@ export async function render(container) {
             ${['ALL','HIGH','MEDIUM','LOW'].map((r,i) =>
               `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} rf" data-r="${r}">${r}</button>`
             ).join('')}
+            <button class="btn btn-sm btn-secondary" id="low-attendance-filter">Low attendance ≤40%</button>
             <button class="btn btn-sm btn-primary" id="btn-bulk-log-meet" style="margin-left:auto;"><i class="ph ph-users-three"></i> Bulk Log Booklets</button>
           </div>
 
@@ -48,6 +50,7 @@ export async function render(container) {
   let pendingStudents = [];
   let search = '';
   let riskFilter = 'ALL';
+  let lowAttendanceOnly = false;
 
   try {
     const [assigned, unassigned] = await Promise.all([
@@ -77,6 +80,7 @@ export async function render(container) {
     const wrap = document.getElementById('students-wrap');
     let list = students;
     if (riskFilter !== 'ALL') list = list.filter(s => s.riskLevel === riskFilter);
+    if (lowAttendanceOnly) list = list.filter(s => getAttendanceStatus(s).isLow);
     if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.enrollmentNumber?.toLowerCase().includes(search));
 
     if (!list.length && !pendingStudents.length) {
@@ -137,7 +141,7 @@ export async function render(container) {
                   <div style="flex:1;max-width:60px;" class="progress-bar-wrap">
                     <div class="progress-bar-fill ${(s.attendance||0)<75?'fill-danger':(s.attendance||0)<85?'fill-warning':'fill-success'}" style="width:${s.attendance||0}%"></div>
                   </div>
-                  <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendance||0}%</span>
+                  <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendance||0}% ${getAttendanceStatus(s).isLow ? `<span class="badge badge-danger">Low attendance</span>` : ''}</span>
                 </div>
               </td>
               <td>
@@ -180,7 +184,7 @@ export async function render(container) {
             <button class="btn btn-sm btn-secondary" id="student-detail-close">Close</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
-            ${[['Email',escapeHtml(s.email||'—')],['Enrollment No',escapeHtml(s.enrollmentNumber||'—')],['Department',escapeHtml(s.department||'—')],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}%`],['Interests',escapeHtml(s.interests||'—')],['Skills',escapeHtml(s.skills||'—')],['Career Goal',escapeHtml(s.careerGoal||'—')]].map(([l,v]) => `
+            ${[['Email',escapeHtml(s.email||'—')],['Enrollment No',escapeHtml(s.enrollmentNumber||'—')],['Department',escapeHtml(s.department||'—')],['Year',s.year?`Year ${s.year}`:'—'],['CGPA',s.cgpa||'—'],['Attendance',`${s.attendance||0}% · ${getAttendanceStatus(s).label}`],['Interests',escapeHtml(s.interests||'—')],['Skills',escapeHtml(s.skills||'—')],['Career Goal',escapeHtml(s.careerGoal||'—')]].map(([l,v]) => `
               <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px;">
                 <p style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">${l}</p>
                 <p style="font-weight:600;font-size:0.825rem;word-break:break-word;">${v}</p>
@@ -266,8 +270,18 @@ export async function render(container) {
         targetBtn.className = 'btn btn-sm btn-primary rf';
         riskFilter = targetBtn.dataset.r;
       }
+      lowAttendanceOnly = false;
+      const lowButton = document.getElementById('low-attendance-filter');
+      if (lowButton) lowButton.className = 'btn btn-sm btn-secondary';
       render_table();
     });
+  });
+  document.getElementById('low-attendance-filter')?.addEventListener('click', event => {
+    lowAttendanceOnly = !lowAttendanceOnly;
+    riskFilter = 'ALL';
+    document.querySelectorAll('.rf').forEach(button => button.className = `btn btn-sm ${button.dataset.r === 'ALL' ? 'btn-primary' : 'btn-secondary'} rf`);
+    event.currentTarget.className = `btn btn-sm ${lowAttendanceOnly ? 'btn-primary' : 'btn-secondary'}`;
+    render_table();
   });
 
   render_table();

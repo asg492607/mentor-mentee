@@ -10,6 +10,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StatsService, MeetingService, NotificationService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
+import { getAttendanceStatus } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' }[r] || 'badge-muted';
@@ -109,7 +110,7 @@ function renderAcademicOverview(students) {
         <td style="padding:10px 12px; font-weight:500;">${latestSGPA}</td>
         <td style="padding:10px 12px; color:${Number(totalBacklogs) > 0 ? 'var(--danger)' : 'var(--text)'};">${totalBacklogs}</td>
         <td style="padding:10px 12px; color:var(--text-muted);">${lastMeet}</td>
-        <td style="padding:10px 12px;">${s.attendance || 0}%</td>
+        <td style="padding:10px 12px;">${s.attendance || 0}% ${getAttendanceStatus(s).isLow ? '<span class="badge badge-danger">Low attendance</span>' : ''}</td>
         <td style="padding:10px 12px;">${riskBadge(s.riskLevel)}</td>
       </tr>
     `;

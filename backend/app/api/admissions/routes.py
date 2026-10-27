@@ -70,6 +70,7 @@ def admit_student(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD)))
             "admittedAt": get_timestamp(),
             "cgpa": 0,
             "attendance": 0,
+            "attendanceStatus": "NOT_RECORDED",
             "riskScore": 0,
             "riskLevel": "LOW",
             "mentorId": None,

@@ -70,6 +70,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "admissionStatus": data.get("admissionStatus", "ADMITTED"),
             "cgpa": data.get("cgpa", 0),
             "attendance": data.get("attendance", 0),
+            "attendanceStatus": data.get("attendanceStatus", "NOT_RECORDED"),
             "riskLevel": data.get("riskLevel", "LOW"),
             "mentorId": data.get("mentorId"),
             "status": "approved",

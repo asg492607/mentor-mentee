@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService } from '/js/services.js';
-import { AttendanceService, ResultService, yearLabel } from '/js/services/academic-service.js';
+import { AttendanceService, ResultService, yearLabel, getAttendanceStatus } from '/js/services/academic-service.js';
 import { escapeHtml } from '/js/utils.js';
 
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—';
@@ -27,12 +27,13 @@ export async function render(container) {
     const student = profile || user;
     const present = attendance.filter(record => record.present).length;
     const rate = attendance.length ? Math.round((present / attendance.length) * 1000) / 10 : Number(student.attendance || 0);
+    const attendanceStatus = getAttendanceStatus({ ...student, attendance: rate, attendanceSessions: attendance.length });
     wrap.innerHTML = `
       <div class="card" style="padding:22px;margin-bottom:18px;background:linear-gradient(135deg,var(--accent-light),var(--bg-card));">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;"><div><span class="badge badge-accent">${escapeHtml(student.academicYear || 'ACADEMIC RECORD')}</span><h2 style="margin:10px 0 4px;">${escapeHtml(student.course || student.program || student.department || 'Student')}</h2><p style="margin:0;color:var(--text-secondary);">${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || 'Year not set')} · ${escapeHtml(student.class || 'Class not assigned')} · ${escapeHtml(student.enrollmentNumber || '')}</p></div><a href="#/student/profile" class="btn btn-secondary btn-sm">Update profile</a></div>
       </div>
       <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px;">
-        <div class="stat-card"><div class="stat-label">Attendance</div><div class="stat-value">${rate}%</div></div>
+        <div class="stat-card"><div class="stat-label">Attendance</div><div class="stat-value">${rate}%</div><span class="badge ${attendanceStatus.badgeClass}" style="display:inline-flex;margin-top:6px;">${attendanceStatus.label}</span>${attendanceStatus.isLow ? '<small style="display:block;margin-top:5px;color:var(--danger);">At or below 40%</small>' : ''}</div>
         <div class="stat-card"><div class="stat-label">Latest SGPA</div><div class="stat-value">${student.latestSGPA ?? '—'}</div></div>
         <div class="stat-card"><div class="stat-label">CGPA</div><div class="stat-value">${student.cgpa ?? '—'}</div></div>
         <div class="stat-card"><div class="stat-label">Backlogs</div><div class="stat-value">${student.backlogs ?? '—'}</div></div>
