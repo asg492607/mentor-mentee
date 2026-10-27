@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends
 
 from app.core.dependencies import require_role
@@ -7,8 +9,11 @@ from app.firebase.client import firebase_auth
 from app.models.enums import UserRole
 from app.repositories.student_repository import StudentRepository
 from app.utils.helpers import get_timestamp
+from app.services.institution_service import resolve_academic_placement
+from app.services.allocation_service import AllocationService
 
 router = APIRouter(prefix="/admissions", tags=["Admissions"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/students")
@@ -30,6 +35,8 @@ def admit_student(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD)))
         raise BadRequestException("Name, valid email, and mobile/password of at least 6 characters are required")
     if not enrollment or not department or not course:
         raise BadRequestException("Enrollment number, department, and course are required")
+    placement = resolve_academic_placement({**data, "department": department})
+    department = placement.get("department") or department
 
     students = StudentRepository()
     if students.query(filters=[("enrollmentNumberNormalized", "==", enrollment.casefold())]) or students.query(filters=[("enrollmentNumber", "==", enrollment)]):
@@ -53,12 +60,16 @@ def admit_student(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD)))
             "email": email,
             "role": UserRole.STUDENT.value,
             "department": department,
+            "departmentId": placement.get("departmentId"),
+            "schoolId": placement.get("schoolId"),
+            "schoolName": placement.get("schoolName"),
             "enrollmentNumber": enrollment,
             "enrollmentNumberNormalized": enrollment.casefold(),
             "mobileNumber": mobile,
             "course": course,
             "program": course,
-            "class": str(data.get("class") or "").strip() or None,
+            "class": placement.get("class"),
+            "classId": placement.get("classId"),
             "year": year,
             "yearLabel": str(data.get("yearLabel") or "").strip() or None,
             "durationYears": duration,
@@ -83,7 +94,11 @@ def admit_student(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD)))
         }
         students.create(profile, doc_id=created.uid)
         firebase_auth.set_custom_user_claims(created.uid, claims_for_account(UserRole.STUDENT.value, True))
-        return profile
+        try:
+            AllocationService().allocate_student(created.uid)
+        except Exception:
+            logger.exception("Could not automatically allocate a mentor to admitted student %s", created.uid)
+        return students.get_by_id(created.uid) or profile
     except Exception as error:
         if created:
             try:

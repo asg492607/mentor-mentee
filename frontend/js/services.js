@@ -41,6 +41,44 @@ function now() {
   return new Date().toISOString();
 }
 
+function normalizeOrgValue(value) {
+  return String(value || '').trim().toLocaleLowerCase();
+}
+
+async function sameDepartment(student, mentor) {
+  const records = (await DepartmentService.getAll().catch(() => []))
+    .filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+  const schools = (await DepartmentService.getSchools().catch(() => []));
+  const resolveKey = profile => {
+    if (profile?.departmentId) return records.some(item => item.id === profile.departmentId) ? profile.departmentId : null;
+    const name = normalizeOrgValue(profile?.department);
+    if (!name) return null;
+    let matches = records.filter(item => normalizeOrgValue(item.name) === name);
+    if (profile.schoolId) matches = matches.filter(item => item.schoolId === profile.schoolId);
+    const schoolName = normalizeOrgValue(profile.schoolName);
+    if (schoolName) matches = matches.filter(item => {
+      const school = schools.find(candidate => candidate.id === item.schoolId);
+      return normalizeOrgValue(item.schoolName || school?.name) === schoolName;
+    });
+    if (matches.length === 1) return matches[0].id;
+    if (records.length) return null;
+    return `legacy:${name}|${profile.schoolId || schoolName}`;
+  };
+  const studentKey = resolveKey(student);
+  const mentorKey = resolveKey(mentor);
+  return Boolean(studentKey && mentorKey && studentKey === mentorKey);
+}
+
+async function batchUpdateDocs(collectionName, documents, updatesFor) {
+  for (let offset = 0; offset < documents.length; offset += 450) {
+    const batch = writeBatch(db);
+    documents.slice(offset, offset + 450).forEach(item => {
+      batch.update(doc(db, collectionName, item.id), { ...updatesFor(item), updatedAt: now() });
+    });
+    await batch.commit();
+  }
+}
+
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 
 import { getAllCellNames } from '/js/utils/mit-cells-data.js';
@@ -145,14 +183,17 @@ export const StudentService = {
     const cacheKey = `students_dept_${dept}`;
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
-    const res = snaps(await getDocs(query(collection(db, 'students'), where('department', '==', dept))));
+    const res = dept.startsWith('id:')
+      ? snaps(await getDocs(query(collection(db, 'students'), where('departmentId', '==', dept.slice(3)))))
+      : snaps(await getDocs(query(collection(db, 'students'), where('department', '==', dept))));
     CacheManager.set(cacheKey, res, 5 * 60 * 1000);
     return res;
   },
 
   async getUnassigned(dept = null) {
     let q = query(collection(db, 'students'), where('mentorId', '==', null));
-    if (dept) q = query(collection(db, 'students'), where('mentorId', '==', null), where('department', '==', dept));
+    if (dept?.startsWith('id:')) q = query(collection(db, 'students'), where('mentorId', '==', null), where('departmentId', '==', dept.slice(3)));
+    else if (dept) q = query(collection(db, 'students'), where('mentorId', '==', null), where('department', '==', dept));
     return snaps(await getDocs(q));
   },
 
@@ -164,14 +205,40 @@ export const StudentService = {
 
   async assignMentor(studentId, mentorId, allocatedBy = 'Admin', allocationType = 'MANUAL', secondaryMentorId = undefined) {
     const time = now();
-    const batch = writeBatch(db);
     const sDoc = await getDoc(doc(db, 'students', studentId));
-    const sData = sDoc.exists() ? sDoc.data() : {};
+    if (!sDoc.exists()) throw new Error('Student not found');
+    const sData = { id: sDoc.id, ...sDoc.data() };
     
     const oldPrimary = sData.mentorId || null;
     const oldSecondary = sData.secondaryMentorId || null;
     const newPrimary = mentorId !== undefined ? (mentorId || null) : oldPrimary;
     const newSecondary = secondaryMentorId !== undefined ? (secondaryMentorId || null) : oldSecondary;
+
+    const countDeltas = new Map();
+    [[oldPrimary, newPrimary], [oldSecondary, newSecondary]].forEach(([previousId, nextId]) => {
+      if (previousId === nextId) return;
+      if (previousId) countDeltas.set(previousId, (countDeltas.get(previousId) || 0) - 1);
+      if (nextId) countDeltas.set(nextId, (countDeltas.get(nextId) || 0) + 1);
+    });
+    for (const id of [newPrimary, newSecondary].filter(Boolean)) {
+      const mentorSnap = await getDoc(doc(db, 'faculty', id));
+      if (!mentorSnap.exists()) throw new Error('Selected mentor was not found');
+      const mentor = { id: mentorSnap.id, ...mentorSnap.data() };
+      if (!['FACULTY', 'MENTOR', 'HOD'].includes(String(mentor.role || '').toUpperCase())) {
+        throw new Error(`${mentor.name || 'Selected user'} is not eligible to mentor students`);
+      }
+      if (!(await sameDepartment(sData, mentor))) {
+        throw new Error(`Mentors must belong to the student's department${sData.schoolName ? ` and school (${sData.schoolName})` : ''}.`);
+      }
+      if ((mentor.assignedStudentCount || 0) + (countDeltas.get(id) || 0) > (mentor.maxStudents || 20)) {
+        throw new Error(`${mentor.name || 'Selected mentor'} has reached student capacity.`);
+      }
+    }
+    if (newPrimary && newPrimary === newSecondary) {
+      throw new Error('A student cannot have the same primary and secondary mentor.');
+    }
+
+    const batch = writeBatch(db);
     
     const mentorIds = [newPrimary, newSecondary].filter(Boolean);
 
@@ -209,6 +276,19 @@ export const StudentService = {
     if (!studentSnap.exists()) throw new Error('Student not found');
     const sData = studentSnap.data();
     const oldMentorId = (isSecondary ? sData.secondaryMentorId : sData.mentorId) || null;
+
+    if (newMentorId) {
+      const newMentorSnap = await getDoc(doc(db, 'faculty', newMentorId));
+      if (!newMentorSnap.exists()) throw new Error('Selected mentor was not found');
+      if (!(await sameDepartment(sData, newMentorSnap.data()))) {
+        throw new Error(`Mentors must belong to the student's department${sData.schoolName ? ` and school (${sData.schoolName})` : ''}.`);
+      }
+      if (oldMentorId !== newMentorId && (newMentorSnap.data().assignedStudentCount || 0) >= (newMentorSnap.data().maxStudents || 20)) {
+        throw new Error('Selected mentor has reached student capacity.');
+      }
+      if (isSecondary && newMentorId === sData.mentorId) throw new Error('Primary and secondary mentors must be different.');
+      if (!isSecondary && newMentorId === sData.secondaryMentorId) throw new Error('Primary and secondary mentors must be different.');
+    }
 
     let oldMentorName = 'Unassigned';
     let newMentorName = 'Unassigned';
@@ -479,12 +559,18 @@ export const FacultyService = {
 
   async getByDepartment(dept) {
     if (!dept) return [];
+    if (dept.startsWith('id:')) return snaps(await getDocs(query(collection(db, 'faculty'), where('departmentId', '==', dept.slice(3)))));
     const cacheKey = `faculty_dept_${dept}`;
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
     const res = snaps(await getDocs(query(collection(db, 'faculty'), where('department', '==', dept))));
     CacheManager.set(cacheKey, res, 5 * 60 * 1000);
     return res;
+  },
+
+  async getByDepartmentId(departmentId) {
+    if (!departmentId) return [];
+    return snaps(await getDocs(query(collection(db, 'faculty'), where('departmentId', '==', departmentId))));
   },
 
   async getDeans() {
@@ -1389,6 +1475,75 @@ export const DepartmentService = {
     return res;
   },
 
+  async getSchools() {
+    return (await this.getAll()).filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+  },
+
+  async backfillReferences() {
+    const [departmentDocs, classDocs, studentDocs, facultyDocs] = await Promise.all([
+      getDocs(collection(db, 'departments')),
+      getDocs(collection(db, 'classes')),
+      getDocs(collection(db, 'students')),
+      getDocs(collection(db, 'faculty'))
+    ]);
+    const records = snaps(departmentDocs);
+    const schools = records.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    const departments = records.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    const parentUpdates = [];
+    departments.forEach(department => {
+      if (department.schoolId || !department.schoolName) return;
+      const matches = schools.filter(school => normalizeOrgValue(school.name) === normalizeOrgValue(department.schoolName));
+      if (matches.length !== 1) return;
+      department.schoolId = matches[0].id;
+      department.schoolName = matches[0].name;
+      parentUpdates.push({ ...department, _placement: { schoolId: matches[0].id, schoolName: matches[0].name } });
+    });
+    const resolveDepartment = item => {
+      if (item.departmentId) return departments.find(department => department.id === item.departmentId) || null;
+      const name = normalizeOrgValue(item.department);
+      if (!name) return null;
+      let matches = departments.filter(department => normalizeOrgValue(department.name) === name);
+      if (item.schoolId) matches = matches.filter(department => department.schoolId === item.schoolId);
+      const schoolName = normalizeOrgValue(item.schoolName);
+      if (schoolName) matches = matches.filter(department => {
+        const linkedSchool = schools.find(school => school.id === department.schoolId);
+        return normalizeOrgValue(department.schoolName || linkedSchool?.name) === schoolName;
+      });
+      return matches.length === 1 ? matches[0] : null;
+    };
+    const placementFor = (item, department) => {
+      if (!department) return null;
+      const school = schools.find(entry => entry.id === department.schoolId);
+      const placement = {
+        departmentId: department.id,
+        department: department.name,
+        schoolId: department.schoolId || null,
+        schoolName: department.schoolName || school?.name || null
+      };
+      return Object.entries(placement).some(([key, value]) => item[key] !== value) ? placement : null;
+    };
+    const classes = snaps(classDocs);
+    await batchUpdateDocs('departments', parentUpdates, item => item._placement);
+    for (const [collectionName, docs] of [['classes', classes], ['students', snaps(studentDocs)], ['faculty', snaps(facultyDocs)]]) {
+      const updates = docs.map(item => {
+        const department = resolveDepartment(item);
+        const placement = placementFor(item, department);
+        const next = { ...(placement || {}) };
+        if (collectionName === 'students' && !item.classId && item.class && department) {
+          const classMatches = classes.filter(cls => cls.className === item.class && resolveDepartment(cls)?.id === department.id);
+          if (classMatches.length === 1) next.classId = classMatches[0].id;
+        }
+        if (!Object.keys(next).length) return null;
+        return { ...item, _placement: next };
+      }).filter(Boolean);
+      await batchUpdateDocs(collectionName, updates, item => item._placement);
+    }
+    CacheManager.invalidate('departments');
+    CacheManager.invalidate('classes');
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
+  },
+
   async create(data) {
     const ref = await addDoc(collection(db, 'departments'), { ...data, createdAt: now() });
     CacheManager.invalidate('departments');
@@ -1396,18 +1551,60 @@ export const DepartmentService = {
   },
 
   async update(id, data) {
-    await updateDoc(doc(db, 'departments', id), data);
+    const currentSnap = await getDoc(doc(db, 'departments', id));
+    if (!currentSnap.exists()) throw new Error('School or department not found');
+    const current = { id, ...currentSnap.data() };
     CacheManager.invalidate('departments');
+    await updateDoc(doc(db, 'departments', id), { ...data, updatedAt: now() });
+    const isSchool = ['SCHOOL', 'COLLEGE'].includes(String(current.type || '').toUpperCase());
+    if (isSchool && (data.name !== undefined || data.code !== undefined || data.hodName !== undefined)) {
+      const newName = data.name ?? current.name;
+      const [allDepartments, allClasses, allStudents, allFaculty] = await Promise.all([
+        this.getAll(), ClassService.getAll(), StudentService.getAllFresh(), FacultyService.getAll()
+      ]);
+      const belongsToSchool = item => item.schoolId === id || (!item.schoolId && normalizeOrgValue(item.schoolName) === normalizeOrgValue(current.name));
+      await batchUpdateDocs('departments', allDepartments.filter(item => item.id !== id && belongsToSchool(item)), () => ({ schoolId: id, schoolName: newName }));
+      await batchUpdateDocs('classes', allClasses.filter(belongsToSchool), () => ({ schoolId: id, schoolName: newName }));
+      await batchUpdateDocs('students', allStudents.filter(belongsToSchool), () => ({ schoolId: id, schoolName: newName }));
+      await batchUpdateDocs('faculty', allFaculty.filter(belongsToSchool), () => ({ schoolId: id, schoolName: newName }));
+    } else if (data.name !== undefined || data.schoolId !== undefined || data.schoolName !== undefined) {
+      const [allDepartments, allClasses, allStudents, allFaculty] = await Promise.all([
+        this.getAll(), ClassService.getAll(), StudentService.getAllFresh(), FacultyService.getAll()
+      ]);
+      const school = allDepartments.find(item => item.id === (data.schoolId ?? current.schoolId));
+      const placement = {
+        department: data.name ?? current.name,
+        departmentId: id,
+        schoolId: data.schoolId ?? current.schoolId ?? null,
+        schoolName: data.schoolName ?? school?.name ?? current.schoolName ?? null
+      };
+      const matches = items => items.filter(item => item.departmentId === id || (
+        !item.departmentId && normalizeOrgValue(item.department) === normalizeOrgValue(current.name) &&
+        (!current.schoolId || !item.schoolId || item.schoolId === current.schoolId) &&
+        (!current.schoolName || !item.schoolName || normalizeOrgValue(item.schoolName) === normalizeOrgValue(current.schoolName))
+      ));
+      await batchUpdateDocs('classes', matches(allClasses), () => placement);
+      await batchUpdateDocs('students', matches(allStudents), () => placement);
+      await batchUpdateDocs('faculty', matches(allFaculty), () => placement);
+    }
+    CacheManager.invalidate('departments');
+    CacheManager.invalidate('classes');
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('faculty_');
   },
 
   async changeHOD(departmentId, deptName, newHodFacultyId = null, previousHodFacultyId = null, newHodName = '') {
     const time = now();
+    const department = snap(await getDoc(doc(db, 'departments', departmentId)));
 
     // Role changes must go through the trusted backend so matching Firebase claims are set.
     if (newHodFacultyId) {
       await AdminService.updateUser(newHodFacultyId, {
         role: 'HOD',
         department: deptName,
+        departmentId,
+        schoolId: department?.schoolId || null,
+        schoolName: department?.schoolName || null,
       });
     }
 
@@ -1426,6 +1623,24 @@ export const DepartmentService = {
   },
 
   async delete(id) {
+    const [all, classes, students, faculty] = await Promise.all([
+      this.getAll(), ClassService.getAll(), StudentService.getAllFresh(), FacultyService.getAll()
+    ]);
+    const item = all.find(entry => entry.id === id);
+    if (!item) return;
+    const isSchool = ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase());
+    const belongsToDepartment = entry => entry.departmentId === id || (
+      !entry.departmentId && normalizeOrgValue(entry.department) === normalizeOrgValue(item.name) &&
+      (!item.schoolId || !entry.schoolId || entry.schoolId === item.schoolId) &&
+      (!item.schoolName || !entry.schoolName || normalizeOrgValue(entry.schoolName) === normalizeOrgValue(item.schoolName))
+    );
+    const hasChildren = isSchool
+      ? all.some(entry => entry.schoolId === id || (!entry.schoolId && normalizeOrgValue(entry.schoolName) === normalizeOrgValue(item.name))) ||
+        classes.some(entry => entry.schoolId === id || (!entry.schoolId && normalizeOrgValue(entry.schoolName) === normalizeOrgValue(item.name))) ||
+        students.some(entry => entry.schoolId === id || (!entry.schoolId && normalizeOrgValue(entry.schoolName) === normalizeOrgValue(item.name))) ||
+        faculty.some(entry => entry.schoolId === id || (!entry.schoolId && normalizeOrgValue(entry.schoolName) === normalizeOrgValue(item.name)))
+      : classes.some(belongsToDepartment) || students.some(belongsToDepartment) || faculty.some(belongsToDepartment);
+    if (hasChildren) throw new Error(`Move or remove this ${isSchool ? 'school’s departments' : 'department’s classes and users'} before deleting it.`);
     await deleteDoc(doc(db, 'departments', id));
     CacheManager.invalidate('departments');
   }
@@ -1444,7 +1659,13 @@ export const ClassService = {
 
   async getByDepartment(dept) {
     if (!dept) return [];
+    if (dept.startsWith('id:')) return snaps(await getDocs(query(collection(db, 'classes'), where('departmentId', '==', dept.slice(3)))));
     return snaps(await getDocs(query(collection(db, 'classes'), where('department', '==', dept))));
+  },
+
+  async getByDepartmentId(departmentId) {
+    if (!departmentId) return [];
+    return snaps(await getDocs(query(collection(db, 'classes'), where('departmentId', '==', departmentId))));
   },
 
   async create(data) {
@@ -1453,10 +1674,26 @@ export const ClassService = {
     if (!className || !department) {
       throw new Error('Both Department and Class Name are required.');
     }
+    const departmentRecords = await DepartmentService.getAll();
+    const academicDepartments = departmentRecords.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    const departmentMatches = data.departmentId
+      ? academicDepartments.filter(item => item.id === data.departmentId)
+      : academicDepartments.filter(item => normalizeOrgValue(item.name) === normalizeOrgValue(department));
+    if (data.departmentId && !departmentMatches.length) throw new Error('Selected department was not found.');
+    if (!data.departmentId && departmentMatches.length > 1) throw new Error('Select a department ID to disambiguate this class.');
+    const linkedDepartment = departmentMatches[0] || null;
+    const schoolsConfigured = departmentRecords.some(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    if (schoolsConfigured && linkedDepartment && !linkedDepartment.schoolId) {
+      throw new Error('Link this department to a school before creating classrooms.');
+    }
+    if (schoolsConfigured && !linkedDepartment) throw new Error('Select a department configured under a school.');
     const ref = await addDoc(collection(db, 'classes'), {
       ...data,
       className,
-      department,
+      department: linkedDepartment?.name || department,
+      departmentId: data.departmentId || linkedDepartment?.id || null,
+      schoolId: data.schoolId || linkedDepartment?.schoolId || null,
+      schoolName: data.schoolName || linkedDepartment?.schoolName || null,
       createdAt: now()
     });
     CacheManager.invalidate('classes');
@@ -1464,6 +1701,12 @@ export const ClassService = {
   },
 
   async assignTeacher(classId, teacherId = null) {
+    if (teacherId) {
+      const cls = snap(await getDoc(doc(db, 'classes', classId)));
+      const teacher = snap(await getDoc(doc(db, 'faculty', teacherId)));
+      if (!cls || !teacher) throw new Error('Class or teacher not found');
+      if (!(await sameDepartment(cls, teacher))) throw new Error('Class teachers must belong to the class department.');
+    }
     await updateDoc(doc(db, 'classes', classId), {
       classTeacherId: teacherId || null,
       updatedAt: now()
@@ -1471,15 +1714,36 @@ export const ClassService = {
     CacheManager.invalidate('classes');
   },
 
+  async update(id, data) {
+    const current = snap(await getDoc(doc(db, 'classes', id)));
+    if (!current) throw new Error('Class not found');
+    const updates = { ...data, updatedAt: now() };
+    await updateDoc(doc(db, 'classes', id), updates);
+    if (data.className && data.className !== current.className) {
+      const students = await StudentService.getAllFresh();
+      const linked = students.filter(student => student.classId === id || (
+        !student.classId && student.class === current.className &&
+        (student.departmentId ? student.departmentId === current.departmentId : student.department === current.department)
+      ));
+      await batchUpdateDocs('students', linked, () => ({ class: data.className, classId: id }));
+    }
+    CacheManager.invalidate('classes');
+    CacheManager.invalidatePrefix('students_');
+  },
+
   async delete(id) {
     const cls = snap(await getDoc(doc(db, 'classes', id)));
     if (cls) {
-      const q = query(collection(db, 'students'), where('department', '==', cls.department), where('class', '==', cls.className));
-      const students = snaps(await getDocs(q));
+      const allStudents = await StudentService.getAllFresh();
+      const students = allStudents.filter(student => student.classId === id || (
+        !student.classId && student.class === cls.className &&
+        (cls.departmentId ? student.departmentId === cls.departmentId : student.department === cls.department) &&
+        (!cls.schoolId || !student.schoolId || student.schoolId === cls.schoolId)
+      ));
       
       const batch = writeBatch(db);
       for (const s of students) {
-        batch.update(doc(db, 'students', s.id), { class: null, updatedAt: now() });
+        batch.update(doc(db, 'students', s.id), { class: null, classId: null, updatedAt: now() });
       }
       batch.delete(doc(db, 'classes', id));
       await batch.commit();
@@ -1500,16 +1764,47 @@ export const AllocationService = {
 
   async batchAssign(studentIds, mentorId, isSecondary = false) {
     if (!studentIds || studentIds.length === 0 || !mentorId) return;
+    const mentorSnap = await getDoc(doc(db, 'faculty', mentorId));
+    if (!mentorSnap.exists()) throw new Error('Selected mentor was not found');
+    const mentor = { id: mentorSnap.id, ...mentorSnap.data() };
+    const studentSnaps = await Promise.all(studentIds.map(id => getDoc(doc(db, 'students', id))));
+    const students = studentSnaps.map((item, index) => {
+      if (!item.exists()) throw new Error('One or more selected students no longer exist');
+      return { id: item.id, ...item.data(), selectedId: studentIds[index] };
+    });
+    const departmentMatches = await Promise.all(students.map(student => sameDepartment(student, mentor)));
+    if (departmentMatches.some(matches => !matches)) {
+      throw new Error('A mentor can only be assigned to students from the same department and school.');
+    }
+    if (!['FACULTY', 'MENTOR', 'HOD'].includes(String(mentor.role || '').toUpperCase())) {
+      throw new Error('Selected user is not eligible to mentor students.');
+    }
+    const assignmentField = isSecondary ? 'secondaryMentorId' : 'mentorId';
+    const additionalStudents = students.filter(student => student[assignmentField] !== mentorId).length;
+    if ((mentor.assignedStudentCount || 0) + additionalStudents > (mentor.maxStudents || 20)) {
+      throw new Error('Selected mentor does not have enough capacity for this batch.');
+    }
     const batch = writeBatch(db);
-    studentIds.forEach(id => {
-      const field = isSecondary ? 'secondaryMentorId' : 'mentorId';
+    const mentorCountDeltas = new Map();
+    students.forEach(student => {
+      const id = student.id;
+      const field = assignmentField;
+      if (isSecondary && student.mentorId === mentorId) throw new Error('Primary and secondary mentors must be different.');
+      if (!isSecondary && student.secondaryMentorId === mentorId) throw new Error('Primary and secondary mentors must be different.');
+      const previousMentorId = student[field] || null;
+      if (previousMentorId !== mentorId) {
+        if (previousMentorId) mentorCountDeltas.set(previousMentorId, (mentorCountDeltas.get(previousMentorId) || 0) - 1);
+        mentorCountDeltas.set(mentorId, (mentorCountDeltas.get(mentorId) || 0) + 1);
+      }
       batch.update(doc(db, 'students', id), {
         [field]: mentorId,
-        mentorIds: arrayUnion(mentorId),
+        mentorIds: [...new Set([student.mentorId, student.secondaryMentorId, mentorId].filter(Boolean))],
         updatedAt: new Date().toISOString()
       });
     });
-    batch.update(doc(db, 'faculty', mentorId), { assignedStudentCount: increment(studentIds.length) });
+    mentorCountDeltas.forEach((delta, id) => {
+      if (delta) batch.update(doc(db, 'faculty', id), { assignedStudentCount: increment(delta) });
+    });
     await batch.commit();
     CacheManager.invalidatePrefix('students_');
     CacheManager.invalidatePrefix('faculty_');
@@ -1530,50 +1825,37 @@ export const AllocationService = {
     let mentors = department
       ? await FacultyService.getByDepartment(department)
       : await FacultyService.getAll();
-    mentors = mentors.filter(m => m.role === 'FACULTY' || m.role === 'MENTOR');
-
-    // Sort mentors by available capacity desc
-    const available = mentors
-      .filter(m => (m.assignedStudentCount || 0) < (m.maxStudents || 20))
-      .sort((a, b) => (b.maxStudents - (b.assignedStudentCount || 0)) - (a.maxStudents - (a.assignedStudentCount || 0)));
-
-    let mentorIdx = 0;
+    mentors = mentors.filter(m => ['FACULTY', 'MENTOR', 'HOD'].includes(String(m.role || '').toUpperCase()));
     const results = [];
-    let mentorIncrements = {};
+    const groups = new Map();
+    students.forEach(student => {
+      const key = student.departmentId
+        ? `id:${student.departmentId}`
+        : `name:${normalizeOrgValue(student.schoolId || student.schoolName)}|${normalizeOrgValue(student.department)}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(student);
+    });
 
-    let currentBatch = writeBatch(db);
-    let batchCount = 0;
-
-    for (let i = 0; i < students.length; i++) {
-      if (mentorIdx >= available.length) break;
-      const student = students[i];
-      const mentor = available[mentorIdx];
-
-      currentBatch.update(doc(db, 'students', student.id), {
-        mentorId: mentor.id,
-        mentorIds: [mentor.id],
-        updatedAt: now()
-      });
-      batchCount++;
-      mentorIncrements[mentor.id] = (mentorIncrements[mentor.id] || 0) + 1;
-      results.push({ studentId: student.id, mentorId: mentor.id });
-
-      mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
-      if (mentor.assignedStudentCount >= (mentor.maxStudents || 20)) mentorIdx++;
-
-      if (batchCount >= 400 || i === students.length - 1 || mentorIdx >= available.length) {
-        for (const [mId, inc] of Object.entries(mentorIncrements)) {
-          currentBatch.update(doc(db, 'faculty', mId), { assignedStudentCount: increment(inc) });
+    let processed = 0;
+    for (const group of groups.values()) {
+      const groupMentorMatches = await Promise.all(mentors.map(mentor => sameDepartment(group[0], mentor)));
+      const groupMentors = mentors.filter((mentor, index) => groupMentorMatches[index])
+        .sort((a, b) => ((a.assignedStudentCount || 0) - (b.assignedStudentCount || 0)));
+      for (const student of group) {
+        const mentor = groupMentors.find(item => (item.assignedStudentCount || 0) < (item.maxStudents || 20));
+        if (mentor) {
+          const batch = writeBatch(db);
+          batch.update(doc(db, 'students', student.id), { mentorId: mentor.id, mentorIds: [mentor.id], updatedAt: now() });
+          batch.update(doc(db, 'faculty', mentor.id), { assignedStudentCount: increment(1) });
+          await batch.commit();
+          mentor.assignedStudentCount = (mentor.assignedStudentCount || 0) + 1;
+          results.push({ studentId: student.id, mentorId: mentor.id });
         }
-        await currentBatch.commit();
-        if (onProgress) onProgress(results.length, students.length);
-
-        currentBatch = writeBatch(db);
-        batchCount = 0;
-        mentorIncrements = {};
-        await new Promise(r => setTimeout(r, 0));
+        processed++;
+        if (onProgress && processed % 25 === 0) onProgress(processed, students.length);
       }
     }
+    if (onProgress) onProgress(processed, students.length);
 
     CacheManager.invalidatePrefix('students_');
     CacheManager.invalidatePrefix('faculty_');

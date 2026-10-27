@@ -528,6 +528,8 @@ export async function render(container) {
   const classSel  = document.getElementById('new-user-class');
   const mentorSel = document.getElementById('new-user-mentor');
   let allDepts    = [];
+  let allSchools  = [];
+  let selectedDepartmentClasses = [];
   let allSections = [];
 
   // ── Load departments & sections, then wire dept → class/mentor chain ──────
@@ -536,10 +538,14 @@ export async function render(container) {
       const { DepartmentService, ClassService, SettingsService, FacultyService } =
         await import('/js/services.js');
 
+      await DepartmentService.backfillReferences();
       [allDepts, allSections] = await Promise.all([
         DepartmentService.getAll(),
         SettingsService.getSections()
       ]);
+      allSchools = allDepts.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+      const schoolsConfigured = allSchools.length > 0;
+      allDepts = allDepts.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()) && (!schoolsConfigured || item.schoolId));
 
       // Populate dept dropdown initially (role starts as STUDENT)
       populateAdminDepts('Academic');
@@ -550,37 +556,46 @@ export async function render(container) {
       // ── dept change → load classes & mentors ──────────────────────────────
       deptSel?.addEventListener('change', async () => {
         if (!deptSel || !roleSel || !classSel || !mentorSel) return;
-        const dept = deptSel.value;
+        const deptId = deptSel.value;
+        const department = allDepts.find(item => item.id === deptId);
         const role = roleSel.value;
 
         // Reset
         classSel.innerHTML  = '<option value="">— Select Class —</option>';
         classSel.disabled   = true;
+        selectedDepartmentClasses = [];
         mentorSel.innerHTML = '<option value="">— No Mentor (assign later) —</option>';
         mentorSel.disabled  = true;
 
-        if (!dept || role !== 'STUDENT') return;
+        if (!department || role !== 'STUDENT') return;
 
         // Show loading state
         classSel.innerHTML  = '<option value="">Loading classes…</option>';
         mentorSel.innerHTML = '<option value="">Loading mentors…</option>';
 
-        const [classes, faculty] = await Promise.all([
-          ClassService.getByDepartment(dept),
-          FacultyService.getByDepartment(dept)
+        const [classes, allFaculty] = await Promise.all([
+          ClassService.getAll(),
+          FacultyService.getAll()
         ]);
+        const sameDepartment = item => item.departmentId
+          ? item.departmentId === deptId
+          : !department.schoolId && item.department === department.name ||
+            Boolean(department.schoolId && item.department === department.name && item.schoolId === department.schoolId);
+        const classesForDepartment = classes.filter(sameDepartment);
+        const faculty = allFaculty.filter(sameDepartment);
+        selectedDepartmentClasses = classesForDepartment;
 
         // Classes
-        if (!classes.length) {
+        if (!classesForDepartment.length) {
           classSel.innerHTML = '<option value="">No classes in this department</option>';
         } else {
           classSel.disabled  = false;
           classSel.innerHTML = '<option value="">— Select Class (optional) —</option>' +
-            classes.map(c => `<option value="${c.className}">Class ${c.className}</option>`).join('');
+            classesForDepartment.map(c => `<option value="${c.id}">Class ${c.className}</option>`).join('');
         }
 
         // Mentors — only FACULTY / MENTOR role
-        const mentors = faculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR');
+        const mentors = faculty.filter(f => ['FACULTY', 'MENTOR', 'HOD'].includes(String(f.role || '').toUpperCase()));
         if (!mentors.length) {
           mentorSel.innerHTML = '<option value="">No faculty in this department</option>';
         } else {
@@ -605,7 +620,10 @@ export async function render(container) {
         allSections.map(s => `<option value="${s}">${s}</option>`).join('');
     } else {
       deptSel.innerHTML = '<option value="">Select Department</option>' +
-        allDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        allDepts.map(d => {
+          const schoolName = d.schoolName || allSchools.find(school => school.id === d.schoolId)?.name;
+          return `<option value="${d.id}">${schoolName ? `${schoolName} — ` : ''}${d.name}</option>`;
+        }).join('');
     }
   }
 
@@ -666,38 +684,27 @@ export async function render(container) {
         return;
       }
 
+      const selectedAcademicDepartment = allDepts.find(item => item.id === deptSel.value);
       const data = {
         role,
         name:       document.getElementById('new-user-name').value.trim(),
         email:      emailInput,
         password:   document.getElementById('new-user-password').value,
-        department: (role === 'DEAN' || role === 'ADMIN')
-                      ? null
-                      : deptSel.value || null
+        department: (role === 'DEAN' || role === 'ADMIN') ? null : (selectedAcademicDepartment?.name || deptSel.value || null),
+        departmentId: (role === 'DEAN' || role === 'ADMIN') ? null : (selectedAcademicDepartment?.id || null),
+        schoolId: (role === 'DEAN' || role === 'ADMIN') ? null : (selectedAcademicDepartment?.schoolId || null),
+        schoolName: (role === 'DEAN' || role === 'ADMIN') ? null : (selectedAcademicDepartment?.schoolName || allSchools.find(school => school.id === selectedAcademicDepartment?.schoolId)?.name || null)
       };
       if (role === 'STUDENT') {
-        data.class    = classSel.value  || null;
+        const selectedClass = selectedDepartmentClasses.find(item => item.id === classSel.value);
+        data.class    = selectedClass?.className || null;
+        data.classId  = selectedClass?.id || null;
         data.year     = parseInt(document.getElementById('new-user-year').value) || null;
         data.mentorId = mentorSel.value || null;
       }
 
       const { AdminService: AdmSvc, FacultyService: FacSvc } = await import('/js/services.js');
       const newUser = await AdmSvc.createUser(data);
-
-      // Increment mentor's student count atomically if one was chosen
-      if (role === 'STUDENT' && data.mentorId) {
-        try {
-          // Use Firestore atomic increment to avoid stale-read race conditions
-          const { db: firestoreDb } = await import('/js/firebase-init.js');
-          const { doc: fsDoc, updateDoc: fsUpdate, increment: fsIncrement } =
-            await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-          await fsUpdate(fsDoc(firestoreDb, 'faculty', data.mentorId), {
-            assignedStudentCount: fsIncrement(1)
-          });
-        } catch (assignErr) {
-          console.warn('Mentor count increment failed:', assignErr.message);
-        }
-      }
 
       showToast('User created successfully!', 'success');
       modal.style.display = 'none';
@@ -1857,6 +1864,19 @@ export async function render(container) {
       return;
     }
 
+    const systemSchools = allSystemDepartments.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    const academicDepartmentRecords = allSystemDepartments.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    if (systemSchools.length) {
+      const unlinked = [...new Set(toProcess.map(getRowTargetDepartment).filter(Boolean))].filter(name => {
+        const department = academicDepartmentRecords.find(item => String(item.name || '').trim().toLowerCase() === String(name).trim().toLowerCase());
+        return !department || !department.schoolId;
+      });
+      if (unlinked.length) {
+        showToast(`Create and link these departments to a school first: ${unlinked.join(', ')}`, 'warning');
+        return;
+      }
+    }
+
     btnExecuteAssign.disabled = true;
     btnExecuteAssign.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Processing…';
 
@@ -1891,8 +1911,8 @@ export async function render(container) {
     let failCount = 0;
 
     // Check if any mapped departments need to be created in Firestore
-    const existingDeptNames = new Set(allSystemDepartments.map(d => (d.name || '').toLowerCase().trim()));
-    for (const spec of sheetSpecializations) {
+    const existingDeptNames = new Set(academicDepartmentRecords.map(d => (d.name || '').toLowerCase().trim()));
+    for (const spec of systemSchools.length ? [] : sheetSpecializations) {
       const targetDept = deptMapping[spec];
       if (targetDept && targetDept !== 'USE_MENTOR_DEPT' && !existingDeptNames.has(targetDept.toLowerCase().trim())) {
         try {
@@ -1914,6 +1934,10 @@ export async function render(container) {
     for (let i = 0; i < toProcess.length; i++) {
       const row = toProcess[i];
       const targetDept = getRowTargetDepartment(row);
+      const targetDeptRecord = allSystemDepartments.find(dept =>
+        !['SCHOOL', 'COLLEGE'].includes(String(dept.type || '').toUpperCase()) &&
+        String(dept.name || '').trim().toLowerCase() === String(targetDept || '').trim().toLowerCase()
+      );
       const studentName = row.rawStudentName || row.rawEnroll || 'Student';
 
       const pct = Math.round(((i + 1) / toProcess.length) * 100);
@@ -1924,6 +1948,18 @@ export async function render(container) {
       try {
         if (row.matchedStudent) {
           // EXISTING STUDENT: Assign or reassign mentor
+          if (!row.matchedStudent.department && targetDept) {
+            const placement = {
+              department: targetDept,
+              ...(targetDeptRecord ? {
+                departmentId: targetDeptRecord.id,
+                schoolId: targetDeptRecord.schoolId || null,
+                schoolName: targetDeptRecord.schoolName || null
+              } : {})
+            };
+            await StudentService.update(row.matchedStudent.id, placement);
+            Object.assign(row.matchedStudent, placement);
+          }
           if (row.matchedStudent.mentorId && row.matchedStudent.mentorId !== row.matchedMentor.id) {
             await StudentService.reassignMentor(
               row.matchedStudent.id,
@@ -1938,13 +1974,6 @@ export async function render(container) {
               'Admin (Class Register Import)',
               'BULK_SHEET'
             );
-          }
-
-          // Also update department if student had none
-          if (!row.matchedStudent.department && targetDept) {
-            try {
-              await StudentService.update(row.matchedStudent.id, { department: targetDept });
-            } catch (_) {}
           }
 
           // Update local cache
@@ -1977,6 +2006,9 @@ export async function render(container) {
             password: pass,
             enrollmentNumber: row.rawEnroll,
             department: targetDept,
+            departmentId: targetDeptRecord?.id || null,
+            schoolId: targetDeptRecord?.schoolId || null,
+            schoolName: targetDeptRecord?.schoolName || null,
             specialization: row.rawSpec || targetDept,
             class: row.rawBatch || row.rawPracticalBatch || row.rawRollNoBatch || '',
             rollNumber: row.rawRollNo || '',

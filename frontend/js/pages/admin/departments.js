@@ -17,19 +17,20 @@ export async function render(container) {
         ${createHeader('Institutions & Departments', user)}
         <div class="page-content">
           <div class="card" style="padding:24px;margin-bottom:20px;">
-            <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Add New Institution / Department</h3>
-            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:12px;align-items:end;">
+            <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">University structure</h3>
+            <p style="font-size:.82rem;color:var(--text-secondary);margin:-8px 0 16px;">Create schools first, then link departments, classrooms, teachers and students to the right school.</p>
+            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
               <div class="form-group" style="margin:0;">
-                <label class="form-label">Type</label>
+                <label class="form-label">Add</label>
                 <select id="d-type" class="form-select">
-                  <option value="Department">Department</option>
                   <option value="School">School</option>
-                  <option value="College">College</option>
+                  <option value="Department">Department</option>
                 </select>
               </div>
-              <div class="form-group" style="margin:0;"><label class="form-label">Name</label><input type="text" id="d-name" class="form-input" placeholder="Computer Science"></div>
+              <div class="form-group" style="margin:0;"><label class="form-label">Name</label><input type="text" id="d-name" class="form-input" placeholder="School of Engineering"></div>
               <div class="form-group" style="margin:0;"><label class="form-label">Code</label><input type="text" id="d-code" class="form-input" placeholder="CS"></div>
-              <div class="form-group" style="margin:0;"><label class="form-label">Head/Dean/HOD Name</label><input type="text" id="d-hod" class="form-input" placeholder="Dr. Name"></div>
+              <div class="form-group" style="margin:0;display:none;" id="parent-school-group"><label class="form-label">School</label><select id="d-school" class="form-select"><option value="">Select School</option></select></div>
+              <div class="form-group" style="margin:0;"><label class="form-label">Head / HOD</label><input type="text" id="d-hod" class="form-input" placeholder="Dr. Name"></div>
               <button class="btn btn-primary" id="btn-add-dept">Add</button>
             </div>
           </div>
@@ -96,6 +97,7 @@ export async function render(container) {
   `;
 
   let depts = [];
+  let schools = [];
   let students = [];
   let faculty  = [];
   let allClasses = [];
@@ -103,14 +105,21 @@ export async function render(container) {
   let activeChangeDeptId = null;
   let activeChangeDeptName = null;
   let activePreviousHodId = null;
+  let referencesBackfilled = false;
 
   async function loadAll() {
+    if (!referencesBackfilled) {
+      await DepartmentService.backfillReferences();
+      referencesBackfilled = true;
+    }
     [depts, students, faculty, allClasses] = await Promise.all([
       DepartmentService.getAll(),
       StudentService.getAll(),
       FacultyService.getAll(),
       ClassService.getAll()
     ]);
+    schools = depts.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+    renderSchoolOptions();
   }
 
   try { await loadAll(); } catch (err) { showToast('Error loading: ' + err.message, 'error'); return; }
@@ -118,17 +127,40 @@ export async function render(container) {
   // Guard: if the user navigated away while loadAll() was in flight, the DOM is gone
   if (!container.querySelector('#btn-add-dept')) return;
 
+  function renderSchoolOptions() {
+    const select = container.querySelector('#d-school');
+    if (!select) return;
+    select.innerHTML = '<option value="">— Select School —</option>' +
+      schools.map(school => `<option value="${escapeHtml(school.id)}">${escapeHtml(school.name)} (${escapeHtml(school.code || 'No code')})</option>`).join('');
+    const isDepartment = container.querySelector('#d-type')?.value === 'Department';
+    container.querySelector('#parent-school-group').style.display = isDepartment ? 'block' : 'none';
+  }
+
   function renderDepts() {
     const grid = container.querySelector('#dept-grid');
     if (!depts.length) {
-      grid.innerHTML = `<div class="empty-state card" style="grid-column:1/-1;padding:48px;"><h3>No departments yet</h3><p>Add the first department above.</p></div>`;
+      grid.innerHTML = `<div class="empty-state card" style="grid-column:1/-1;padding:48px;"><h3>No schools or departments yet</h3><p>Add a school above to start building the university structure.</p></div>`;
       return;
     }
 
-    grid.innerHTML = depts.map(d => {
-      const studentCount = students.filter(s => s.department === d.name).length;
-      const mentorCount  = faculty.filter(f => f.department === d.name).length;
-      const deptClasses  = allClasses.filter(c => c.department === d.name);
+    const departmentRows = depts.filter(d => !['SCHOOL', 'COLLEGE'].includes(String(d.type || '').toUpperCase()));
+    const schoolCards = schools.map(school => {
+      const childCount = departmentRows.filter(dept => dept.schoolId === school.id).length;
+      const studentCount = students.filter(student => student.schoolId === school.id).length;
+      return `<div class="card" style="padding:18px 20px;grid-column:1/-1;border-left:4px solid var(--accent);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div><span class="badge badge-accent">SCHOOL</span><h3 style="margin:8px 0 3px;">${escapeHtml(school.name)}</h3>
+          <span style="font-size:.8rem;color:var(--text-secondary);">${escapeHtml(school.code || '—')} · Head: ${escapeHtml(school.hodName || 'Unassigned')} · ${childCount} departments · ${studentCount} students</span></div>
+          <div style="display:flex;gap:8px;"><button class="btn btn-sm btn-secondary edit-school" data-id="${escapeHtml(school.id)}">Edit school</button><button class="btn btn-sm btn-danger del-dept" data-id="${escapeHtml(school.id)}">Delete</button></div>
+        </div></div>`;
+    }).join('');
+
+    grid.innerHTML = `${schoolCards}${departmentRows.map(d => {
+      const school = schools.find(item => item.id === d.schoolId);
+      const belongs = item => item.departmentId === d.id || (!item.departmentId && item.department === d.name);
+      const studentCount = students.filter(belongs).length;
+      const mentorCount  = faculty.filter(belongs).length;
+      const deptClasses  = allClasses.filter(c => c.departmentId === d.id || (!c.departmentId && c.department === d.name));
 
       // Find current HOD faculty doc if any
       const curHodFaculty = faculty.find(f => f.id === d.hodId || (f.department === d.name && f.role === 'HOD'));
@@ -139,10 +171,11 @@ export async function render(container) {
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span class="badge badge-accent">${escapeHtml(d.type||'Department')}</span>
+                  <span class="badge badge-accent">DEPARTMENT</span>
                   <span style="background:var(--bg-glass-hover);color:var(--text-secondary);font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:4px;">${escapeHtml(d.code||'—')}</span>
                 </div>
                 <h3 style="font-size:1rem;font-weight:700;margin:0 0 4px 0;">${escapeHtml(d.name)}</h3>
+                <div style="font-size:.78rem;color:var(--text-muted);">${escapeHtml(school?.name || d.schoolName || 'School not linked')}</div>
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">
                   <span style="color:var(--text-muted);font-size:0.8rem;">
                     Head: <strong style="color:var(--text-primary);">${escapeHtml(d.hodName || curHodFaculty?.name || 'Unassigned')}</strong>
@@ -156,6 +189,7 @@ export async function render(container) {
                     🔄 Change HOD
                   </button>
                 </div>
+                <button class="btn btn-xs btn-secondary edit-dept" data-id="${escapeHtml(d.id)}" style="margin-top:8px;">Edit department</button>
               </div>
               <button class="btn btn-xs btn-danger del-dept" data-id="${d.id}" title="Delete Department">✕</button>
             </div>
@@ -179,21 +213,22 @@ export async function render(container) {
                     Class ${escapeHtml(c.className)}
                     <select class="class-teacher-select" data-id="${c.id}" aria-label="Class teacher for ${escapeHtml(c.className)}" style="max-width:160px;border:0;background:transparent;color:inherit;font-size:.72rem;">
                       <option value="">No class teacher</option>
-                      ${faculty.filter(f => ['FACULTY','MENTOR','CLASS_TEACHER'].includes(String(f.role || '').toUpperCase())).map(f => `<option value="${escapeHtml(f.id)}" ${c.classTeacherId === f.id ? 'selected' : ''}>${escapeHtml(f.name || 'Faculty')}</option>`).join('')}
+                      ${faculty.filter(f => ['FACULTY','MENTOR','CLASS_TEACHER'].includes(String(f.role || '').toUpperCase()) && (f.departmentId ? f.departmentId === d.id : f.department === d.name && (!d.schoolId || !f.schoolId || d.schoolId === f.schoolId))).map(f => `<option value="${escapeHtml(f.id)}" ${c.classTeacherId === f.id ? 'selected' : ''}>${escapeHtml(f.name || 'Faculty')}</option>`).join('')}
                     </select>
+                    <button class="btn-edit-class" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.className)}" title="Rename classroom" style="background:none;border:none;color:currentColor;cursor:pointer;padding:0;">✎</button>
                     <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;" title="Delete class">✕</button>
                   </span>
                 `).join('') : '<span style="font-size:0.75rem;color:var(--text-muted);">No classes defined</span>'}
               </div>
               <div style="display:flex;gap:6px;">
-                <input type="text" class="form-input new-dept-class-input" data-dept="${escapeHtml(d.name)}" placeholder="e.g. TY-CORE-1" style="font-size:0.8rem;padding:4px 8px;">
-                <button class="btn btn-xs btn-primary btn-add-dept-class" data-dept="${escapeHtml(d.name)}">+ Add</button>
+                <input type="text" class="form-input new-dept-class-input" data-dept-id="${escapeHtml(d.id)}" placeholder="e.g. FY CSE A" style="font-size:0.8rem;padding:4px 8px;">
+                <button class="btn btn-xs btn-primary btn-add-dept-class" data-dept-id="${escapeHtml(d.id)}">+ Add</button>
               </div>
             </div>
           </div>
         </div>
       `;
-    }).join('');
+    }).join('')}`;
 
     attachDeptEventListeners();
   }
@@ -237,12 +272,14 @@ export async function render(container) {
 
         // Populate faculty select
         if (selEl) {
-          const eligibleFaculty = faculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR' || f.role === 'HOD');
+          const eligibleFaculty = faculty.filter(f =>
+            ['FACULTY', 'MENTOR', 'HOD'].includes(String(f.role || '').toUpperCase()) &&
+            (f.departmentId ? f.departmentId === activeChangeDeptId : f.department === activeChangeDeptName && (!depts.find(item => item.id === activeChangeDeptId)?.schoolId || !f.schoolId || depts.find(item => item.id === activeChangeDeptId)?.schoolId === f.schoolId))
+          );
           selEl.innerHTML = '<option value="">-- Choose from Registered Faculty --</option>' +
             eligibleFaculty.map(f => {
-              const isSameDept = f.department === activeChangeDeptName;
               return `<option value="${f.id}" data-name="${escapeHtml(f.name || '')}">
-                ${escapeHtml(f.name || 'Faculty')} (${f.role}) — ${escapeHtml(f.department || 'No Dept')} ${isSameDept ? '⭐' : ''}
+                ${escapeHtml(f.name || 'Faculty')} (${f.role}) — ${escapeHtml(f.department || 'No Dept')}
               </option>`;
             }).join('');
         }
@@ -256,15 +293,61 @@ export async function render(container) {
         const targetBtn = e.currentTarget || e.target.closest('.del-dept');
         const id = targetBtn?.dataset?.id;
         if (!id) return;
-        if (!confirm('Delete this department? This cannot be undone.')) return;
+        const record = depts.find(item => item.id === id);
+        if (!confirm(`Delete ${record?.name || 'this institution'}? This cannot be undone.`)) return;
         try {
           await DepartmentService.delete(id);
-          depts = depts.filter(d => d.id !== id);
-          showToast('Department deleted', 'success');
+          await loadAll();
+          showToast('School or department deleted', 'success');
           renderDepts();
         } catch (err) { showToast(err.message, 'error'); }
       });
     });
+
+    document.querySelectorAll('.edit-school').forEach(btn => btn.addEventListener('click', async () => {
+      const school = schools.find(item => item.id === btn.dataset.id);
+      if (!school) return;
+      const name = prompt('School name', school.name);
+      if (name === null || !name.trim()) return;
+      const code = prompt('School code', school.code || '');
+      if (code === null) return;
+      const hodName = prompt('School head / dean', school.hodName || '');
+      if (hodName === null) return;
+      try {
+        await DepartmentService.update(school.id, { name: name.trim(), code: code.trim().toUpperCase(), hodName: hodName.trim() });
+        await loadAll(); renderDepts(); showToast('School updated.', 'success');
+      } catch (error) { showToast(error.message, 'error'); }
+    }));
+
+    document.querySelectorAll('.edit-dept').forEach(btn => btn.addEventListener('click', async () => {
+      const dept = depts.find(item => item.id === btn.dataset.id);
+      if (!dept) return;
+      const name = prompt('Department name', dept.name);
+      if (name === null || !name.trim()) return;
+      const code = prompt('Department code', dept.code || '');
+      if (code === null) return;
+      const choices = schools.map((school, index) => `${index + 1}. ${school.name}`).join('\n');
+      const currentIndex = Math.max(0, schools.findIndex(school => school.id === dept.schoolId));
+      const selected = prompt(`School number for this department:\n${choices}`, String(currentIndex + 1));
+      if (selected === null) return;
+      const school = schools[Number(selected) - 1];
+      if (!school) return showToast('Choose a valid school number.', 'warning');
+      try {
+        await DepartmentService.update(dept.id, { name: name.trim(), code: code.trim().toUpperCase(), schoolId: school.id, schoolName: school.name, type: 'Department' });
+        await loadAll(); renderDepts(); showToast('Department updated.', 'success');
+      } catch (error) { showToast(error.message, 'error'); }
+    }));
+
+    document.querySelectorAll('.btn-edit-class').forEach(btn => btn.addEventListener('click', async () => {
+      const classRecord = allClasses.find(item => item.id === btn.dataset.id);
+      if (!classRecord) return;
+      const className = prompt('Classroom name', classRecord.className || '');
+      if (className === null || !className.trim()) return;
+      try {
+        await ClassService.update(classRecord.id, { className: className.trim() });
+        await loadAll(); renderDepts(); showToast('Classroom updated.', 'success');
+      } catch (error) { showToast(error.message, 'error'); }
+    }));
 
     document.querySelectorAll('.btn-del-class').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -285,9 +368,10 @@ export async function render(container) {
 
     document.querySelectorAll('.btn-add-dept-class').forEach(btn => {
       btn.addEventListener('click', async (e) => {
-        const deptName = e.currentTarget?.dataset?.dept || e.target.closest('.btn-add-dept-class')?.dataset?.dept;
-        if (!deptName) return;
-        const input = document.querySelector(`.new-dept-class-input[data-dept="${CSS.escape(deptName)}"]`);
+        const deptId = e.currentTarget?.dataset?.deptId || e.target.closest('.btn-add-dept-class')?.dataset?.deptId;
+        const dept = depts.find(item => item.id === deptId);
+        if (!dept) return;
+        const input = document.querySelector(`.new-dept-class-input[data-dept-id="${CSS.escape(deptId)}"]`);
         const className = input ? input.value.trim() : '';
         if (!className) {
           showToast('Please enter a class name (e.g. TY-CORE-1)', 'warning');
@@ -295,14 +379,15 @@ export async function render(container) {
         }
         btn.disabled = true;
         try {
-          const existing = allClasses.filter(c => c.department === deptName);
+          const existing = allClasses.filter(c => c.departmentId === deptId || (!c.departmentId && c.department === dept.name));
           if (existing.some(c => (c.className || '').toLowerCase() === className.toLowerCase())) {
-            showToast(`Class "${className}" already exists for ${deptName}`, 'warning');
+            showToast(`Class "${className}" already exists for ${dept.name}`, 'warning');
             btn.disabled = false;
             return;
           }
-          await ClassService.create({ department: deptName, className });
-          showToast(`Class "${className}" added to ${deptName}!`, 'success');
+          const school = schools.find(item => item.id === dept.schoolId);
+          await ClassService.create({ department: dept.name, departmentId: dept.id, schoolId: school?.id || dept.schoolId || null, schoolName: school?.name || dept.schoolName || null, className });
+          showToast(`Class "${className}" added to ${dept.name}!`, 'success');
           await loadAll();
           renderDepts();
         } catch(err) {
@@ -362,22 +447,29 @@ export async function render(container) {
     }
   });
 
+  container.querySelector('#d-type').addEventListener('change', renderSchoolOptions);
   container.querySelector('#btn-add-dept').addEventListener('click', async () => {
     const type    = container.querySelector('#d-type').value;
     const name    = container.querySelector('#d-name').value.trim();
     const code    = container.querySelector('#d-code').value.trim().toUpperCase();
     const hodName = container.querySelector('#d-hod').value.trim();
+    const school = schools.find(item => item.id === container.querySelector('#d-school').value);
     if (!name || !code) { showToast('Name and code are required', 'warning'); return; }
+    if (type === 'Department' && !school) { showToast('Select the school that owns this department.', 'warning'); return; }
 
     const btn = container.querySelector('#btn-add-dept');
     btn.disabled = true;
     try {
-      const id = await DepartmentService.create({ type, name, code, hodName });
-      depts.push({ id, type, name, code, hodName });
+      const record = { type, name, code, hodName, ...(type === 'Department' ? { schoolId: school.id, schoolName: school.name } : {}) };
+      const id = await DepartmentService.create(record);
+      depts.push({ id, ...record });
+      schools = depts.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
       showToast(`${type} added!`, 'success');
       container.querySelector('#d-name').value = '';
       container.querySelector('#d-code').value = '';
       container.querySelector('#d-hod').value  = '';
+      container.querySelector('#d-school').value = '';
+      renderSchoolOptions();
       renderDepts();
     } catch (err) { showToast(err.message, 'error'); }
     finally { btn.disabled = false; }

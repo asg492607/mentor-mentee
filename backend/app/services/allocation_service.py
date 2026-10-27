@@ -1,26 +1,51 @@
 from app.repositories.student_repository import StudentRepository
 from app.repositories.faculty_repository import FacultyRepository
+from app.repositories.department_repository import DepartmentRepository
 from app.services.notification_service import NotificationService
 from app.models.enums import NotificationType
 from app.core.exceptions import BadRequestException
+from app.services.institution_service import same_department
 
 class AllocationService:
     def __init__(self):
         self.student_repo = StudentRepository()
         self.faculty_repo = FacultyRepository()
+        self.department_repo = DepartmentRepository()
         self.notification_service = NotificationService()
 
-    def manual_allocate(self, student_id: str, mentor_id: str):
+    def manual_allocate(self, student_id: str, mentor_id: str, department_records: list[dict] = None):
         student = self.student_repo.get_by_id(student_id)
         mentor = self.faculty_repo.get_by_id(mentor_id)
         
         if not student or not mentor:
             raise BadRequestException("Invalid student or mentor ID")
             
-        self.student_repo.update(student_id, {'mentorId': mentor_id})
+        if not same_department(student, mentor, department_records):
+            raise BadRequestException("A student can only be assigned to a mentor from the same department and school")
+        if str(mentor.get('role', '')).upper() not in {'FACULTY', 'MENTOR', 'HOD'}:
+            raise BadRequestException("Selected user is not eligible to mentor students")
+        if student.get('secondaryMentorId') == mentor_id:
+            raise BadRequestException("Primary and secondary mentors must be different")
+
+        previous_mentor_id = student.get('mentorId')
+        if previous_mentor_id != mentor_id and int(mentor.get('assignedStudentCount') or 0) >= int(mentor.get('maxStudents') or 20):
+            raise BadRequestException("Selected mentor has reached student capacity")
+        mentor_ids = [mentor_id]
+        if student.get('secondaryMentorId') and student.get('secondaryMentorId') not in mentor_ids:
+            mentor_ids.append(student.get('secondaryMentorId'))
+        self.student_repo.update(student_id, {
+            'mentorId': mentor_id,
+            'mentorIds': mentor_ids,
+        })
         
-        current_count = mentor.get('assignedStudentCount', 0)
-        self.faculty_repo.update(mentor_id, {'assignedStudentCount': current_count + 1})
+        if previous_mentor_id != mentor_id:
+            current_count = int(mentor.get('assignedStudentCount') or 0)
+            self.faculty_repo.update(mentor_id, {'assignedStudentCount': current_count + 1})
+            if previous_mentor_id:
+                previous_mentor = self.faculty_repo.get_by_id(previous_mentor_id)
+                if previous_mentor:
+                    previous_count = max(0, int(previous_mentor.get('assignedStudentCount') or 1) - 1)
+                    self.faculty_repo.update(previous_mentor_id, {'assignedStudentCount': previous_count})
         
         self.notification_service.create_notification(
             user_id=student_id,
@@ -48,26 +73,49 @@ class AllocationService:
                 results.append({"status": "failed", "studentId": alloc.student_id, "error": str(e)})
         return results
 
-    def auto_allocate(self, department: str):
-        unassigned_students = self.student_repo.get_unassigned(department)
-        available_mentors = self.faculty_repo.get_available(department)
-        
-        if not available_mentors:
-            raise BadRequestException("No available mentors in department")
-            
+    def allocate_student(self, student_id: str):
+        student = self.student_repo.get_by_id(student_id)
+        if not student:
+            raise BadRequestException("Student not found")
+        if student.get('mentorId'):
+            return None
+        departments = self.department_repo.get_all()
+        mentors = [mentor for mentor in self.faculty_repo.get_all()
+                   if str(mentor.get('role', '')).upper() in {'FACULTY', 'MENTOR', 'HOD'}
+                   and same_department(student, mentor, departments)
+                   and int(mentor.get('assignedStudentCount') or 0) < int(mentor.get('maxStudents') or 20)]
+        mentors.sort(key=lambda mentor: int(mentor.get('assignedStudentCount') or 0))
+        if not mentors:
+            return None
+        return self.manual_allocate(student_id, mentors[0]['id'], departments)
+
+    def auto_allocate(self, department: str = None):
+        students = [student for student in self.student_repo.get_all() if not student.get('mentorId')]
+        if department:
+            students = [student for student in students if department in {
+                student.get('departmentId'), student.get('department')
+            }]
+        mentors = [mentor for mentor in self.faculty_repo.get_all()
+                   if str(mentor.get('role', '')).upper() in {'FACULTY', 'MENTOR', 'HOD'}]
+        departments = self.department_repo.get_all()
+
         results = []
-        mentor_idx = 0
-        for student in unassigned_students:
-            mentor = available_mentors[mentor_idx]
-            if mentor.get('assignedStudentCount', 0) >= mentor.get('maxStudents', 20):
+        for student in students:
+            matching = [mentor for mentor in mentors if same_department(student, mentor, departments)]
+            matching.sort(key=lambda mentor: int(mentor.get('assignedStudentCount') or 0))
+            mentor = next((item for item in matching
+                           if int(item.get('assignedStudentCount') or 0) < int(item.get('maxStudents') or 20)), None)
+            if not mentor:
                 continue
-            
-            res = self.manual_allocate(student['id'], mentor['id'])
-            results.append(res)
-            
-            mentor_idx = (mentor_idx + 1) % len(available_mentors)
-            
-        return {"status": "success", "allocated": len(results)}
+            result = self.manual_allocate(student['id'], mentor['id'], departments)
+            results.append(result)
+            mentor['assignedStudentCount'] = int(mentor.get('assignedStudentCount') or 0) + 1
+
+        return {
+            "status": "success",
+            "allocated": len(results),
+            "unassigned": len(students) - len(results),
+        }
 
     def deallocate(self, student_id: str):
         student = self.student_repo.get_by_id(student_id)
@@ -79,7 +127,7 @@ class AllocationService:
         
         self.student_repo.update(student_id, {'mentorId': None})
         if mentor:
-            current_count = max(0, mentor.get('assignedStudentCount', 1) - 1)
+            current_count = max(0, int(mentor.get('assignedStudentCount') or 1) - 1)
             self.faculty_repo.update(mentor_id, {'assignedStudentCount': current_count})
             
         return {"status": "success", "message": "Deallocated successfully"}

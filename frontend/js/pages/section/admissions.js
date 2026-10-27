@@ -2,7 +2,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, ClassService } from '/js/services.js';
+import { StudentService, ClassService, DepartmentService } from '/js/services.js';
 import { api } from '/js/api.js';
 import { AcademicConfigService, yearNumber, yearLabel } from '/js/services/academic-service.js';
 import { parseImportFile } from '/js/excel-import.js';
@@ -14,6 +14,7 @@ const fieldAliases = {
   email: ['email', 'emailaddress', 'studentemail'],
   mobileNumber: ['mobile', 'mobilenumber', 'phone', 'contact', 'mobileno'],
   department: ['department', 'dept', 'branch', 'specialization'],
+  school: ['school', 'schoolname', 'college', 'collegeof'],
   course: ['course', 'coursename', 'program', 'programname', 'programme', 'degree'],
   class: ['class', 'section', 'division', 'batch'],
   year: ['year', 'studyyear', 'currentyear', 'yearofstudy'],
@@ -27,7 +28,7 @@ function normalizeKey(value) {
 }
 
 function downloadTemplate() {
-  const csv = 'name,enrollmentNumber,email,mobileNumber,department,course,class,year,admissionYear,academicYear\nAarav Patil,STU001,aarav@example.edu,9876543210,Computer Science,BTech,CS-A,FY,2026,2026-27\n';
+  const csv = 'name,enrollmentNumber,email,mobileNumber,school,department,course,class,year,admissionYear,academicYear\nAarav Patil,STU001,aarav@example.edu,9876543210,School of Engineering,Computer Science,BTech,CS-A,FY,2026,2026-27\n';
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   link.download = 'admission-list-template.csv';
@@ -37,8 +38,12 @@ function downloadTemplate() {
 
 export async function render(container) {
   const user = getUserProfile();
+  await DepartmentService.backfillReferences().catch(error => console.warn('Academic links could not be refreshed:', error));
   let config = await AcademicConfigService.get().catch(() => ({ activeAcademicYear: '', courses: [] }));
   let students = await StudentService.getAllFresh().catch(() => []);
+  const allInstitutionRecords = await DepartmentService.getAll().catch(() => []);
+  let departments = allInstitutionRecords.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
+  const schools = allInstitutionRecords.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
   let preview = [];
 
   container.innerHTML = `
@@ -69,7 +74,7 @@ export async function render(container) {
             </div>
             <div class="card" style="padding:22px;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-                <div><h3 style="margin:0;">Import admission list</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">CSV or Excel. Required: name, enrollment number, email, mobile, department and course. The mobile number is used as the initial password.</p></div>
+              <div><h3 style="margin:0;">Import admission list</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">CSV or Excel. Required: name, enrollment number, email, mobile, department and course. Add School when departments share a name. The mobile number is the initial password.</p></div>
                 <button class="btn btn-secondary btn-sm" id="download-admission-template">Download template</button>
               </div>
               <input type="file" id="admission-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:480px;">
@@ -95,7 +100,7 @@ export async function render(container) {
     courseFilter.innerHTML = '<option value="">All courses</option>' + courses.map(course => `<option value="${escapeHtml(course)}">${escapeHtml(course)}</option>`).join('');
     courseFilter.value = selectedCourse;
     const list = students.filter(student => (!courseFilter.value || (student.course || student.program) === courseFilter.value) && (!yearFilter.value || String(student.year || '') === yearFilter.value));
-    directory.innerHTML = list.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>Course / Department</th><th>Year</th><th>Academic year</th><th>Mentor</th></tr></thead><tbody>${list.slice(0, 50).map(student => `<tr><td>${escapeHtml(student.name || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(student.email || '')}</div></td><td>${escapeHtml(student.enrollmentNumber || '—')}</td><td>${escapeHtml(student.course || student.program || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(student.department || '')}</div></td><td>${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || '—')}</td><td>${escapeHtml(student.academicYear || '—')}</td><td>${student.mentorId ? 'Assigned' : '<span class="badge badge-warning">Pending</span>'}</td></tr>`).join('')}</tbody></table></div><p style="margin:8px 0 0;font-size:.75rem;color:var(--text-muted);">Showing ${Math.min(list.length, 50)} of ${list.length} matching students.</p>` : '<div class="empty-state" style="padding:24px;"><h3>No admitted students match these filters</h3></div>';
+    directory.innerHTML = list.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>School / Department</th><th>Course</th><th>Year</th><th>Academic year</th><th>Mentor</th></tr></thead><tbody>${list.slice(0, 50).map(student => `<tr><td>${escapeHtml(student.name || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(student.email || '')}</div></td><td>${escapeHtml(student.enrollmentNumber || '—')}</td><td>${escapeHtml(student.schoolName || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(student.department || '')}</div></td><td>${escapeHtml(student.course || student.program || '—')}</td><td>${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || '—')}</td><td>${escapeHtml(student.academicYear || '—')}</td><td>${student.mentorId ? 'Assigned' : '<span class="badge badge-warning">Pending</span>'}</td></tr>`).join('')}</tbody></table></div><p style="margin:8px 0 0;font-size:.75rem;color:var(--text-muted);">Showing ${Math.min(list.length, 50)} of ${list.length} matching students.</p>` : '<div class="empty-state" style="padding:24px;"><h3>No admitted students match these filters</h3></div>';
   };
   courseFilter.addEventListener('change', renderDirectory);
   yearFilter.addEventListener('change', renderDirectory);
@@ -161,11 +166,19 @@ export async function render(container) {
         else if (existingEmails.has(email) || seenEmails.has(email) || existingEnrollments.has(enrollment) || seenEnrollments.has(enrollment)) error = 'Duplicate email or enrollment number';
         else if ((config.courses || []).length && !course) error = 'Course is not configured';
         else if (year > duration) error = `Year exceeds ${duration}-year course`;
+        const deptMatches = departments.filter(item => String(item.name || '').trim().toLowerCase() === String(row.department || '').trim().toLowerCase());
+        const schoolMatch = row.school ? deptMatches.find(item => {
+          const linkedSchool = allInstitutionRecords.find(school => school.id === item.schoolId);
+          return String(linkedSchool?.name || item.schoolName || '').trim().toLowerCase() === row.school.toLowerCase();
+        }) : null;
+        const departmentRecord = row.school ? schoolMatch : (deptMatches.length === 1 ? deptMatches[0] : null);
+        if (!error && departments.length && !departmentRecord) error = deptMatches.length > 1 ? 'School is required to identify this department' : 'Department is not configured under a school';
+        else if (!error && schools.length && !departmentRecord?.schoolId) error = 'Department must be linked to a school first';
         if (!error) { seenEmails.add(email); seenEnrollments.add(enrollment); }
-        return { ...row, year, yearLabel: yearLabel(year, duration), durationYears: duration, status: error ? 'Skipped' : 'Ready', error };
+        return { ...row, departmentId: departmentRecord?.id || null, schoolId: departmentRecord?.schoolId || null, schoolName: departmentRecord?.schoolName || allInstitutionRecords.find(school => school.id === departmentRecord?.schoolId)?.name || null, year, yearLabel: yearLabel(year, duration), durationYears: duration, status: error ? 'Skipped' : 'Ready', error };
       }).filter(row => row.name || row.email || row.enrollmentNumber);
       const ready = preview.filter(row => row.status === 'Ready').length;
-      previewWrap.innerHTML = `<p style="margin:0 0 8px;font-weight:600;">${ready} ready · ${preview.length - ready} skipped</p><div style="max-height:320px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>Course / Year</th><th>Department</th><th>Status</th></tr></thead><tbody>${preview.map(row => `<tr><td>${escapeHtml(row.name || '—')}</td><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.course || '—')} · ${escapeHtml(row.yearLabel || '—')}</td><td>${escapeHtml(row.department || '—')}</td><td><span class="badge ${row.error ? 'badge-warning' : 'badge-success'}">${escapeHtml(row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>`;
+      previewWrap.innerHTML = `<p style="margin:0 0 8px;font-weight:600;">${ready} ready · ${preview.length - ready} skipped</p><div style="max-height:320px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>School / Department</th><th>Course / Year</th><th>Status</th></tr></thead><tbody>${preview.map(row => `<tr><td>${escapeHtml(row.name || '—')}</td><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.schoolName || row.school || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(row.department || '—')}</div></td><td>${escapeHtml(row.course || '—')} · ${escapeHtml(row.yearLabel || '—')}</td><td><span class="badge ${row.error ? 'badge-warning' : 'badge-success'}">${escapeHtml(row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>`;
       importButton.disabled = !ready;
     } catch (error) {
       previewWrap.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read file.')}</p>`;
@@ -184,23 +197,25 @@ export async function render(container) {
     for (let index = 0; index < ready.length; index++) {
       const row = ready[index];
       try {
+        let classRecord = null;
+        if (row.class) {
+          const knownClasses = row.departmentId ? await ClassService.getByDepartmentId(row.departmentId) : await ClassService.getByDepartment(row.department);
+          classRecord = knownClasses.find(item => String(item.className || '').toLowerCase() === row.class.toLowerCase()) || null;
+          if (!classRecord) {
+            const classId = await ClassService.create({ department: row.department, departmentId: row.departmentId, schoolId: row.schoolId, schoolName: row.schoolName, className: row.class, course: row.course, year: row.year, yearLabel: row.yearLabel });
+            classRecord = { id: classId, className: row.class };
+          }
+        }
         const profile = await api.post('/admissions/students', {
           role: 'STUDENT', name: row.name, email: row.email, password: row.mobileNumber,
           mobileNumber: row.mobileNumber, enrollmentNumber: row.enrollmentNumber,
-          department: row.department, course: row.course, program: row.course,
-          class: row.class || null, year: row.year, yearLabel: row.yearLabel,
+          department: row.department, departmentId: row.departmentId, schoolId: row.schoolId, schoolName: row.schoolName,
+          course: row.course, program: row.course,
+          class: row.class || null, classId: classRecord?.id || null, year: row.year, yearLabel: row.yearLabel,
           durationYears: row.durationYears, admissionYear: Number(row.admissionYear) || new Date().getFullYear(),
           academicYear: row.academicYear || activeYear, admissionStatus: 'ADMITTED'
         });
         students.unshift({ ...profile, role: 'STUDENT' });
-        if (row.class) {
-          try {
-            const knownClasses = await ClassService.getByDepartment(row.department);
-            if (!knownClasses.some(item => String(item.className || '').toLowerCase() === row.class.toLowerCase())) {
-              await ClassService.create({ department: row.department, className: row.class, course: row.course, year: row.year, yearLabel: row.yearLabel });
-            }
-          } catch (error) { console.warn('Admission class setup could not be completed:', error); }
-        }
         created++;
       } catch (error) {
         failed++;

@@ -4,9 +4,10 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, FacultyService, AllocationService } from '/js/services.js';
+import { StudentService, FacultyService, AllocationService, DepartmentService } from '/js/services.js';
 import { getMentorsForSelectedClasses, exportMultiClassMentorsReport } from '/js/report-export.js';
 import { openMultiClassMentorsModal } from '/js/components/multi-class-mentors-modal.js';
+import { escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -29,6 +30,7 @@ export async function render(container) {
   let assignedPairs = [];
   let allDepartments = [];
   let allClasses = [];
+  let referencesBackfilled = false;
 
   // Classwise Allocation state
   let selectedClasswiseMentorId = '';
@@ -45,10 +47,26 @@ export async function render(container) {
   let multiClassSearchQuery = '';
   let multiClassDrilldownMentorId = null;
 
+  function isSameDepartment(student, mentor) {
+    if (!mentor) return true;
+    if (student.departmentId || mentor.departmentId) {
+      if (!student.departmentId || !mentor.departmentId || student.departmentId !== mentor.departmentId) return false;
+    } else if (String(student.department || '').trim().toLowerCase() !== String(mentor.department || '').trim().toLowerCase()) {
+      return false;
+    }
+    if (student.schoolId && mentor.schoolId && student.schoolId !== mentor.schoolId) return false;
+    if ((!student.schoolId || !mentor.schoolId) && student.schoolName && mentor.schoolName && student.schoolName.trim().toLowerCase() !== mentor.schoolName.trim().toLowerCase()) return false;
+    return true;
+  }
+
   async function loadData() {
+    if (!referencesBackfilled) {
+      await DepartmentService.backfillReferences();
+      referencesBackfilled = true;
+    }
     const [unassigned, allMentors, fullStudentList] = await Promise.all([
       StudentService.getUnassigned(),
-      FacultyService.getAll().then(all => all.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR')),
+      FacultyService.getAll().then(all => all.filter(f => ['FACULTY', 'MENTOR', 'HOD'].includes(String(f.role || '').toUpperCase()))),
       StudentService.getAll()
     ]);
 
@@ -90,10 +108,15 @@ export async function render(container) {
       return a.studentName.localeCompare(b.studentName);
     });
 
-    allDepartments = [...new Set([
-      ...allStudents.map(s => s.department),
-      ...mentors.map(m => m.department)
-    ].filter(Boolean))].sort();
+    const departmentMap = new Map();
+    [...allStudents, ...mentors].filter(item => item.department).forEach(item => {
+      const value = item.departmentId ? `id:${item.departmentId}` : item.department;
+      if (!departmentMap.has(value)) departmentMap.set(value, {
+        value,
+        label: `${item.department}${item.schoolName ? ` — ${item.schoolName}` : ''}`
+      });
+    });
+    allDepartments = [...departmentMap.values()].sort((a, b) => a.label.localeCompare(b.label));
 
     allClasses = [...new Set(allStudents.map(s => s.class).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
@@ -246,7 +269,7 @@ export async function render(container) {
           <div style="display:flex;flex-direction:column;gap:12px;">
             <select id="auto-dept" class="form-select" style="padding:10px;width:100%;">
               <option value="">All Departments</option>
-              ${allDepartments.map(d => `<option value="${d}">${d}</option>`).join('')}
+              ${allDepartments.map(d => `<option value="${escapeHtml(d.value)}">${escapeHtml(d.label)}</option>`).join('')}
             </select>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-secondary" style="flex:1;min-width:120px;" id="btn-auto">Run Auto-Allocate</button>
@@ -435,12 +458,13 @@ export async function render(container) {
 
     tbody.innerHTML = classFilteredStudents.map(s => {
       const isTicked = tickedStudentIds.has(s.id);
+      const departmentEligible = isSameDepartment(s, mentors.find(item => item.id === selectedClasswiseMentorId));
       const curPrimary = s.mentorId ? mentors.find(m => m.id === s.mentorId) : null;
       const curSecondary = s.secondaryMentorId ? mentors.find(m => m.id === s.secondaryMentorId) : null;
       return `
         <tr style="${isTicked ? 'background:var(--accent-light);' : ''}">
           <td style="text-align:center;">
-            <input type="checkbox" class="classwise-student-cb" data-id="${s.id}" ${isTicked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+            <input type="checkbox" class="classwise-student-cb" data-id="${s.id}" ${isTicked ? 'checked' : ''} ${departmentEligible ? '' : 'disabled title="Student belongs to another department or school"'} style="width:16px;height:16px;cursor:pointer;">
           </td>
           <td style="font-weight:600;">${s.name}</td>
           <td>${s.enrollmentNumber || '—'}</td>
@@ -480,6 +504,8 @@ export async function render(container) {
       } else if (selectedClasswiseClass) {
         classFiltered = allStudents.filter(s => s.class === selectedClasswiseClass);
       }
+      const selectedMentor = mentors.find(item => item.id === selectedClasswiseMentorId);
+      if (selectedMentor) classFiltered = classFiltered.filter(student => isSameDepartment(student, selectedMentor));
       selectAllCb.checked = classFiltered.length > 0 && classFiltered.every(s => tickedStudentIds.has(s.id));
     }
   }
@@ -695,6 +721,8 @@ export async function render(container) {
         } else if (selectedClasswiseClass) {
           classFiltered = allStudents.filter(s => s.class === selectedClasswiseClass);
         }
+        const selectedMentor = mentors.find(item => item.id === selectedClasswiseMentorId);
+        if (selectedMentor) classFiltered = classFiltered.filter(student => isSameDepartment(student, selectedMentor));
 
         const maxAllowed = 50;
         tickedStudentIds.clear();

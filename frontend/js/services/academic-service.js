@@ -77,7 +77,10 @@ export const AcademicStudentService = {
     const records = new Map();
     [...byClass.docs, ...byLegacyClass.docs].forEach(s => {
       const data = s.data();
-      if (data.department === classInfo.department) records.set(s.id, { id: s.id, ...data });
+      const matchesDepartment = classInfo.departmentId || data.departmentId
+        ? Boolean(classInfo.departmentId && data.departmentId && data.departmentId === classInfo.departmentId)
+        : data.department === classInfo.department && (!classInfo.schoolId || !data.schoolId || classInfo.schoolId === data.schoolId);
+      if (data.classId === classInfo.id || (!data.classId && matchesDepartment)) records.set(s.id, { id: s.id, ...data });
     });
     return [...records.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }
@@ -93,6 +96,9 @@ export const AttendanceService = {
     const session = {
       classId: classInfo.id,
       className: classInfo.className,
+      schoolId: classInfo.schoolId || null,
+      schoolName: classInfo.schoolName || '',
+      departmentId: classInfo.departmentId || null,
       department: classInfo.department || '',
       course: classInfo.course || '',
       year: classInfo.year || null,
@@ -114,6 +120,9 @@ export const AttendanceService = {
           sessionId,
           classId: classInfo.id,
           className: classInfo.className,
+          schoolId: classInfo.schoolId || null,
+          schoolName: classInfo.schoolName || '',
+          departmentId: classInfo.departmentId || null,
           department: classInfo.department || '',
           date,
           period: String(period || '').trim(),
