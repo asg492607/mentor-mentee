@@ -7,7 +7,7 @@ import { StatsService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
 import { escapeHtml } from '/js/utils.js';
-import { AttendanceInterventionService } from '/js/services/academic-service.js';
+import { AttendanceInterventionService, FinanceService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -29,7 +29,7 @@ function findDepartmentKey(record, departments, map) {
 function makeDepartmentRow(key, department = {}) {
   return {
     key, name: department.name || 'Unlinked department', school: department.schoolName || '—',
-    students: 0, mentors: 0, highRisk: 0, fr: 0, slow: 0, openIssues: 0,
+    students: 0, mentors: 0, highRisk: 0, fr: 0, slow: 0, yearDown: 0, provisional: 0, openIssues: 0,
     cgpaSum: 0, cgpaCount: 0, marksSum: 0, marksCount: 0, attendanceSum: 0, attendanceCount: 0
   };
 }
@@ -50,7 +50,14 @@ export async function render(container) {
   `;
 
   try {
-    const data = await StatsService.getInstitutionStats();
+    const [data, feeRecords] = await Promise.all([
+      StatsService.getInstitutionStats(),
+      FinanceService.getAll().catch(error => { console.warn('Fee summary is unavailable:', error); return null; })
+    ]);
+    const feeDataUnavailable = feeRecords === null;
+    const financeSummaries = feeRecords || [];
+    const totalOutstanding = financeSummaries.reduce((sum, record) => sum + (Number(record.outstandingAmount) || 0), 0);
+    const feeTrackedCount = financeSummaries.filter(record => record.totalAmount !== null && record.totalAmount !== undefined).length;
     const { totalStudents = 0, totalFaculty = 0, totalDepartments = 0, totalSchools = 0, pendingStudentApprovals = 0, highRiskStudents = 0, openIssues = 0, totalIssues = 0, students = [], faculty = [], issues = [], meetings = [], depts = [], lowAttendanceStudents = [], learnerCounts = {}, cohortAnalysis = {} } = data;
 
     // Department comparisons use department IDs first, then an unambiguous name + school match.
@@ -75,6 +82,8 @@ export async function render(container) {
       if (!row) return;
       if (student.riskLevel === 'HIGH') row.highRisk++;
       if (student.learnerLevel === 'SLOW') row.slow++;
+      if (student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN') row.yearDown++;
+      if (String(student.admissionStatus || '').toUpperCase() === 'PROVISIONAL') row.provisional++;
       const attendance = student.attendance === null || student.attendance === undefined || student.attendance === '' ? NaN : Number(student.attendance);
       const hasAttendance = Number(student.attendanceSessions) > 0 || attendance > 0 || ['LOW', 'BELOW_TARGET', 'ON_TRACK'].includes(String(student.attendanceStatus || '').toUpperCase());
       if (hasAttendance && Number.isFinite(attendance) && attendance >= 0 && attendance <= 100) {
@@ -167,6 +176,9 @@ export async function render(container) {
           <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean subject marks</div><strong style="font-size:1.15rem;">${institutionAnalysis.averageSubjectMarks === null ? '—' : `${institutionAnalysis.averageSubjectMarks}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${institutionAnalysis.marksAssessed}/${totalStudents} students assessed</div></div>
           <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean attendance</div><strong style="font-size:1.15rem;">${institutionAnalysis.averageAttendance === null ? '—' : `${institutionAnalysis.averageAttendance}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${institutionAnalysis.attendanceRecorded}/${totalStudents} have records</div></div>
           <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">FR cases with open meeting</div><strong style="font-size:1.15rem;">${frWithMeeting}/${lowAttendanceStudents.length}</strong><div style="font-size:.72rem;color:var(--text-muted);">${Math.max(0, lowAttendanceStudents.length - frWithMeeting)} need meeting follow-up</div></div>
+          <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Provisional admissions</div><strong style="font-size:1.15rem;color:${institutionAnalysis.provisionalAdmissions ? 'var(--warning)' : 'var(--success)'};">${institutionAnalysis.provisionalAdmissions || 0}</strong><div style="font-size:.72rem;color:${institutionAnalysis.provisionalOverdue ? 'var(--danger)' : 'var(--text-muted)'};">${institutionAnalysis.provisionalOverdue || 0} review dates overdue</div></div>
+          <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Repeating the same year</div><strong style="font-size:1.15rem;color:${institutionAnalysis.yearDownCount ? 'var(--danger)' : 'var(--success)'};">${institutionAnalysis.yearDownCount || 0}</strong><div style="font-size:.72rem;color:var(--text-muted);">confirmed academic progression decisions</div></div>
+          <div style="padding:12px;background:var(--bg-secondary);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Recorded outstanding fees</div><strong style="font-size:1.05rem;color:${feeDataUnavailable || !feeTrackedCount ? 'var(--text-muted)' : totalOutstanding ? 'var(--warning)' : 'var(--success)'};">${feeDataUnavailable ? 'Unavailable' : feeTrackedCount ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalOutstanding) : 'Not set'}</strong><div style="font-size:.72rem;color:var(--text-muted);">${feeDataUnavailable ? 'Finance summary unavailable' : feeTrackedCount ? `${feeTrackedCount} accounts tracked · ${financeSummaries.filter(record => record.status === 'OVERDUE').length} overdue` : 'No fee schedules recorded yet'}</div></div>
         </div>
       </div>
 
@@ -254,7 +266,7 @@ export async function render(container) {
       <div class="card">
         <div class="card-header"><h3>School and Department Overview</h3></div>
         <div style="overflow:auto;"><table class="data-table">
-          <thead><tr><th>Department</th><th>School</th><th>Students</th><th>Mentors</th><th>Avg marks</th><th>Avg attendance</th><th>FR</th><th>Slow band</th><th>High risk</th><th>Open issues</th></tr></thead>
+          <thead><tr><th>Department</th><th>School</th><th>Students</th><th>Mentors</th><th>Avg marks</th><th>Avg attendance</th><th>FR</th><th>Slow band</th><th>Repeating</th><th>Provisional</th><th>High risk</th><th>Open issues</th></tr></thead>
           <tbody>
             ${deptRows.map(d => `
               <tr>
@@ -266,6 +278,8 @@ export async function render(container) {
                 <td>${d.avgAttendance}${d.attendanceCount ? ` <span style="font-size:.7rem;color:var(--text-muted);">(${d.attendanceCount})</span>` : ''}</td>
                 <td><span class="badge ${d.fr?'badge-danger':'badge-success'}">${d.fr}</span></td>
                 <td>${d.slow}</td>
+                <td>${d.yearDown}</td>
+                <td>${d.provisional}</td>
                 <td><span class="badge ${d.highRisk>10?'badge-danger':d.highRisk>5?'badge-warning':'badge-success'}">${d.highRisk}</span></td>
                 <td><span class="badge ${d.openIssues>5?'badge-danger':d.openIssues>2?'badge-warning':'badge-success'}">${d.openIssues}</span></td>
               </tr>

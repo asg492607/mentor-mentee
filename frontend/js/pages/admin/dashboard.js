@@ -8,6 +8,7 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService, FacultyService, DepartmentService, AllocationService, IssueService, StatsService } from '/js/services.js';
 import { escapeHtml } from '/js/utils.js';
+import { FinanceService } from '/js/services/academic-service.js';
 
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -37,12 +38,13 @@ export async function render(container) {
     const { db } = await import('/js/firebase-init.js');
     const { BookletService } = await import('/js/services.js');
 
-    const [students, faculty, depts, issues, bookletSnap] = await Promise.all([
+    const [students, faculty, depts, issues, bookletSnap, feeRecords] = await Promise.all([
       StudentService.getAll(),
       FacultyService.getAll(),
       DepartmentService.getAll(),
       IssueService.getAll(),
-      getDocs(collection(db, 'booklets')).catch(() => ({ docs: [] }))
+      getDocs(collection(db, 'booklets')).catch(() => ({ docs: [] })),
+      FinanceService.getAll().catch(error => { console.warn('Fee summary is unavailable:', error); return null; })
     ]);
 
     // Deduplicate students by email in UI display
@@ -86,6 +88,10 @@ export async function render(container) {
       .map(u => ({ ...u, role: u.cgpa !== undefined ? 'STUDENT' : (u.role || 'FACULTY') }));
     const totalAllUsers = uniqueStudents.length + faculty.length;
     const academicSummary = StatsService.summarizeStudents(activeStudents);
+    const feeDataUnavailable = feeRecords === null;
+    const financeSummaries = feeRecords || [];
+    const totalOutstanding = financeSummaries.reduce((sum, record) => sum + (Number(record.outstandingAmount) || 0), 0);
+    const feeTrackedCount = financeSummaries.filter(record => record.totalAmount !== null && record.totalAmount !== undefined).length;
     const pendingAdmissions = uniqueStudents.filter(student => ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(String(student.status || student.admissionStatus || '').toUpperCase()) || student.isApproved === false).length;
     const pendingFaculty = faculty.filter(member => String(member.status || '').toUpperCase() === 'PENDING' || member.isApproved === false).length;
     const academicDepartments = depts.filter(department => !['SCHOOL', 'COLLEGE'].includes(String(department.type || '').toUpperCase()));
@@ -179,10 +185,13 @@ export async function render(container) {
           <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">FR attendance</div><strong style="font-size:1.15rem;color:${academicSummary.frCount ? 'var(--danger)' : 'var(--success)'};">${academicSummary.frCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">40% or below</div></div>
           <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Slow learner band</div><strong style="font-size:1.15rem;color:${academicSummary.learnerCounts.SLOW ? 'var(--warning)' : 'var(--success)'};">${academicSummary.learnerCounts.SLOW}</strong><div style="font-size:.72rem;color:var(--text-muted);">latest marks below 50%</div></div>
           <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Unassigned students</div><strong style="font-size:1.15rem;color:${unassigned ? 'var(--warning)' : 'var(--success)'};">${unassigned}</strong><div style="font-size:.72rem;color:var(--text-muted);">no primary mentor set</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Provisional admissions</div><strong style="font-size:1.15rem;color:${academicSummary.provisionalAdmissions ? 'var(--warning)' : 'var(--success)'};">${academicSummary.provisionalAdmissions}</strong><div style="font-size:.72rem;color:${academicSummary.provisionalOverdue ? 'var(--danger)' : 'var(--text-muted)'};">${academicSummary.provisionalOverdue} review dates overdue</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Repeating same year</div><strong style="font-size:1.15rem;color:${academicSummary.yearDownCount ? 'var(--danger)' : 'var(--success)'};">${academicSummary.yearDownCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">recorded exam progression decisions</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Recorded outstanding fees</div><strong style="font-size:1.05rem;color:${feeDataUnavailable || !feeTrackedCount ? 'var(--text-muted)' : totalOutstanding ? 'var(--warning)' : 'var(--success)'};">${feeDataUnavailable ? 'Unavailable' : feeTrackedCount ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalOutstanding) : 'Not set'}</strong><div style="font-size:.72rem;color:var(--text-muted);">${feeDataUnavailable ? 'Finance summary unavailable' : feeTrackedCount ? `${feeTrackedCount} accounts tracked · ${financeSummaries.filter(record => record.status === 'OVERDUE').length} overdue` : 'No fee schedules recorded yet'}</div></div>
           <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Pending review</div><strong style="font-size:1.15rem;">${pendingAdmissions + pendingFaculty}</strong><div style="font-size:.72rem;color:var(--text-muted);">${pendingAdmissions} student · ${pendingFaculty} faculty</div></div>
         </div>
         <h4 style="font-size:.84rem;margin:0 0 8px;">Departments needing attention</h4>
-        ${deptHealthRows.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Department</th><th>School</th><th>Students</th><th>FR</th><th>Slow band</th><th>Unassigned</th><th>Mean marks</th></tr></thead><tbody>${deptHealthRows.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.name || 'Department')}</td><td>${escapeHtml(row.school)}</td><td>${row.students.length}</td><td><span class="badge ${row.analysis.frCount ? 'badge-danger' : 'badge-success'}">${row.analysis.frCount}</span></td><td>${row.analysis.learnerCounts.SLOW}</td><td>${row.analysis.unassignedCount}</td><td>${row.analysis.averageSubjectMarks === null ? '—' : `${row.analysis.averageSubjectMarks}%`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="font-size:.8rem;color:var(--text-muted);">No academic department data is configured.</p>'}
+        ${deptHealthRows.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Department</th><th>School</th><th>Students</th><th>FR</th><th>Slow band</th><th>Repeating</th><th>Provisional</th><th>Unassigned</th><th>Mean marks</th></tr></thead><tbody>${deptHealthRows.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.name || 'Department')}</td><td>${escapeHtml(row.school)}</td><td>${row.students.length}</td><td><span class="badge ${row.analysis.frCount ? 'badge-danger' : 'badge-success'}">${row.analysis.frCount}</span></td><td>${row.analysis.learnerCounts.SLOW}</td><td>${row.analysis.yearDownCount}</td><td>${row.analysis.provisionalAdmissions}</td><td>${row.analysis.unassignedCount}</td><td>${row.analysis.averageSubjectMarks === null ? '—' : `${row.analysis.averageSubjectMarks}%`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="font-size:.8rem;color:var(--text-muted);">No academic department data is configured.</p>'}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">

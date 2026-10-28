@@ -92,7 +92,9 @@ export async function render(container) {
           ['Marks Assessed', `${cohortAnalysis.marksAssessed}/${students.length}`, 'var(--success)'],
           ['Mean Attendance', cohortAnalysis.averageAttendance === null ? '—' : `${cohortAnalysis.averageAttendance}%`, 'var(--info)'],
           ['FR ≤40%', cohortAnalysis.frCount, 'var(--danger)'],
-          ['Slow Band', cohortAnalysis.learnerCounts.SLOW, 'var(--warning)']
+          ['Slow Band', cohortAnalysis.learnerCounts.SLOW, 'var(--warning)'],
+          ['Provisional admissions', cohortAnalysis.provisionalAdmissions, 'var(--warning)'],
+          ['Repeating same year', cohortAnalysis.yearDownCount, 'var(--danger)']
         ].map(([label, value, color]) => `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="color:${color};font-size:1.35rem;">${value}</div></div>`).join('')}
       </div>
 
@@ -146,7 +148,7 @@ export async function render(container) {
 
     // Export CSV logic
     document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-       const headers = ['Name', 'Enrollment No.', 'School', 'Department', 'Year', 'Latest Subject Average', 'Learner Band', 'Attendance', 'Risk', 'Latest SGPA', 'Total Backlogs'];
+       const headers = ['Name', 'Enrollment No.', 'School', 'Department', 'Year', 'Admission Status', 'Academic Standing', 'Year Repeat Count', 'Latest Subject Average', 'Learner Band', 'Attendance', 'Risk', 'Latest SGPA', 'Total Backlogs'];
        const rows = [headers];
        enrichedStudents.forEach(s => {
            rows.push([
@@ -155,6 +157,9 @@ export async function render(container) {
                s.schoolName || '—',
                s.department || '—',
                s.year || '—',
+               s.admissionStatus || 'ADMITTED',
+               s.yearDown === true || s.academicStanding === 'YEAR_DOWN' ? 'YEAR_DOWN' : 'CURRENT',
+               Number(s.yearRepeatCount) || 0,
                s.latestSubjectAverage ?? '—',
                s.learnerLevel || 'NOT_ASSESSED',
                s.attendanceStatus === 'NOT_RECORDED' ? 'Not recorded' : (s.attendance ?? '—'),

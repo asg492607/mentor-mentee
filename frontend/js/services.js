@@ -1980,6 +1980,8 @@ export const StatsService = {
       return (Number(student.attendanceSessions) > 0 || (Number.isFinite(attendance) && attendance > 0) || student.attendanceStatus === 'LOW')
         && Number.isFinite(attendance) && attendance <= 40;
     });
+    const yearDownStudents = cohort.filter(student => student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN');
+    const backlogReviewStudents = cohort.filter(student => Number(student.backlogs) > 0);
     return {
       total: cohort.length,
       attendanceRecorded: recordedAttendance.length,
@@ -1993,6 +1995,12 @@ export const StatsService = {
       learnerCounts,
       riskCounts,
       unassignedCount: cohort.filter(student => !student.mentorId).length,
+      provisionalAdmissions: cohort.filter(student => String(student.admissionStatus || '').toUpperCase() === 'PROVISIONAL').length,
+      provisionalOverdue: cohort.filter(student => String(student.admissionStatus || '').toUpperCase() === 'PROVISIONAL' && /^\d{4}-\d{2}-\d{2}$/.test(String(student.provisionalUntil || '')) && student.provisionalUntil < new Date().toISOString().slice(0, 10)).length,
+      yearDownCount: yearDownStudents.length,
+      yearDownStudents,
+      backlogReviewCount: backlogReviewStudents.length,
+      backlogReviewStudents,
     };
   },
 

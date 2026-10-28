@@ -11,6 +11,19 @@ function invalidateAcademicCaches(studentId = null) {
   CacheManager.invalidatePrefix('students_');
   CacheManager.invalidatePrefix('mentor_stats_');
 }
+const resultYear = result => {
+  const text = String(result?.academicYear || result?.updatedAt || '');
+  const match = text.match(/(?:19|20)\d{2}/);
+  if (match) return Number(match[0]);
+  const timestamp = resultTime(result?.updatedAt);
+  return timestamp ? new Date(timestamp).getFullYear() : 0;
+};
+const resultTime = value => {
+  if (value?.toDate) return value.toDate().getTime();
+  if (Number.isFinite(value?.seconds)) return value.seconds * 1000;
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 const idPart = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const normalizeCourses = courses => (Array.isArray(courses) ? courses : []).map(course => {
   const requested = Number(course?.durationYears);
@@ -219,10 +232,27 @@ export const ResultService = {
   },
   async getByStudent(studentId) {
     const snap = await getDocs(query(collection(db, 'academic_results'), where('studentId', '==', studentId)));
-    return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (b.semesterNumber || 0) - (a.semesterNumber || 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => resultYear(b) - resultYear(a) || (Number(b.semesterNumber) || 0) - (Number(a.semesterNumber) || 0) || resultTime(b.updatedAt) - resultTime(a.updatedAt));
   },
   async getAll() {
     const snap = await getDocs(collection(db, 'academic_results'));
     return snap.docs.map(item => ({ id: item.id, ...item.data() }));
+  }
+};
+
+export const FinanceService = {
+  async getAll() {
+    const { api } = await import('/js/api.js');
+    return api.get('/admissions/fees');
+  },
+  async getForStudent(studentId) {
+    if (!studentId) return null;
+    const { api } = await import('/js/api.js');
+    return api.get(`/admissions/students/${encodeURIComponent(studentId)}/fees`);
+  },
+  async update(studentId, payload) {
+    if (!studentId) throw new Error('Select a student before updating fees.');
+    const { api } = await import('/js/api.js');
+    return api.put(`/admissions/students/${encodeURIComponent(studentId)}/fees`, payload);
   }
 };

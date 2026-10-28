@@ -576,6 +576,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Fee ledgers and payment receipts are backend-only. The Admissions API
+    // enforces student self-service and office roles before returning records.
+    match /student_finances/{studentId} {
+      allow read, write: if false;
+    }
+
+    match /student_fee_payments/{paymentId} {
+      allow read, write: if false;
+    }
+
     match /attendance_records/{recordId} {
       allow read: if signedIn() && (
         resource.data.studentId == uid() || isAdmin() || isDean()

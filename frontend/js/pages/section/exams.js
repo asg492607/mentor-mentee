@@ -2,7 +2,9 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
+import { showModal } from '/js/components/modal.js';
 import { StudentService } from '/js/services.js';
+import { api } from '/js/api.js';
 import { AcademicConfigService, ResultService, semesterCountForCourse, semesterNumber, yearLabel } from '/js/services/academic-service.js';
 import { parseImportFile } from '/js/excel-import.js';
 import { escapeHtml } from '/js/utils.js';
@@ -31,6 +33,13 @@ function resultTimestamp(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function resultAcademicYear(result) {
+  const match = String(result?.academicYear || '').match(/(?:19|20)\d{2}/);
+  if (match) return Number(match[0]);
+  const timestamp = resultTimestamp(result?.updatedAt);
+  return timestamp ? new Date(timestamp).getFullYear() : 0;
+}
+
 function summarizeResults(results, students) {
   const activeStudents = students.filter(student => !['PENDING', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(student.status || '').toUpperCase()) && student.isApproved !== false);
   const studentById = new Map(activeStudents.map(student => [student.id, student]));
@@ -40,7 +49,9 @@ function summarizeResults(results, students) {
     const current = latestByStudent.get(result.studentId);
     const semester = Number(result.semesterNumber) || 0;
     const currentSemester = Number(current?.semesterNumber) || 0;
-    if (!current || semester > currentSemester || (semester === currentSemester && resultTimestamp(result.updatedAt) > resultTimestamp(current.updatedAt))) {
+    const year = resultAcademicYear(result);
+    const currentYear = resultAcademicYear(current);
+    if (!current || year > currentYear || (year === currentYear && semester > currentSemester) || (year === currentYear && semester === currentSemester && resultTimestamp(result.updatedAt) > resultTimestamp(current.updatedAt))) {
       latestByStudent.set(result.studentId, result);
     }
   });
@@ -81,6 +92,48 @@ function summarizeResults(results, students) {
   };
 }
 
+function isYearDown(student) {
+  return student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN';
+}
+
+function openProgressionDecision(student, config, action, onSaved) {
+  const year = Number(student.year) || 1;
+  const course = (config.courses || []).find(item => String(item.name || '').trim().toLowerCase() === String(student.course || student.program || '').trim().toLowerCase());
+  const duration = Number(student.durationYears || course?.durationYears) || 1;
+  const clearRepeat = action === 'CLEAR';
+  const targetYear = clearRepeat && year < duration ? year + 1 : year;
+  const yearOptions = Array.from({ length: duration }, (_, index) => index + 1).map(value => `<option value="${value}" ${value === targetYear ? 'selected' : ''}>${escapeHtml(yearLabel(value, duration) || `Year ${value}`)}${value === year ? ' (current)' : ''}</option>`).join('');
+  showModal({
+    title: clearRepeat ? 'Clear year-down decision' : 'Record year-down decision',
+    size: 'md',
+    confirmText: clearRepeat ? 'Save progression' : 'Confirm year down',
+    content: `<p style="margin:0 0 12px;color:var(--text-secondary);">${escapeHtml(student.name || 'Student')} · ${escapeHtml(student.course || student.program || 'Course')} · currently ${escapeHtml(student.yearLabel || yearLabel(year, duration) || `Year ${year}`)} · ${Number(student.backlogs) || 0} backlog(s).</p><p style="font-size:.8rem;color:var(--text-muted);margin:0 0 14px;">Backlogs are a review signal. Record a year-down only when the Exam Section's progression decision requires the student to repeat.</p>${clearRepeat ? `<div class="form-group"><label class="form-label" for="progression-target-year">Year after clearing repeat</label><select id="progression-target-year" class="form-select">${yearOptions}</select></div>` : ''}<div class="form-group" style="margin-bottom:0;"><label class="form-label" for="progression-reason">Exam decision / reason</label><textarea id="progression-reason" class="form-input" maxlength="500" rows="3" placeholder="Required for the academic record"></textarea></div>`,
+    onConfirm: async close => {
+      const button = document.getElementById('custom-modal-confirm');
+      const reason = document.getElementById('progression-reason').value.trim();
+      if (!reason) return showToast('Enter the exam decision reason.', 'warning');
+      button.disabled = true;
+      try {
+        const payload = {
+          academicStanding: clearRepeat ? 'CURRENT' : 'YEAR_DOWN',
+          academicYear: config.activeAcademicYear || student.academicYear || '',
+          reason
+        };
+        if (clearRepeat) payload.year = Number(document.getElementById('progression-target-year').value);
+        const updated = await api.put(`/admissions/students/${encodeURIComponent(student.id)}/lifecycle`, payload);
+        Object.assign(student, updated);
+        showToast(clearRepeat ? 'Academic progression updated.' : 'Student marked to repeat the same year.', 'success');
+        close();
+        onSaved();
+      } catch (error) {
+        showToast(error.message || 'Could not save the academic progression decision.', 'error');
+      } finally {
+        if (document.getElementById('custom-modal-confirm')) button.disabled = false;
+      }
+    }
+  });
+}
+
 function template() {
   const csv = 'enrollmentNumber,semester,sgpa,cgpa,backlogs,examName,academicYear,subject,marks,grade\nSTU001,Semester 1,8.2,8.2,0,End Semester,2026-27,Mathematics,82,A\n';
   const link = document.createElement('a');
@@ -98,6 +151,8 @@ export async function render(container) {
     ResultService.getAll().catch(error => { console.warn('Published results could not be loaded for analysis:', error); return []; })
   ]);
   const analysis = summarizeResults(results, allStudents);
+  const activeStudents = allStudents.filter(student => !['PENDING', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(student.status || '').toUpperCase()) && student.isApproved !== false);
+  const progressionCandidates = activeStudents.filter(student => Number(student.backlogs) > 0 || isYearDown(student));
   let rowsToImport = [];
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -118,6 +173,10 @@ export async function render(container) {
               <div class="stat-card"><div class="stat-label">Slow / medium / advanced</div><div class="stat-value" style="font-size:1.15rem;">${analysis.bands.SLOW} / ${analysis.bands.MEDIUM} / ${analysis.bands.ADVANCED}</div><div style="font-size:.72rem;color:var(--text-muted);">${analysis.bands.NOT_ASSESSED} latest results lack subject marks</div></div>
             </div>
             ${analysis.cohorts.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Course</th><th>Latest semester</th><th>Students</th><th>Mean marks</th><th>Slow</th><th>Medium</th><th>Advanced</th></tr></thead><tbody>${analysis.cohorts.slice(0, 12).map(cohort => `<tr><td>${escapeHtml(cohort.course)}</td><td>${escapeHtml(cohort.semester)}</td><td>${cohort.students}</td><td>${cohort.averageMarks === null ? '—' : `${cohort.averageMarks.toFixed(1)}%`}<span style="font-size:.7rem;color:var(--text-muted);"> (${cohort.assessed} assessed)</span></td><td>${cohort.slow}</td><td>${cohort.medium}</td><td>${cohort.advanced}</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--text-muted);font-size:.84rem;">No active student results have been published yet.</p>'}
+          </div>
+          <div class="card" style="padding:22px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Academic progression decisions</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Review students with backlogs and record the formal decision to repeat or progress. A backlog alone does not automatically mark a student year down.</p></div><span id="progression-candidate-count" class="badge ${progressionCandidates.length ? 'badge-warning' : 'badge-success'}">${progressionCandidates.length} need review / already repeating</span></div>
+            <div id="exam-progression-queue"></div>
           </div>
           <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px;">
             <div class="stat-card"><div class="stat-label">Active students</div><div class="stat-value">${analysis.activeStudentCount}</div></div>
@@ -140,6 +199,24 @@ export async function render(container) {
         </div></div>
       </div>
     </div>`;
+  const progressionWrap = container.querySelector('#exam-progression-queue');
+  const renderProgressionQueue = () => {
+    const candidates = activeStudents.filter(student => Number(student.backlogs) > 0 || isYearDown(student));
+    const countBadge = container.querySelector('#progression-candidate-count');
+    if (countBadge) {
+      countBadge.className = `badge ${candidates.length ? 'badge-warning' : 'badge-success'}`;
+      countBadge.textContent = `${candidates.length} need review / already repeating`;
+    }
+    progressionWrap.innerHTML = candidates.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Course / year</th><th>Backlogs</th><th>Standing</th><th>Exam decision</th></tr></thead><tbody>${candidates.slice(0, 40).map(student => {
+      const repeating = isYearDown(student);
+      return `<tr><td>${escapeHtml(student.name || 'Student')}<div style="font-size:.72rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td>${escapeHtml(student.course || student.program || '—')} · ${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || '—')}</td><td>${Number(student.backlogs) || 0}</td><td><span class="badge ${repeating ? 'badge-danger' : 'badge-warning'}">${repeating ? 'Repeating year' : 'Review required'}</span></td><td><button class="btn btn-xs ${repeating ? 'btn-secondary' : 'btn-primary'} progression-decision" data-student-id="${escapeHtml(student.id)}" data-action="${repeating ? 'CLEAR' : 'REPEAT'}">${repeating ? 'Clear / progress' : 'Record repeat decision'}</button>${repeating && student.yearDownReason ? `<div style="font-size:.7rem;color:var(--text-muted);margin-top:4px;">${escapeHtml(student.yearDownReason)}</div>` : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>${candidates.length > 40 ? `<p style="font-size:.75rem;color:var(--text-muted);">Showing 40 of ${candidates.length} records.</p>` : ''}` : '<p style="margin:0;color:var(--text-muted);font-size:.84rem;">No students with backlogs or active repeat-year decisions are listed.</p>';
+    progressionWrap.querySelectorAll('.progression-decision').forEach(button => button.addEventListener('click', () => {
+      const student = activeStudents.find(item => item.id === button.dataset.studentId);
+      if (student) openProgressionDecision(student, config, button.dataset.action, renderProgressionQueue);
+    }));
+  };
+  renderProgressionQueue();
   container.querySelector('#download-result-template').addEventListener('click', template);
   const fileInput = container.querySelector('#results-file');
   const preview = container.querySelector('#results-preview');
