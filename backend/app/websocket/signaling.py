@@ -1,6 +1,8 @@
 from uuid import uuid4
 from fastapi import WebSocket, APIRouter, WebSocketDisconnect
 from app.firebase.client import firebase_auth, db
+from app.config import settings
+from app.core.role_claims import claims_for_account
 
 router = APIRouter()
 
@@ -57,40 +59,39 @@ manager = ConnectionManager()
 async def signaling_endpoint(websocket: WebSocket, meeting_id: str):
     participant_id = None
     try:
-        token = websocket.query_params.get("token")
-        if not token or not firebase_auth or not db:
+        origin = websocket.headers.get("origin")
+        if not origin or origin not in settings.cors_origins_list:
+            await websocket.close(code=4403, reason="Untrusted origin")
+            return
+
+        session_cookie = websocket.cookies.get(settings.SESSION_COOKIE_NAME)
+        if not session_cookie or not firebase_auth or not db:
             await websocket.close(code=4401, reason="Authentication required")
             return
 
         try:
-            authenticated_user = firebase_auth.verify_id_token(token, check_revoked=True)
+            # WebSocket credentials use the HttpOnly session cookie so bearer
+            # tokens do not appear in URLs, proxy logs, or browser history.
+            authenticated_user = firebase_auth.verify_session_cookie(session_cookie, check_revoked=True)
         except Exception:
             await websocket.close(code=4401, reason="Invalid authentication credentials")
             return
 
-        if authenticated_user.get("platform_approved") is not True:
-            await websocket.close(code=4403, reason="Approved account required")
-            return
-
         uid = authenticated_user.get("uid")
-        profile_doc = db.collection("students").document(uid).get()
-        if not profile_doc.exists:
-            profile_doc = db.collection("faculty").document(uid).get()
-        if not profile_doc.exists:
+        role = str(authenticated_user.get("role") or "").upper()
+        profile_collection = "students" if role == "STUDENT" else "faculty"
+        profile_doc = db.collection(profile_collection).document(uid).get() if uid else None
+        if not profile_doc or not profile_doc.exists:
             await websocket.close(code=4403, reason="Approved account required")
             return
         profile = profile_doc.to_dict()
         if profile.get("status") != "approved" or profile.get("isApproved") is not True:
             await websocket.close(code=4403, reason="Approved account required")
             return
-        role = profile.get("role")
-        if role == "ADMIN":
-            role_is_trusted = authenticated_user.get("admin") is True
-        elif role in {"DEAN", "HOD", "SECTION_HEAD"}:
-            role_is_trusted = authenticated_user.get("platform_role") == role
-        else:
-            role_is_trusted = role in {"STUDENT", "FACULTY"}
-        if not role_is_trusted:
+        if str(profile.get("role") or "").upper() != role or any(
+            authenticated_user.get(key) != value
+            for key, value in claims_for_account(role, True).items()
+        ):
             await websocket.close(code=4403, reason="Account role is not configured")
             return
 
@@ -104,7 +105,8 @@ async def signaling_endpoint(websocket: WebSocket, meeting_id: str):
             is_participant = meeting.get("mentorId") in {
                 profile.get("mentorId"),
                 profile.get("secondaryMentorId"),
-            }
+            } or (isinstance(profile.get("mentorIds"), list)
+                  and meeting.get("mentorId") in profile.get("mentorIds", []))
         if not is_participant:
             await websocket.close(code=4403, reason="Not a meeting participant")
             return

@@ -3,6 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.firebase.client import firebase_auth, db
 from app.config import settings
 from app.core.exceptions import UnauthorizedException, ForbiddenException, ServiceUnavailableException
+from app.core.role_claims import claims_for_account
 from app.models.enums import UserRole
 
 security = HTTPBearer(auto_error=False)
@@ -24,17 +25,14 @@ def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials
         if not uid:
             raise UnauthorizedException("Invalid authentication credentials")
 
-        student_doc = db.collection('students').document(uid).get()
-        faculty_doc = db.collection('faculty').document(uid).get()
-        if decoded_token.get("admin") is True and faculty_doc.exists:
-            user_doc = faculty_doc
-        elif student_doc.exists and (student_doc.to_dict() or {}).get("role") == UserRole.STUDENT.value:
-            user_doc = student_doc
-        elif faculty_doc.exists:
-            user_doc = faculty_doc
-        else:
-            user_doc = student_doc
-        
+        token_role = str(decoded_token.get('role') or '').upper()
+        if token_role not in {role.value for role in UserRole}:
+            raise ForbiddenException("Your account role is not configured")
+
+        # Select the only valid profile collection for the signed role. This
+        # prevents a stray or conflicting document from changing account type.
+        collection = 'students' if token_role == UserRole.STUDENT.value else 'faculty'
+        user_doc = db.collection(collection).document(uid).get()
         if not user_doc or not user_doc.exists:
             raise ForbiddenException("No platform account has been provisioned for this user")
 
@@ -44,9 +42,12 @@ def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials
 
         # The server-side profile is authoritative. Token claims are cached until
         # refresh and must never override a changed or revoked platform role.
-        role = user_data.get("role")
-        if not role:
-            raise ForbiddenException("Your platform account does not have an assigned role")
+        role = str(user_data.get("role") or '').upper()
+        if role != token_role:
+            raise ForbiddenException("Your account role has changed. Please sign in again")
+        expected_claims = claims_for_account(role, True)
+        if any(decoded_token.get(key) != value for key, value in expected_claims.items()):
+            raise ForbiddenException("Your account permissions are not current. Please sign in again")
 
         current_user = {
             "uid": uid,

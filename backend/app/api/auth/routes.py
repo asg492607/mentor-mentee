@@ -6,9 +6,7 @@ from typing import Any
 
 import logging
 import httpx
-import time
-from collections import defaultdict, deque
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 logger = logging.getLogger(__name__)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -17,17 +15,24 @@ from app.firebase.client import firebase_auth, db
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
 from app.core.exceptions import BadRequestException, ForbiddenException, ServiceUnavailableException, UnauthorizedException
-from app.core.role_claims import claims_for_account
+from app.core.role_claims import (
+    SELF_SERVICE_ROLES,
+    VALID_ROLES,
+    account_claims_match,
+    claims_for_account,
+)
+from app.core.rate_limit import enforce_rate_limit
 from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 token_security = HTTPBearer(auto_error=False)
-_auth_rate_limits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 
 
 @router.get("/institution-options")
-def get_public_institution_options():
+def get_public_institution_options(request: Request):
     """Return the non-sensitive school, department, and classroom choices for registration."""
+    client_ip = request.client.host if request.client else "unknown"
+    _auth_rate_limit(client_ip, "institution_options", maximum=60, seconds=60)
     if not db:
         raise ServiceUnavailableException("Institution directory is temporarily unavailable")
 
@@ -68,16 +73,10 @@ def get_public_institution_options():
     return {'departments': departments, 'classes': classes}
 
 def _auth_rate_limit(key: str, action: str, maximum: int, seconds: int) -> None:
-    now = time.monotonic()
-    requests = _auth_rate_limits[(key, action)]
-    while requests and now - requests[0] > seconds:
-        requests.popleft()
-    if len(requests) >= maximum:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many authentication attempts. Please try again shortly."
-        )
-    requests.append(now)
+    enforce_rate_limit(
+        "auth", key, action, maximum, seconds,
+        "Too many authentication attempts. Please try again shortly.",
+    )
 
 
 def _get_profile(uid: str):
@@ -128,8 +127,10 @@ def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
         raise ForbiddenException("Your account is awaiting approval")
 
     role = str(profile.get('role') or '').upper()
-    if not role:
+    if role not in VALID_ROLES:
         raise ForbiddenException("Your platform account does not have an assigned role")
+    if role not in SELF_SERVICE_ROLES and not account_claims_match(decoded, role):
+        raise ForbiddenException("A trusted administrator must provision this role before sign-in")
     firebase_auth.set_custom_user_claims(uid, claims_for_account(role, True))
     return {**profile, 'id': uid}
 
@@ -149,6 +150,10 @@ def _identity_request(action: str, payload: dict[str, Any]) -> dict[str, Any]:
         error = response.json().get('error', {}).get('message', 'Authentication failed')
         if action == 'signInWithPassword':
             raise UnauthorizedException("Invalid email or password")
+        if action == 'sendOobCode':
+            if error in {'EMAIL_NOT_FOUND', 'INVALID_EMAIL'}:
+                return {}
+            raise ServiceUnavailableException("Password reset is temporarily unavailable")
         raise UnauthorizedException(error.replace('_', ' ').lower())
     return response.json()
 
@@ -199,8 +204,8 @@ def login_with_server_session(payload: dict[str, Any], response: Response, reque
     except (ForbiddenException, UnauthorizedException, ServiceUnavailableException):
         raise
     except Exception as exc:
-        logger.exception("Login verification failed: %s", exc)
-        raise UnauthorizedException(f"Unable to verify this account: {str(exc)}")
+        logger.exception("Login verification failed")
+        raise UnauthorizedException("Unable to verify this account")
     return {'profile': profile, 'customToken': custom_token}
 
 
@@ -236,6 +241,7 @@ def register_account(payload: dict[str, Any], request: Request):
         raise ForbiddenException("Only student and faculty accounts can self-register")
     if not email or len(password) < 6 or not str(profile_input.get('name') or '').strip():
         raise UnauthorizedException("Provide a name, valid email address, and a password of at least 6 characters")
+    _auth_rate_limit(email, "register_email", maximum=3, seconds=3600)
     terms_accepted = bool(payload.get('termsAccepted') or profile_input.get('termsAccepted'))
     if not terms_accepted:
         raise UnauthorizedException("You must accept the Terms & Conditions and Privacy Policy to register")
@@ -368,7 +374,7 @@ def register_account(payload: dict[str, Any], request: Request):
                 logger.exception("Could not remove incomplete registration account %s", user.uid)
         message = str(exc).lower()
         if 'already exists' in message or 'email already' in message:
-            raise UnauthorizedException("This email is already registered")
+            raise UnauthorizedException("Unable to register with these details")
         logger.exception("Self-registration failed")
         raise ServiceUnavailableException("Unable to complete registration. Please try again.")
 
@@ -425,8 +431,10 @@ def bootstrap_legacy_claims(credentials: HTTPAuthorizationCredentials = Depends(
         raise ForbiddenException("Your account is awaiting approval")
 
     role = str(profile.get('role') or '').upper()
-    if not role:
+    if role not in VALID_ROLES:
         raise ForbiddenException("Your platform account does not have an assigned role")
+    if role not in SELF_SERVICE_ROLES and not account_claims_match(decoded, role):
+        raise ForbiddenException("A trusted administrator must provision this role before migration")
 
     firebase_auth.set_custom_user_claims(uid, claims_for_account(role, True))
     return {"status": "claims_updated", "profile": {**profile, 'id': uid}}

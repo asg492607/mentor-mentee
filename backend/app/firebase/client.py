@@ -1,12 +1,14 @@
 import os
 import json
 import firebase_admin
+import logging
 from firebase_admin import credentials, firestore, auth
 from app.config import settings
 
 _initialized = False
 db = None
 firebase_auth = None
+logger = logging.getLogger(__name__)
 
 def initialize_firebase():
     global _initialized, db, firebase_auth
@@ -32,14 +34,17 @@ def initialize_firebase():
 
                 cred = credentials.Certificate(credential_source)
                 credential_project = getattr(cred, "project_id", None)
-                if credential_project and credential_project != settings.FIREBASE_PROJECT_ID:
+                if credential_project and settings.FIREBASE_PROJECT_ID and credential_project != settings.FIREBASE_PROJECT_ID:
                     raise RuntimeError("Firebase service account project does not match FIREBASE_PROJECT_ID")
-                firebase_admin.initialize_app(cred, {"projectId": settings.FIREBASE_PROJECT_ID})
+                options = {"projectId": settings.FIREBASE_PROJECT_ID} if settings.FIREBASE_PROJECT_ID else None
+                firebase_admin.initialize_app(cred, options)
                 db = firestore.client()
                 firebase_auth = auth
-                print("Firebase Admin successfully initialized.")
-            except Exception as e:
-                print(f"Warning: Firebase Admin failed to initialize: {e}")
+                logger.info("Firebase Admin initialized")
+            except Exception as exc:
+                # Avoid echoing credential parser errors or configuration values
+                # into public deployment logs.
+                logger.error("Firebase Admin failed to initialize (%s)", type(exc).__name__)
                 db = None
                 firebase_auth = None
             _initialized = True

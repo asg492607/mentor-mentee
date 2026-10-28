@@ -15,6 +15,7 @@ service firebase.storage {
 
     function isApprovedStudent(userId) {
       return signedIn()
+        && request.auth.token.platform_claim_version == 2
         && request.auth.token.platform_approved == true
         && firestore.exists(/databases/(default)/documents/students/$(userId))
         && studentProfile(userId).role == 'STUDENT'
@@ -24,6 +25,7 @@ service firebase.storage {
 
     function isApprovedFaculty(userId) {
       return signedIn()
+        && request.auth.token.platform_claim_version == 2
         && request.auth.token.platform_approved == true
         && firestore.exists(/databases/(default)/documents/faculty/$(userId))
         && (

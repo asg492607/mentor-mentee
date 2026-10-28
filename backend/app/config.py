@@ -1,10 +1,14 @@
+from urllib.parse import urlparse
+
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = 'serviceAccountKey.json'
     FIREBASE_CREDENTIALS_JSON: str = ''
-    FIREBASE_PROJECT_ID: str = 'mentorv1-848ef'
-    FIREBASE_WEB_API_KEY: str = 'AIzaSyD3UkvB-sNMNEKzC9Cuat4mw0SOe19vIDU'
+    FIREBASE_PROJECT_ID: str = ''
+    # Set this in the backend environment. Never ship the Identity Toolkit key
+    # as a backend source-code default.
+    FIREBASE_WEB_API_KEY: str = ''
     SESSION_COOKIE_NAME: str = 'lumina_session'
     SESSION_COOKIE_SECURE: bool = True
     LEGACY_SUPER_ADMIN_EMAIL: str = ''
@@ -28,26 +32,33 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        default_origins = [
-            'https://mentormenteemitadt.netlify.app',
-            'http://localhost:5000',
-            'http://127.0.0.1:5000',
-            'http://localhost:5500',
-            'http://127.0.0.1:5500',
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-        ]
-        configured = [
-            origin.strip().rstrip('/')
-            for origin in self.CORS_ORIGINS.split(',')
-            if origin.strip() and origin.strip() != '*'
-        ]
-        seen = set()
-        result = []
-        for origin in configured + default_origins:
-            if origin and origin not in seen:
-                seen.add(origin)
-                result.append(origin)
-        return result
+        origins = []
+        for configured_origin in self.CORS_ORIGINS.split(','):
+            origin = configured_origin.strip().rstrip('/')
+            if not origin:
+                continue
+            parsed = urlparse(origin)
+            try:
+                parsed.port
+            except ValueError as error:
+                raise ValueError('CORS_ORIGINS contains an invalid port') from error
+            if (
+                origin == '*'
+                or parsed.scheme not in {'http', 'https'}
+                or not parsed.netloc
+                or parsed.path
+                or parsed.params
+                or parsed.query
+                or parsed.fragment
+                or parsed.username
+                or parsed.password
+            ):
+                raise ValueError('CORS_ORIGINS must contain exact HTTP(S) origins; wildcards and paths are not allowed')
+            normalized = f'{parsed.scheme.lower()}://{parsed.netloc.lower()}'
+            if normalized not in origins:
+                origins.append(normalized)
+        if not origins:
+            raise ValueError('CORS_ORIGINS must contain at least one allowed origin')
+        return origins
 
 settings = Settings()

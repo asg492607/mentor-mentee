@@ -122,7 +122,6 @@ The backend owns authentication credentials and trusted Firebase access.
 
 4. **Deployment**: Deploy the backend first, set its CORS allow-list to the exact frontend origin, then deploy the frontend. The SPA routing requires a redirect rule (included in `_redirects` and `netlify.toml` for Netlify) to map all routes to `index.html`.
 
-For Firebase rule deployment, backend CORS configuration, and administrator claim migration, see [SECURITY.md](SECURITY.md).
 
 ## Scaling Risks & Architectural Considerations
 

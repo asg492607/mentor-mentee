@@ -11,7 +11,12 @@ env/
 
 # Environment variables and secrets
 .env
+*.env.*
+!.env.example
 serviceAccountKey.json
+*credentials*.json
+*.key
+SECURITY.md
 
 # IDE
 .vscode/

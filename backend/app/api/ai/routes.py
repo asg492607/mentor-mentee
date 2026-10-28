@@ -5,8 +5,6 @@ never returned to the browser.
 """
 
 import base64
-import time
-from collections import defaultdict, deque
 from typing import Literal
 
 import httpx
@@ -15,13 +13,13 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.dependencies import get_current_user
+from app.core.rate_limit import enforce_rate_limit
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 GROQ_MODELS = {"qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"}
 GEMINI_MODELS = {"gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash"}
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
-_request_times: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 
 
 class ChatMessage(BaseModel):
@@ -38,13 +36,10 @@ class ChatRequest(BaseModel):
 
 
 def _rate_limit(user_id: str, action: str, maximum: int, seconds: int) -> None:
-    now = time.monotonic()
-    requests = _request_times[(user_id, action)]
-    while requests and now - requests[0] > seconds:
-        requests.popleft()
-    if len(requests) >= maximum:
-        raise HTTPException(status_code=429, detail="AI request limit reached. Try again shortly.")
-    requests.append(now)
+    enforce_rate_limit(
+        "ai", user_id, action, maximum, seconds,
+        "AI request limit reached. Try again shortly.",
+    )
 
 
 def _model_or_default(candidate: str | None, allowed: set[str], default: str) -> str:

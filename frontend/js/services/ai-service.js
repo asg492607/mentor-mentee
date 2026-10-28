@@ -12,6 +12,22 @@ class AIServiceClass {
   constructor() {
     this.customModel = null;
     this.customGeminiModel = null;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('click', async (event) => {
+        const button = event.target.closest?.('.ai-copy-btn[data-copy-code]');
+        if (!button) return;
+        const code = button.closest('.ai-code-block')?.querySelector('pre code')?.textContent || '';
+        try {
+          await navigator.clipboard.writeText(code);
+          button.textContent = 'Copied!';
+        } catch (_) {
+          button.textContent = 'Copy failed';
+        }
+        setTimeout(() => {
+          if (button.isConnected) button.textContent = 'Copy';
+        }, 2000);
+      });
+    }
     if (typeof localStorage !== 'undefined') {
       // Remove keys saved by older client-side AI settings. Provider secrets
       // now belong in backend environment variables only.
@@ -679,7 +695,7 @@ Format strictly as:
       return `<div class="ai-code-block">
         <div class="ai-code-header">
           <span>${lang || 'text'}</span>
-          <button class="ai-copy-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(cleanCode)}'));this.innerText='Copied!';setTimeout(()=>this.innerText='Copy',2000);">Copy</button>
+          <button type="button" class="ai-copy-btn" data-copy-code>Copy</button>
         </div>
         <pre><code>${cleanCode}</code></pre>
       </div>`;

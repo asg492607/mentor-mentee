@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2800" height="2140" viewBox="0 0 2800 2140">
+<defs>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L11,6 L1,11 z" fill="#111"/></marker>
+  <marker id="arrowSmall" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L9,4.5 L1,8 z" fill="#111"/></marker>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill:#111; }
+    .title { font-size:54px; font-weight:700; letter-spacing:1.2px; }
+    .subtitle { font-size:25px; fill:#555; }
+    .section { font-size:25px; font-weight:700; letter-spacing:1.4px; }
+    .access-title { font-size:24px; font-weight:700; letter-spacing:.6px; }
+    .access-sub { font-size:20px; fill:#444; }
+    .role-title { font-size:29px; font-weight:700; fill:white; }
+    .role-code { font-size:16px; fill:#555; letter-spacing:1.2px; font-weight:700; }
+    .feature { font-size:21px; fill:#222; }
+    .step-head { font-size:22px; font-weight:700; }
+    .step-body { font-size:18px; fill:#444; }
+    .footer-desc { font-size:19px; fill:#fff; }
+    .issue-role { font-size:25px; font-weight:700; }
+    .issue-sub { font-size:19px; fill:#444; }
+    .tier { font-size:15px; letter-spacing:1.1px; fill:#666; font-weight:700; }
+    .arch-head { font-size:22px; font-weight:700; letter-spacing:.5px; }
+    .arch-body { font-size:19px; fill:#333; }
+    .small { font-size:17px; fill:#555; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#fff"/>
+
+<text x="100" y="87" class="title" text-anchor="start">LUMINA  |  MENTOR–MENTEE PLATFORM FLOW</text>
+<text x="100" y="135" class="subtitle" text-anchor="start">Role journeys, student support workflows and institutional oversight</text>
+<path d="M100,155 L2700,155" fill="none" stroke="#b5b5b5" stroke-width="2"/>
+<rect x="100" y="185" width="520" height="100" rx="12" fill="#f7f7f7" stroke="#111" stroke-width="2.5"/>
+<text x="122" y="222" class="access-title" text-anchor="start">ACCESS CHANNELS</text>
+<text x="122" y="257" class="access-sub" text-anchor="start">Web browser  •  Android app</text>
+<rect x="680" y="185" width="510" height="100" rx="12" fill="#f7f7f7" stroke="#111" stroke-width="2.5"/>
+<text x="702" y="222" class="access-title" text-anchor="start">SIGN IN &amp; PROVISION</text>
+<text x="702" y="257" class="access-sub" text-anchor="start">Approved account  •  secure session</text>
+<rect x="1250" y="185" width="570" height="100" rx="12" fill="#f7f7f7" stroke="#111" stroke-width="2.5"/>
+<text x="1272" y="222" class="access-title" text-anchor="start">VERIFY ROLE &amp; SCOPE</text>
+<text x="1272" y="257" class="access-sub" text-anchor="start">Trusted identity  •  role / department checks</text>
+<rect x="1880" y="185" width="820" height="100" rx="12" fill="#f7f7f7" stroke="#111" stroke-width="2.5"/>
+<text x="1902" y="222" class="access-title" text-anchor="start">ROLE-AWARE PORTAL</text>
+<text x="1902" y="257" class="access-sub" text-anchor="start">Route to the permitted dashboard and data</text>
+<path d="M627,235 L672,235" fill="none" stroke="#111" stroke-width="3" marker-end="url(#arrowSmall)"/>
+<path d="M1197,235 L1242,235" fill="none" stroke="#111" stroke-width="3" marker-end="url(#arrowSmall)"/>
+<path d="M1827,235 L1872,235" fill="none" stroke="#111" stroke-width="3" marker-end="url(#arrowSmall)"/>
+<path d="M2290,285 L2290,330 L305,330" fill="none" stroke="#111" stroke-width="2.6"/>
+<path d="M305,330 L2495,330" fill="none" stroke="#111" stroke-width="2.6"/>
+<path d="M305,330 L305,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<path d="M743,330 L743,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<path d="M1181,330 L1181,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<path d="M1619,330 L1619,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<path d="M2057,330 L2057,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<path d="M2495,330 L2495,388" fill="none" stroke="#111" stroke-width="2.6" marker-end="url(#arrowSmall)"/>
+<rect x="100" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M114,390 H496 Q510,390 510,404 V455 H100 V404 Q100,390 114,390 Z" fill="#111"/>
+<text x="120" y="433" class="role-title" text-anchor="start">STUDENT</text>
+<text x="122" y="483" class="role-code" text-anchor="start">STUDENT / MENTEE</text>
+<circle cx="126" cy="523" r="4.5" fill="#111"/>
+<text x="142" y="529" class="feature" text-anchor="start">Dashboard &amp; personal profile</text>
+<circle cx="126" cy="566" r="4.5" fill="#111"/>
+<text x="142" y="572" class="feature" text-anchor="start">Mentorship booklet</text>
+<circle cx="126" cy="609" r="4.5" fill="#111"/>
+<text x="142" y="615" class="feature" text-anchor="start">Request mentor meetings</text>
+<circle cx="126" cy="652" r="4.5" fill="#111"/>
+<text x="142" y="658" class="feature" text-anchor="start">Tasks, deadlines &amp; progress</text>
+<circle cx="126" cy="695" r="4.5" fill="#111"/>
+<text x="142" y="701" class="feature" text-anchor="start">Raise and track issues</text>
+<circle cx="126" cy="738" r="4.5" fill="#111"/>
+<text x="142" y="744" class="feature" text-anchor="start">Messages &amp; AI Copilot</text>
+<rect x="538" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M552,390 H934 Q948,390 948,404 V455 H538 V404 Q538,390 552,390 Z" fill="#111"/>
+<text x="558" y="433" class="role-title" text-anchor="start">MENTOR / FACULTY</text>
+<text x="560" y="483" class="role-code" text-anchor="start">FACULTY / MENTOR</text>
+<circle cx="564" cy="523" r="4.5" fill="#111"/>
+<text x="580" y="529" class="feature" text-anchor="start">Mentee roster &amp; dashboard</text>
+<circle cx="564" cy="566" r="4.5" fill="#111"/>
+<text x="580" y="572" class="feature" text-anchor="start">Schedule / approve meetings</text>
+<circle cx="564" cy="609" r="4.5" fill="#111"/>
+<text x="580" y="615" class="feature" text-anchor="start">Host video; manage waiting room</text>
+<circle cx="564" cy="652" r="4.5" fill="#111"/>
+<text x="580" y="658" class="feature" text-anchor="start">Meeting notes &amp; action items</text>
+<circle cx="564" cy="695" r="4.5" fill="#111"/>
+<text x="580" y="701" class="feature" text-anchor="start">Review student booklet</text>
+<circle cx="564" cy="738" r="4.5" fill="#111"/>
+<text x="580" y="744" class="feature" text-anchor="start">Resolve / escalate issues; reports</text>
+<rect x="976" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M990,390 H1372 Q1386,390 1386,404 V455 H976 V404 Q976,390 990,390 Z" fill="#111"/>
+<text x="996" y="433" class="role-title" text-anchor="start">SECTION HEAD</text>
+<text x="998" y="483" class="role-code" text-anchor="start">SECTION_HEAD</text>
+<circle cx="1002" cy="523" r="4.5" fill="#111"/>
+<text x="1018" y="529" class="feature" text-anchor="start">Section dashboard</text>
+<circle cx="1002" cy="566" r="4.5" fill="#111"/>
+<text x="1018" y="572" class="feature" text-anchor="start">Review routed cases</text>
+<circle cx="1002" cy="609" r="4.5" fill="#111"/>
+<text x="1018" y="615" class="feature" text-anchor="start">Resolve or escalate to HOD</text>
+<circle cx="1002" cy="652" r="4.5" fill="#111"/>
+<text x="1018" y="658" class="feature" text-anchor="start">Track escalation status</text>
+<rect x="1414" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M1428,390 H1810 Q1824,390 1824,404 V455 H1414 V404 Q1414,390 1428,390 Z" fill="#111"/>
+<text x="1434" y="433" class="role-title" text-anchor="start">HOD</text>
+<text x="1436" y="483" class="role-code" text-anchor="start">HEAD OF DEPARTMENT</text>
+<circle cx="1440" cy="523" r="4.5" fill="#111"/>
+<text x="1456" y="529" class="feature" text-anchor="start">Department dashboard &amp; reports</text>
+<circle cx="1440" cy="566" r="4.5" fill="#111"/>
+<text x="1456" y="572" class="feature" text-anchor="start">Directory &amp; staff / student management</text>
+<circle cx="1440" cy="609" r="4.5" fill="#111"/>
+<text x="1456" y="615" class="feature" text-anchor="start">Bulk import &amp; mentor allocation</text>
+<circle cx="1440" cy="652" r="4.5" fill="#111"/>
+<text x="1456" y="658" class="feature" text-anchor="start">Monitor at-risk students</text>
+<circle cx="1440" cy="695" r="4.5" fill="#111"/>
+<text x="1456" y="701" class="feature" text-anchor="start">Resolve / escalate to Dean</text>
+<rect x="1852" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M1866,390 H2248 Q2262,390 2262,404 V455 H1852 V404 Q1852,390 1866,390 Z" fill="#111"/>
+<text x="1872" y="433" class="role-title" text-anchor="start">DEAN</text>
+<text x="1874" y="483" class="role-code" text-anchor="start">INSTITUTIONAL OVERSIGHT</text>
+<circle cx="1878" cy="523" r="4.5" fill="#111"/>
+<text x="1894" y="529" class="feature" text-anchor="start">Institution-wide dashboard</text>
+<circle cx="1878" cy="566" r="4.5" fill="#111"/>
+<text x="1894" y="572" class="feature" text-anchor="start">Analytics, reports &amp; management</text>
+<circle cx="1878" cy="609" r="4.5" fill="#111"/>
+<text x="1894" y="615" class="feature" text-anchor="start">Directory &amp; allocation oversight</text>
+<circle cx="1878" cy="652" r="4.5" fill="#111"/>
+<text x="1894" y="658" class="feature" text-anchor="start">Review senior escalations</text>
+<rect x="2290" y="390" width="410" height="430" rx="14" fill="#fff" stroke="#111" stroke-width="2.4"/>
+<path d="M2304,390 H2686 Q2700,390 2700,404 V455 H2290 V404 Q2290,390 2304,390 Z" fill="#111"/>
+<text x="2310" y="433" class="role-title" text-anchor="start">ADMIN</text>
+<text x="2312" y="483" class="role-code" text-anchor="start">SYSTEM OPERATIONS</text>
+<circle cx="2316" cy="523" r="4.5" fill="#111"/>
+<text x="2332" y="529" class="feature" text-anchor="start">Manage users &amp; departments</text>
+<circle cx="2316" cy="566" r="4.5" fill="#111"/>
+<text x="2332" y="572" class="feature" text-anchor="start">Provision / import accounts</text>
+<circle cx="2316" cy="609" r="4.5" fill="#111"/>
+<text x="2332" y="615" class="feature" text-anchor="start">Manual / automatic allocation</text>
+<circle cx="2316" cy="652" r="4.5" fill="#111"/>
+<text x="2332" y="658" class="feature" text-anchor="start">Booklet compliance</text>
+<circle cx="2316" cy="695" r="4.5" fill="#111"/>
+<text x="2332" y="701" class="feature" text-anchor="start">Settings, security &amp; system health</text>
+<rect x="80" y="855" width="2640" height="285" rx="16" fill="#fafafa" stroke="#111" stroke-width="2.2"/>
+<text x="110" y="895" class="section" text-anchor="start">1  MENTORSHIP &amp; STUDENT PROGRESS CYCLE</text>
+<rect x="100" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="305" y="965" class="step-head" text-anchor="middle">Assign mentor</text>
+<text x="305" y="996" class="step-body" text-anchor="middle">Admin / HOD match student ↔ faculty</text>
+<path d="M514,975 L534,975" fill="none" stroke="#111" stroke-width="2.7" marker-end="url(#arrowSmall)"/>
+<rect x="538" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="743" y="965" class="step-head" text-anchor="middle">Build relationship</text>
+<text x="743" y="996" class="step-body" text-anchor="middle">Messages • profile • booklet</text>
+<path d="M952,975 L972,975" fill="none" stroke="#111" stroke-width="2.7" marker-end="url(#arrowSmall)"/>
+<rect x="976" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="1181" y="965" class="step-head" text-anchor="middle">Request meeting</text>
+<text x="1181" y="996" class="step-body" text-anchor="middle">Student proposes; mentor approves</text>
+<path d="M1390,975 L1410,975" fill="none" stroke="#111" stroke-width="2.7" marker-end="url(#arrowSmall)"/>
+<rect x="1414" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="1619" y="965" class="step-head" text-anchor="middle">Meet online</text>
+<text x="1619" y="996" class="step-body" text-anchor="middle">Video • waiting room • mentor admits</text>
+<path d="M1828,975 L1848,975" fill="none" stroke="#111" stroke-width="2.7" marker-end="url(#arrowSmall)"/>
+<rect x="1852" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="2057" y="965" class="step-head" text-anchor="middle">Record outcomes</text>
+<text x="2057" y="996" class="step-body" text-anchor="middle">Mentor notes • reports • action items</text>
+<path d="M2266,975 L2286,975" fill="none" stroke="#111" stroke-width="2.7" marker-end="url(#arrowSmall)"/>
+<rect x="2290" y="925" width="410" height="100" rx="10" fill="#fff" stroke="#222" stroke-width="2"/>
+<text x="2495" y="965" class="step-head" text-anchor="middle">Track progress</text>
+<text x="2495" y="996" class="step-body" text-anchor="middle">Student completes tasks and updates</text>
+<path d="M2495,1026 L2495,1082 L743,1082 L743,1028" fill="none" stroke="#333" stroke-width="2.5" stroke-dasharray="8 7" marker-end="url(#arrowSmall)"/>
+<rect x="1110" y="1061" width="1010" height="40" rx="5" fill="#fafafa" stroke="#fafafa" stroke-width="0"/>
+<text x="1615" y="1088" class="small" text-anchor="middle">Student progress feeds the mentor’s next follow-up</text>
+<rect x="80" y="1165" width="2640" height="395" rx="16" fill="#fafafa" stroke="#111" stroke-width="2.2"/>
+<text x="110" y="1205" class="section" text-anchor="start">2  ISSUE ESCALATION &amp; RESOLUTION</text>
+<rect x="140" y="1240" width="420" height="132" rx="12" fill="#fff" stroke="#222" stroke-width="2.2"/>
+<text x="350" y="1272" class="tier" text-anchor="middle">TIER 1</text>
+<text x="350" y="1308" class="issue-role" text-anchor="middle">STUDENT</text>
+<text x="350" y="1343" class="issue-sub" text-anchor="middle">Raises issue; tracks updates</text>
+<path d="M564,1308 L660,1308" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="665" y="1240" width="420" height="132" rx="12" fill="#fff" stroke="#222" stroke-width="2.2"/>
+<text x="875" y="1272" class="tier" text-anchor="middle">TIER 2</text>
+<text x="875" y="1308" class="issue-role" text-anchor="middle">MENTOR</text>
+<text x="875" y="1343" class="issue-sub" text-anchor="middle">Triage and first resolution</text>
+<path d="M1089,1308 L1185,1308" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="1190" y="1240" width="420" height="132" rx="12" fill="#fff" stroke="#222" stroke-width="2.2"/>
+<text x="1400" y="1272" class="tier" text-anchor="middle">TIER 3</text>
+<text x="1400" y="1308" class="issue-role" text-anchor="middle">SECTION HEAD</text>
+<text x="1400" y="1343" class="issue-sub" text-anchor="middle">Relevant service / section</text>
+<path d="M1614,1308 L1710,1308" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="1715" y="1240" width="420" height="132" rx="12" fill="#fff" stroke="#222" stroke-width="2.2"/>
+<text x="1925" y="1272" class="tier" text-anchor="middle">TIER 4</text>
+<text x="1925" y="1308" class="issue-role" text-anchor="middle">HOD</text>
+<text x="1925" y="1343" class="issue-sub" text-anchor="middle">Departmental resolution</text>
+<path d="M2139,1308 L2235,1308" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="2240" y="1240" width="420" height="132" rx="12" fill="#fff" stroke="#222" stroke-width="2.2"/>
+<text x="2450" y="1272" class="tier" text-anchor="middle">TIER 5</text>
+<text x="2450" y="1308" class="issue-role" text-anchor="middle">DEAN</text>
+<text x="2450" y="1343" class="issue-sub" text-anchor="middle">Institution-level review</text>
+<path d="M2450,1374 L2450,1410 L350,1410 L350,1374" fill="none" stroke="#333" stroke-width="2.4" stroke-dasharray="8 7" marker-end="url(#arrowSmall)"/>
+<rect x="805" y="1391" width="1190" height="38" rx="4" fill="#fafafa" stroke="#fafafa" stroke-width="0"/>
+<text x="1400" y="1418" class="small" text-anchor="middle">Resolution and status updates return to the student</text>
+<text x="1400" y="1472" class="step-head" text-anchor="middle">At each tier: resolve and notify, or escalate to the next level.</text>
+<text x="1400" y="1510" class="step-body" text-anchor="middle">The case retains its status and complete escalation history for follow-up and oversight.</text>
+<text x="100" y="1612" class="section" text-anchor="start">3  SHARED PLATFORM SERVICES</text>
+<rect x="100" y="1640" width="450" height="280" rx="14" fill="#f7f7f7" stroke="#111" stroke-width="2.2"/>
+<text x="122" y="1681" class="arch-head" text-anchor="start">CLIENTS</text>
+<text x="122" y="1725" class="arch-body" text-anchor="start">Web application (SPA)</text>
+<text x="122" y="1763" class="arch-body" text-anchor="start">Android WebView app</text>
+<text x="122" y="1801" class="arch-body" text-anchor="start">Students • mentors • staff</text>
+<path d="M557,1780 L582,1780" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="590" y="1640" width="460" height="280" rx="14" fill="#f7f7f7" stroke="#111" stroke-width="2.2"/>
+<text x="612" y="1681" class="arch-head" text-anchor="start">ROLE EXPERIENCE</text>
+<text x="612" y="1725" class="arch-body" text-anchor="start">Six role-specific dashboards</text>
+<text x="612" y="1763" class="arch-body" text-anchor="start">Role-guarded navigation</text>
+<text x="612" y="1801" class="arch-body" text-anchor="start">Messages • notifications • AI Copilot</text>
+<path d="M1057,1780 L1082,1780" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="1090" y="1640" width="520" height="280" rx="14" fill="#f7f7f7" stroke="#111" stroke-width="2.2"/>
+<text x="1112" y="1681" class="arch-head" text-anchor="start">SECURE APPLICATION</text>
+<text x="1112" y="1725" class="arch-body" text-anchor="start">FastAPI REST API</text>
+<text x="1112" y="1763" class="arch-body" text-anchor="start">Server-verified sessions</text>
+<text x="1112" y="1801" class="arch-body" text-anchor="start">Role and department access checks</text>
+<path d="M1617,1780 L1642,1780" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="1650" y="1640" width="550" height="280" rx="14" fill="#f7f7f7" stroke="#111" stroke-width="2.2"/>
+<text x="1672" y="1681" class="arch-head" text-anchor="start">IDENTITY &amp; DATA</text>
+<text x="1672" y="1725" class="arch-body" text-anchor="start">Firebase Authentication</text>
+<text x="1672" y="1763" class="arch-body" text-anchor="start">Firestore records + live updates</text>
+<text x="1672" y="1801" class="arch-body" text-anchor="start">Profiles • meetings • issues • tasks</text>
+<text x="1672" y="1839" class="arch-body" text-anchor="start">Messages • notification / audit history</text>
+<path d="M2207,1780 L2232,1780" fill="none" stroke="#111" stroke-width="2.8" marker-end="url(#arrowSmall)"/>
+<rect x="2240" y="1640" width="460" height="280" rx="14" fill="#f7f7f7" stroke="#111" stroke-width="2.2"/>
+<text x="2262" y="1681" class="arch-head" text-anchor="start">REAL-TIME &amp; OUTPUTS</text>
+<text x="2262" y="1725" class="arch-body" text-anchor="start">Peer-to-peer WebRTC meetings</text>
+<text x="2262" y="1763" class="arch-body" text-anchor="start">Firestore room signaling</text>
+<text x="2262" y="1801" class="arch-body" text-anchor="start">AI meeting insights • PDF reports</text>
+<text x="2262" y="1839" class="arch-body" text-anchor="start">Recordings (Drive / server storage)</text>
+<rect x="100" y="1950" width="2600" height="82" rx="12" fill="#111" stroke="#111" stroke-width="1"/>
+<text x="1400" y="1983" class="role-title" text-anchor="middle">ACCESS &amp; GOVERNANCE</text>
+<text x="1400" y="2013" class="footer-desc" text-anchor="middle">Verified sign-in  •  role-based permissions  •  notifications  •  security logs  •  persistent issue history</text>
+<text x="100" y="2084" class="small" text-anchor="start">Platform overview derived from the repository’s role routes, dashboards, API services and meeting workflows.</text>
+<text x="2700" y="2084" class="role-code" text-anchor="end">LUMINA  •  PLATFORM MAP</text>
+</svg>

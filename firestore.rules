@@ -3,6 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function approvedStudent() {
       return request.auth != null
+        && request.auth.token.platform_claim_version == 2
         && request.auth.token.platform_approved == true
         && exists(/databases/$(database)/documents/students/$(request.auth.uid))
         && get(/databases/$(database)/documents/students/$(request.auth.uid)).data.role == 'STUDENT'
@@ -13,6 +14,7 @@ service cloud.firestore {
 
     function approvedFaculty() {
       return request.auth != null
+        && request.auth.token.platform_claim_version == 2
         && request.auth.token.platform_approved == true
         && exists(/databases/$(database)/documents/faculty/$(request.auth.uid))
         && get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.role

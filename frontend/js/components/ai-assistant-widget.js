@@ -225,7 +225,7 @@ class AIAssistantWidget {
         <div class="lumina-ai-welcome-icon">
           <i class="ph-duotone ph-sparkle"></i>
         </div>
-        <div class="lumina-ai-welcome-title">Hello, ${user?.name || 'there'}! 👋</div>
+        <div class="lumina-ai-welcome-title">Hello, ${escapeHtml(user?.name || 'there')}! 👋</div>
         <div class="lumina-ai-welcome-desc">
           I am your <strong>Lumina ${roleName} Copilot</strong>. How can I assist you in your mentorship activities today?
         </div>
@@ -258,7 +258,7 @@ class AIAssistantWidget {
             <span>${timeStr}</span>
             ${!isUser ? `
               <span>&bull;</span>
-              <button class="lumina-ai-msg-action-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(m.content)}'));this.innerText='Copied!';setTimeout(()=>this.innerHTML='<i class=\\'ph ph-copy\\'></i> Copy',2000);">
+              <button type="button" class="lumina-ai-msg-action-btn" data-copy-index="${index}">
                 <i class="ph ph-copy"></i> Copy
               </button>
             ` : ''}
@@ -307,7 +307,23 @@ class AIAssistantWidget {
     });
 
     // Quick prompt chips click delegation
-    body?.addEventListener('click', (e) => {
+    body?.addEventListener('click', async (e) => {
+      const copyButton = e.target.closest('.lumina-ai-msg-action-btn[data-copy-index]');
+      if (copyButton) {
+        const message = this.messages[Number(copyButton.dataset.copyIndex)];
+        if (message && typeof message.content === 'string') {
+          try {
+            await navigator.clipboard.writeText(message.content);
+            copyButton.textContent = 'Copied!';
+            setTimeout(() => {
+              if (copyButton.isConnected) copyButton.textContent = 'Copy';
+            }, 2000);
+          } catch (_) {
+            copyButton.textContent = 'Copy failed';
+          }
+        }
+        return;
+      }
       const chip = e.target.closest('.lumina-ai-chip');
       if (chip) {
         const prompt = chip.getAttribute('data-prompt');
@@ -462,7 +478,7 @@ class AIAssistantWidget {
             <div class="lumina-ai-msg-meta">
               <span>${assistantTime}</span>
               <span>&bull;</span>
-              <button class="lumina-ai-msg-action-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(res.content)}'));this.innerText='Copied!';setTimeout(()=>this.innerHTML='<i class=\\'ph ph-copy\\'></i> Copy',2000);">
+              <button type="button" class="lumina-ai-msg-action-btn" data-copy-index="${this.messages.length - 1}">
                 <i class="ph ph-copy"></i> Copy
               </button>
             </div>
