@@ -6,6 +6,8 @@ import { createHeader } from '/js/components/header.js';
 import { StatsService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
+import { escapeHtml } from '/js/utils.js';
+import { AttendanceInterventionService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -29,7 +31,7 @@ export async function render(container) {
 
   try {
     const data = await StatsService.getInstitutionStats();
-    const { totalStudents = 0, totalFaculty = 0, totalDepartments = 0, highRiskStudents = 0, openIssues = 0, totalIssues = 0, students = [], faculty = [], issues = [], depts = [] } = data;
+    const { totalStudents = 0, totalFaculty = 0, totalDepartments = 0, highRiskStudents = 0, openIssues = 0, totalIssues = 0, students = [], faculty = [], issues = [], depts = [], lowAttendanceStudents = [], learnerCounts = {} } = data;
 
     // Per-department breakdown
     const deptMap = {};
@@ -89,6 +91,22 @@ export async function render(container) {
             <div class="stat-value" style="font-size:1.5rem;">${v}</div>
           </div>
         `).join('')}
+      </div>
+
+      <div class="card" style="padding:18px 20px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div><h3 style="margin:0 0 4px;">Learner bands</h3><p style="margin:0;color:var(--text-muted);font-size:.82rem;">Based on latest subject marks: slow &lt;50%, medium 50–74%, advanced ≥75%.</p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-danger">Slow · ${Number(learnerCounts.SLOW) || 0}</span>
+            <span class="badge badge-warning">Medium · ${Number(learnerCounts.MEDIUM) || 0}</span>
+            <span class="badge badge-success">Advanced · ${Number(learnerCounts.ADVANCED) || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><div><h3>FR students — low attendance (≤40%)</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Request a special attendance support meeting with the assigned mentor.</p></div><span class="badge badge-danger">${lowAttendanceStudents.length} students</span></div>
+        ${lowAttendanceStudents.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Department</th><th>Attendance</th><th>Latest marks</th><th>Learner band</th><th>Follow-up</th></tr></thead><tbody>${lowAttendanceStudents.map(student => `<tr><td><strong>${escapeHtml(student.name || 'Student')}</strong><div style="font-size:.75rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td>${escapeHtml(student.department || '—')}</td><td><span class="badge badge-danger">FR · ${Math.max(0, Number(student.attendance) || 0)}%</span></td><td>${student.latestSubjectAverage === null || student.latestSubjectAverage === undefined ? '—' : `${escapeHtml(student.latestSubjectAverage)}%`}</td><td>${escapeHtml(student.learnerLevel || 'Not assessed')}</td><td><button class="btn btn-xs btn-primary dean-fr-meeting" data-student-id="${escapeHtml(student.id)}">Special meeting</button></td></tr>`).join('')}</tbody></table></div>` : '<p style="padding:20px;color:var(--text-muted);">No FR students with recorded attendance currently.</p>'}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
@@ -224,6 +242,20 @@ export async function render(container) {
         } catch (err) {
           showToast(err.message, 'error');
           btn.disabled = false; btn.textContent = 'Approve';
+        }
+      });
+    });
+
+    container.querySelectorAll('.dean-fr-meeting').forEach(button => {
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          const result = await AttendanceInterventionService.requestMeeting(button.dataset.studentId);
+          button.textContent = result.created ? 'Requested' : 'Already requested';
+          showToast(result.created ? 'Special FR attendance meeting requested.' : 'An open FR attendance meeting already exists.', result.created ? 'success' : 'info');
+        } catch (error) {
+          showToast(error.message || 'Could not request the special meeting.', 'error');
+          button.disabled = false;
         }
       });
     });

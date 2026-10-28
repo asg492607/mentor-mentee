@@ -8,7 +8,7 @@ import { StudentService, StatsService, BookletService, NotificationService } fro
 import { db } from '/js/firebase-init.js';
 import { doc, getDoc, updateDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { escapeHtml } from '/js/utils.js';
-import { getAttendanceStatus } from '/js/services/academic-service.js';
+import { getAttendanceStatus, AttendanceService, AttendanceInterventionService, ResultService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -168,7 +168,7 @@ export async function render(container) {
     wrap.innerHTML = pendingHtml + assignedHtml;
 
     document.querySelectorAll('.view-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const targetBtn = e.currentTarget || e.target.closest('.view-btn');
         const s = students.find(x => x.id === targetBtn?.dataset?.id);
         if (!s) return;
@@ -195,10 +195,42 @@ export async function render(container) {
             ${riskBadge(s.riskLevel)}
             <span style="color:var(--text-muted);font-size:0.825rem;">Risk Score: ${s.riskScore||0}/100</span>
           </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0;">
+            <span><strong>Latest subject average:</strong> ${s.latestSubjectAverage === null || s.latestSubjectAverage === undefined ? 'Not assessed' : `${escapeHtml(s.latestSubjectAverage)}%`} · <strong>Learner level:</strong> ${escapeHtml(s.learnerLevel || 'Not assessed')}</span>
+            ${getAttendanceStatus(s).isLow ? '<button id="student-fr-meeting" class="btn btn-sm btn-primary" type="button">Request special FR meeting</button>' : ''}
+          </div>
+          <div id="student-academic-history" class="card" style="padding:16px;"><p style="color:var(--text-muted);margin:0;">Loading semester marks and monthly attendance…</p></div>
         `;
         document.getElementById('student-detail-close').addEventListener('click', () => {
           panel.style.display = 'none';
         });
+        const meetingButton = panel.querySelector('#student-fr-meeting');
+        meetingButton?.addEventListener('click', async () => {
+          meetingButton.disabled = true;
+          try {
+            const result = await AttendanceInterventionService.requestMeeting(s.id);
+            meetingButton.textContent = result.created ? 'Meeting requested' : 'Meeting already requested';
+            showToast(result.created ? 'Special FR attendance meeting requested.' : 'An open FR attendance meeting already exists.', result.created ? 'success' : 'info');
+          } catch (error) {
+            showToast(error.message || 'Could not request the special meeting.', 'error');
+            meetingButton.disabled = false;
+          }
+        });
+        try {
+          const [results, months] = await Promise.all([
+            ResultService.getByStudent(s.id),
+            AttendanceService.getMonthlyByStudent(s.id)
+          ]);
+          const history = panel.querySelector('#student-academic-history');
+          if (history) history.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;">
+              <div><h4 style="margin:0 0 8px;">Semester marks</h4>${results.length ? `<table class="data-table"><thead><tr><th>Semester</th><th>Subject</th><th>Marks</th></tr></thead><tbody>${results.slice(0, 6).flatMap(result => (result.subjects || []).length ? result.subjects.map(subject => `<tr><td>${escapeHtml(result.semester || '—')}</td><td>${escapeHtml(subject.name || '—')}</td><td>${subject.marks === null || subject.marks === undefined ? '—' : `${escapeHtml(subject.marks)}%`}</td></tr>`) : [`<tr><td>${escapeHtml(result.semester || '—')}</td><td>Semester result</td><td>SGPA ${escapeHtml(result.sgpa ?? '—')}</td></tr>`]).join('')}</tbody></table>` : '<p style="color:var(--text-muted);">No published marks.</p>'}</div>
+              <div><h4 style="margin:0 0 8px;">Monthly attendance</h4>${months.length ? `<table class="data-table"><thead><tr><th>Month</th><th>Sessions</th><th>Present</th><th>%</th></tr></thead><tbody>${months.slice(0, 6).map(month => `<tr><td>${escapeHtml(new Date(`${month.month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }))}</td><td>${month.sessions}</td><td>${month.present}</td><td>${month.attendance}%</td></tr>`).join('')}</tbody></table>` : '<p style="color:var(--text-muted);">No attendance records.</p>'}</div>
+            </div>`;
+        } catch (error) {
+          const history = panel.querySelector('#student-academic-history');
+          if (history) history.innerHTML = '<p style="color:var(--text-muted);margin:0;">Academic history is not available right now.</p>';
+        }
         panel.scrollIntoView({ behavior: 'smooth' });
       });
     });

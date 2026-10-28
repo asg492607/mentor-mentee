@@ -13,6 +13,14 @@ class AllocationService:
         self.department_repo = DepartmentRepository()
         self.notification_service = NotificationService()
 
+    @staticmethod
+    def _eligible_mentor(mentor: dict) -> bool:
+        role = str(mentor.get('role', '')).upper()
+        status = str(mentor.get('status') or 'approved').lower()
+        return (role in {'FACULTY', 'MENTOR', 'HOD'}
+                and status in {'approved', 'active'}
+                and mentor.get('isApproved', True) is not False)
+
     def manual_allocate(self, student_id: str, mentor_id: str, department_records: list[dict] = None):
         student = self.student_repo.get_by_id(student_id)
         mentor = self.faculty_repo.get_by_id(mentor_id)
@@ -22,7 +30,7 @@ class AllocationService:
             
         if not same_department(student, mentor, department_records):
             raise BadRequestException("A student can only be assigned to a mentor from the same department and school")
-        if str(mentor.get('role', '')).upper() not in {'FACULTY', 'MENTOR', 'HOD'}:
+        if not self._eligible_mentor(mentor):
             raise BadRequestException("Selected user is not eligible to mentor students")
         if student.get('secondaryMentorId') == mentor_id:
             raise BadRequestException("Primary and secondary mentors must be different")
@@ -81,7 +89,7 @@ class AllocationService:
             return None
         departments = self.department_repo.get_all()
         mentors = [mentor for mentor in self.faculty_repo.get_all()
-                   if str(mentor.get('role', '')).upper() in {'FACULTY', 'MENTOR', 'HOD'}
+                   if self._eligible_mentor(mentor)
                    and same_department(student, mentor, departments)
                    and int(mentor.get('assignedStudentCount') or 0) < int(mentor.get('maxStudents') or 20)]
         mentors.sort(key=lambda mentor: int(mentor.get('assignedStudentCount') or 0))
@@ -92,11 +100,20 @@ class AllocationService:
     def auto_allocate(self, department: str = None):
         students = [student for student in self.student_repo.get_all() if not student.get('mentorId')]
         if department:
-            students = [student for student in students if department in {
-                student.get('departmentId'), student.get('department')
-            }]
+            if department.startswith('id:'):
+                department_id = department[3:]
+                students = [student for student in students if student.get('departmentId') == department_id]
+            elif department.startswith('legacy:'):
+                department_name, _, school_id = department[7:].partition('|')
+                students = [student for student in students
+                            if student.get('department') == department_name
+                            and (not school_id or student.get('schoolId') == school_id)]
+            else:
+                students = [student for student in students if department in {
+                    student.get('departmentId'), student.get('department')
+                }]
         mentors = [mentor for mentor in self.faculty_repo.get_all()
-                   if str(mentor.get('role', '')).upper() in {'FACULTY', 'MENTOR', 'HOD'}]
+                   if self._eligible_mentor(mentor)]
         departments = self.department_repo.get_all()
 
         results = []

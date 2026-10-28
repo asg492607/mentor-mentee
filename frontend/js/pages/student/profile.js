@@ -7,6 +7,7 @@ import { showToast } from '/js/components/toast.js';
 import { StudentService, StatsService } from '/js/services.js';
 import { escapeHtml } from '/js/utils.js';
 import { t } from '/js/i18n.js';
+import { AttendanceService, ResultService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' }[r] || 'badge-muted';
@@ -32,8 +33,14 @@ export async function render(container) {
   let profile = {};
   let mentorName = '—';
   let coMentorName = '—';
+  let semesterResults = [];
+  let monthlyAttendance = [];
   try {
-    profile = await StudentService.get(user.id) || { ...user };
+    profile = await StudentService.getFresh(user.id) || { ...user };
+    [semesterResults, monthlyAttendance] = await Promise.all([
+      ResultService.getByStudent(user.id).catch(() => []),
+      AttendanceService.getMonthlyByStudent(user.id).catch(() => [])
+    ]);
     const { FacultyService } = await import('/js/services.js');
     if (profile.mentorId) {
       const m1 = await FacultyService.get(profile.mentorId).catch(() => null);
@@ -48,6 +55,10 @@ export async function render(container) {
   }
 
   const risk = StatsService.computeRisk(profile);
+  const resultRows = semesterResults.flatMap(result => {
+    const subjects = Array.isArray(result.subjects) ? result.subjects : [];
+    return subjects.length ? subjects.map(subject => ({ result, subject })) : [{ result, subject: {} }];
+  });
   const initials = escapeHtml((profile.name || 'S').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2));
 
   const contentWrap = container.querySelector('#profile-wrap');
@@ -129,6 +140,107 @@ export async function render(container) {
 
     </div>
   `;
+
+  contentWrap.insertAdjacentHTML('beforeend', `
+    <div class="card" style="margin-top:24px;padding:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div><h3 style="margin:0;">Marks and monthly attendance</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Exam Section results and class register records.</p></div>
+        <span class="badge ${profile.learnerLevel === 'SLOW' ? 'badge-danger' : profile.learnerLevel === 'MEDIUM' ? 'badge-warning' : profile.learnerLevel === 'ADVANCED' ? 'badge-success' : 'badge-muted'}">${profile.learnerLevel === 'NOT_ASSESSED' || !profile.learnerLevel ? 'Learner level not assessed' : `${escapeHtml(profile.learnerLevel)} learner`}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+        <div><h4 style="margin:0 0 10px;">Semester marks</h4>${resultRows.length ? `<div style="overflow:auto;max-height:360px;"><table class="data-table"><thead><tr><th>Semester</th><th>Subject</th><th>Marks</th><th>Grade</th><th>SGPA</th></tr></thead><tbody>${resultRows.map(({ result, subject }) => `<tr><td>${escapeHtml(result.semester || '—')}</td><td>${escapeHtml(subject.name || result.examName || 'Semester summary')}</td><td>${subject.marks === null || subject.marks === undefined ? '—' : `${escapeHtml(subject.marks)}%`}</td><td>${escapeHtml(subject.grade || '—')}</td><td>${escapeHtml(result.sgpa ?? '—')}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--text-muted);">No exam results have been published yet.</p>'}</div>
+        <div><h4 style="margin:0 0 10px;">Monthly attendance</h4>${monthlyAttendance.length ? `<div style="overflow:auto;max-height:360px;"><table class="data-table"><thead><tr><th>Month</th><th>Sessions</th><th>Present</th><th>Attendance</th></tr></thead><tbody>${monthlyAttendance.slice(0, 12).map(month => `<tr><td>${escapeHtml(new Date(`${month.month}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }))}</td><td>${month.sessions}</td><td>${month.present}</td><td><strong style="color:${month.attendance <= 40 ? 'var(--danger)' : 'inherit'};">${month.attendance}%</strong>${month.attendance <= 40 ? ' <span class="badge badge-danger">FR</span>' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--text-muted);">No monthly attendance records are available yet.</p>'}</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px;padding:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+        <div><h3 style="margin:0;">Parent / guardian phone</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Verify the number with an SMS code. The profile will only save a verified number.</p></div>
+        <span id="parent-phone-status" class="badge ${profile.parentPhoneVerified ? 'badge-success' : 'badge-muted'}">${profile.parentPhoneVerified ? 'Verified' : 'Not verified'}</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;flex:1;min-width:240px;"><label class="form-label" for="parent-phone">Phone number (international format)</label><input id="parent-phone" type="tel" class="form-input" value="${escapeHtml(profile.parentPhone || '')}" placeholder="+919876543210" autocomplete="tel"></div>
+        <button id="parent-phone-send" class="btn btn-secondary" type="button">Send OTP</button>
+      </div>
+      <div id="parent-phone-code-wrap" style="display:none;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
+        <div class="form-group" style="margin:0;flex:1;min-width:180px;"><label class="form-label" for="parent-phone-code">SMS verification code</label><input id="parent-phone-code" type="text" class="form-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter code"></div>
+        <button id="parent-phone-verify" class="btn btn-primary" type="button">Verify and save</button>
+      </div>
+      <div id="parent-phone-recaptcha" aria-hidden="true"></div>
+      <p id="parent-phone-message" role="status" style="margin:10px 0 0;color:var(--text-muted);font-size:.82rem;"></p>
+    </div>
+  `);
+
+  let otpApp = null;
+  let otpAuth = null;
+  let otpVerifier = null;
+  let otpConfirmation = null;
+  let otpPhone = '';
+  async function clearOtpSession() {
+    try { otpVerifier?.clear(); } catch (_) {}
+    if (otpAuth) {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      await signOut(otpAuth).catch(() => {});
+    }
+    if (otpApp) {
+      const { deleteApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+      await deleteApp(otpApp).catch(() => {});
+    }
+    otpApp = otpAuth = otpVerifier = otpConfirmation = null;
+    otpPhone = '';
+  }
+  const parentPhoneInput = contentWrap.querySelector('#parent-phone');
+  const parentPhoneMessage = contentWrap.querySelector('#parent-phone-message');
+  contentWrap.querySelector('#parent-phone-send')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const phone = parentPhoneInput.value.trim();
+    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+      parentPhoneMessage.textContent = 'Enter a valid international phone number, for example +919876543210.';
+      return;
+    }
+    button.disabled = true;
+    parentPhoneMessage.textContent = 'Sending verification code…';
+    try {
+      await clearOtpSession();
+      const { firebaseConfig } = await import('/js/firebase-init.js');
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+      const { getAuth, RecaptchaVerifier, signInWithPhoneNumber } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      otpApp = initializeApp(firebaseConfig, `parent-phone-${Date.now()}`);
+      otpAuth = getAuth(otpApp);
+      otpVerifier = new RecaptchaVerifier(otpAuth, contentWrap.querySelector('#parent-phone-recaptcha'), { size: 'invisible' });
+      otpConfirmation = await signInWithPhoneNumber(otpAuth, phone, otpVerifier);
+      otpPhone = phone;
+      contentWrap.querySelector('#parent-phone-code-wrap').style.display = 'flex';
+      parentPhoneMessage.textContent = `A code was sent to ${phone}.`;
+    } catch (error) {
+      await clearOtpSession();
+      parentPhoneMessage.textContent = error.message || 'Could not send the code. Check Firebase Phone Authentication and try again.';
+    } finally { button.disabled = false; }
+  });
+  contentWrap.querySelector('#parent-phone-verify')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    const code = contentWrap.querySelector('#parent-phone-code').value.trim();
+    if (!otpConfirmation || otpPhone !== parentPhoneInput.value.trim() || !code) {
+      parentPhoneMessage.textContent = 'Send a code to this number and enter it before verifying.';
+      return;
+    }
+    button.disabled = true;
+    parentPhoneMessage.textContent = 'Verifying number…';
+    try {
+      const result = await otpConfirmation.confirm(code);
+      const phoneProofToken = await result.user.getIdToken(true);
+      const { api } = await import('/js/api.js');
+      const saved = await api.post('/student/profile/parent-phone/verify', { parentPhone: otpPhone, phoneProofToken });
+      const refreshed = await StudentService.getFresh(user.id).catch(() => null);
+      Object.assign(profile, refreshed || saved);
+      contentWrap.querySelector('#parent-phone-status').className = 'badge badge-success';
+      contentWrap.querySelector('#parent-phone-status').textContent = 'Verified';
+      parentPhoneMessage.textContent = 'Parent / guardian number verified and saved.';
+      await clearOtpSession();
+      contentWrap.querySelector('#parent-phone-code-wrap').style.display = 'none';
+    } catch (error) {
+      parentPhoneMessage.textContent = error.message || 'The code was invalid or expired. Request another code.';
+    } finally { button.disabled = false; }
+  });
 
   document.getElementById('btn-save')?.addEventListener('click', async () => {
     const updates = {

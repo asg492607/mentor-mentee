@@ -148,6 +148,11 @@ def publish_semester_result(data: dict, user=Depends(require_role(UserRole.SECTI
         "latestSGPA": latest.get("sgpa"),
         "updatedAt": now,
     }
+    numeric_marks = [float(subject["marks"]) for subject in (latest.get("subjects") or [])
+                     if isinstance(subject, dict) and subject.get("marks") is not None]
+    marks_average = round(sum(numeric_marks) / len(numeric_marks), 2) if numeric_marks else None
+    learner_level = "NOT_ASSESSED" if marks_average is None else "SLOW" if marks_average < 50 else "MEDIUM" if marks_average < 75 else "ADVANCED"
+    updates.update({"latestSubjectAverage": marks_average, "learnerLevel": learner_level})
     if latest.get("cgpa") is not None:
         updates["cgpa"] = latest["cgpa"]
     if latest.get("backlogs") is not None:

@@ -639,6 +639,8 @@ export const FacultyService = {
     await api.put(path, {});
     CacheManager.invalidate(`faculty_${uid}`);
     CacheManager.invalidatePrefix('faculty_');
+    CacheManager.invalidatePrefix('students_');
+    CacheManager.invalidatePrefix('mentor_stats_');
   }
 };
 
@@ -1546,6 +1548,7 @@ export const DepartmentService = {
     CacheManager.invalidate('classes');
     CacheManager.invalidatePrefix('students_');
     CacheManager.invalidatePrefix('faculty_');
+    CacheManager.invalidatePrefix('mentor_stats_');
   },
 
   async create(data) {
@@ -1999,6 +2002,13 @@ export const StatsService = {
     const totalStudents = students.length;
     const pendingRequests = meetings.filter(m => m.status === 'REQUESTED').length;
     const highRiskStudents = students.filter(s => s.riskLevel === 'HIGH').length;
+    const lowAttendanceStudents = students.filter(s => s.attendanceStatus === 'LOW' || (Number(s.attendanceSessions) > 0 && Number(s.attendance) <= 40));
+    const learnerCounts = {
+      SLOW: students.filter(s => s.learnerLevel === 'SLOW').length,
+      MEDIUM: students.filter(s => s.learnerLevel === 'MEDIUM').length,
+      ADVANCED: students.filter(s => s.learnerLevel === 'ADVANCED').length,
+      NOT_ASSESSED: students.filter(s => !s.learnerLevel || s.learnerLevel === 'NOT_ASSESSED').length
+    };
     const openIssues = issues.filter(i => i.status === 'OPEN').length;
     const completedMeetings = meetings.filter(m => m.status === 'COMPLETED').length;
 
@@ -2006,6 +2016,8 @@ export const StatsService = {
       totalStudents,
       pendingRequests,
       highRiskStudents,
+      lowAttendanceStudents,
+      learnerCounts,
       openIssues,
       completedMeetings,
       students,
@@ -2026,7 +2038,14 @@ export const StatsService = {
     // Only count actual mentors (FACULTY/MENTOR role), not HOD/DEAN/ADMIN etc.
     const mentors = allFaculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR');
     const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
-    return { totalStudents: students.length, totalMentors: mentors.length, highRiskStudents: highRisk, openIssues: issues.filter(i => i.status === 'OPEN').length, resolvedIssues: issues.filter(i => i.status === 'RESOLVED').length, students, mentors, issues };
+    const lowAttendanceStudents = students.filter(s => s.attendanceStatus === 'LOW' || (Number(s.attendanceSessions) > 0 && Number(s.attendance) <= 40));
+    const learnerCounts = {
+      SLOW: students.filter(s => s.learnerLevel === 'SLOW').length,
+      MEDIUM: students.filter(s => s.learnerLevel === 'MEDIUM').length,
+      ADVANCED: students.filter(s => s.learnerLevel === 'ADVANCED').length,
+      NOT_ASSESSED: students.filter(s => !s.learnerLevel || s.learnerLevel === 'NOT_ASSESSED').length
+    };
+    return { totalStudents: students.length, totalMentors: mentors.length, highRiskStudents: highRisk, lowAttendanceStudents, learnerCounts, openIssues: issues.filter(i => i.status === 'OPEN').length, resolvedIssues: issues.filter(i => i.status === 'RESOLVED').length, students, mentors, issues };
   },
 
   async getInstitutionStats() {
@@ -2037,7 +2056,11 @@ export const StatsService = {
       openIssueSnap,
       totalIssueSnap,
       depts,
-      facultySample
+      facultySample,
+      lowAttendanceSnap,
+      slowLearnerSnap,
+      mediumLearnerSnap,
+      advancedLearnerSnap
     ] = await Promise.all([
       getCountFromServer(collection(db, 'students')).catch(() => ({ data: () => ({ count: 0 }) })),
       getCountFromServer(collection(db, 'faculty')).catch(() => ({ data: () => ({ count: 0 }) })),
@@ -2045,7 +2068,11 @@ export const StatsService = {
       getCountFromServer(query(collection(db, 'issues'), where('status', '==', 'OPEN'))).catch(() => ({ data: () => ({ count: 0 }) })),
       getCountFromServer(collection(db, 'issues')).catch(() => ({ data: () => ({ count: 0 }) })),
       DepartmentService.getAll(),
-      FacultyService.getAll()
+      FacultyService.getAll(),
+      getDocs(query(collection(db, 'students'), where('attendanceStatus', '==', 'LOW'))).catch(() => ({ docs: [] })),
+      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'SLOW'))).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'MEDIUM'))).catch(() => ({ data: () => ({ count: 0 }) })),
+      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'ADVANCED'))).catch(() => ({ data: () => ({ count: 0 }) }))
     ]);
 
     const totalStudents = studentCountSnap.data().count;
@@ -2061,6 +2088,12 @@ export const StatsService = {
       highRiskStudents,
       openIssues,
       totalIssues,
+      lowAttendanceStudents: snaps(lowAttendanceSnap),
+      learnerCounts: {
+        SLOW: slowLearnerSnap.data().count,
+        MEDIUM: mediumLearnerSnap.data().count,
+        ADVANCED: advancedLearnerSnap.data().count
+      },
       completedMeetings: 0,
       students: [],
       faculty: facultySample,
@@ -2084,6 +2117,7 @@ export const AdminService = {
     const profile = await api.post('/admin/users', payload);
     CacheManager.invalidatePrefix('students_');
     CacheManager.invalidatePrefix('faculty_');
+    CacheManager.invalidatePrefix('mentor_stats_');
     return profile;
   },
 

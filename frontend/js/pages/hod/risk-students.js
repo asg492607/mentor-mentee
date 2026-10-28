@@ -5,7 +5,8 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, StatsService } from '/js/services.js';
 import { departmentScope, escapeHtml } from '/js/utils.js';
-import { getAttendanceStatus } from '/js/services/academic-service.js';
+import { getAttendanceStatus, AttendanceInterventionService } from '/js/services/academic-service.js';
+import { showToast } from '/js/components/toast.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -26,7 +27,7 @@ export async function render(container) {
               <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
               <input type="text" id="rs-search" placeholder="Search students...">
             </div>
-            ${['ALL','HIGH','MEDIUM','LOW'].map((r,i) =>
+            ${['ALL','FR','HIGH','MEDIUM','LOW'].map((r,i) =>
               `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} rf" data-r="${r}">${r}</button>`
             ).join('')}
           </div>
@@ -54,9 +55,10 @@ export async function render(container) {
   }
 
   function renderTable() {
-    const wrap = document.getElementById('rs-table');
+    const wrap = container.querySelector('#rs-table');
     let list = students;
-    if (filter !== 'ALL') list = list.filter(s => s.riskLevel === filter);
+    if (filter === 'FR') list = list.filter(s => getAttendanceStatus(s).isLow);
+    else if (filter !== 'ALL') list = list.filter(s => s.riskLevel === filter);
     if (search) list = list.filter(s => s.name?.toLowerCase().includes(search) || s.enrollmentNumber?.toLowerCase().includes(search));
 
     if (!list.length) {
@@ -66,7 +68,7 @@ export async function render(container) {
 
     wrap.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>#</th><th>Student</th><th>CGPA</th><th>Attendance</th><th>Open Issues</th><th>Risk Score</th><th>Level</th></tr></thead>
+        <thead><tr><th>#</th><th>Student</th><th>CGPA</th><th>Attendance</th><th>Latest marks</th><th>Learner band</th><th>Open Issues</th><th>Risk Score</th><th>Level</th><th>Follow-up</th></tr></thead>
         <tbody>
           ${list.map((s,i) => {
             const attendanceStatus = getAttendanceStatus(s);
@@ -89,15 +91,32 @@ export async function render(container) {
                   <span style="font-size:0.78rem;color:var(--text-muted);">${attendanceStatus.key === 'NOT_RECORDED' ? 'Not recorded' : `${attendance}%`}${attendanceStatus.isLow ? ' · Low' : attendanceStatus.key === 'BELOW_TARGET' ? ' · Below target' : ''}</span>
                 </div>
               </td>
+              <td>${s.latestSubjectAverage === null || s.latestSubjectAverage === undefined ? '—' : `${escapeHtml(s.latestSubjectAverage)}%`}</td>
+              <td><span class="badge ${s.learnerLevel === 'SLOW' ? 'badge-danger' : s.learnerLevel === 'MEDIUM' ? 'badge-warning' : s.learnerLevel === 'ADVANCED' ? 'badge-success' : 'badge-muted'}">${escapeHtml(s.learnerLevel || 'Not assessed')}</span></td>
               <td>${Number(s.openIssuesCount ?? s.openIssueCount) || 0}</td>
               <td><span style="font-weight:700;font-size:1rem;color:${riskScore>60?'var(--danger)':riskScore>30?'var(--warning)':'var(--success)'};">${riskScore}</span><span style="color:var(--text-muted);font-size:0.75rem;">/100</span></td>
               <td>${riskBadge(s.riskLevel)}</td>
+              <td>${attendanceStatus.isLow ? `<button class="btn btn-xs btn-primary rs-fr-meeting" data-student-id="${escapeHtml(s.id)}">Special meeting</button>` : '—'}</td>
             </tr>
           `; }).join('')}
         </tbody>
       </table>
     `;
   }
+
+  container.querySelector('#rs-table').addEventListener('click', async event => {
+    const button = event.target.closest('.rs-fr-meeting');
+    if (!button) return;
+    button.disabled = true;
+    try {
+      const result = await AttendanceInterventionService.requestMeeting(button.dataset.studentId);
+      button.textContent = result.created ? 'Requested' : 'Already requested';
+      showToast(result.created ? 'Special FR attendance meeting requested.' : 'An open FR attendance meeting already exists.', result.created ? 'success' : 'info');
+    } catch (error) {
+      showToast(error.message || 'Could not request the special meeting.', 'error');
+      button.disabled = false;
+    }
+  });
 
   document.getElementById('rs-search').addEventListener('input', e => { search = e.target.value.toLowerCase(); renderTable(); });
   document.querySelectorAll('.rf').forEach(btn => {

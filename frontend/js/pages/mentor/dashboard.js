@@ -11,19 +11,21 @@ import { showToast } from '/js/components/toast.js';
 import { StatsService, MeetingService, NotificationService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
 import { getAttendanceStatus } from '/js/services/academic-service.js';
+import { AttendanceInterventionService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' }[r] || 'badge-muted';
   return `<span class="badge ${cls}">${r || 'N/A'}</span>`;
 }
 
-function renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets = 0) {
+function renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets = 0, lowAttendanceCount = 0) {
   return [
     { label: 'My Students', value: totalStudents, color: 'var(--info)', icon: 'ph-users' },
     { label: 'Pending Requests', value: pendingRequests, color: 'var(--warning)', icon: 'ph-calendar-plus' },
     { label: 'High Risk', value: highRisk, color: 'var(--danger)', icon: 'ph-warning-circle' },
     { label: 'Completed Meets', value: completedMeetings, color: 'var(--success)', icon: 'ph-calendar-check' },
     { label: 'Booklets (≥25%)', value: `${compliantBooklets}/${totalStudents}`, color: 'var(--accent)', icon: 'ph-book-open' },
+    { label: 'FR Attendance (≤40%)', value: lowAttendanceCount, color: 'var(--danger)', icon: 'ph-warning' },
   ].map(c => `
     <div class="stat-card">
       <div class="stat-icon" style="background:${c.color}22; color:${c.color}; font-size:1.5rem; display:flex; align-items:center; justify-content:center;">
@@ -110,8 +112,11 @@ function renderAcademicOverview(students) {
         <td style="padding:10px 12px; font-weight:500;">${latestSGPA}</td>
         <td style="padding:10px 12px; color:${Number(totalBacklogs) > 0 ? 'var(--danger)' : 'var(--text)'};">${totalBacklogs}</td>
         <td style="padding:10px 12px; color:var(--text-muted);">${lastMeet}</td>
-        <td style="padding:10px 12px;">${s.attendance || 0}% ${getAttendanceStatus(s).isLow ? '<span class="badge badge-danger">Low attendance</span>' : ''}</td>
+        <td style="padding:10px 12px;">${getAttendanceStatus(s).key === 'NOT_RECORDED' ? 'Not recorded' : `${s.attendance || 0}%`} ${getAttendanceStatus(s).isLow ? '<span class="badge badge-danger">FR</span>' : ''}</td>
+        <td style="padding:10px 12px;">${s.latestSubjectAverage === null || s.latestSubjectAverage === undefined ? '—' : `${s.latestSubjectAverage}%`}</td>
+        <td style="padding:10px 12px;"><span class="badge ${s.learnerLevel === 'SLOW' ? 'badge-danger' : s.learnerLevel === 'MEDIUM' ? 'badge-warning' : s.learnerLevel === 'ADVANCED' ? 'badge-success' : 'badge-muted'}">${s.learnerLevel || 'Not assessed'}</span></td>
         <td style="padding:10px 12px;">${riskBadge(s.riskLevel)}</td>
+        <td style="padding:10px 12px;">${getAttendanceStatus(s).isLow ? `<button type="button" class="btn btn-xs btn-primary request-attendance-meeting" data-student-id="${s.id}">Special meeting</button>` : '—'}</td>
       </tr>
     `;
   }).join('');
@@ -126,7 +131,10 @@ function renderAcademicOverview(students) {
             <th style="padding:12px;">Total Backlogs</th>
             <th style="padding:12px;">Last Meet Date</th>
             <th style="padding:12px;">Attendance</th>
+            <th style="padding:12px;">Latest Marks</th>
+            <th style="padding:12px;">Learner Level</th>
             <th style="padding:12px;">Risk</th>
+            <th style="padding:12px;">Follow-up</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -159,6 +167,7 @@ export async function render(container) {
     const highRisk = data.highRiskStudents ?? students.filter(s => s.riskLevel === 'HIGH').length;
     const completedMeetings = data.completedMeetings ?? meetings.filter(m => m.status === 'COMPLETED').length;
     const compliantBooklets = students.filter(s => BookletService.calculateCompletion(s.booklet) >= 25).length;
+    const lowAttendanceStudents = data.lowAttendanceStudents || students.filter(s => getAttendanceStatus(s).isLow);
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
     const dash = container.querySelector('#mentor-dash');
     if (!dash) return;
@@ -182,8 +191,8 @@ export async function render(container) {
           ${String(user.role).toUpperCase() === 'CLASS_TEACHER' ? `<a href="#/mentor/attendance" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;border-radius:20px;font-weight:600;"><i class="ph ph-calendar-check" style="font-size:1.1rem;color:var(--success);"></i> Class Attendance</a>` : ''}
         </div>
 
-        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
-          ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets)}
+        <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
+          ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets, lowAttendanceStudents.length)}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
@@ -251,6 +260,21 @@ export async function render(container) {
     dash.querySelectorAll('.student-row-link').forEach(row => {
       row.addEventListener('click', () => {
         window.location.hash = `#/mentor/booklet?studentId=${row.dataset.studentId}`;
+      });
+    });
+
+    dash.querySelectorAll('.request-attendance-meeting').forEach(button => {
+      button.addEventListener('click', async event => {
+        event.stopPropagation();
+        button.disabled = true;
+        try {
+          const result = await AttendanceInterventionService.requestMeeting(button.dataset.studentId);
+          button.textContent = result.created ? 'Requested' : 'Already requested';
+          showToast(result.created ? 'Special FR attendance meeting requested.' : 'An open FR attendance meeting already exists.', result.created ? 'success' : 'info');
+        } catch (error) {
+          showToast(error.message || 'Could not request the attendance meeting.', 'error');
+          button.disabled = false;
+        }
       });
     });
 

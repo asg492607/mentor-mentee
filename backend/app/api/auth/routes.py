@@ -346,7 +346,7 @@ def register_account(payload: dict[str, Any], request: Request):
                 'yearLabel': str(profile_input.get('yearLabel') or ''),
                 'enrollmentNumber': enrollment,
                 'enrollmentNumberNormalized': normalized_enrollment,
-                'cgpa': 0, 'attendance': 0, 'riskLevel': 'LOW', 'mentorId': None,
+                'cgpa': 0, 'attendance': 0, 'riskLevel': 'NOT_ASSESSED', 'mentorId': None,
             })
         else:
             profile.update({

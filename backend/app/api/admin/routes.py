@@ -63,7 +63,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
     faculty_repo = FacultyRepository()
     if role == "STUDENT" and data.get("mentorId"):
         mentor = faculty_repo.get_by_id(str(data.get("mentorId")))
-        if not mentor or not same_department(placement, mentor):
+        if not mentor or not AllocationService._eligible_mentor(mentor) or not same_department(placement, mentor):
             raise BadRequestException("A student can only be assigned to a mentor from the same department and school")
         if int(mentor.get("assignedStudentCount") or 0) >= int(mentor.get("maxStudents") or 20):
             raise BadRequestException("Selected mentor has reached their student capacity")
@@ -185,7 +185,7 @@ def update_user(user_id: str, data: dict, user=Depends(get_admin_user)):
         if next_mentor_id:
             mentor = faculty_repo.get_by_id(str(next_mentor_id))
             candidate_student = {**existing_student, **updates}
-            if not mentor or not same_department(candidate_student, mentor):
+            if not mentor or not AllocationService._eligible_mentor(mentor) or not same_department(candidate_student, mentor):
                 raise BadRequestException("A student can only be assigned to a mentor from the same department and school")
             if next_mentor_id != previous_mentor_id and int(mentor.get("assignedStudentCount") or 0) >= int(mentor.get("maxStudents") or 20):
                 raise BadRequestException("Selected mentor has reached student capacity")
@@ -235,6 +235,8 @@ def approve_user(user_id: str, user=Depends(get_admin_user)):
     if role == UserRole.STUDENT.value and not profile.get("mentorId") and (profile.get("departmentId") or profile.get("department")):
         auto_assign_student(user_id)
         profile = student_repo.get_by_id(user_id) or profile
+    elif role in {"FACULTY", "MENTOR", "HOD"}:
+        auto_allocate_department(profile.get("departmentId") or profile.get("department"))
     return profile
 
 

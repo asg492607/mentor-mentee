@@ -9,6 +9,7 @@ import { departmentScope, escapeHtml } from '/js/utils.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
+import { getAttendanceStatus, AttendanceInterventionService } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
@@ -277,6 +278,12 @@ export async function render(container) {
 const highRiskList = (students || [])
       .filter(s => s.riskLevel === 'HIGH')
       .sort((a,b) => (b.riskScore||0) - (a.riskScore||0));
+    const frStudents = (students || []).filter(student => getAttendanceStatus(student).isLow);
+    const learnerCounts = {
+      SLOW: students.filter(student => student.learnerLevel === 'SLOW').length,
+      MEDIUM: students.filter(student => student.learnerLevel === 'MEDIUM').length,
+      ADVANCED: students.filter(student => student.learnerLevel === 'ADVANCED').length,
+    };
 
     const escalations = (issues || []).filter(i => i.escalationLevel === 'HOD' || i.escalationLevel === 'DEAN' || (i.department === dept && (i.status === 'ESCALATED' || i.status === 'OPEN'))).sort((a,b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
@@ -312,13 +319,14 @@ const highRiskList = (students || [])
         </div>
 
         <!-- Stats -->
-      <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px;">
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
         ${[
           ['Total Students',   totalStudents,    'var(--info)',    'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z'],
           ['Mentors',          totalMentors,     'var(--accent)', 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'],
           ['Severe Issues',     severeIssues.length, 'var(--danger)', 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z'],
           ['Open Issues',      openIssues,       'var(--warning)','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'],
           ['Resolved Issues',  resolvedIssues,   'var(--success)','M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'],
+          ['FR Attendance (≤40%)', frStudents.length, 'var(--danger)', 'M12 2 1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z'],
         ].map(([l,v,c,i]) => `
           <div class="stat-card">
             <div class="stat-icon" style="background:${c}22;"><svg viewBox="0 0 24 24" style="fill:${c};width:20px;height:20px;"><path d="${i}"/></svg></div>
@@ -328,35 +336,15 @@ const highRiskList = (students || [])
         `).join('')}
       </div>
 
-      <!-- Mentorship Compliance & Defaulter Tracker (45+ Days) -->
-      <div class="card" style="padding:20px; margin-bottom:24px; border-radius:16px; background:linear-gradient(135deg, rgba(99,102,241,0.03), rgba(16,185,129,0.03)); border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h3 style="font-size:1.1rem; font-weight:800; margin:0; color:var(--text); display:flex; align-items:center; gap:8px;">
-              <i class="ph ph-chart-line-up" style="color:var(--primary);"></i> Mentorship Compliance &amp; Defaulter Tracker
-            </h3>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin:2px 0 0;">Department compliance monitoring &amp; students with no meeting in 45+ days</p>
-          </div>
-          <span class="badge badge-primary" style="font-size:0.75rem; font-weight:700;">NAAC / NBA Metric</span>
+      <div class="card" style="padding:20px;margin-bottom:24px;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div><h3 style="margin:0;color:var(--danger);">FR students — low attendance</h3><p style="margin:3px 0 0;color:var(--text-muted);font-size:.8rem;">FR means recorded attendance at or below 40%. Request a special support meeting for follow-up.</p></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge badge-danger">${frStudents.length} FR</span><span class="badge badge-muted">Not assessed ${students.filter(student => !student.learnerLevel || student.learnerLevel === 'NOT_ASSESSED').length}</span></div>
         </div>
-
-        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:16px;">
-          <div style="padding:14px; background:var(--surface,#fff); border-radius:12px; border:1px solid var(--border);">
-            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Monthly Compliance</div>
-            <div style="font-size:1.35rem; font-weight:800; color:#10b981;">84.5%</div>
-            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">Mentees engaged this month</div>
-          </div>
-          <div style="padding:14px; background:var(--surface,#fff); border-radius:12px; border:1px solid var(--border);">
-            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px;">45+ Day Defaulters</div>
-            <div style="font-size:1.35rem; font-weight:800; color:#ef4444;">${Math.max(0, highRiskList.length)} Students</div>
-            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">Overdue for 1-on-1 review</div>
-          </div>
-          <div style="padding:14px; background:var(--surface,#fff); border-radius:12px; border:1px solid var(--border);">
-            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Total Mentorship Hours</div>
-            <div style="font-size:1.35rem; font-weight:800; color:var(--primary);">${(totalMentors * 14.5).toFixed(0)} Hours</div>
-            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">Logged session contact time</div>
-          </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span class="badge badge-danger">Slow marks band (&lt;50%): ${learnerCounts.SLOW}</span><span class="badge badge-warning">Medium (50–74%): ${learnerCounts.MEDIUM}</span><span class="badge badge-success">Advanced (≥75%): ${learnerCounts.ADVANCED}</span>
         </div>
+        ${frStudents.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Attendance</th><th>Latest marks</th><th>Learner level</th><th>Follow-up</th></tr></thead><tbody>${frStudents.slice(0, 12).map(student => `<tr><td>${escapeHtml(student.name || 'Student')}<div style="font-size:.75rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td>${escapeHtml(student.class || '—')}</td><td><span class="badge badge-danger">FR · ${Math.max(0, Number(student.attendance) || 0)}%</span></td><td>${student.latestSubjectAverage === null || student.latestSubjectAverage === undefined ? '—' : `${escapeHtml(student.latestSubjectAverage)}%`}</td><td>${escapeHtml(student.learnerLevel || 'Not assessed')}</td><td><button class="btn btn-xs btn-primary hod-fr-meeting" data-student-id="${student.id}">Special meeting</button></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--text-muted);">No recorded FR attendance cases in this department.</p>'}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
@@ -597,6 +585,20 @@ const highRiskList = (students || [])
     // --- Raise Issue & Escalations Listeners ---
     container.querySelector('#btn-hod-raise-issue')?.addEventListener('click', () => {
       openRaiseIssueModal(user, dept, students, () => render(container));
+    });
+
+    container.querySelectorAll('.hod-fr-meeting').forEach(button => {
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          const result = await AttendanceInterventionService.requestMeeting(button.dataset.studentId);
+          button.textContent = result.created ? 'Requested' : 'Already requested';
+          showToast(result.created ? 'Special FR attendance meeting requested.' : 'An open FR attendance meeting already exists.', result.created ? 'success' : 'info');
+        } catch (error) {
+          showToast(error.message || 'Could not request the special meeting.', 'error');
+          button.disabled = false;
+        }
+      });
     });
 
     container.querySelector('#btn-card-raise-issue')?.addEventListener('click', () => {

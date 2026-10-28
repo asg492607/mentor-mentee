@@ -12,8 +12,11 @@ from app.firebase.client import firebase_auth
 from app.core.role_claims import claims_for_account
 from app.utils.helpers import get_timestamp
 from datetime import datetime, timezone
+from app.services.allocation_service import AllocationService
+import logging
 
 router = APIRouter(prefix="/dean", tags=["Dean"])
+logger = logging.getLogger(__name__)
 
 def get_dean_user(user=Depends(require_role(UserRole.DEAN))):
     return user
@@ -97,6 +100,10 @@ def approve_faculty(faculty_id: str, user=Depends(get_dean_user)):
     updated_at = get_timestamp()
     faculty_repo.update(faculty_id, {"status": "approved", "isApproved": True, "updatedAt": updated_at})
     firebase_auth.set_custom_user_claims(faculty_id, claims_for_account(profile["role"], True))
+    try:
+        AllocationService().auto_allocate(profile.get("departmentId") or profile.get("department"))
+    except Exception:
+        logger.exception("Could not allocate unassigned students after approving faculty %s", faculty_id)
     return {**profile, "status": "approved", "isApproved": True, "updatedAt": updated_at}
 
 

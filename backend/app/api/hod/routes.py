@@ -13,8 +13,11 @@ from app.utils.helpers import get_timestamp
 
 from app.services.issue_service import IssueService
 from app.schemas.issue import IssueEscalateRequest
+from app.services.allocation_service import AllocationService
+import logging
 
 router = APIRouter(prefix="/hod", tags=["HOD"])
+logger = logging.getLogger(__name__)
 
 
 def _department_scope(user: dict) -> str:
@@ -119,4 +122,8 @@ def approve_faculty(faculty_id: str, user=Depends(get_hod_user)):
     updated_at = get_timestamp()
     faculty_repo.update(faculty_id, {"status": "approved", "isApproved": True, "updatedAt": updated_at})
     firebase_auth.set_custom_user_claims(faculty_id, claims_for_account(UserRole.FACULTY.value, True))
+    try:
+        AllocationService().auto_allocate(_department_scope(user))
+    except Exception:
+        logger.exception("Could not allocate unassigned students after approving faculty %s", faculty_id)
     return {**profile, "status": "approved", "isApproved": True, "updatedAt": updated_at}

@@ -1,10 +1,16 @@
 import { db } from '/js/firebase-init.js';
+import { CacheManager } from '/js/cache.js';
 import {
   collection, doc, getDoc, getDocs, query, where, setDoc,
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const timestamp = () => new Date().toISOString();
+function invalidateAcademicCaches(studentId = null) {
+  if (studentId) CacheManager.invalidate(`student_${studentId}`);
+  CacheManager.invalidatePrefix('students_');
+  CacheManager.invalidatePrefix('mentor_stats_');
+}
 const idPart = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const normalizeCourses = courses => (Array.isArray(courses) ? courses : []).map(course => {
   const requested = Number(course?.durationYears);
@@ -124,12 +130,43 @@ export const AttendanceService = {
     }
 
     const { api } = await import('/js/api.js');
-    await api.post(`/mentor/classes/${encodeURIComponent(classInfo.id)}/attendance/recalculate`, {});
+    try {
+      await api.post(`/mentor/classes/${encodeURIComponent(classInfo.id)}/attendance/recalculate`, {});
+    } finally {
+      invalidateAcademicCaches();
+    }
     return { id: sessionId, ...session };
   },
   async getByStudent(studentId) {
     const snap = await getDocs(query(collection(db, 'attendance_records'), where('studentId', '==', studentId)));
     return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  },
+  async getMonthlyByStudent(studentId) {
+    const records = await this.getByStudent(studentId);
+    const months = new Map();
+    records.forEach(record => {
+      const key = String(record.date || '').slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(key)) return;
+      const month = months.get(key) || { month: key, sessions: 0, present: 0, absent: 0 };
+      month.sessions++;
+      if (record.present === true) month.present++;
+      else month.absent++;
+      months.set(key, month);
+    });
+    return [...months.values()].sort((a, b) => b.month.localeCompare(a.month)).map(month => ({
+      ...month,
+      attendance: month.sessions ? Math.round((month.present / month.sessions) * 1000) / 10 : 0
+    }));
+  }
+};
+
+export const AttendanceInterventionService = {
+  async requestMeeting(studentId) {
+    if (!studentId) throw new Error('Select a student first.');
+    const { api } = await import('/js/api.js');
+    const result = await api.post(`/meetings/students/${encodeURIComponent(studentId)}/attendance-intervention`, {});
+    CacheManager.invalidatePrefix('mentor_stats_');
+    return result;
   }
 };
 
@@ -172,6 +209,7 @@ export const ResultService = {
       subjects: Array.isArray(subjects) ? subjects : [],
     };
     const result = await api.post('/admissions/results', payload);
+    invalidateAcademicCaches(student.id);
     return { ...result, ...payload, uploadedBy };
   },
   async getByStudent(studentId) {

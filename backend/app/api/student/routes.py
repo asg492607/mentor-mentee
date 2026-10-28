@@ -11,7 +11,10 @@ from app.schemas.action_item import ActionItemUpdateRequest
 from app.repositories.action_item_repository import ActionItemRepository
 from app.repositories.student_repository import StudentRepository
 from app.repositories.meeting_repository import MeetingRepository
-from app.core.exceptions import NotFoundException, ForbiddenException
+from app.firebase.client import firebase_auth, db
+from app.core.exceptions import NotFoundException, ForbiddenException, BadRequestException, ServiceUnavailableException
+from app.utils.helpers import get_timestamp
+import re
 
 router = APIRouter(prefix="/student", tags=["Student"])
 
@@ -115,3 +118,38 @@ def get_profile(user = Depends(get_student_user), student_service: StudentServic
 @router.put("/profile")
 def update_profile(data: StudentProfileUpdate, user = Depends(get_student_user), student_service: StudentService = Depends()):
     return student_service.update_profile(user['uid'], data)
+
+
+@router.post("/profile/parent-phone/verify")
+def verify_parent_phone(data: dict, user=Depends(get_student_user)):
+    """Store a parent/guardian phone only after Firebase Phone Auth proves control of it."""
+    if not firebase_auth or not db:
+        raise ServiceUnavailableException("Phone verification is not configured")
+    phone = str(data.get("parentPhone") or "").strip()
+    proof_token = str(data.get("phoneProofToken") or "").strip()
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", phone):
+        raise BadRequestException("Enter the phone number in international format, for example +919876543210")
+    if not proof_token or len(proof_token) > 10000:
+        raise BadRequestException("Complete the SMS verification before saving this number")
+    try:
+        proof = firebase_auth.verify_id_token(proof_token, check_revoked=True)
+    except Exception:
+        raise BadRequestException("Phone verification expired. Request a new code and try again")
+    if proof.get("phone_number") != phone:
+        raise ForbiddenException("The verified number does not match the parent number entered")
+
+    student_ref = db.collection("students").document(user["uid"])
+    student_snapshot = student_ref.get()
+    student = student_snapshot.to_dict() or {} if student_snapshot.exists else {}
+    if (student.get("role") != UserRole.STUDENT.value
+            or str(student.get("status") or "").lower() not in {"approved", "active"}
+            or student.get("isApproved", True) is False):
+        raise ForbiddenException("An approved student profile is required")
+    now = get_timestamp()
+    student_ref.update({
+        "parentPhone": phone,
+        "parentPhoneVerified": True,
+        "parentPhoneVerifiedAt": now,
+        "updatedAt": now,
+    })
+    return {"parentPhone": phone, "parentPhoneVerified": True, "parentPhoneVerifiedAt": now}
