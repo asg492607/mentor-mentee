@@ -5,7 +5,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, ClassService, FacultyService } from '/js/services.js';
 import { showToast } from '/js/components/toast.js';
-import { escapeHtml } from '/js/utils.js';
+import { departmentScope, escapeHtml } from '/js/utils.js';
 
 export async function render(container) {
   const user = getUserProfile();
@@ -32,9 +32,9 @@ export async function render(container) {
 
   try {
     const [students, classes, faculty] = await Promise.all([
-      StudentService.getByDepartment(user.department),
-      ClassService.getByDepartment(user.department),
-      FacultyService.getByDepartment(user.department)
+      StudentService.getByDepartment(departmentScope(user)),
+      ClassService.getByDepartment(departmentScope(user)),
+      FacultyService.getByDepartment(departmentScope(user))
     ]);
 
     const wrap = container.querySelector('#mgt-content');
@@ -44,7 +44,7 @@ export async function render(container) {
       return;
     }
 
-    const classOpts = `<option value="">Unassigned</option>` + classes.map(c => `<option value="${escapeHtml(c.className)}">Class ${escapeHtml(c.className)}</option>`).join('');
+    const classOpts = `<option value="">Unassigned</option>` + classes.map(c => `<option value="${escapeHtml(c.id)}">Class ${escapeHtml(c.className)}</option>`).join('');
     const mentorOpts = `<option value="">Unassigned</option>` + faculty.filter(f => f.role==='FACULTY'||f.role==='MENTOR').map(f => `<option value="${f.id}">${escapeHtml(f.name || 'Faculty')}</option>`).join('');
 
     wrap.innerHTML = `
@@ -70,7 +70,7 @@ export async function render(container) {
               <td>${s.class ? `Class ${escapeHtml(s.class)}` : '<span class="badge badge-warning">Unassigned</span>'}</td>
               <td>
                 <select class="form-select class-select" data-id="${s.id}" style="padding:4px;font-size:0.85rem;">
-                  ${classOpts.replace(`value="${escapeHtml(s.class||'')}"`, `value="${escapeHtml(s.class||'')}" selected`)}
+                  ${classOpts.replace(`value="${escapeHtml(s.classId || '')}"`, `value="${escapeHtml(s.classId || '')}" selected`)}
                 </select>
               </td>
               <td>${curMentor ? escapeHtml(curMentor.name || 'Mentor') : '<span class="badge badge-warning">Unassigned</span>'}</td>
@@ -89,9 +89,22 @@ export async function render(container) {
       sel.addEventListener('change', async (e) => {
         const id = e.currentTarget?.dataset?.id || e.target.closest('.class-select')?.dataset?.id;
         if (!id) return;
-        const newClass = e.target.value || null;
+        const newClassId = e.target.value || null;
+        const newClass = classes.find(item => item.id === newClassId);
+        const currentStudent = students.find(item => item.id === id) || {};
         try {
-          await StudentService.update(id, { class: newClass });
+          await StudentService.update(id, {
+            class: newClass?.className || null,
+            classId: newClass?.id || null,
+            department: newClass?.department || currentStudent.department,
+            departmentId: newClass?.departmentId || currentStudent.departmentId || null,
+            schoolId: newClass?.schoolId || currentStudent.schoolId || null,
+            schoolName: newClass?.schoolName || currentStudent.schoolName || null,
+            course: newClass?.course || currentStudent.course || null,
+            year: newClass?.year || currentStudent.year || null,
+            yearLabel: newClass?.yearLabel || currentStudent.yearLabel || null,
+            durationYears: newClass?.durationYears || currentStudent.durationYears || null
+          });
           showToast('Class updated successfully', 'success');
         } catch(err) {
           showToast('Error updating class', 'error');

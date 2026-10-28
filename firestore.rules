@@ -1,8 +1,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function approvedStudent() {
+      return request.auth != null
+        && request.auth.token.platform_approved == true
+        && exists(/databases/$(database)/documents/students/$(request.auth.uid))
+        && get(/databases/$(database)/documents/students/$(request.auth.uid)).data.role == 'STUDENT'
+        && request.auth.token.role == 'STUDENT'
+        && get(/databases/$(database)/documents/students/$(request.auth.uid)).data.status == 'approved'
+        && get(/databases/$(database)/documents/students/$(request.auth.uid)).data.isApproved == true;
+    }
+
+    function approvedFaculty() {
+      return request.auth != null
+        && request.auth.token.platform_approved == true
+        && exists(/databases/$(database)/documents/faculty/$(request.auth.uid))
+        && get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.role
+          in ['FACULTY', 'MENTOR', 'CLASS_TEACHER', 'HOD', 'DEAN', 'SECTION_HEAD', 'ADMIN']
+        && request.auth.token.role == get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.role
+        && get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.status == 'approved'
+        && get(/databases/$(database)/documents/faculty/$(request.auth.uid)).data.isApproved == true;
+    }
+
     function signedIn() {
-      return request.auth != null;
+      return approvedStudent() || approvedFaculty();
     }
 
     function uid() {
@@ -14,11 +35,286 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && (request.auth.token.admin == true || role() == 'ADMIN');
+      return approvedFaculty()
+        && role() == 'ADMIN'
+        && request.auth.token.admin == true;
     }
 
     function currentDepartment() {
-      return get(/databases/$(database)/documents/faculty/$(uid())).data.department;
+      let profile = get(/databases/$(database)/documents/faculty/$(uid())).data;
+      return 'department' in profile ? profile.department : null;
+    }
+
+    function currentDepartmentId() {
+      let profile = get(/databases/$(database)/documents/faculty/$(uid())).data;
+      return 'departmentId' in profile ? profile.departmentId : null;
+    }
+
+    function isDean() {
+      return signedIn() && role() == 'DEAN';
+    }
+
+    function isHod() {
+      return signedIn() && role() == 'HOD';
+    }
+
+    function isTeachingStaff() {
+      return approvedFaculty() && role() in ['FACULTY', 'MENTOR', 'HOD'];
+    }
+
+    function currentSchoolId() {
+      let profile = get(/databases/$(database)/documents/faculty/$(uid())).data;
+      return 'schoolId' in profile ? profile.schoolId : null;
+    }
+
+    function sameDepartmentData(data) {
+      return (('departmentId' in data) && data.departmentId is string)
+        ? (currentDepartmentId() is string && data.departmentId == currentDepartmentId())
+        : (('department' in data) && data.department == currentDepartment()
+          && ((('schoolId' in data) && currentSchoolId() is string && data.schoolId == currentSchoolId())
+            || (( !('schoolId' in data) || data.schoolId == null) && !(currentSchoolId() is string)));
+    }
+
+    function mentorAssigned(student) {
+      return (('mentorId' in student) && student.mentorId == uid())
+        || (('secondaryMentorId' in student) && student.secondaryMentorId == uid())
+        || ('mentorIds' in student && student.mentorIds is list && uid() in student.mentorIds);
+    }
+
+    function studentHasFaculty(student, facultyId) {
+      return (('mentorId' in student) && student.mentorId == facultyId)
+        || (('secondaryMentorId' in student) && student.secondaryMentorId == facultyId)
+        || ('mentorIds' in student && student.mentorIds is list && facultyId in student.mentorIds);
+    }
+
+    function isStudentClassTeacher(classId) {
+      return classId is string
+        && exists(/databases/$(database)/documents/classes/$(classId))
+        && ('classTeacherId' in get(/databases/$(database)/documents/classes/$(classId)).data)
+        && get(/databases/$(database)/documents/classes/$(classId)).data.classTeacherId == uid();
+    }
+
+    function studentIsInClass(studentId, classId) {
+      return studentId is string && classId is string
+        && exists(/databases/$(database)/documents/students/$(studentId))
+        && ('classId' in get(/databases/$(database)/documents/students/$(studentId)).data)
+        && get(/databases/$(database)/documents/students/$(studentId)).data.classId == classId;
+    }
+
+    function studentExists(studentId) {
+      return studentId is string
+        && exists(/databases/$(database)/documents/students/$(studentId));
+    }
+
+    function meetingParticipant(meeting) {
+      return signedIn() && (
+        meeting.mentorId == uid()
+        || meeting.studentId == uid()
+        || (meeting.studentId == 'ALL' && approvedStudent()
+          && studentHasFaculty(get(/databases/$(database)/documents/students/$(uid())).data, meeting.mentorId))
+        || ('participantIds' in meeting && meeting.participantIds is list && uid() in meeting.participantIds)
+      );
+    }
+
+    function canReadMeeting(meeting) {
+      return isAdmin() || isDean()
+        || (isHod() && sameDepartmentData(meeting))
+        || (isTeachingStaff() && meeting.mentorId == uid());
+    }
+
+    function canCreateMeeting(meeting) {
+      return isAdmin()
+        || (isTeachingStaff() && meeting.mentorId == uid()
+          && (meeting.studentId == 'ALL' || mentorsStudent(meeting.studentId)))
+        || (approvedStudent() && meeting.studentId == uid()
+          && studentHasFaculty(get(/databases/$(database)/documents/students/$(uid())).data, meeting.mentorId));
+    }
+
+    function canStudentUpdateMeeting(meetingId) {
+      return approvedStudent() && resource.data.studentId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'studentAcknowledged', 'acknowledgedAt', 'acknowledgedByStudentId',
+          'studentFeedback', 'studentRating', 'updatedAt'
+        ])
+        && (request.resource.data.status == resource.data.status
+          || (request.resource.data.status == 'CANCELLED'
+            && resource.data.status in ['REQUESTED', 'APPROVED']))
+        && (!('acknowledgedByStudentId' in request.resource.data)
+          || request.resource.data.acknowledgedByStudentId == uid())
+        && (!('studentRating' in request.resource.data)
+          || (request.resource.data.studentRating is number
+            && request.resource.data.studentRating >= 1
+            && request.resource.data.studentRating <= 5));
+    }
+
+    function issueVisible(issue) {
+      return isAdmin() || isDean()
+        || (approvedStudent() && issue.studentId == uid())
+        || (isTeachingStaff() && issue.mentorId == uid())
+        || (isHod() && sameDepartmentData(issue))
+        || (signedIn() && role() == 'SECTION_HEAD' && issue.escalationLevel == currentDepartment());
+    }
+
+    function issueEditable(issue) {
+      return isAdmin()
+        || (isTeachingStaff() && issue.mentorId == uid() && issue.escalationLevel == 'MENTOR'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory',
+            'resolvedByRole', 'updatedAt'
+          ]))
+        || (isHod() && sameDepartmentData(issue)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory',
+            'resolvedByRole', 'updatedAt'
+          ]))
+        || (signedIn() && role() == 'SECTION_HEAD'
+          && issue.escalationLevel == currentDepartment()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory',
+            'resolvedByRole', 'updatedAt'
+          ]))
+        || (isDean() && issue.escalationLevel == 'DEAN'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resolution', 'actionTaken', 'escalationLevel', 'escalationHistory',
+            'resolvedByRole', 'updatedAt'
+          ]));
+    }
+
+    function issueCreateHasSafeFields() {
+      return request.resource.data.keys().hasOnly([
+        'studentId', 'studentName', 'studentEnrollment', 'studentEnrollmentNumber',
+        'mentorId', 'mentorName', 'department', 'departmentId', 'schoolId', 'schoolName',
+        'title', 'description', 'category', 'priority', 'status', 'escalationLevel',
+        'escalationHistory', 'raisedBy', 'raisedByName', 'raisedByRole', 'createdAt', 'updatedAt'
+      ])
+        && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 200
+        && request.resource.data.description is string && request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 10000
+        && request.resource.data.category is string && request.resource.data.category.size() <= 100
+        && request.resource.data.priority in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+        && request.resource.data.escalationHistory is list
+        && request.resource.data.escalationHistory.size() <= 20;
+    }
+
+    function issueStudentMatchesDepartment(issue) {
+      return issue.studentId is string && studentExists(issue.studentId)
+        && sameDepartmentData(get(/databases/$(database)/documents/students/$(issue.studentId)).data)
+        && (('departmentId' in issue)
+          ? get(/databases/$(database)/documents/students/$(issue.studentId)).data.departmentId == issue.departmentId
+          : get(/databases/$(database)/documents/students/$(issue.studentId)).data.department == issue.department);
+    }
+
+    function actionItemVisible(item) {
+      return isAdmin() || isDean()
+        || (approvedStudent() && item.studentId == uid())
+        || (isTeachingStaff() && (item.mentorId == uid() || mentorsStudent(item.studentId)));
+    }
+
+    function canNotifyIssueParticipant(targetId, notification) {
+      return ('relatedId' in notification) && notification.relatedId is string
+        && exists(/databases/$(database)/documents/issues/$(notification.relatedId))
+        && notification.type in ['ISSUE_ESCALATED', 'ISSUE_RESOLVED', 'ISSUE_RAISED']
+        && (
+          (isTeachingStaff() && notification.type == 'ISSUE_ESCALATED'
+            && get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.mentorId == uid()
+            && sameDepartmentData(get(/databases/$(database)/documents/issues/$(notification.relatedId)).data)
+            && exists(/databases/$(database)/documents/faculty/$(targetId))
+            && ((get(/databases/$(database)/documents/faculty/$(targetId)).data.role == 'HOD'
+                && get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.escalationLevel == 'HOD'
+                && sameDepartmentData(get(/databases/$(database)/documents/faculty/$(targetId)).data))
+              || (get(/databases/$(database)/documents/faculty/$(targetId)).data.role == 'SECTION_HEAD'
+                && get(/databases/$(database)/documents/faculty/$(targetId)).data.department
+                  == get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.escalationLevel)))
+          || (isHod() && sameDepartmentData(get(/databases/$(database)/documents/issues/$(notification.relatedId)).data)
+            && get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.raisedBy == uid()
+            && get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.escalationLevel == 'DEAN'
+            && exists(/databases/$(database)/documents/faculty/$(targetId))
+            && get(/databases/$(database)/documents/faculty/$(targetId)).data.role == 'DEAN'
+            && notification.type == 'ISSUE_ESCALATED')
+          || (isHod() && sameDepartmentData(get(/databases/$(database)/documents/issues/$(notification.relatedId)).data)
+            && get(/databases/$(database)/documents/issues/$(notification.relatedId)).data.mentorId == targetId
+            && notification.type in ['ISSUE_RESOLVED', 'ISSUE_RAISED'])
+        );
+    }
+
+    function canNotifyUser(targetId, notification) {
+      return isAdmin() || isDean()
+        || (isTeachingStaff() && studentExists(targetId)
+          && mentorAssigned(get(/databases/$(database)/documents/students/$(targetId)).data))
+        || (isHod() && studentExists(targetId)
+          && sameDepartmentData(get(/databases/$(database)/documents/students/$(targetId)).data))
+        || (approvedStudent() && exists(/databases/$(database)/documents/faculty/$(targetId))
+          && studentHasFaculty(get(/databases/$(database)/documents/students/$(uid())).data, targetId))
+        || canNotifyIssueParticipant(targetId, notification);
+    }
+
+    function chatParticipant(chat) {
+      return signedIn() && (
+        chat.studentId == uid() || chat.mentorId == uid()
+        || ('studentIds' in chat && chat.studentIds is list && uid() in chat.studentIds)
+        || ('participantIds' in chat && chat.participantIds is list && uid() in chat.participantIds)
+      );
+    }
+
+    function canCreateChat(chat) {
+      return (isTeachingStaff() && chat.mentorId == uid()
+          && (chat.isGroup == true || mentorsStudent(chat.studentId)))
+        || (approvedStudent() && chat.studentId == uid()
+          && studentHasFaculty(get(/databases/$(database)/documents/students/$(uid())).data, chat.mentorId));
+    }
+
+    function currentProfileName() {
+      return role() == 'STUDENT'
+        ? get(/databases/$(database)/documents/students/$(uid())).data.name
+        : get(/databases/$(database)/documents/faculty/$(uid())).data.name;
+    }
+
+    function canReadStudent(studentId) {
+      return isAdmin() || isDean() || isAdmissionCell() || isExamSection()
+        || (approvedStudent() && studentId == uid())
+        || (isHod() && sameDepartmentData(resource.data))
+        || (isTeachingStaff() && (
+          mentorAssigned(resource.data)
+          || ((!('mentorId' in resource.data) || resource.data.mentorId == null)
+            && (!('secondaryMentorId' in resource.data) || resource.data.secondaryMentorId == null)
+            && sameDepartmentData(resource.data))
+        ))
+        || (role() == 'CLASS_TEACHER' && isStudentClassTeacher(resource.data.classId));
+    }
+
+    function canSelfAssignStudent() {
+      return isTeachingStaff() && role() in ['FACULTY', 'MENTOR']
+        && sameDepartmentData(resource.data)
+        && (!('mentorId' in resource.data) || resource.data.mentorId == null)
+        && request.resource.data.mentorId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'mentorId', 'secondaryMentorId', 'mentorIds', 'allocatedBy', 'allocatedAt',
+          'allocationType', 'updatedAt'
+        ]);
+    }
+
+    function canUpdateStudentPlacement() {
+      return isHod()
+        && sameDepartmentData(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'class', 'classId', 'department', 'departmentId', 'schoolId', 'schoolName',
+          'course', 'year', 'yearLabel', 'durationYears', 'mentorId', 'secondaryMentorId',
+          'mentorIds', 'allocatedBy', 'allocatedAt', 'allocationType', 'reassignmentHistory', 'updatedAt'
+        ]);
+    }
+
+    function canUpdateStudentProfile(studentId) {
+      return approvedStudent() && studentId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'interests', 'skills', 'careerGoal', 'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0;
+    }
+
+    function studentOwnsClass(classId) {
+      return approvedStudent()
+        && ('classId' in get(/databases/$(database)/documents/students/$(uid())).data)
+        && get(/databases/$(database)/documents/students/$(uid())).data.classId == classId;
     }
 
     function isAdmissionCell() {
@@ -30,35 +326,71 @@ service cloud.firestore {
     }
 
     function isAssignedClassTeacher(classId) {
-      return signedIn() && classId is string
+      return signedIn() && role() == 'CLASS_TEACHER' && classId is string
+        && exists(/databases/$(database)/documents/classes/$(classId))
         && get(/databases/$(database)/documents/classes/$(classId)).data.classTeacherId == uid();
     }
 
     function mentorsStudent(studentId) {
-      let student = get(/databases/$(database)/documents/students/$(studentId)).data;
-      return student.mentorId == uid() || (student.mentorIds is list && uid() in student.mentorIds);
+      return studentExists(studentId)
+        && mentorAssigned(get(/databases/$(database)/documents/students/$(studentId)).data);
     }
 
     // Students collection
     match /students/{studentId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && canReadStudent(studentId);
+      allow create: if isAdmin() || isAdmissionCell();
+      allow update: if isAdmin()
+        || canUpdateStudentProfile(studentId)
+        || canUpdateStudentPlacement()
+        || canSelfAssignStudent()
+        || (isExamSection()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'latestSemester', 'latestSGPA', 'cgpa', 'backlogs', 'riskScore', 'riskLevel', 'updatedAt'
+          ]));
+      allow delete: if isAdmin();
     }
 
     // Faculty collection
     match /faculty/{facultyId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && (
+        isAdmin() || isDean() || facultyId == uid()
+        || (isHod() && sameDepartmentData(resource.data))
+        || (approvedStudent() && exists(/databases/$(database)/documents/students/$(uid()))
+          && studentHasFaculty(get(/databases/$(database)/documents/students/$(uid())).data, facultyId))
+        || (resource.data.role == 'DEAN' && resource.data.status == 'approved' && resource.data.isApproved == true)
+      );
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isHod() && sameDepartmentData(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedStudentCount', 'updatedAt'])
+          && 'assignedStudentCount' in resource.data
+          && request.resource.data.assignedStudentCount >= 0
+          && (request.resource.data.assignedStudentCount == resource.data.assignedStudentCount + 1
+            || request.resource.data.assignedStudentCount == resource.data.assignedStudentCount - 1))
+        || (isTeachingStaff() && facultyId == uid()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedStudentCount', 'updatedAt'])
+          && 'assignedStudentCount' in resource.data
+          && request.resource.data.assignedStudentCount >= 0
+          && (request.resource.data.assignedStudentCount == resource.data.assignedStudentCount + 1
+            || request.resource.data.assignedStudentCount == resource.data.assignedStudentCount - 1));
     }
 
     // Meetings collection and subcollections
     match /meetings/{meetingId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && canReadMeeting(resource.data);
+      allow create: if canCreateMeeting(request.resource.data);
+      allow update: if isAdmin()
+        || (isTeachingStaff() && resource.data.mentorId == uid())
+        || canStudentUpdateMeeting(meetingId);
+      allow delete: if isAdmin() || (isTeachingStaff() && resource.data.mentorId == uid());
 
       match /signaling/{docId} {
-        allow read, write: if signedIn();
+        allow read, write: if meetingParticipant(get(/databases/$(database)/documents/meetings/$(meetingId)).data);
       }
 
       match /controls/{docId} {
-        allow read, write: if signedIn();
+        allow read, write: if meetingParticipant(get(/databases/$(database)/documents/meetings/$(meetingId)).data);
       }
     }
 
@@ -69,31 +401,90 @@ service cloud.firestore {
 
     // Issues & Grievances
     match /issues/{issueId} {
-      allow read, write: if signedIn();
+      // Student issue views go through the API sanitizer so internal notes cannot
+      // be exposed by newly added Firestore fields.
+      allow read: if signedIn() && issueVisible(resource.data)
+        && !(approvedStudent() && resource.data.studentId == uid());
+      allow create: if isAdmin()
+        || (isHod() && issueCreateHasSafeFields()
+          && request.resource.data.raisedBy == uid()
+          && request.resource.data.raisedByRole == 'HOD'
+          && sameDepartmentData(request.resource.data)
+          && (request.resource.data.studentId == null || issueStudentMatchesDepartment(request.resource.data))
+          && request.resource.data.status in ['OPEN', 'ESCALATED']
+          && (request.resource.data.status != 'ESCALATED' || request.resource.data.escalationLevel == 'DEAN'))
+        || (isTeachingStaff() && issueCreateHasSafeFields()
+          && request.resource.data.raisedBy == uid()
+          && request.resource.data.raisedByRole in ['FACULTY', 'MENTOR', 'HOD']
+          && request.resource.data.mentorId == uid()
+          && mentorsStudent(request.resource.data.studentId)
+          && issueStudentMatchesDepartment(request.resource.data)
+          && sameDepartmentData(request.resource.data)
+          && request.resource.data.status in ['OPEN', 'ESCALATED']
+          && request.resource.data.escalationLevel is string
+          && request.resource.data.escalationLevel != 'DEAN');
+      allow update: if issueEditable(resource.data);
+      allow delete: if isAdmin();
     }
 
     // Tasks & Action Items
     match /action_items/{itemId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && actionItemVisible(resource.data);
+      allow create: if isAdmin() || (isTeachingStaff()
+        && request.resource.data.mentorId == uid()
+        && mentorsStudent(request.resource.data.studentId));
+      allow update: if isAdmin()
+        || (approvedStudent() && resource.data.studentId == uid()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'progress', 'updatedAt'])
+          && request.resource.data.progress is number
+          && request.resource.data.progress >= 0 && request.resource.data.progress <= 100);
+      allow delete: if isAdmin();
     }
 
     // Notifications
     match /notifications/{notificationId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && resource.data.userId == uid();
+      allow create: if signedIn() && canNotifyUser(request.resource.data.userId, request.resource.data)
+        && request.resource.data.isRead == false;
+      allow update: if signedIn() && resource.data.userId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+        && request.resource.data.isRead is bool;
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == uid());
     }
 
     // Chats & Messages
     match /chats/{chatId} {
-      allow read, write: if signedIn();
+      allow read: if chatParticipant(resource.data);
+      allow create: if canCreateChat(request.resource.data);
+      allow update: if chatParticipant(resource.data)
+        && ((isTeachingStaff() && resource.data.mentorId == uid() && resource.data.isGroup == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'mentorName', 'studentIds', 'participantIds', 'updatedAt', 'lastMessage', 'lastSenderName'
+          ]))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'lastMessage', 'lastSenderName', 'updatedAt'
+          ])
+          && (!('lastSenderName' in request.resource.data) || request.resource.data.lastSenderName == currentProfileName())));
+      allow delete: if isAdmin() || (isTeachingStaff() && resource.data.mentorId == uid());
 
       match /messages/{messageId} {
-        allow read, write: if signedIn();
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId)).data;
+        }
+        allow read: if chatParticipant(parentChat());
+        allow create: if chatParticipant(parentChat())
+          && request.resource.data.senderId == uid()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 5000
+          && (!('senderName' in request.resource.data) || request.resource.data.senderName == currentProfileName())
+          && (!('senderRole' in request.resource.data) || request.resource.data.senderRole == role());
+        allow update, delete: if isAdmin();
       }
     }
 
     // Audit logs
     match /audit_logs/{logId} {
-      allow read, write: if signedIn();
+      allow read, write: if false;
     }
 
     // Security events (Backend Admin SDK only)
@@ -103,60 +494,133 @@ service cloud.firestore {
 
     // Departments
     match /departments/{departmentId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
 
     // Classes
     match /classes/{classId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && (
+        isAdmin() || isDean() || isAdmissionCell() || isExamSection()
+        || (isHod() && sameDepartmentData(resource.data))
+        || (role() == 'CLASS_TEACHER' && 'classTeacherId' in resource.data && resource.data.classTeacherId == uid())
+        || studentOwnsClass(classId)
+      );
+      allow create: if isAdmin() || (isHod() && sameDepartmentData(request.resource.data));
+      allow update: if isAdmin()
+        || (isHod() && sameDepartmentData(resource.data)
+          && sameDepartmentData(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['className', 'updatedAt']));
+      allow delete: if isAdmin();
     }
 
     // Settings
     match /settings/{settingId} {
       allow read: if signedIn();
-      allow write: if signedIn() && settingId != 'academics' || isAdmin() || isAdmissionCell();
+      allow write: if isAdmin() || (settingId == 'academics' && isAdmissionCell());
     }
 
     // Mentorship Booklets
     match /booklets/{studentId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn() && (
+        isAdmin() || isDean()
+        || (approvedStudent() && studentId == uid())
+        || (isTeachingStaff() && mentorsStudent(studentId))
+      );
+      allow create, update: if signedIn() && (
+        isAdmin() || (approvedStudent() && studentId == uid())
+        || (isTeachingStaff() && mentorsStudent(studentId))
+      );
+      allow delete: if isAdmin();
     }
 
     // Web Issues / Feedback
     match /web_issues/{issueId} {
-      allow read, write: if signedIn();
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.reporterId == uid();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isAdmin();
     }
 
     // Mentor availability
     match /mentor_availability/{mentorId} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if isTeachingStaff() && mentorId == uid()
+        && request.resource.data.mentorId == uid();
+      allow update: if isTeachingStaff() && mentorId == uid()
+        && request.resource.data.mentorId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'mentorId', 'activeDays', 'startTime', 'endTime', 'slotDuration',
+          'bufferMinutes', 'maxDailyMeets', 'locationMode', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() || (isTeachingStaff() && mentorId == uid());
     }
 
     // Academic records are visible to the student, their assigned mentor, and the relevant office.
     match /academic_results/{resultId} {
       allow read: if signedIn() && (
-        resource.data.studentId == uid() || isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        resource.data.studentId == uid() || isAdmin() || isDean()
+        || (isHod() && sameDepartmentData(resource.data))
         || isExamSection() || mentorsStudent(resource.data.studentId)
       );
-      allow create, update: if isAdmin() || isExamSection();
+      allow create: if isAdmin() || (isExamSection()
+        && studentExists(request.resource.data.studentId));
+      allow update: if isAdmin() || (isExamSection()
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'studentName', 'enrollmentNumber', 'department', 'course', 'year', 'semester',
+          'semesterNumber', 'examName', 'academicYear', 'sgpa', 'cgpa', 'backlogs',
+          'subjects', 'uploadedBy', 'updatedAt'
+        ]));
       allow delete: if isAdmin();
     }
 
     match /attendance_records/{recordId} {
       allow read: if signedIn() && (
-        resource.data.studentId == uid() || isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        resource.data.studentId == uid() || isAdmin() || isDean()
+        || (isHod() && sameDepartmentData(resource.data))
         || isAssignedClassTeacher(resource.data.classId) || mentorsStudent(resource.data.studentId)
       );
-      allow create, update: if isAdmin() || isAssignedClassTeacher(request.resource.data.classId);
-      allow delete: if isAdmin() || isAssignedClassTeacher(resource.data.classId);
+      allow create: if isAdmin() || (isAssignedClassTeacher(request.resource.data.classId)
+        && studentIsInClass(request.resource.data.studentId, request.resource.data.classId)
+        && request.resource.data.present is bool);
+      allow update: if isAdmin() || (isAssignedClassTeacher(request.resource.data.classId)
+        && request.resource.data.classId == resource.data.classId
+        && request.resource.data.studentId == resource.data.studentId
+        && studentIsInClass(request.resource.data.studentId, request.resource.data.classId)
+        && request.resource.data.present is bool
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'className', 'schoolId', 'schoolName', 'departmentId', 'department', 'date',
+          'period', 'studentName', 'enrollmentNumber', 'present', 'updatedAt'
+        ]));
+      allow delete: if isAdmin() || (isAssignedClassTeacher(resource.data.classId)
+        && studentIsInClass(resource.data.studentId, resource.data.classId));
     }
 
     match /attendance_sessions/{sessionId} {
       allow read: if signedIn() && (
-        isAdmin() || role() == 'DEAN' || role() == 'HOD'
+        isAdmin() || isDean() || (isHod() && sameDepartmentData(resource.data))
         || isAssignedClassTeacher(resource.data.classId)
       );
-      allow create, update: if isAdmin() || isAssignedClassTeacher(request.resource.data.classId);
+      allow create: if isAdmin() || (isAssignedClassTeacher(request.resource.data.classId)
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.totalStudents is int
+        && request.resource.data.presentCount is int
+        && request.resource.data.absentCount is int
+        && request.resource.data.totalStudents == request.resource.data.presentCount + request.resource.data.absentCount);
+      allow update: if isAdmin() || (isAssignedClassTeacher(request.resource.data.classId)
+        && request.resource.data.classId == resource.data.classId
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.totalStudents is int
+        && request.resource.data.presentCount is int
+        && request.resource.data.absentCount is int
+        && request.resource.data.totalStudents == request.resource.data.presentCount + request.resource.data.absentCount
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'className', 'schoolId', 'schoolName', 'departmentId', 'department', 'course',
+          'year', 'date', 'period', 'totalStudents', 'presentCount', 'absentCount',
+          'createdBy', 'createdByName', 'updatedAt'
+        ]));
       allow delete: if isAdmin() || isAssignedClassTeacher(resource.data.classId);
     }
 

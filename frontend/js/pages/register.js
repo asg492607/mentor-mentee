@@ -1,9 +1,12 @@
 // Register Page
 // Self-registration flow for students and faculty; pending approval before access is granted.
 import { register } from '../auth.js';
+import { api } from '../api.js';
 import { navigateTo } from '../router.js';
 import { showToast } from '../components/toast.js';
+import { renderTermsCheckbox, initTermsTriggers } from '../components/terms-modal.js';
 import { t, renderLanguageSelector } from '../i18n.js';
+import { escapeHtml } from '../utils.js';
 
 // No longer need PRIVILEGED_ROLES here — auth.js handles all approval logic
 
@@ -47,12 +50,12 @@ export async function render(container) {
 
             <div class="form-group" style="grid-column: 1 / -1;">
               <label class="form-label">${t('register.full_name', 'Full Name')}</label>
-              <input type="text" id="name" class="form-input" placeholder="${t('register.full_name_placeholder', 'John Doe')}" required>
+              <input type="text" id="name" class="form-input" placeholder="${t('register.full_name_placeholder', 'Your full name')}" required>
             </div>
 
             <div class="form-group" style="grid-column: 1 / -1;">
               <label class="form-label">${t('register.email', 'Email Address')}</label>
-              <input type="email" id="email" class="form-input" placeholder="${t('register.email_placeholder', 'john@university.edu')}" required>
+              <input type="email" id="email" class="form-input" placeholder="${t('register.email_placeholder', 'name@university.edu')}" required>
             </div>
 
             <div class="form-group">
@@ -110,7 +113,15 @@ export async function render(container) {
                 <label class="form-label">Employee ID</label>
                 <input type="text" id="employeeId" class="form-input" placeholder="e.g. EMP1234">
               </div>
+              <div class="form-group" style="grid-column:1 / -1;">
+                <label class="form-label">Designation</label>
+                <input type="text" id="designation" class="form-input" placeholder="Faculty">
+              </div>
             </div>
+          </div>
+
+          <div style="margin-top:4px;">
+            ${renderTermsCheckbox({ id: 'register-terms-agree' })}
           </div>
 
           <button type="submit" class="btn btn-primary w-full btn-lg mt-6" id="register-btn">
@@ -127,6 +138,7 @@ export async function render(container) {
 
   const form = document.getElementById('register-form');
   const registerBtn = document.getElementById('register-btn');
+  initTermsTriggers(container, 'register-terms-agree');
   const roleSelect = document.getElementById('role');
   const studentFields = document.getElementById('student-fields');
   const teacherFields = document.getElementById('teacher-fields');
@@ -134,40 +146,61 @@ export async function render(container) {
   const deptSelects = document.querySelectorAll('.dynamic-dept');
   
   let allDepts = [];
+  let allClasses = [];
+  let classCatalog = [];
   
-  import('/js/services.js').then(async ({ DepartmentService, ClassService }) => {
+  api.get('/auth/institution-options').then(options => {
     try {
-      allDepts = await DepartmentService.getAll();
+      allDepts = Array.isArray(options.departments) ? options.departments : [];
+      classCatalog = Array.isArray(options.classes) ? options.classes : [];
       populateDepts('Academic');
       
-      deptSelects[0].addEventListener('change', async (e) => {
+      deptSelects[0].addEventListener('change', (e) => {
         const dept = e.target.value;
         classSelect.innerHTML = '<option value="">Select Class</option>';
         if (!dept) {
           classSelect.disabled = true;
+          allClasses = [];
+          updateYearOptions();
           return;
         }
         classSelect.disabled = true;
-        classSelect.innerHTML = '<option value="">Loading...</option>';
-        const classes = await ClassService.getByDepartment(dept);
+        allClasses = classCatalog.filter(item => item.departmentId === dept);
+        const classes = allClasses;
         if (!classes.length) {
           classSelect.innerHTML = '<option value="">No classes found</option>';
         } else {
           classSelect.disabled = false;
-          classSelect.innerHTML = '<option value="">Select Class</option>' + classes.map(c => `<option value="${c.className}">Class ${c.className}</option>`).join('');
+          classSelect.innerHTML = '<option value="">Select Class</option>' + classes.map(c => `<option value="${escapeHtml(c.id)}">Class ${escapeHtml(c.className)}</option>`).join('');
         }
+        updateYearOptions();
       });
-      
-    } catch(e) {
-      console.error('Failed to load departments', e);
-    }
+
+      classSelect.addEventListener('change', updateYearOptions);
+    } catch (error) { console.error('Failed to load institution registration options', error); }
+  }).catch(error => {
+    console.error('Failed to load institution registration options', error);
+    showToast('Institution options could not be loaded. Please try again later.', 'error');
   });
   
   function populateDepts(typeStr) {
     const isSection = typeStr === 'Section';
     const opts = '<option value="">Select ' + (isSection ? 'Section' : 'Department') + '</option>' +
-      allDepts.filter(d => isSection ? d.type === 'Section' : d.type !== 'Section').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+      allDepts.filter(d => isSection ? String(d.type || '').toUpperCase() === 'SECTION' : !['SECTION', 'SCHOOL', 'COLLEGE'].includes(String(d.type || '').toUpperCase())).map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join('');
     deptSelects.forEach(s => s.innerHTML = opts);
+  }
+
+  function updateYearOptions() {
+    const yearSelect = document.getElementById('year');
+    const selectedClass = allClasses.find(item => item.id === classSelect.value);
+    const duration = Math.min(8, Math.max(1, Number(selectedClass?.durationYears) || 4));
+    const rawClassYear = String(selectedClass?.year ?? '').trim().toUpperCase();
+    const fixedYear = Number(rawClassYear) || ({ FY: 1, SY: 2, TY: 3, LY: 4, FINAL: 4 })[rawClassYear] || null;
+    const years = fixedYear && fixedYear <= duration ? [fixedYear] : Array.from({ length: duration }, (_, index) => index + 1);
+    const labels = { 1: 'FY · First Year', 2: 'SY · Second Year', 3: 'TY · Third Year', 4: 'LY · Fourth Year' };
+    const previous = yearSelect.value;
+    yearSelect.innerHTML = '<option value="">Select Year</option>' + years.map(year => `<option value="${year}">${labels[year] || `Year ${year}`}</option>`).join('');
+    yearSelect.value = years.includes(Number(previous)) ? previous : '';
   }
 
   roleSelect.addEventListener('change', (e) => {
@@ -232,18 +265,32 @@ export async function render(container) {
       role: role,
       profile: {
         name: document.getElementById('name').value.trim(),
-      }
+      },
+      termsAccepted: document.getElementById('register-terms-agree')?.checked === true
     };
 
     if (role === 'STUDENT') {
-      data.profile.department = document.getElementById('department')?.value || '';
-      data.profile.class = document.getElementById('student-class')?.value || '';
+      const departmentRecord = allDepts.find(item => item.id === document.getElementById('department')?.value);
+      const classRecord = allClasses.find(item => item.id === document.getElementById('student-class')?.value);
+      data.profile.department = departmentRecord?.name || '';
+      data.profile.departmentId = departmentRecord?.id || '';
+      data.profile.schoolId = departmentRecord?.schoolId || '';
+      data.profile.schoolName = departmentRecord?.schoolName || '';
+      data.profile.classId = classRecord?.id || '';
+      data.profile.class = classRecord?.className || '';
+      data.profile.course = classRecord?.course || '';
+      data.profile.durationYears = classRecord?.durationYears || 4;
       const yearVal = parseInt(document.getElementById('year')?.value);
       data.profile.year = isNaN(yearVal) ? 1 : yearVal;
+      data.profile.yearLabel = ({ 1: 'FY', 2: 'SY', 3: 'TY', 4: 'LY' })[data.profile.year] || `Year ${data.profile.year}`;
       data.profile.enrollmentNumber = document.getElementById('enrollmentNumber')?.value.trim() || '';
     } else {
       if (role !== 'DEAN' && role !== 'ADMIN') {
-        data.profile.department = document.getElementById('teacher-department')?.value || '';
+        const departmentRecord = allDepts.find(item => item.id === document.getElementById('teacher-department')?.value);
+        data.profile.department = departmentRecord?.name || '';
+        data.profile.departmentId = departmentRecord?.id || '';
+        data.profile.schoolId = departmentRecord?.schoolId || '';
+        data.profile.schoolName = departmentRecord?.schoolName || '';
       }
       data.profile.designation = getDefaultDesignation(role, document.getElementById('designation')?.value.trim() || 'Faculty');
       data.profile.employeeId = document.getElementById('employeeId')?.value.trim() || '';

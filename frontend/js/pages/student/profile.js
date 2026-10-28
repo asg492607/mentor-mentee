@@ -112,14 +112,6 @@ export async function render(container) {
             <label class="form-label">${t('profile.prn', 'Enrollment / PRN')}</label>
             <input type="text" id="p-roll" class="form-input" value="${escapeHtml(profile.enrollmentNumber || '')}" readonly style="opacity:0.65;cursor:not-allowed;">
           </div>
-          <div class="form-group">
-            <label class="form-label">${t('profile.cgpa', 'Current CGPA')}</label>
-            <input type="number" id="p-cgpa" class="form-input" value="${profile.cgpa || ''}" step="0.01" min="0" max="10">
-          </div>
-          <div class="form-group">
-            <label class="form-label">${t('profile.attendance', 'Attendance')} (%)</label>
-            <input type="number" id="p-att" class="form-input" value="${profile.attendance || ''}" min="0" max="100">
-          </div>
           <div class="form-group" style="grid-column:1/-1;">
             <label class="form-label">Areas of Academic Interest</label>
             <textarea id="p-interests" class="form-textarea" style="min-height:80px;" placeholder="e.g. Machine Learning, Cloud Computing, Cybersecurity...">${escapeHtml(profile.interests || '')}</textarea>
@@ -139,16 +131,11 @@ export async function render(container) {
   `;
 
   document.getElementById('btn-save')?.addEventListener('click', async () => {
-    const cgpa       = parseFloat(document.getElementById('p-cgpa').value) || 0;
-    const attendance = parseFloat(document.getElementById('p-att').value) || 0;
     const updates = {
       name:       document.getElementById('p-name').value.trim(),
-      cgpa,
-      attendance,
       interests:  document.getElementById('p-interests').value.trim(),
       skills:     document.getElementById('p-skills').value.trim(),
-      careerGoal: document.getElementById('p-career').value.trim(),
-      ...StatsService.computeRisk({ cgpa, attendance })
+      careerGoal: document.getElementById('p-career').value.trim()
     };
     const btn = document.getElementById('btn-save');
     if (btn) btn.disabled = true;

@@ -1,5 +1,5 @@
 :root,
-html[data-theme="light"] {
+html {
   color-scheme: light;
   --bg-primary: #f8fafc;
   --bg-secondary: #f1f5f9;
@@ -50,57 +50,7 @@ html[data-theme="light"] {
   --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --bg-primary: #07090e;
-  --bg-secondary: #0d121e;
-  --bg-card: #121929;
-  --bg-card-hover: #182236;
-  --bg-glass: rgba(255, 255, 255, 0.035);
-  --bg-glass-hover: rgba(255, 255, 255, 0.07);
-  --bg-input: rgba(255, 255, 255, 0.05);
-  --surface: var(--bg-card);
-  --surface-hover: var(--bg-card-hover);
-  --text: var(--text-primary);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #07090e;
-  --primary: var(--text-primary);
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-light: rgba(99, 102, 241, 0.16);
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-  --accent-gradient-subtle: linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(168,85,247,0.08) 100%);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.18);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 6px 16px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 14px 32px -4px rgba(0, 0, 0, 0.55), 0 6px 14px -2px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.28);
-}
-
-/* ─── Global Theme Switcher Button ────────────────────────────── */
-.lumina-theme-toggle {
-  background: var(--bg-glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
-  color: var(--text-secondary);
-}
-.lumina-theme-toggle:hover {
-  background: var(--bg-glass-hover);
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-  transform: translateY(-1px);
-}
+html { color-scheme: light; }
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -389,7 +339,7 @@ html, body {
     color: #000000 !important;
     font-size: 11pt;
   }
-  .sidebar, .header, .header-actions, .booklet-tabs, .btn, .theme-toggle-btn, .notification-bell, #sidebar-backdrop {
+  .sidebar, .header, .header-actions, .booklet-tabs, .btn, .notification-bell, #sidebar-backdrop {
     display: none !important;
   }
   .main-content {

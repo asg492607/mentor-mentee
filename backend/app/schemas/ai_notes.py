@@ -15,7 +15,7 @@ class AINotesRequest(BaseModel):
     remarks: Optional[str] = ''
     # Risk intelligence fields
     riskSignals: Optional[List[str]] = []
-    riskLevel: Optional[str] = 'LOW'          # LOW | MEDIUM | HIGH
+    riskLevel: Optional[str] = 'NOT_ASSESSED'  # NOT_ASSESSED | LOW | MEDIUM | HIGH
     riskRecommendations: Optional[List[str]] = []
     requiresEscalation: Optional[bool] = False
     # Metadata

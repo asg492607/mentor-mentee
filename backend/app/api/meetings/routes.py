@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse
 from app.core.dependencies import get_current_user
@@ -9,8 +10,23 @@ from app.firebase.client import firebase_auth
 from app.core.exceptions import NotFoundException, ForbiddenException, ServiceUnavailableException
 from app.schemas.ai_notes import AINotesRequest
 from app.utils.helpers import get_timestamp
+from firebase_admin import firestore as admin_firestore
+from uuid import uuid4
 
 router = APIRouter(prefix="/meetings", tags=["Meetings"])
+
+
+def _same_department(user: dict, record: dict) -> bool:
+    user_department_id = user.get("departmentId")
+    record_department_id = record.get("departmentId")
+    if user_department_id or record_department_id:
+        return bool(user_department_id and record_department_id and user_department_id == record_department_id)
+    user_school_id = user.get("schoolId")
+    record_school_id = record.get("schoolId")
+    if user_school_id or record_school_id:
+        return bool(user_school_id and record_school_id and user_school_id == record_school_id
+                    and user.get("department") == record.get("department"))
+    return bool(user.get("department")) and user.get("department") == record.get("department")
 
 
 def _can_access_meeting(user: dict, meeting: dict) -> bool:
@@ -25,29 +41,29 @@ def _can_access_meeting(user: dict, meeting: dict) -> bool:
     if user.get("role") in {"ADMIN", "DEAN"}:
         return True
     if user.get("role") == "HOD":
-        department = meeting.get("department")
-        if not department and meeting.get("studentId") not in (None, "ALL"):
+        scope = meeting
+        if not meeting.get("departmentId") and not meeting.get("department") and meeting.get("studentId") not in (None, "ALL"):
             student = MeetingRepository().db.collection("students").document(meeting["studentId"]).get()
-            department = (student.to_dict() or {}).get("department") if student.exists else None
-        return bool(department) and department == user.get("department")
+            scope = {**meeting, **(student.to_dict() or {})} if student.exists else meeting
+        return _same_department(user, scope)
     return False
 
 
 def _can_access_private_notes(user: dict, meeting: dict) -> bool:
-    if (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+    if (user.get("role") in {"FACULTY", "MENTOR", "HOD"} and user["uid"] == meeting.get("mentorId")) \
             or user.get("role") in {"ADMIN", "DEAN"}:
         return True
     if user.get("role") != "HOD":
         return False
-    department = meeting.get("department")
+    scope = meeting
     student_id = meeting.get("studentId")
-    if not department and student_id not in (None, "ALL"):
+    if not meeting.get("departmentId") and not meeting.get("department") and student_id not in (None, "ALL"):
         student = MeetingRepository().db.collection("students").document(student_id).get()
-        department = (student.to_dict() or {}).get("department") if student.exists else None
-    return bool(department) and department == user.get("department")
+        scope = {**meeting, **(student.to_dict() or {})} if student.exists else meeting
+    return _same_department(user, scope)
 
 
-def _sanitize_meeting_for_student(meeting: dict) -> dict:
+def _sanitize_meeting_for_student(meeting: dict, user_id: str) -> dict:
     safe = dict(meeting)
     for field in ("aiNotes", "report", "transcript", "extractedSentences", "confidentialObservations"):
         safe.pop(field, None)
@@ -57,6 +73,12 @@ def _sanitize_meeting_for_student(meeting: dict) -> dict:
         for field in ("confidentialObservations", "confidentialNotes", "transcript", "extractedSentences"):
             notes.pop(field, None)
         safe["notes"] = notes
+    attendees = safe.get("attendees")
+    if isinstance(attendees, list):
+        safe["attendees"] = [
+            {key: item[key] for key in ("name", "role", "joinedAt", "leftAt", "durationSeconds", "status", "attended") if key in item}
+            for item in attendees if isinstance(item, dict) and item.get("userId") == user_id
+        ]
     return safe
 
 
@@ -83,14 +105,116 @@ def _recording_recipient_emails(repo: MeetingRepository, meeting: dict) -> list[
                         emails.add(user_data["email"])
                 break
 
+    meeting_scope = meeting
     department = meeting.get("department")
+    if not meeting.get("departmentId") and not department and meeting.get("studentId") not in (None, "ALL"):
+        student = repo.db.collection("students").document(meeting["studentId"]).get()
+        if student.exists:
+            meeting_scope = {**meeting, **(student.to_dict() or {})}
+            department = meeting_scope.get("department")
     for profile in repo.db.collection("faculty").stream():
         data = profile.to_dict()
         role = data.get("role")
-        if (role in {"ADMIN", "DEAN"} or (role == "HOD" and data.get("department") == department)) \
+        if (role in {"ADMIN", "DEAN"} or (role == "HOD" and _same_department(data, meeting_scope))) \
                 and data.get("status") == "approved" and data.get("isApproved") is True and data.get("email"):
             emails.add(data["email"])
     return sorted(emails)
+
+
+@router.post("/{meeting_id}/attendance")
+def record_meeting_attendance(meeting_id: str, data: dict = None, user=Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting_ref = repo.db.collection("meetings").document(meeting_id)
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_meeting(user, meeting):
+        raise ForbiddenException("You are not a participant in this meeting")
+
+    profile_collection = "students" if user.get("role") == "STUDENT" else "faculty"
+    profile_doc = repo.db.collection(profile_collection).document(user["uid"]).get()
+    profile = profile_doc.to_dict() if profile_doc.exists else {}
+    if not profile:
+        raise ForbiddenException("Your approved platform profile could not be found")
+    session_id = str((data or {}).get("sessionId") or "").strip()[:80] or str(uuid4())
+    attendee = {
+        "sessionId": session_id,
+        "userId": user["uid"],
+        "name": profile.get("name") or user.get("name") or "Participant",
+        "email": profile.get("email") or user.get("email") or "",
+        "role": user.get("role") or "STUDENT",
+        "class": profile.get("class") or "",
+        "enrollmentNumber": profile.get("enrollmentNumber") or "",
+        "department": profile.get("department") or "",
+        "joinedAt": get_timestamp(),
+        "status": "ATTENDED",
+        "attended": True,
+    }
+
+    @admin_firestore.transactional
+    def save_attendee(transaction):
+        snapshot = meeting_ref.get(transaction=transaction)
+        current = snapshot.to_dict() or {}
+        attendees = current.get("attendees") if isinstance(current.get("attendees"), list) else []
+        if not any(isinstance(item, dict) and item.get("userId") == user["uid"] and item.get("sessionId") == session_id for item in attendees):
+            attendees.append(attendee)
+        participant_count = len({item.get("userId") for item in attendees if isinstance(item, dict) and item.get("userId")})
+        transaction.update(meeting_ref, {
+            "attendees": attendees,
+            "attendanceCount": participant_count,
+            "updatedAt": get_timestamp(),
+        })
+        return participant_count
+
+    count = save_attendee(repo.db.transaction())
+    return {"recorded": True, "attendanceCount": count}
+
+
+@router.post("/{meeting_id}/attendance/leave")
+def record_meeting_attendance_leave(meeting_id: str, data: dict = None, user=Depends(get_current_user)):
+    repo = MeetingRepository()
+    meeting_ref = repo.db.collection("meetings").document(meeting_id)
+    meeting = repo.get_by_id(meeting_id)
+    if not meeting:
+        raise NotFoundException("Meeting not found")
+    if not _can_access_meeting(user, meeting):
+        raise ForbiddenException("You are not a participant in this meeting")
+
+    session_id = str((data or {}).get("sessionId") or "").strip()[:80]
+    if not session_id:
+        return {"recorded": False, "reason": "Attendance session was not supplied"}
+    left_at = get_timestamp()
+
+    @admin_firestore.transactional
+    def save_departure(transaction):
+        snapshot = meeting_ref.get(transaction=transaction)
+        if not snapshot.exists:
+            return False
+        current = snapshot.to_dict() or {}
+        attendees = current.get("attendees") if isinstance(current.get("attendees"), list) else []
+        updated = []
+        found = False
+        for attendee in attendees:
+            if isinstance(attendee, dict) and attendee.get("userId") == user["uid"] and attendee.get("sessionId") == session_id:
+                found = True
+                if not attendee.get("leftAt"):
+                    attendee = dict(attendee)
+                    attendee["leftAt"] = left_at
+                    try:
+                        joined = datetime.fromisoformat(str(attendee.get("joinedAt") or "").replace("Z", "+00:00"))
+                        left = datetime.fromisoformat(left_at.replace("Z", "+00:00"))
+                        if joined.tzinfo is None and left.tzinfo is not None:
+                            joined = joined.replace(tzinfo=left.tzinfo)
+                        attendee["durationSeconds"] = max(0, int((left - joined).total_seconds()))
+                    except (TypeError, ValueError):
+                        attendee["durationSeconds"] = None
+            updated.append(attendee)
+        if found:
+            transaction.update(meeting_ref, {"attendees": updated, "updatedAt": left_at})
+        return found
+
+    recorded = save_departure(repo.db.transaction())
+    return {"recorded": recorded}
 
 @router.get("/{meeting_id}")
 def get_meeting(meeting_id: str, user = Depends(get_current_user)):
@@ -100,7 +224,7 @@ def get_meeting(meeting_id: str, user = Depends(get_current_user)):
         raise NotFoundException("Meeting not found")
     if not _can_access_meeting(user, meeting):
         raise ForbiddenException("You are not a participant in this meeting")
-    return _sanitize_meeting_for_student(meeting) if user.get("role") == "STUDENT" else meeting
+    return _sanitize_meeting_for_student(meeting, user["uid"]) if user.get("role") == "STUDENT" else meeting
 
 @router.put("/{meeting_id}/start")
 def start_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
@@ -109,7 +233,7 @@ def start_meeting(meeting_id: str, user = Depends(get_current_user), meeting_ser
 @router.put("/{meeting_id}/end")
 def end_meeting(meeting_id: str, user = Depends(get_current_user), meeting_service: MeetingService = Depends()):
     meeting = meeting_service.end_meeting(meeting_id, user["uid"])
-    return _sanitize_meeting_for_student(meeting) if user.get("role") == "STUDENT" else meeting
+    return _sanitize_meeting_for_student(meeting, user["uid"]) if user.get("role") == "STUDENT" else meeting
 
 
 # ── AI NOTES ENDPOINTS ─────────────────────────────────────────────────────────
@@ -125,7 +249,7 @@ def save_ai_notes(meeting_id: str, data: AINotesRequest, user = Depends(get_curr
     meeting = repo.get_by_id(meeting_id)
     if not meeting:
         raise NotFoundException("Meeting not found")
-    if not (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+    if not (user.get("role") in {"FACULTY", "MENTOR", "HOD"} and user["uid"] == meeting.get("mentorId")) \
             and user.get("role") != "ADMIN":
         raise ForbiddenException("Only the meeting mentor can save AI notes")
 
@@ -172,7 +296,7 @@ def save_private_report(meeting_id: str, data: dict, user=Depends(get_current_us
     meeting = repo.get_by_id(meeting_id)
     if not meeting:
         raise NotFoundException("Meeting not found")
-    if not (user.get("role") == "FACULTY" and user["uid"] == meeting.get("mentorId")) \
+    if not (user.get("role") in {"FACULTY", "MENTOR", "HOD"} and user["uid"] == meeting.get("mentorId")) \
             and user.get("role") != "ADMIN":
         raise ForbiddenException("Only the meeting mentor or an administrator can save this report")
     if not firebase_auth:

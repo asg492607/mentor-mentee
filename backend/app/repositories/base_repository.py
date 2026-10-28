@@ -60,5 +60,33 @@ class BaseRepository:
             ref = ref.limit(limit)
         return [{"id": doc.id, **doc.to_dict()} for doc in ref.stream()]
 
+    def query_department_scope(self, department: str) -> list[dict]:
+        if not department:
+            return []
+        if department.startswith("id:"):
+            department_id = department[3:]
+            department_doc = self.db.collection("departments").document(department_id).get()
+            department_data = department_doc.to_dict() or {} if department_doc.exists else {}
+            department_name = str(department_data.get("name") or "")
+            school_id = department_data.get("schoolId")
+        elif department.startswith("legacy:"):
+            scope = department[7:]
+            department_name, _, school_id = scope.partition("|")
+            department_id = ""
+        else:
+            department_name = department
+            department_id = ""
+            school_id = None
+
+        records = {}
+        if department_id:
+            records.update({item["id"]: item for item in self.query(filters=[("departmentId", "==", department_id)])})
+        if department_name:
+            filters = [("department", "==", department_name), ("departmentId", "==", None)]
+            if department_id or department.startswith("legacy:"):
+                filters.append(("schoolId", "==", school_id or None))
+            records.update({item["id"]: item for item in self.query(filters=filters)})
+        return list(records.values())
+
     def count(self, filters: list[tuple] = None) -> int:
         return len(self.query(filters=filters))

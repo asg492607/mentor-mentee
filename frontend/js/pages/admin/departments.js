@@ -78,7 +78,7 @@ export async function render(container) {
 
           <div class="form-group" style="margin:0;">
             <label class="form-label" style="font-weight:600;font-size:0.85rem;">Or Enter Custom HOD Name</label>
-            <input type="text" id="modal-new-hod-custom" class="form-input" placeholder="e.g. Dr. Jane Doe" style="padding:10px;">
+            <input type="text" id="modal-new-hod-custom" class="form-input" placeholder="Enter HOD name" style="padding:10px;">
           </div>
 
           <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:12px;font-size:0.8rem;color:var(--text-secondary);line-height:1.45;">

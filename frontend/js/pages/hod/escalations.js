@@ -6,16 +6,13 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { showModal } from '/js/components/modal.js';
 import { IssueService, NotificationService, FacultyService, StudentService } from '/js/services.js';
-import { escapeHtml } from '/js/utils.js';
+import { departmentScope, escapeHtml } from '/js/utils.js';
 
 function fmt(iso) { return iso ? new Date(iso).toLocaleDateString('en-IN',{dateStyle:'medium'}) : '—'; }
 
 
 async function notifyDeans(issueId, title, message) {
   try {
-    if (user?.department) {
-      students = await StudentService.getByDepartment(user.department).catch(() => []);
-    }
     const deans = await FacultyService.getDeans();
     for (const dean of deans) {
       const targetUid = dean.id || dean.uid;
@@ -149,6 +146,9 @@ function openRaiseIssueModal(user, dept, students, onIssueCreated) {
         category: cat,
         priority: pri,
         department: dept || user.department || '',
+        departmentId: user.departmentId || null,
+        schoolId: user.schoolId || null,
+        schoolName: user.schoolName || null,
         studentId: selectedStudent?.id || null,
         studentName: selectedStudent?.name || (studentId ? 'Department Student' : 'Department Wide'),
         studentEnrollment: selectedStudent?.enrollmentNumber || null,
@@ -255,28 +255,26 @@ export async function render(container) {
   let issues = [];
   let students = [];
   try {
-    let hodIssues = [];
-    try {
-      hodIssues = await IssueService.getEscalated('HOD');
-    } catch (e) {
-      console.warn('Could not fetch issues escalated to HOD:', e);
-    }
-
     let deptIssues = [];
     if (user?.department) {
       try {
-        deptIssues = await IssueService.getByDepartment(user.department);
+        deptIssues = await IssueService.getByDepartment(departmentScope(user));
       } catch (e) {
         console.warn('Could not fetch department issues:', e);
       }
     }
 
+    const hodIssues = (deptIssues || []).filter(issue => issue.escalationLevel === 'HOD');
     const extra = (deptIssues || []).filter(i => i.status === 'ESCALATED' && !hodIssues.find(x => x.id === i.id));
     const combined = [...hodIssues, ...extra];
 
     if (user?.department) {
-      const userDept = String(user.department).trim().toLowerCase();
-      issues = combined.filter(i => !i.department || String(i.department).trim().toLowerCase() === userDept || i.escalationLevel === 'HOD');
+      issues = combined.filter(issue => {
+        if (user.departmentId && issue.departmentId) return issue.departmentId === user.departmentId;
+        if (issue.departmentId) return false;
+        const sameSchool = !user.schoolId && !issue.schoolId || Boolean(user.schoolId && issue.schoolId === user.schoolId);
+        return sameSchool && String(issue.department || '').trim().toLowerCase() === String(user.department).trim().toLowerCase();
+      });
     } else {
       issues = combined;
     }

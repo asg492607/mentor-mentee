@@ -79,7 +79,7 @@ export async function render(container) {
     const btnDownloadTemplate = document.getElementById('btn-sec-download-template');
     if (btnDownloadTemplate) {
       btnDownloadTemplate.addEventListener('click', () => {
-        const csvContent = "role,name,email,password,employeeId\nFACULTY,Jane Doe,jane@example.com,pass123,EMP001\n";
+        const csvContent = "role,name,email,password,employeeId\nFACULTY,Sample Faculty,faculty@example.com,REPLACE_WITH_STRONG_PASSWORD,EMP001\n";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);

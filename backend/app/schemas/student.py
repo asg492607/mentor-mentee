@@ -30,7 +30,7 @@ class StudentProfileResponse(BaseModel):
     mentorId: Optional[str] = None
     mentorName: Optional[str] = None
     riskScore: float = 0.0
-    riskLevel: RiskLevel = RiskLevel.LOW
+    riskLevel: RiskLevel = RiskLevel.NOT_ASSESSED
     createdAt: datetime
 
 class StudentProfileUpdate(BaseModel):

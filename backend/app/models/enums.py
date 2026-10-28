@@ -4,6 +4,7 @@ from enum import Enum
 class UserRole(str, Enum):
     STUDENT = "STUDENT"
     FACULTY = "FACULTY"
+    MENTOR = "MENTOR"
     CLASS_TEACHER = "CLASS_TEACHER"
     SECTION_HEAD = "SECTION_HEAD"
     HOD = "HOD"
@@ -69,6 +70,7 @@ class ActionItemCategory(str, Enum):
 
 
 class RiskLevel(str, Enum):
+    NOT_ASSESSED = "NOT_ASSESSED"
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"

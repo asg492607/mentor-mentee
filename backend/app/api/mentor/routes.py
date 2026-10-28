@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import require_role
 from app.models.enums import UserRole
 from app.services.mentor_service import MentorService
 from app.services.meeting_service import MeetingService
@@ -14,11 +14,99 @@ from app.firebase.client import firebase_auth
 from app.core.role_claims import claims_for_account
 from app.core.exceptions import NotFoundException, ForbiddenException, BadRequestException
 from app.utils.helpers import get_timestamp
+from app.firebase.client import db
 
 router = APIRouter(prefix="/mentor", tags=["Mentor"])
 
-def get_mentor_user(user = Depends(require_role(UserRole.FACULTY))):
+def get_mentor_user(user = Depends(require_role(UserRole.FACULTY, UserRole.MENTOR, UserRole.HOD))):
     return user
+
+
+def get_class_teacher_user(user = Depends(require_role(UserRole.CLASS_TEACHER))):
+    return user
+
+
+@router.post("/classes/{class_id}/attendance/recalculate")
+def recalculate_class_attendance(class_id: str, user=Depends(get_class_teacher_user)):
+    """Rebuild student attendance summaries from the class register on the server."""
+    class_doc = db.collection("classes").document(class_id).get()
+    if not class_doc.exists or (class_doc.to_dict() or {}).get("classTeacherId") != user["uid"]:
+        raise ForbiddenException("You are not assigned to this class")
+    class_data = class_doc.to_dict() or {}
+
+    totals: dict[str, list[int]] = {}
+    for record_doc in db.collection("attendance_records").where("classId", "==", class_id).stream():
+        record = record_doc.to_dict() or {}
+        student_id = str(record.get("studentId") or "")
+        if not student_id:
+            continue
+        summary = totals.setdefault(student_id, [0, 0])
+        summary[0] += 1
+        summary[1] += int(record.get("present") is True)
+
+    assigned_students = db.collection("students").where("classId", "==", class_id).stream()
+    for student_doc in assigned_students:
+        totals.setdefault(student_doc.id, [0, 0])
+
+    updated = 0
+    batch = db.batch()
+    batch_size = 0
+    for student_id, (sessions, present) in totals.items():
+        student_ref = db.collection("students").document(student_id)
+        student_doc = student_ref.get()
+        if not student_doc.exists:
+            continue
+        student = student_doc.to_dict() or {}
+        if student.get("classId") != class_id:
+            if student.get("classId") or student.get("class") != class_data.get("className"):
+                continue
+            class_department_id = class_data.get("departmentId")
+            student_department_id = student.get("departmentId")
+            if class_department_id and student_department_id:
+                if student_department_id != class_department_id:
+                    continue
+            elif student.get("department") != class_data.get("department"):
+                continue
+            if student.get("schoolId") != class_data.get("schoolId"):
+                continue
+        attendance = round((present / sessions) * 1000) / 10 if sessions else 0
+        attendance_status = "NOT_RECORDED" if not sessions else "LOW" if attendance <= 40 else "BELOW_TARGET" if attendance < 75 else "ON_TRACK"
+
+        score = 0
+        try:
+            cgpa = float(student.get("cgpa") or 0)
+        except (TypeError, ValueError):
+            cgpa = 0
+        if cgpa > 0:
+            score += 40 if cgpa < 5 else 30 if cgpa < 6 else 15 if cgpa < 7 else 0
+        if sessions:
+            score += 40 if attendance < 60 else 25 if attendance < 75 else 10 if attendance < 85 else 0
+        try:
+            open_issues = int(student.get("openIssuesCount") or 0)
+        except (TypeError, ValueError):
+            open_issues = 0
+        score += 20 if open_issues >= 3 else 10 if open_issues > 0 else 0
+        has_assessment_data = cgpa > 0 or sessions > 0 or open_issues > 0
+
+        batch.update(student_ref, {
+            "attendance": attendance,
+            "attendanceStatus": attendance_status,
+            "attendanceSessions": sessions,
+            "attendancePresent": present,
+            "riskScore": min(100, score),
+            "riskLevel": "NOT_ASSESSED" if not has_assessment_data else "HIGH" if score >= 60 else "MEDIUM" if score >= 30 else "LOW",
+            "updatedAt": get_timestamp(),
+        })
+        batch_size += 1
+        updated += 1
+        if batch_size == 450:
+            batch.commit()
+            batch = db.batch()
+            batch_size = 0
+
+    if batch_size:
+        batch.commit()
+    return {"updatedStudents": updated, "classId": class_id}
 
 @router.get("/dashboard")
 def get_dashboard(user = Depends(get_mentor_user), mentor_service: MentorService = Depends()):

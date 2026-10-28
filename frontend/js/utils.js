@@ -11,6 +11,12 @@ export function escapeHtml(value) {
     }[char]));
 }
 
+export function departmentScope(user) {
+  if (user?.departmentId) return `id:${user.departmentId}`;
+  const department = String(user?.department || '');
+  return department ? `legacy:${department}|${String(user?.schoolId || '')}` : '';
+}
+
 export function exportToCSV(filename, rows) {
     const processRow = function (row) {
         let finalVal = '';

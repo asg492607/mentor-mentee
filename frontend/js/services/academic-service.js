@@ -1,5 +1,4 @@
 import { db } from '/js/firebase-init.js';
-import { StudentService } from '/js/services.js';
 import {
   collection, doc, getDoc, getDocs, query, where, setDoc,
   writeBatch
@@ -7,18 +6,11 @@ import {
 
 const timestamp = () => new Date().toISOString();
 const idPart = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-function academicRisk(student) {
-  let score = 0;
-  const cgpa = Number.parseFloat(student?.cgpa) || 0;
-  const attendance = Number.parseFloat(student?.attendance) || 0;
-  const openIssues = Number.parseInt(student?.openIssuesCount, 10) || 0;
-  if (cgpa > 0) score += cgpa < 5 ? 40 : cgpa < 6 ? 30 : cgpa < 7 ? 15 : 0;
-  if (student?.attendance !== undefined) score += attendance < 60 ? 40 : attendance < 75 ? 25 : attendance < 85 ? 10 : 0;
-  if (openIssues >= 3) score += 20;
-  else if (openIssues > 0) score += 10;
-  return { riskScore: Math.min(100, score), riskLevel: score >= 60 ? 'HIGH' : score >= 30 ? 'MEDIUM' : 'LOW' };
-}
+const normalizeCourses = courses => (Array.isArray(courses) ? courses : []).map(course => {
+  const requested = Number(course?.durationYears);
+  const durationYears = Number.isInteger(requested) && requested >= 1 && requested <= 8 ? requested : 0;
+  return { ...course, durationYears, semesterCount: durationYears * 2, semesterDurationMonths: 6 };
+});
 
 export function yearNumber(value) {
   const raw = String(value ?? '').trim().toUpperCase();
@@ -36,11 +28,8 @@ export function yearLabel(value, duration = 4) {
 
 export function getAttendanceStatus(student) {
   const attendance = Number(student?.attendance);
-  const storedStatus = String(student?.attendanceStatus || '').toUpperCase();
-  if (storedStatus === 'LOW') return { key: 'LOW', label: 'Low attendance', badgeClass: 'badge-danger', isLow: true };
-  if (storedStatus === 'BELOW_TARGET') return { key: 'BELOW_TARGET', label: 'Below target', badgeClass: 'badge-warning', isLow: false };
-  if (storedStatus === 'ON_TRACK') return { key: 'ON_TRACK', label: 'On track', badgeClass: 'badge-success', isLow: false };
-  const hasRecordedAttendance = Number(student?.attendanceSessions || 0) > 0 || (Number.isFinite(attendance) && attendance > 0);
+  const sessions = Number(student?.attendanceSessions || 0);
+  const hasRecordedAttendance = Number.isFinite(sessions) && sessions > 0 || (Number.isFinite(attendance) && attendance > 0);
   if (!hasRecordedAttendance) return { key: 'NOT_RECORDED', label: 'Not recorded', badgeClass: 'badge-muted', isLow: false };
   if (attendance <= 40) return { key: 'LOW', label: 'Low attendance', badgeClass: 'badge-danger', isLow: true };
   if (attendance < 75) return { key: 'BELOW_TARGET', label: 'Below target', badgeClass: 'badge-warning', isLow: false };
@@ -54,10 +43,15 @@ export const AcademicConfigService = {
       const year = new Date().getFullYear();
       return { activeAcademicYear: `${year}-${String(year + 1).slice(-2)}`, courses: [] };
     }
-    return snap.data();
+    const data = snap.data();
+    return { ...data, courses: normalizeCourses(data.courses) };
   },
   async save(data) {
-    await setDoc(doc(db, 'settings', 'academics'), { ...data, updatedAt: timestamp() }, { merge: true });
+    const courses = normalizeCourses(data.courses);
+    if (courses.some(course => !String(course.name || '').trim() || !Number.isInteger(course.durationYears) || course.durationYears < 1 || course.durationYears > 8)) {
+      throw new Error('Every configured course needs a name and a duration from 1 to 8 years.');
+    }
+    await setDoc(doc(db, 'settings', 'academics'), { ...data, courses, updatedAt: timestamp() }, { merge: true });
   }
 };
 
@@ -70,28 +64,20 @@ export const AcademicStudentService = {
     return match ? { id: match.id, ...match.data() } : null;
   },
   async getByClass(classInfo) {
-    const [byClass, byLegacyClass] = await Promise.all([
-      getDocs(query(collection(db, 'students'), where('classId', '==', classInfo.id))),
-      getDocs(query(collection(db, 'students'), where('class', '==', classInfo.className)))
-    ]);
-    const records = new Map();
-    [...byClass.docs, ...byLegacyClass.docs].forEach(s => {
-      const data = s.data();
-      const matchesDepartment = classInfo.departmentId || data.departmentId
-        ? Boolean(classInfo.departmentId && data.departmentId && data.departmentId === classInfo.departmentId)
-        : data.department === classInfo.department && (!classInfo.schoolId || !data.schoolId || classInfo.schoolId === data.schoolId);
-      if (data.classId === classInfo.id || (!data.classId && matchesDepartment)) records.set(s.id, { id: s.id, ...data });
-    });
-    return [...records.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    if (!classInfo?.id) return [];
+    const byClass = await getDocs(query(collection(db, 'students'), where('classId', '==', classInfo.id)));
+    return byClass.docs.map(s => ({ id: s.id, ...s.data() }))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }
 };
 
 export const AttendanceService = {
   async saveSession({ classInfo, date, period = '', students, actor }) {
-    if (!classInfo?.id || !date || !Array.isArray(students) || !students.length) {
-      throw new Error('Choose a class, date, and at least one student before saving attendance.');
+    const normalizedPeriod = String(period || '').trim();
+    if (!classInfo?.id || !date || !normalizedPeriod || normalizedPeriod.length > 60 || !Array.isArray(students) || !students.length) {
+      throw new Error('Choose a class, date, session period, and at least one student before saving attendance.');
     }
-    const sessionId = `${idPart(classInfo.id)}_${date}_${idPart(period || 'regular')}`;
+    const sessionId = `${idPart(classInfo.id)}_${date}_${idPart(normalizedPeriod)}`;
     const present = students.filter(s => s.present).length;
     const session = {
       classId: classInfo.id,
@@ -103,7 +89,7 @@ export const AttendanceService = {
       course: classInfo.course || '',
       year: classInfo.year || null,
       date,
-      period: String(period || '').trim(),
+      period: normalizedPeriod,
       totalStudents: students.length,
       presentCount: present,
       absentCount: students.length - present,
@@ -125,7 +111,7 @@ export const AttendanceService = {
           departmentId: classInfo.departmentId || null,
           department: classInfo.department || '',
           date,
-          period: String(period || '').trim(),
+          period: normalizedPeriod,
           studentId: student.id,
           studentName: student.name || '',
           enrollmentNumber: student.enrollmentNumber || '',
@@ -137,26 +123,8 @@ export const AttendanceService = {
       await batch.commit();
     }
 
-    await Promise.all([...new Set(records.map(s => s.id))].map(async studentId => {
-      const history = await getDocs(query(
-        collection(db, 'attendance_records'),
-        where('studentId', '==', studentId),
-        where('classId', '==', classInfo.id)
-      ));
-      const count = history.size;
-      const attended = history.docs.reduce((sum, item) => sum + (item.data().present ? 1 : 0), 0);
-      const profileSnap = await getDoc(doc(db, 'students', studentId));
-      const nextAttendance = count ? Math.round((attended / count) * 1000) / 10 : 0;
-      const attendanceStatus = !count ? 'NOT_RECORDED' : nextAttendance <= 40 ? 'LOW' : nextAttendance < 75 ? 'BELOW_TARGET' : 'ON_TRACK';
-      const risk = academicRisk({ ...(profileSnap.exists() ? profileSnap.data() : {}), attendance: nextAttendance });
-      await StudentService.update(studentId, {
-        attendance: nextAttendance,
-        attendanceStatus,
-        attendanceSessions: count,
-        attendancePresent: attended,
-        ...risk,
-      });
-    }));
+    const { api } = await import('/js/api.js');
+    await api.post(`/mentor/classes/${encodeURIComponent(classInfo.id)}/attendance/recalculate`, {});
     return { id: sessionId, ...session };
   },
   async getByStudent(studentId) {
@@ -165,26 +133,35 @@ export const AttendanceService = {
   }
 };
 
-function semesterNumber(value) {
-  const text = String(value || '').toUpperCase();
-  const numeric = text.match(/\d+/);
-  if (numeric) return Number(numeric[0]);
-  const roman = text.match(/\b(VIII|VII|VI|V|IV|III|II|I)\b/);
-  return roman ? ({ I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8 })[roman[1]] : 0;
+export function semesterNumber(value) {
+  const text = String(value || '').trim().toUpperCase();
+  const numeric = text.match(/^(?:SEM(?:ESTER)?\s*)?(\d{1,2})$/);
+  if (numeric) return Number(numeric[1]);
+  const roman = text.match(/^(?:SEM(?:ESTER)?\s*)?([IVXLCDM]+)$/);
+  if (!roman) return 0;
+  return ({ I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12, XIII: 13, XIV: 14, XV: 15, XVI: 16 })[roman[1]] || 0;
+}
+
+export function semesterCountForDuration(durationYears) {
+  const years = Number(durationYears);
+  return Number.isInteger(years) && years >= 1 && years <= 8 ? years * 2 : 0;
+}
+
+export function semesterCountForCourse(student, courses = []) {
+  const fromStudent = semesterCountForDuration(student?.durationYears);
+  if (fromStudent) return fromStudent;
+  const courseName = String(student?.course || student?.program || '').trim().toLowerCase();
+  const configured = courses.find(course => String(course?.name || '').trim().toLowerCase() === courseName);
+  return semesterCountForDuration(configured?.durationYears);
 }
 
 export const ResultService = {
   async save({ student, semester, examName = '', academicYear = '', sgpa = null, cgpa = null, backlogs = null, subjects = [], uploadedBy = '' }) {
     if (!student?.id || !String(semester || '').trim()) throw new Error('A student and semester are required.');
     const semesterValue = String(semester).trim();
-    const resultId = `${idPart(student.id)}_${idPart(semesterValue)}_${idPart(academicYear || 'academic-year')}_${idPart(examName || 'result')}`;
+    const { api } = await import('/js/api.js');
     const payload = {
       studentId: student.id,
-      studentName: student.name || '',
-      enrollmentNumber: student.enrollmentNumber || '',
-      department: student.department || '',
-      course: student.course || student.program || '',
-      year: student.year || null,
       semester: semesterValue,
       semesterNumber: semesterNumber(semesterValue),
       examName: String(examName || '').trim(),
@@ -193,19 +170,9 @@ export const ResultService = {
       cgpa: cgpa === '' || cgpa === null || cgpa === undefined ? null : Number(cgpa),
       backlogs: backlogs === '' || backlogs === null || backlogs === undefined ? null : Number(backlogs),
       subjects: Array.isArray(subjects) ? subjects : [],
-      uploadedBy,
-      updatedAt: timestamp()
     };
-    await setDoc(doc(db, 'academic_results', resultId), { ...payload, createdAt: timestamp() }, { merge: true });
-    const resultSnap = await getDocs(query(collection(db, 'academic_results'), where('studentId', '==', student.id)));
-    const history = resultSnap.docs.map(item => item.data()).sort((a, b) => (b.semesterNumber || 0) - (a.semesterNumber || 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-    const latest = history[0] || payload;
-    const updates = { latestSemester: latest.semester, latestSGPA: latest.sgpa ?? null, updatedAt: timestamp() };
-    if (latest.cgpa !== null && latest.cgpa !== undefined) updates.cgpa = latest.cgpa;
-    if (latest.backlogs !== null && latest.backlogs !== undefined) updates.backlogs = latest.backlogs;
-    Object.assign(updates, academicRisk({ ...student, ...updates }));
-    await StudentService.update(student.id, updates);
-    return { id: resultId, ...payload };
+    const result = await api.post('/admissions/results', payload);
+    return { ...result, ...payload, uploadedBy };
   },
   async getByStudent(studentId) {
     const snap = await getDocs(query(collection(db, 'academic_results'), where('studentId', '==', studentId)));

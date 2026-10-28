@@ -3,7 +3,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StudentService } from '/js/services.js';
-import { AcademicConfigService, ResultService, yearLabel } from '/js/services/academic-service.js';
+import { AcademicConfigService, ResultService, semesterCountForCourse, semesterNumber, yearLabel } from '/js/services/academic-service.js';
 import { parseImportFile } from '/js/excel-import.js';
 import { escapeHtml } from '/js/utils.js';
 
@@ -48,7 +48,7 @@ export async function render(container) {
         <div class="page-content"><div class="dashboard-container">
           <div class="card" style="padding:24px;margin-bottom:20px;background:linear-gradient(135deg,rgba(99,102,241,.12),var(--bg-card));">
             <span class="badge badge-accent">EXAM SECTION</span><h2 style="margin:10px 0 4px;">Publish semester results</h2>
-            <p style="margin:0;color:var(--text-secondary);">Upload results by enrollment number. Published SGPA, CGPA and backlog summaries update the student record shown to their mentors.</p>
+            <p style="margin:0;color:var(--text-secondary);">Upload results by enrollment number. Each configured course year contains two six-month semesters; results outside the course duration are rejected.</p>
           </div>
           <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px;">
             <div class="stat-card"><div class="stat-label">Students</div><div class="stat-value">${allStudents.length}</div></div>
@@ -99,10 +99,16 @@ export async function render(container) {
       rowsToImport = [...groups.values()].map(row => {
         const student = students.get(row.enrollmentNumber.toLowerCase());
         let error = '';
+        const semesterIndex = semesterNumber(row.semester);
+        const semesterLimit = student ? semesterCountForCourse(student, config.courses || []) : 0;
         if (!student) error = 'Enrollment not found';
+        else if (!semesterIndex) error = 'Semester must be a number or Roman numeral';
+        else if (!semesterLimit) error = 'Course duration is not configured';
+        else if (semesterIndex > semesterLimit) error = `Semester ${semesterIndex} exceeds this course limit of ${semesterLimit}`;
         else if (![row.sgpa, row.cgpa, row.backlogs].some(value => value !== '' && value !== undefined) && !row.subjects.length) error = 'No result data';
         else if (row.sgpa && (!Number.isFinite(Number(row.sgpa)) || Number(row.sgpa) < 0 || Number(row.sgpa) > 10)) error = 'SGPA must be from 0 to 10';
         else if (row.cgpa && (!Number.isFinite(Number(row.cgpa)) || Number(row.cgpa) < 0 || Number(row.cgpa) > 10)) error = 'CGPA must be from 0 to 10';
+        else if (row.backlogs !== '' && row.backlogs !== undefined && (!Number.isInteger(Number(row.backlogs)) || Number(row.backlogs) < 0)) error = 'Backlogs must be a non-negative whole number';
         else if (row.subjects.some(subject => subject.marks !== null && (!Number.isFinite(subject.marks) || subject.marks < 0 || subject.marks > 100))) error = 'Subject marks must be from 0 to 100';
         return { ...row, student, error };
       });

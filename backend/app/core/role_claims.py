@@ -6,7 +6,7 @@ def claims_for_role(role: str) -> dict:
     claims = {"role": normalized}
     if normalized == "ADMIN":
         claims["admin"] = True
-    elif normalized in {"DEAN", "HOD", "SECTION_HEAD", "CLASS_TEACHER"}:
+    elif normalized in {"DEAN", "HOD", "SECTION_HEAD", "CLASS_TEACHER", "MENTOR"}:
         claims["platform_role"] = normalized
     return claims
 

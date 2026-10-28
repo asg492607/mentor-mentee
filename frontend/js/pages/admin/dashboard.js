@@ -330,7 +330,7 @@ export async function render(container) {
     });
 
     document.getElementById('btn-dash-download-template').addEventListener('click', () => {
-      const csvContent = "role,name,email,password,department,class,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,Computer Science,A,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,Computer Science,,EMP001\n";
+      const csvContent = "role,name,email,password,department,class,enrollmentNumber\nSTUDENT,Sample Student,student@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,A,EN1001\nFACULTY,Sample Faculty,faculty@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,,EMP001\n";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -377,8 +377,8 @@ export async function render(container) {
     // Student CSV template download
     document.getElementById('btn-rpt-csv-students')?.addEventListener('click', () => {
       const csv = "role,name,email,password,department,class,enrollmentNumber\n" +
-        "STUDENT,John Doe,john.doe@university.edu,pass123,Computer Science,TY-A,EN2024001\n" +
-        "STUDENT,Jane Smith,jane.smith@university.edu,pass123,Computer Science,TY-B,EN2024002\n";
+        "STUDENT,Sample Student 1,student1@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,TY-A,EN2024001\n" +
+        "STUDENT,Sample Student 2,student2@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,TY-B,EN2024002\n";
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -390,8 +390,8 @@ export async function render(container) {
     // Faculty CSV template download
     document.getElementById('btn-rpt-csv-faculty')?.addEventListener('click', () => {
       const csv = "role,name,email,password,department,employeeId,designation\n" +
-        "FACULTY,Dr. A. Sharma,a.sharma@university.edu,pass123,Computer Science,EMP001,Associate Professor\n" +
-        "HOD,Dr. B. Patel,b.patel@university.edu,pass123,Computer Science,EMP002,Head of Department\n";
+        "FACULTY,Sample Faculty,faculty@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,EMP001,Associate Professor\n" +
+        "HOD,Sample HOD,hod@example.com,REPLACE_WITH_STRONG_PASSWORD,Computer Science,EMP002,Head of Department\n";
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

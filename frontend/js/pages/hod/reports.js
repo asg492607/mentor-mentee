@@ -7,7 +7,22 @@ import { StatsService, MeetingService } from '/js/services.js';
 import { showModal } from '/js/components/modal.js';
 import { exportMentorStudentReport, exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
 import { showToast } from '/js/components/toast.js';
-import { escapeHtml } from '/js/utils.js';
+import { departmentScope, escapeHtml } from '/js/utils.js';
+
+const attendanceTime = value => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+const attendanceDuration = seconds => {
+  if (seconds === null || seconds === undefined || seconds === '') return '—';
+  const duration = Number(seconds);
+  if (!Number.isFinite(duration) || duration < 0) return '—';
+  const mins = Math.floor(duration / 60);
+  const hours = Math.floor(mins / 60);
+  return hours ? `${hours}h ${mins % 60}m` : `${mins}m`;
+};
+const distinctAttendeeCount = attendees => new Set(attendees.map(item => item?.userId || item?.name).filter(Boolean)).size;
 
 export async function render(container) {
   const user = getUserProfile();
@@ -26,9 +41,10 @@ export async function render(container) {
 
   try {
     const dept = user.department;
+    const deptScope = departmentScope(user);
     const [data, meetings] = await Promise.all([
-      StatsService.getDeptStats(dept),
-      MeetingService.getByDepartment(dept).catch(() => [])
+      StatsService.getDeptStats(deptScope),
+      MeetingService.getByDepartment(deptScope).catch(() => [])
     ]);
     const { totalStudents = 0, totalMentors = 0, highRiskStudents = 0, resolvedIssues = 0, students = [], mentors = [] } = data;
 
@@ -214,7 +230,7 @@ export async function render(container) {
             <select id="filter-meeting-status" class="form-select" style="padding:8px 12px; font-size:0.85rem;">
               <option value="">All Statuses</option>
               <option value="COMPLETED">Completed Reports</option>
-              <option value="HAS_ATTENDEES">With Verified Attendance</option>
+              <option value="HAS_ATTENDEES">With Attendance Events</option>
               <option value="HAS_AI">AI Intelligence Generated</option>
             </select>
           </div>
@@ -312,7 +328,7 @@ export async function render(container) {
               const timeFormatted = dtStr ? new Date(dtStr).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '';
               
               const attendees = Array.isArray(m.attendees) ? m.attendees : [];
-              const attendeeCount = attendees.length > 0 ? attendees.length : (m.attendanceCount || (m.studentId && m.studentId !== 'ALL' ? 1 : 0));
+              const attendeeCount = attendees.length > 0 ? distinctAttendeeCount(attendees) : (m.attendanceCount || (m.studentId && m.studentId !== 'ALL' ? 1 : 0));
               
               const notesSnippet = m.notes?.issuesDiscussed || m.notes?.problem || m.notes?.summary || m.aiNotes?.summary || m.description || 'No written minutes';
               const cleanNotes = String(notesSnippet).replace(/<[^>]*>/g, '').slice(0, 75) + (notesSnippet.length > 75 ? '...' : '');
@@ -343,9 +359,9 @@ export async function render(container) {
                     <button class="badge ${attendeeCount > 0 ? 'badge-success' : 'badge-secondary'} btn-view-attendance" data-id="${m.id}" style="cursor:pointer; border:none; display:inline-flex; align-items:center; gap:4px; font-weight:700; padding:4px 8px;" title="Click to view attendee timestamps">
                       <i class="ph ph-users"></i> ${attendeeCount} Attended
                     </button>
-                    ${attendees.length > 0 && attendees[0]?.joinedAt ? `
+                    ${attendees.length > 0 && [...attendees].sort((a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0))[0]?.joinedAt ? `
                       <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px;">
-                        First joined: ${new Date(attendees[0].joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
+                        First joined: ${attendanceTime([...attendees].sort((a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0))[0].joinedAt)}
                       </div>
                     ` : ''}
                   </td>
@@ -359,10 +375,10 @@ export async function render(container) {
                   </td>
                   <td style="padding:12px; text-align:center;">
                     <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:nowrap;">
-                      <button class="btn btn-xs btn-primary btn-view-report" data-id="${m.id}" title="View official meeting report" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
+                      <button class="btn btn-xs btn-primary btn-view-report" data-id="${m.id}" title="View meeting report" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
                         <i class="ph ph-file-text"></i> View
                       </button>
-                      <button class="btn btn-xs btn-secondary btn-download-meet-pdf" data-id="${m.id}" title="Download / Print Official PDF" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
+                      <button class="btn btn-xs btn-secondary btn-download-meet-pdf" data-id="${m.id}" title="Download / Print PDF" style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; border-radius:6px;">
                         <i class="ph ph-printer" style="color:var(--danger);"></i> PDF
                       </button>
                     </div>
@@ -421,17 +437,18 @@ export async function render(container) {
           const issues = rpt.issuesDiscussed || ai.issuesDiscussed || targetMeeting.notes?.issuesDiscussed || targetMeeting.notes?.summary || 'No issues recorded';
           const action = rpt.actionItems || ai.actionItems || targetMeeting.notes?.actionTaken || targetMeeting.notes?.advice || 'No action specified';
           const attendees = Array.isArray(targetMeeting.attendees) ? targetMeeting.attendees : [];
+          const timeline = [...attendees].sort((a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0));
 
           showModal({
-            title: 'Official Mentorship Session Report',
+            title: 'Meeting Report',
             size: 'lg',
             content: `
               <div style="display:flex; flex-direction:column; gap:16px;">
                 <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
                   <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Topic</strong><div style="font-weight:700; font-size:0.9rem;">${escapeHtml(topic)}</div></div>
                   <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Faculty Mentor</strong><div style="font-weight:600;">${escapeHtml(targetMeeting.mentorName || 'Faculty')}</div></div>
-                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Department</strong><div>${escapeHtml(dept || 'CSE Core')}</div></div>
-                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Head of Department</strong><div style="font-weight:600; color:var(--accent);">Dr. Suvarna Pawar</div></div>
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Department</strong><div>${escapeHtml(dept || 'Department')}</div></div>
+                  <div><strong style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Head of Department</strong><div style="font-weight:600; color:var(--accent);">${escapeHtml(user.name || 'Head of Department')}</div></div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:0;">
@@ -450,23 +467,25 @@ export async function render(container) {
 
                 <div class="form-group" style="margin-bottom:0;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <label class="form-label" style="font-weight:700; font-size:0.85rem; margin:0;">Verified Attendee Roster &amp; Timestamps</label>
-                    <span class="badge badge-success">${attendees.length} Present</span>
+                    <label class="form-label" style="font-weight:700; font-size:0.85rem; margin:0;">Attendance Timeline</label>
+                    <span class="badge badge-success">${distinctAttendeeCount(attendees)} Participant${distinctAttendeeCount(attendees) === 1 ? '' : 's'} · ${attendees.length} interval${attendees.length === 1 ? '' : 's'}</span>
                   </div>
                   ${attendees.length === 0 ? `
                     <p style="color:var(--text-muted); font-size:0.82rem; margin:0;">No individual attendees logged.</p>
                   ` : `
                     <div style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
                       <table class="data-table" style="width:100%; margin:0;">
-                        <thead><tr><th>#</th><th>Name</th><th>Role</th><th>PRN / Enrollment</th><th>Joined Timestamp</th></tr></thead>
+                        <thead><tr><th>#</th><th>Participant</th><th>Role</th><th>PRN / Enrollment</th><th>Joined</th><th>Left</th><th>Duration</th></tr></thead>
                         <tbody>
-                          ${attendees.map((a, i) => `
+                          ${timeline.map((a, i) => `
                             <tr>
                               <td style="font-size:0.8rem; color:var(--text-muted);">${i + 1}</td>
                               <td style="font-weight:600;">${escapeHtml(a.name || 'Participant')}</td>
                               <td><span class="badge badge-secondary" style="font-size:0.7rem;">${escapeHtml(a.role || 'STUDENT')}</span></td>
                               <td>${escapeHtml(a.enrollmentNumber || a.prn || '—')}</td>
-                              <td style="color:var(--accent); font-weight:600;">${a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : (a.timestamp || 'Joined')}</td>
+                              <td style="color:var(--accent); font-weight:600;">${attendanceTime(a.joinedAt)}</td>
+                              <td>${attendanceTime(a.leftAt)}</td>
+                              <td>${attendanceDuration(a.durationSeconds)}</td>
                             </tr>
                           `).join('')}
                         </tbody>
@@ -476,7 +495,7 @@ export async function render(container) {
                 </div>
               </div>
             `,
-            confirmText: 'Download Official PDF',
+            confirmText: 'Download PDF',
             cancelText: 'Close',
             onConfirm: (close) => {
               exportMeetingSessionReport(targetMeeting);
@@ -491,29 +510,32 @@ export async function render(container) {
           const mId = btn.dataset.id;
           const targetMeeting = meetings.find(x => x.id === mId);
           if (!targetMeeting) return showToast('Meeting data not found', 'error');
-          const attendees = Array.isArray(targetMeeting.attendees) ? targetMeeting.attendees : [];
+          const attendees = [...(Array.isArray(targetMeeting.attendees) ? targetMeeting.attendees : [])]
+            .sort((a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0));
 
           showModal({
-            title: 'Session Attendance & Join Timestamps',
+            title: 'Meeting Attendance Timeline',
             size: 'md',
             content: `
               <div style="display:flex; flex-direction:column; gap:12px;">
                 <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">
-                  Session: <strong>${escapeHtml(targetMeeting.type || 'Mentorship Session')}</strong>
+                  Session: <strong>${escapeHtml(targetMeeting.type || 'Mentorship Session')}</strong>. Times use local time; a missing leave time means no departure event was recorded.
                 </div>
                 ${attendees.length === 0 ? `
                   <p style="padding:20px; text-align:center; color:var(--text-muted);">No attendee check-in records found.</p>
                 ` : `
                   <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
                     <table class="data-table" style="width:100%; margin:0;">
-                      <thead><tr><th>#</th><th>Name</th><th>PRN / ID</th><th>Join Timestamp</th></tr></thead>
+                      <thead><tr><th>#</th><th>Participant</th><th>PRN / ID</th><th>Joined</th><th>Left</th><th>Duration</th></tr></thead>
                       <tbody>
                         ${attendees.map((a, i) => `
                           <tr>
                             <td>${i + 1}</td>
                             <td style="font-weight:600;">${escapeHtml(a.name || 'Participant')}</td>
                             <td>${escapeHtml(a.enrollmentNumber || a.prn || '—')}</td>
-                            <td style="color:var(--success); font-weight:700;">${a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : (a.timestamp || 'Joined')}</td>
+                            <td style="color:var(--success); font-weight:700;">${attendanceTime(a.joinedAt)}</td>
+                            <td>${attendanceTime(a.leftAt)}</td>
+                            <td>${attendanceDuration(a.durationSeconds)}</td>
                           </tr>
                         `).join('')}
                       </tbody>

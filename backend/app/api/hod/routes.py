@@ -16,16 +16,36 @@ from app.schemas.issue import IssueEscalateRequest
 
 router = APIRouter(prefix="/hod", tags=["HOD"])
 
+
+def _department_scope(user: dict) -> str:
+    if user.get("departmentId"):
+        return f"id:{user['departmentId']}"
+    department = str(user.get("department") or "")
+    return f"legacy:{department}|{str(user.get('schoolId') or '')}" if department else ""
+
+
+def _same_department(user: dict, record: dict) -> bool:
+    user_id = user.get("departmentId")
+    record_id = record.get("departmentId")
+    if user_id or record_id:
+        return bool(user_id and record_id and user_id == record_id)
+    user_school = user.get("schoolId")
+    record_school = record.get("schoolId")
+    if user_school or record_school:
+        return bool(user_school and record_school and user_school == record_school
+                    and user.get("department") == record.get("department"))
+    return bool(user.get("department")) and user.get("department") == record.get("department")
+
 def get_hod_user(user = Depends(require_role(UserRole.HOD))):
     return user
 
 @router.get("/dashboard")
 def get_dashboard(user = Depends(get_hod_user), report_service: ReportService = Depends()):
-    return report_service.get_dashboard_stats(UserRole.HOD.value, user['uid'], user.get('department'))
+    return report_service.get_dashboard_stats(UserRole.HOD.value, user['uid'], _department_scope(user))
 
 @router.get("/risk-students")
 def get_risk_students(user = Depends(get_hod_user), risk_service: RiskService = Depends()):
-    return risk_service.get_high_risk_students(user.get('department'))
+    return risk_service.get_high_risk_students(_department_scope(user))
 
 @router.get("/escalations")
 def get_escalations(user = Depends(get_hod_user)):
@@ -34,12 +54,12 @@ def get_escalations(user = Depends(get_hod_user)):
     issues = issue_repo.get_escalated('HOD')
     visible = []
     for issue in issues:
-        department = issue.get('department')
+        placement = issue
         student_id = issue.get('studentId')
-        if not department and student_id:
+        if student_id and not issue.get('departmentId'):
             student = student_repo.get_by_id(student_id)
-            department = (student or {}).get('department')
-        if department == user.get('department'):
+            placement = {**issue, **(student or {})}
+        if _same_department(user, placement):
             visible.append(issue)
     return visible
 
@@ -50,8 +70,8 @@ def escalate_issue(issue_id: str, data: IssueEscalateRequest, user = Depends(get
         raise NotFoundException("Issue not found")
     student_id = issue.get('studentId')
     student = StudentRepository().get_by_id(student_id) if student_id else None
-    department = issue.get('department') or (student or {}).get('department')
-    if department != user.get('department') or issue.get('escalationLevel') != 'HOD':
+    placement = issue if issue.get('departmentId') else {**issue, **(student or {})}
+    if not _same_department(user, placement) or issue.get('escalationLevel') != 'HOD':
         raise ForbiddenException("You can only escalate issues assigned to your department")
     if data.targetLevel.value != 'DEAN':
         raise BadRequestException("HODs can escalate issues only to the dean")
@@ -64,8 +84,8 @@ def update_issue(issue_id: str, data: dict, user = Depends(get_hod_user), issue_
         raise NotFoundException("Issue not found")
     student_id = issue.get('studentId')
     student = StudentRepository().get_by_id(student_id) if student_id else None
-    department = issue.get('department') or (student or {}).get('department')
-    if department != user.get('department') or issue.get('escalationLevel') != 'HOD':
+    placement = issue if issue.get('departmentId') else {**issue, **(student or {})}
+    if not _same_department(user, placement) or issue.get('escalationLevel') != 'HOD':
         raise ForbiddenException("You can only update issues in your department")
     allowed_fields = {"status", "resolution", "actionTaken", "updatedAt"}
     if not set(data).issubset(allowed_fields):
@@ -77,8 +97,9 @@ def update_issue(issue_id: str, data: dict, user = Depends(get_hod_user), issue_
 @router.get("/mentors")
 def get_mentors(user = Depends(get_hod_user)):
     faculty_repo = FacultyRepository()
-    if user.get('department'):
-        return faculty_repo.get_by_department(user.get('department'))
+    scope = _department_scope(user)
+    if scope:
+        return faculty_repo.get_by_department(scope)
     return []
 
 
@@ -88,7 +109,7 @@ def approve_faculty(faculty_id: str, user=Depends(get_hod_user)):
     profile = faculty_repo.get_by_id(faculty_id)
     if not profile:
         raise NotFoundException("Faculty account not found")
-    if profile.get("department") != user.get("department"):
+    if not _same_department(user, profile):
         raise ForbiddenException("You can only approve faculty in your department")
     if profile.get("role") != UserRole.FACULTY.value or profile.get("status") != "pending":
         raise BadRequestException("Only pending faculty accounts can be approved by an HOD")

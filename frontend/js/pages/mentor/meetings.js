@@ -762,7 +762,10 @@ export async function render(container) {
           topic: desc, 
           description: desc, 
           scheduledAt: date,
-          department: user.department || 'Department of Computer Science & Engineering (Core)',
+          department: user.department || '',
+          departmentId: user.departmentId || null,
+          schoolId: user.schoolId || null,
+          schoolName: user.schoolName || '',
           students: students.map(s => ({ name: s.name, studentName: s.name, enrollment: s.enrollmentNumber || s.rollNo || '—' })),
           status: 'APPROVED'
         };
@@ -793,7 +796,10 @@ export async function render(container) {
           studentId: student.id, 
           studentName: student.name,
           studentEnrollment: student.enrollmentNumber || student.rollNo || '—',
-          department: student.department || user.department || 'Department of Computer Science & Engineering (Core)',
+          department: student.department || user.department || '',
+          departmentId: student.departmentId || user.departmentId || null,
+          schoolId: student.schoolId || user.schoolId || null,
+          schoolName: student.schoolName || user.schoolName || '',
           type, 
           topic: desc, 
           description: desc, 

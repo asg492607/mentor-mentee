@@ -18,4 +18,4 @@ class IssueRepository(BaseRepository):
         return self.query(filters=[('escalationLevel', '==', level)])
 
     def get_by_department(self, dept: str) -> list[dict]:
-        return self.query(filters=[('department', '==', dept)])
+        return self.query_department_scope(dept)

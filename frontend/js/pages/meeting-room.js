@@ -48,12 +48,10 @@ export async function render(container) {
   }
 
   const isMentor = isFacultyRole || (meeting?.mentorId === user.id);
+  const attendanceSessionId = globalThis.crypto?.randomUUID?.() || `${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   // Automatically record attendance and joined timestamp
-  try {
-    MeetingService.recordAttendance(meetingId, user);
-  } catch (attErr) {
-    console.warn('[Meeting Attendance] Error recording attendee:', attErr);
-  }
+  const attendanceJoinPromise = MeetingService.recordAttendance(meetingId, { sessionId: attendanceSessionId });
+  let attendanceDeparturePromise = null;
 
 
   container.innerHTML = `
@@ -292,7 +290,7 @@ export async function render(container) {
                     <i class="ph ph-cards"></i> Flashcards
                   </button>
                   <button class="btn btn-secondary btn-sm" id="btn-issue-certificate" style="padding:10px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; background:#fffbeb; color:#b45309; border:1px solid #fde68a;">
-                    <i class="ph ph-certificate"></i> 🎖️ Certificate
+                    <i class="ph ph-clipboard-text"></i> Session Record
                   </button>
                 </div>
 
@@ -302,19 +300,19 @@ export async function render(container) {
                     <span style="font-size:0.82rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
                       📊 Live Talk-Time Distribution
                     </span>
-                    <span id="engagement-score-pill" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:#dcfce7; color:#15803d; font-weight:700;">Active 95%</span>
+                    <span id="engagement-score-pill" style="font-size:0.7rem; padding:2px 6px; border-radius:10px; background:#f1f5f9; color:#475569; font-weight:700;">No speech activity yet</span>
                   </div>
                   <div class="engagement-meter-bar">
-                    <div class="talk-time-mentor" id="talk-meter-mentor" style="width: 55%;" title="Mentor Talk Time"></div>
+                    <div class="talk-time-mentor" id="talk-meter-mentor" style="width: 0%;" title="Mentor Talk Time"></div>
                     <div class="talk-time-student" id="talk-meter-student" style="width: 45%;" title="Student Talk Time"></div>
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748b; margin-top:4px;">
-                    <span>👨‍🏫 Host: <strong id="talk-pct-mentor" style="color:#4338ca;">55%</strong></span>
-                    <span>🎓 Student: <strong id="talk-pct-student" style="color:#059669;">45%</strong></span>
+                    <span>👨‍🏫 Host: <strong id="talk-pct-mentor" style="color:#4338ca;">—</strong></span>
+                    <span>🎓 Student: <strong id="talk-pct-student" style="color:#059669;">—</strong></span>
                   </div>
                   ${isMentor ? `
                   <button class="btn btn-sm btn-ghost" id="btn-export-audit-csv" style="width:100%; margin-top:8px; font-size:0.72rem; color:#0284c7; border:1px solid #bae6fd; border-radius:6px;">
-                    📥 Download Attendance &amp; Engagement Audit (.CSV)
+                    📥 Download Attendance Timeline (.CSV)
                   </button>` : ''}
                 </div>
 
@@ -536,7 +534,7 @@ export async function render(container) {
                     <span style="font-size:0.68rem; padding:2px 8px; border-radius:10px; background:rgba(99,102,241,0.3); color:#a5b4fc; font-weight:700;">1-CLICK AI</span>
                   </div>
                   <p style="font-size:0.75rem; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
-                    Synthesizes meeting checklists, poll votes, quiz performance &amp; transcripts into official minutes.
+                    Drafts meeting notes from recorded checklists, poll votes, quiz results, and transcripts.
                   </p>
                   <button class="btn btn-sm btn-primary" id="btn-synthesize-mom" style="width:100%; border-radius:8px; font-weight:700;">
                     🚀 Synthesize Session Minutes Now
@@ -555,7 +553,7 @@ export async function render(container) {
                     🎯 Assign Remedial Action Task
                   </div>
                   <p style="font-size:0.72rem; color:#cbd5e1; margin-bottom:8px; line-height:1.4;">
-                    Directly creates an official actionable task for the student in their academic portal.
+                    Adds a follow-up task to the student's portal when the mentor records one.
                   </p>
                   <input type="text" id="remedial-task-title" class="report-input" placeholder="e.g. Complete DBMS Module 2 Assignment" style="margin-bottom:6px; font-size:0.78rem;">
                   <div style="display:flex; gap:6px; margin-bottom:8px;">
@@ -576,8 +574,8 @@ export async function render(container) {
               <div id="panel-report" hidden>
                 <div class="report-form-scroll">
 
-                  <div class="report-section-title">📋 Official MIT-ADT Mentorship Report</div>
-                  <p class="report-section-desc">Generate official institutional records for university HOD/Dean compliance.</p>
+                  <div class="report-section-title">📋 Meeting Report</div>
+                  <p class="report-section-desc">Review meeting details, attendance events, notes, and sign-off fields before exporting.</p>
 
                   <!-- Meeting Info -->
                   <div class="report-field-group">
@@ -632,6 +630,7 @@ export async function render(container) {
                     <div class="report-field-group" style="flex:1;">
                       <label class="report-label">🚨 Risk Assessment Level</label>
                       <select id="rpt-risk" class="report-input" style="border-radius:8px;font-weight:700;">
+                        <option value="NOT_ASSESSED" selected>⚪ Not assessed</option>
                         <option value="LOW">🟢 LOW RISK (Normal Progress)</option>
                         <option value="MEDIUM">🟡 MEDIUM RISK (Needs Academic Monitoring)</option>
                         <option value="HIGH">🔴 HIGH RISK (Immediate Intervention Required)</option>
@@ -639,13 +638,13 @@ export async function render(container) {
                     </div>
                     <div class="report-field-group" style="flex:1;">
                       <label class="report-label">🏢 Department</label>
-                      <input id="rpt-dept" class="report-input" type="text" placeholder="Department" value="${escapeHtml(meeting.department || 'Department of Computer Science & Engineering (Core)')}">
+                      <input id="rpt-dept" class="report-input" type="text" placeholder="Department" value="${escapeHtml(meeting.department || '')}">
                     </div>
                   </div>
 
                   <!-- Signature Section -->
                   <div class="report-sig-section">
-                    <div class="report-sig-title">✍️ Signature Block</div>
+                    <div class="report-sig-title">✍️ Review and Sign-off</div>
 
                     <div class="report-sig-row">
                       <div class="report-sig-box">
@@ -662,25 +661,22 @@ export async function render(container) {
                       </div>
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
-                        <div class="report-sig-name">Verify By</div>
-                        <div class="report-sig-person" style="font-size:0.68rem; line-height:1.25;">
-                          <div>Dr. Nilesh Thorat</div>
-                          <div>Dr. Aman Singh</div>
-                        </div>
-                        <div class="report-sig-role">Verification Committee</div>
+                        <div class="report-sig-name">Verified By</div>
+                        <input id="rpt-verifier-name" class="report-sig-input" type="text" placeholder="Reviewer name (optional)">
+                        <div class="report-sig-role">Reviewer</div>
                       </div>
                       <div class="report-sig-box">
                         <div class="report-sig-line"></div>
                         <div class="report-sig-name">Approved By</div>
-                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="HOD Name" value="Dr. Suvarna Pawar">
-                        <div class="report-sig-role">Head of Department (CSE Core)</div>
+                        <input id="rpt-hod-name" class="report-sig-input" type="text" placeholder="Approver name (optional)">
+                        <div class="report-sig-role">Head of Department</div>
                       </div>
                     </div>
                   </div>
 
                   <div class="report-actions">
                     <button class="btn-report-ai-extract" id="btn-ai-extract-report" title="Auto-extract issues, actions & notes from transcript using AI">⚡ AI Auto-Extract to Report</button>
-                    <button class="btn-report-ai-draft" id="btn-ai-draft-report" title="Generate a complete official report draft using AI">✨ AI Draft Official Report</button>
+                    <button class="btn-report-ai-draft" id="btn-ai-draft-report" title="Generate a report draft using AI">✨ AI Draft Report</button>
                     <button class="btn-report-save" id="btn-save-report">💾 Save Report</button>
                     <button class="btn-report-generate" id="btn-generate-report">🖨️ Generate & Print</button>
                   </div>
@@ -988,7 +984,7 @@ export async function render(container) {
                   <span class="step-icon" style="font-size:1.1rem;">⏳</span> <span>AI analyzing audio: Extracting Agenda &amp; Issues Discussed...</span>
                 </div>
                 <div id="step-report" style="display:flex;align-items:center;gap:10px;font-size:0.86rem;color:#cbd5e1;">
-                  <span class="step-icon" style="font-size:1.1rem;">⏳</span> <span>Filling official institutional report &amp; assigning tasks...</span>
+                  <span class="step-icon" style="font-size:1.1rem;">⏳</span> <span>Preparing a report draft from recorded session details...</span>
                 </div>
               </div>
             </div>
@@ -1026,7 +1022,7 @@ export async function render(container) {
 
               <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
                 <button class="btn btn-secondary btn-sm" id="btn-post-print-report" style="border-radius:8px;padding:9px 18px;font-weight:700;display:flex;align-items:center;gap:6px;">
-                  <span>🖨️</span> View / Print Official Report (PDF)
+                  <span>🖨️</span> View / Print Meeting Report (PDF)
                 </button>
                 <button class="btn btn-primary btn-sm" id="btn-post-exit-dashboard" style="border-radius:8px;padding:9px 20px;font-weight:700;background:#6366f1;">
                   Done &amp; Return to Dashboard
@@ -2491,8 +2487,8 @@ export async function render(container) {
       // Open report panel so mentor can review immediately
       if (typeof openPanelTab === 'function') openPanelTab('report');
 
-      const riskEmoji = insights.riskLevel === 'HIGH' ? '🔴' : insights.riskLevel === 'MEDIUM' ? '🟡' : '🟢';
-      showToast(`✅ AI extraction complete! Report populated. Risk: ${riskEmoji} ${insights.riskLevel || 'LOW'}`, 'success');
+      const riskEmoji = insights.riskLevel === 'HIGH' ? '🔴' : insights.riskLevel === 'MEDIUM' ? '🟡' : insights.riskLevel === 'LOW' ? '🟢' : '⚪';
+      showToast(`✅ AI draft ready for review. Risk: ${riskEmoji} ${(insights.riskLevel || 'NOT_ASSESSED').replace('_', ' ')}`, 'success');
     } catch (err) {
       console.error('AI extraction error:', err);
       showToast('AI extraction failed: ' + err.message, 'error');
@@ -2503,7 +2499,7 @@ export async function render(container) {
 
   // AI Draft Official Report handler
   document.getElementById('btn-ai-draft-report')?.addEventListener('click', async () => {
-    showToast('✨ AI generating official report draft...', 'info');
+      showToast('✨ AI generating a report draft...', 'info');
 
     try {
       const transcript = fullTranscriptLog.join('\n');
@@ -2534,7 +2530,7 @@ export async function render(container) {
 
       if (typeof openPanelTab === 'function') openPanelTab('report');
 
-      showToast('✅ AI official report draft generated!', 'success');
+      showToast('✅ AI report draft generated for review.', 'success');
     } catch (err) {
       console.error('AI draft report error:', err);
       showToast('AI draft failed: ' + err.message, 'error');
@@ -2578,7 +2574,7 @@ export async function render(container) {
         transcript: 'Live Speech Transcript',
         controls: 'Host Control Center', 
         notes: 'Session Notes & MOM', 
-        report: 'Official Report Generation' 
+        report: 'Report Draft Generation'
       };
       sidePanelTitle.textContent = titles[panelName] || 'Meeting Panel';
     }
@@ -3101,7 +3097,7 @@ export async function render(container) {
   const presentationSlides = [
     {
       title: "1. Mentorship Session Objective & Review",
-      subtitle: "MIT-ADT University • School of Computing",
+      subtitle: `${meeting.schoolName || 'MIT ADT University'} • ${meeting.department || 'Department not recorded'}`,
       content: "• Review academic progress, internal assessment scores & practical submissions.\n• Address subject bottlenecks and formulate actionable study strategies.\n• Evaluate technical skills, capstone project status, and placement milestones."
     },
     {
@@ -3121,8 +3117,8 @@ export async function render(container) {
     },
     {
       title: "5. Session Summary & Agreed Action Items",
-      subtitle: "Official Institutional Compliance Record",
-      content: "• 1. Complete designated coding practice problems before next check-in.\n• 2. Submit pending coursework and laboratory assignments.\n• 3. Next Mentorship Check-in: Scheduled in 14 days."
+      subtitle: "Record only the steps agreed during this meeting",
+      content: "• Add actions agreed during the session.\n• Record owners and due dates when participants confirm them.\n• No follow-up dates are generated automatically."
     }
   ];
 
@@ -3315,8 +3311,8 @@ export async function render(container) {
   }
 
   // Live Talk-Time & Engagement Analytics Tracker
-  let mentorTalkSec = 35;
-  let studentTalkSec = 25;
+  let mentorTalkSec = 0;
+  let studentTalkSec = 0;
 
   setTimeout(() => {
     if (localStream) {
@@ -3339,6 +3335,8 @@ export async function render(container) {
             if (barStudent) barStudent.style.width = `${studentPct}%`;
             if (txtMentor) txtMentor.textContent = `${mentorPct}%`;
             if (txtStudent) txtStudent.textContent = `${studentPct}%`;
+            const activity = document.getElementById('engagement-score-pill');
+            if (activity) activity.textContent = 'Speech activity captured';
           }
         }
       });
@@ -3346,39 +3344,39 @@ export async function render(container) {
   }, 3000);
 
   document.getElementById('btn-export-audit-csv')?.addEventListener('click', () => {
-    const total = mentorTalkSec + studentTalkSec;
-    const mentorPct = total > 0 ? Math.round((mentorTalkSec / total) * 100) : 55;
-    const studentPct = 100 - mentorPct;
-
+    const attendees = Array.isArray(meeting.attendees) ? [...meeting.attendees] : [];
+    attendees.sort((a, b) => String(a.joinedAt || '').localeCompare(String(b.joinedAt || '')));
     const rows = [
-      ['MIT-ADT UNIVERSITY - OFFICIAL MENTORSHIP SESSION AUDIT REPORT'],
+      ['MIT ADT UNIVERSITY - MEETING ATTENDANCE RECORD'],
       ['Generated At', new Date().toISOString()],
       ['Meeting ID', meetingId],
-      ['Topic', meeting.type || '1-on-1 Mentorship Session'],
-      ['Host / Mentor', meeting.mentorName || user.name],
-      ['Department', meeting.department || 'Computer Science & Engineering'],
-      ['Status', 'COMPLETED / VERIFIED'],
+      ['Topic', meeting.type || meeting.description || 'Mentorship Session'],
+      ['Host / Mentor', meeting.mentorName || user.name || ''],
+      ['Department', meeting.department || ''],
+      ['Meeting Status', meeting.status || 'UNKNOWN'],
       [],
-      ['PARTICIPANT ENGAGEMENT & TALK-TIME AUDIT'],
-      ['Participant Name', 'Role', 'Talk Time (%)', 'Diagnostic Quiz Score', 'Attendance Status'],
-      [meeting.mentorName || 'Mentor', 'Host', `${mentorPct}%`, 'N/A (Host)', 'PRESENT'],
-      [meeting.studentName || 'Student Participant', 'Student', `${studentPct}%`, `${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)`, 'PRESENT'],
-      [],
-      ['COMPLIANCE VERIFICATION'],
-      ['E2E Encryption', 'Verified DTLS-SRTP'],
-      ['Minutes of Meeting Generated', 'YES (Smart MOM Synthesized)'],
-      ['Verified By', 'Dr. Nilesh Thorat, Dr. Aman Singh']
+      ['ATTENDANCE TIMELINE'],
+      ['Participant Name', 'Role', 'Joined At', 'Left At', 'Duration (seconds)', 'Attendance Status'],
+      ...(attendees.length ? attendees.map(attendee => {
+        const start = attendee.joinedAt ? new Date(attendee.joinedAt).getTime() : NaN;
+        const end = attendee.leftAt ? new Date(attendee.leftAt).getTime() : NaN;
+        const duration = Number.isFinite(Number(attendee.durationSeconds))
+          ? Number(attendee.durationSeconds)
+          : Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, Math.floor((end - start) / 1000)) : '';
+        const status = attendee.status || (attendee.attended === true ? 'ATTENDED' : attendee.joinedAt ? 'JOINED' : 'NOT RECORDED');
+        return [attendee.name || attendee.studentName || 'Participant', attendee.role || '', attendee.joinedAt || '', attendee.leftAt || '', duration, status];
+      }) : [['No attendance events recorded', '', '', '', '', 'NOT RECORDED']])
     ];
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
+    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(row => row.map(csvCell).join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `mentorship_attendance_audit_${meetingId}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `meeting_attendance_${meetingId}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
-    showToast('Official Attendance & Engagement Audit (.CSV) downloaded!', 'success');
+    showToast('Meeting attendance timeline downloaded.', 'success');
   });
 
   // Web Audio Soundboard Synthesizer
@@ -3572,39 +3570,35 @@ export async function render(container) {
 
   document.getElementById('btn-synthesize-mom')?.addEventListener('click', () => {
     const checkedAgendas = [...document.querySelectorAll('.agenda-chk:checked')].map(c => c.dataset.item);
-    const studentsPresent = participants.map(p => p.name).join(', ') || meeting.studentName || 'Student';
+    const studentsPresent = participants.map(p => p.name).filter(Boolean).join(', ') || 'No live participant attendance recorded';
+    const quizSummary = quizQuestions.length
+      ? `${quizScore}/${quizQuestions.length} (${Math.round((quizScore / quizQuestions.length) * 100)}%)`
+      : 'No diagnostic quiz was recorded.';
+    const issuesSummary = meeting.report?.issuesDiscussed || meeting.aiNotes?.issuesDiscussed || meeting.notes?.issuesDiscussed || 'No discussion summary was recorded.';
+    const actionSummary = meeting.report?.actionItems || meeting.aiNotes?.actionItems || meeting.notes?.actionTaken || 'No follow-up actions were recorded.';
 
     const synthesizedMOM = `
-============================================================
-MINUTES OF MENTORSHIP MEETING (OFFICIAL INSTITUTIONAL RECORD)
+MEETING NOTES (AI-assisted draft; review before sharing)
 Topic: ${meeting.type || '1-on-1 Mentorship Session'}
 Date: ${new Date().toISOString().slice(0, 10)} | Time: ${new Date().toTimeString().slice(0, 5)}
 Mentor (Host): Prof. ${meeting.mentorName || user.name}
-Attendees Present: ${studentsPresent}
-Department: ${meeting.department || 'Department of Computer Science & Engineering (Core)'}
-============================================================
+Participants connected in this room: ${studentsPresent}
+Department: ${meeting.department || 'Not recorded'}
 
-1. EXECUTIVE SUMMARY & OBJECTIVE:
-Mentorship session conducted focusing on student academic progress, backlog eradication, and career guidance. The student actively engaged in problem-solving and diagnostic reviews.
+1. Discussion Summary:
+${issuesSummary}
 
-2. COMPLETED AGENDAS & ACTION ITEMS:
-${checkedAgendas.length > 0 ? checkedAgendas.map(a => `• [COMPLETED] ${a}`).join('\n') : '• Completed core academic review and attendance audit.'}
+2. Agenda items marked complete:
+${checkedAgendas.length > 0 ? checkedAgendas.map(a => `• ${a}`).join('\n') : 'No agenda items were marked complete.'}
 
-3. DIAGNOSTIC ASSESSMENT & UNDERSTANDING:
-• Rapid Diagnostic Assessment Score: ${quizScore}/${quizQuestions.length} (${Math.round((quizScore/quizQuestions.length)*100)}%)
-• Key Topics Clarified: Core conceptual doubts, subject fundamentals, coursework optimization.
+3. Diagnostic Assessment:
+${quizSummary}
 
-4. KEY MOMENTS & HIGHLIGHTS TIMELINE:
-${bookmarkedMoments.length > 0 ? bookmarkedMoments.map(m => `• [${m.time}] ${m.tag}${m.note ? `: ${m.note}` : ''} (Logged by ${m.user})`).join('\n') : '• No specific critical warnings tagged during this session.'}
+4. Key Moments:
+${bookmarkedMoments.length > 0 ? bookmarkedMoments.map(m => `• [${m.time}] ${m.tag}${m.note ? `: ${m.note}` : ''} (Logged by ${m.user})`).join('\n') : 'No key moments were recorded.'}
 
-5. ACADEMIC MATERIALS & TOPICS REVIEWED:
-Standard syllabus topics, coursework materials, and project documentation reviewed.
-
-6. NEXT MILESTONES & DEADLINES:
-• Complete remedial assignments before the upcoming internal assessment.
-• Submit weekly progress report to the mentor.
-• Next Scheduled Follow-up: 14 days from session date.
-============================================================
+5. Follow-up Actions:
+${actionSummary}
 `.trim();
 
     const notesArea = document.getElementById('meeting-notes');
@@ -3677,7 +3671,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       const actionItems = document.getElementById('rpt-actions')?.value.trim() || '';
       const remarks = document.getElementById('rpt-remarks')?.value.trim() || '';
       const confidentialObservations = document.getElementById('rpt-confidential')?.value.trim() || '';
-      const riskLevel = document.getElementById('rpt-risk')?.value || 'LOW';
+      const riskLevel = document.getElementById('rpt-risk')?.value || 'NOT_ASSESSED';
 
       const reportData = {
         topic: document.getElementById('rpt-topic')?.value.trim() || meeting.type || 'Mentorship Session',
@@ -3689,11 +3683,11 @@ Standard syllabus topics, coursework materials, and project documentation review
         remarks,
         confidentialObservations,
         riskLevel,
-        department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
+        department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || '',
         preparedBy: meeting.mentorName || user.name,
         checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
-        verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-        hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suvarna Pawar',
+        verifiedBy: document.getElementById('rpt-verifier-name')?.value.trim() || '',
+        hodName: document.getElementById('rpt-hod-name')?.value.trim() || '',
         savedAt: new Date().toISOString()
       };
 
@@ -3716,12 +3710,12 @@ Standard syllabus topics, coursework materials, and project documentation review
         confidentialObservations,
         remarks,
         riskLevel,
-        requiresEscalation: riskLevel === 'HIGH',
+        requiresEscalation: Boolean(insights.requiresEscalation),
         transcriptSource: 'session-report',
         generatedAt: new Date().toISOString()
       });
 
-      showToast('Official report saved and synchronized successfully!', 'success');
+      showToast('Meeting report saved successfully.', 'success');
     } catch (e) {
       showToast('Failed to save report: ' + e.message, 'error');
     }
@@ -3742,12 +3736,12 @@ Standard syllabus topics, coursework materials, and project documentation review
       actionItems: (() => { const val = document.getElementById('rpt-actions')?.value.trim(); return (val && val.length > 4 && !/^(n|na|nil|none)$/i.test(val)) ? val : (meeting.report?.actionItems || meeting.aiNotes?.actionItems || ''); })(),
       remarks: document.getElementById('rpt-remarks')?.value.trim() || '',
       confidentialObservations: document.getElementById('rpt-confidential')?.value.trim() || '',
-      riskLevel: document.getElementById('rpt-risk')?.value || 'LOW',
-      department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || 'Department of Computer Science & Engineering (Core)',
+      riskLevel: document.getElementById('rpt-risk')?.value || 'NOT_ASSESSED',
+      department: document.getElementById('rpt-dept')?.value.trim() || meeting.department || '',
       preparedBy: meeting.mentorName || user.name || '',
       checkedBy: document.getElementById('rpt-checker-name')?.value.trim() || '',
-      verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-      hodName: document.getElementById('rpt-hod-name')?.value.trim() || 'Dr. Suvarna Pawar'
+      verifiedBy: document.getElementById('rpt-verifier-name')?.value.trim() || '',
+      hodName: document.getElementById('rpt-hod-name')?.value.trim() || ''
     };
 
     exportMeetingSessionReport({ ...meeting, report: reportData });
@@ -3757,6 +3751,11 @@ Standard syllabus topics, coursework materials, and project documentation review
     activeMeetingCleanup = null;
     if (cleaned) return;
     cleaned = true;
+    attendanceDeparturePromise ||= (async () => {
+      await attendanceJoinPromise;
+      await MeetingService.recordAttendanceLeave(meetingId, attendanceSessionId);
+    })();
+    await attendanceDeparturePromise;
     clearInterval(timer);
     if (recognition && isCaptionsActive) {
       try { recognition.stop(); } catch (e) { }
@@ -3934,7 +3933,7 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
   }
 
-  // Official Mentorship Completion Certificate Generator
+  // Print a factual record from the current meeting details.
   document.getElementById('btn-issue-certificate')?.addEventListener('click', () => {
     openCertificateModal();
   });
@@ -3944,56 +3943,56 @@ Standard syllabus topics, coursework materials, and project documentation review
     const certModal = document.createElement('div');
     certModal.id = 'certificate-modal-root';
     certModal.className = 'modal-backdrop';
-    certModal.style.cssText = 'display:flex; z-index:10002; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
+    certModal.style.cssText = 'display:flex; z-index:10002; background:rgba(15,23,42,0.28); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
     
-    const studentName = meeting.studentName || 'Eng. Student';
+    const studentName = meeting.studentName || 'Student';
     const mentorName = meeting.mentorName || user.name;
     const certDate = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
-    const certHash = 'MITADT-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    const certificateRef = meeting.id ? String(meeting.id).slice(0, 12).toUpperCase() : 'SESSION';
 
     certModal.innerHTML = `
       <div class="certificate-modal-card">
         <div style="display:flex; justify-content:flex-end; margin-bottom: -10px;">
-          <button class="btn btn-ghost btn-sm" id="btn-close-cert" style="color:#fff; font-size:1.2rem; border-radius:50%; width:32px; height:32px; padding:0;">✕</button>
+          <button class="btn btn-ghost btn-sm" id="btn-close-cert" style="color:#334155; font-size:1.2rem; border-radius:50%; width:32px; height:32px; padding:0;">✕</button>
         </div>
         <div class="cert-gold-border">
-          <div style="font-size:0.8rem; font-weight:800; color:#fbbf24; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px;">
-            MIT ART, DESIGN &amp; TECHNOLOGY UNIVERSITY
+          <div style="font-size:0.8rem; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px;">
+            ${escapeHtml(meeting.schoolName || 'MIT ADT University')}
           </div>
-          <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:14px;">SCHOOL OF COMPUTING • DEPARTMENT OF CSE</div>
+          <div style="font-size:0.7rem; color:#64748b; margin-bottom:14px;">${escapeHtml(meeting.department || '')}</div>
           
-          <h1 style="font-size:1.6rem; font-weight:900; color:#fff; margin:0 0 10px 0; text-transform:uppercase; letter-spacing:1px;">
-            Certificate of Mentorship &amp; Academic Engagement
+          <h1 style="font-size:1.6rem; font-weight:900; color:#0f172a; margin:0 0 10px 0; text-transform:uppercase; letter-spacing:1px;">
+            Meeting Participation Record
           </h1>
-          <p style="font-size:0.85rem; color:#cbd5e1; margin:0 0 14px 0;">This official institutional credential certifies that</p>
+          <p style="font-size:0.85rem; color:#475569; margin:0 0 14px 0;">This session record notes that</p>
           
-          <div style="font-size:1.4rem; font-weight:900; color:#38bdf8; border-bottom:2px solid rgba(56,189,248,0.4); display:inline-block; padding:0 24px 4px 24px; margin-bottom:14px;">
+          <div style="font-size:1.4rem; font-weight:900; color:#0369a1; border-bottom:2px solid rgba(56,189,248,0.4); display:inline-block; padding:0 24px 4px 24px; margin-bottom:14px;">
             ${escapeHtml(studentName)}
           </div>
           
-          <p style="font-size:0.82rem; color:#cbd5e1; max-width:540px; margin:0 auto 16px auto; line-height:1.6;">
-            has actively participated in the academic mentorship session on <strong>"${escapeHtml(meeting.type || 'Academic Progress & Project Review')}"</strong> with exemplary attendance, technical curiosity, and academic compliance.
+          <p style="font-size:0.82rem; color:#475569; max-width:540px; margin:0 auto 16px auto; line-height:1.6;">
+            appears in the meeting record for <strong>"${escapeHtml(meeting.type || 'Mentorship Session')}"</strong>.
           </p>
 
-          <div style="display:flex; justify-content:space-around; align-items:center; border-top:1px solid rgba(255,255,255,0.1); padding-top:16px; margin-top:14px;">
+          <div style="display:flex; justify-content:space-around; align-items:center; border-top:1px solid #e2e8f0; padding-top:16px; margin-top:14px;">
             <div style="text-align:center;">
-              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Prof. ${escapeHtml(mentorName)}</div>
-              <div style="font-size:0.7rem; color:#94a3b8;">Faculty Mentor / Host</div>
+              <div style="font-size:0.85rem; font-weight:700; color:#0f172a;">Prof. ${escapeHtml(mentorName)}</div>
+              <div style="font-size:0.7rem; color:#64748b;">Faculty Mentor / Host</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:0.8rem; font-weight:700; color:#10b981;">✓ VERIFIED DIGITAL DOSSIER</div>
-              <div style="font-size:0.65rem; color:#64748b;">${certHash} • ${certDate}</div>
+              <div style="font-size:0.8rem; font-weight:700; color:#047857;">SESSION RECORD</div>
+              <div style="font-size:0.65rem; color:#64748b;">Reference: ${escapeHtml(certificateRef)} • ${certDate}</div>
             </div>
             <div style="text-align:center;">
-              <div style="font-size:0.85rem; font-weight:700; color:#f8fafc;">Dr. Suvarna Pawar</div>
-              <div style="font-size:0.7rem; color:#94a3b8;">Head of Department (CSE)</div>
+              <div style="font-size:0.85rem; font-weight:700; color:#0f172a;">${escapeHtml(meeting.status || 'Meeting record')}</div>
+              <div style="font-size:0.7rem; color:#64748b;">Status at export</div>
             </div>
           </div>
         </div>
 
         <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
           <button class="btn btn-primary btn-sm" id="btn-print-cert" style="border-radius:10px; font-weight:700; padding:8px 20px;">
-            🖨️ Print / Download Certificate
+            🖨️ Print / Download Record
           </button>
         </div>
       </div>
@@ -4028,29 +4027,29 @@ Standard syllabus topics, coursework materials, and project documentation review
     const modal = document.createElement('div');
     modal.id = 'flashcards-modal-root';
     modal.className = 'modal-backdrop';
-    modal.style.cssText = 'display:flex; z-index:10003; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
+    modal.style.cssText = 'display:flex; z-index:10003; background:rgba(15,23,42,0.28); backdrop-filter:blur(8px); position:fixed; inset:0; justify-content:center; align-items:center;';
 
     modal.innerHTML = `
-      <div class="modal" style="max-width:540px; width:90%; background:#0f172a; border-radius:18px; border:1px solid #334155; padding:24px; color:#fff; text-align:center;">
+      <div class="modal" style="max-width:540px; width:90%; background:#ffffff; border-radius:18px; border:1px solid #e2e8f0; padding:24px; color:#0f172a; text-align:center;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <div style="font-size:0.85rem; font-weight:800; color:#f472b6; display:flex; align-items:center; gap:6px;">
             🎴 Engineering Flashcards Revision
           </div>
-          <span id="flashcard-counter" style="font-size:0.75rem; color:#94a3b8; font-weight:700;">Card 1 / ${flashcardsDeck.length}</span>
-          <button class="btn btn-ghost btn-sm" id="btn-close-flashcards" style="color:#fff; font-size:1.2rem; border:none; background:none; cursor:pointer;">✕</button>
+          <span id="flashcard-counter" style="font-size:0.75rem; color:#64748b; font-weight:700;">Card 1 / ${flashcardsDeck.length}</span>
+          <button class="btn btn-ghost btn-sm" id="btn-close-flashcards" style="color:#334155; font-size:1.2rem; border:none; background:none; cursor:pointer;">✕</button>
         </div>
 
         <div class="flashcard-wrapper" id="active-flashcard">
           <div class="flashcard-inner">
             <div class="flashcard-front">
-              <div id="flashcard-subject" style="font-size:0.7rem; font-weight:700; color:#a5b4fc; text-transform:uppercase; margin-bottom:8px;">${flashcardsDeck[currentCardIdx].subject}</div>
-              <div id="flashcard-question" style="font-size:1.05rem; font-weight:700; color:#f8fafc; line-height:1.5;">${flashcardsDeck[currentCardIdx].q}</div>
-              <div style="font-size:0.72rem; color:#94a3b8; margin-top:14px;">(Click to reveal answer 🔄)</div>
+              <div id="flashcard-subject" style="font-size:0.7rem; font-weight:700; color:#5b21b6; text-transform:uppercase; margin-bottom:8px;">${flashcardsDeck[currentCardIdx].subject}</div>
+              <div id="flashcard-question" style="font-size:1.05rem; font-weight:700; color:#0f172a; line-height:1.5;">${flashcardsDeck[currentCardIdx].q}</div>
+              <div style="font-size:0.72rem; color:#64748b; margin-top:14px;">(Click to reveal answer 🔄)</div>
             </div>
             <div class="flashcard-back">
               <div style="font-size:0.7rem; font-weight:700; color:#34d399; text-transform:uppercase; margin-bottom:8px;">✓ Conceptual Answer</div>
-              <div id="flashcard-answer" style="font-size:0.95rem; color:#f1f5f9; line-height:1.5;">${flashcardsDeck[currentCardIdx].a}</div>
-              <div style="font-size:0.72rem; color:#cbd5e1; margin-top:14px;">(Click to flip back)</div>
+              <div id="flashcard-answer" style="font-size:0.95rem; color:#1e293b; line-height:1.5;">${flashcardsDeck[currentCardIdx].a}</div>
+              <div style="font-size:0.72rem; color:#64748b; margin-top:14px;">(Click to flip back)</div>
             </div>
           </div>
         </div>
@@ -4384,7 +4383,7 @@ Standard syllabus topics, coursework materials, and project documentation review
 
   document.getElementById('btn-end')?.addEventListener('click', async () => {
     if (isMentor) {
-      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n✔️ Click OK to End for Everyone & Generate Official Report\n❌ Click Cancel to Leave without ending for others");
+      const endForAll = confirm("Do you want to end this meeting for EVERYONE?\n\n✔️ Click OK to End for Everyone and prepare meeting notes\n❌ Click Cancel to Leave without ending for others");
       if (endForAll) {
         // Show Post-Call Mentor Report Generation Modal with Stepper
         const mentorModal = document.getElementById('mentor-post-call-modal');
@@ -4408,6 +4407,9 @@ Standard syllabus topics, coursework materials, and project documentation review
         // ── AI AUTO-EXTRACTION & GOOGLE DRIVE UPLOAD ───────────────────────────
         await autoExtractAndSaveMeetingReport();
         // ───────────────────────────────────────────────────────────────────────
+      } else {
+        await cleanup();
+        navigateTo('/mentor/meetings');
       }
     } else {
       // Show Rating Modal to student upon finishing the call
@@ -4531,7 +4533,7 @@ Standard syllabus topics, coursework materials, and project documentation review
     }
 
     if (stepAi) {
-      stepAi.innerHTML = '<span class="step-icon" style="color:#10b981;">✅</span> <span style="color:#86efac;font-weight:600;">Agenda &amp; Issues Discussed extracted from voice recording!</span>';
+      stepAi.innerHTML = '<span class="step-icon" style="color:#10b981;">✅</span> <span style="color:#047857;font-weight:600;">AI draft prepared from available session notes.</span>';
     }
 
     // 4. Fill Whole Report Points
@@ -4561,7 +4563,7 @@ Standard syllabus topics, coursework materials, and project documentation review
     const finalActions = insights.actionItems || '';
     const finalRemarks = insights.remarks || '';
     const finalConfidential = insights.confidentialObservations || '';
-    const finalRisk = insights.riskLevel || 'LOW';
+    const finalRisk = insights.riskLevel || 'NOT_ASSESSED';
     const finalSignals = insights.riskSignals || [];
     const finalTasks = insights.tasks || [];
 
@@ -4598,11 +4600,11 @@ Standard syllabus topics, coursework materials, and project documentation review
       recordingDownloadUrl: driveDownload,
       recordingDriveId: driveFileId,
       recordingStorage: uploadedDriveRecording?.storage || meeting.recordingStorage || 'google_drive',
-      department: meeting.department || 'Department of Computer Science & Engineering (Core)',
+      department: meeting.department || '',
       preparedBy: meeting.mentorName || user.name || 'Faculty Mentor',
       checkedBy: '',
-      verifiedBy: 'Dr. Nilesh Thorat, Dr. Aman Singh',
-      hodName: 'Dr. Suvarna Pawar',
+      verifiedBy: '',
+      hodName: '',
       savedAt: new Date().toISOString(),
       aiGenerated: true
     };
@@ -4618,7 +4620,7 @@ Standard syllabus topics, coursework materials, and project documentation review
       remarks: finalRemarks,
       riskSignals: finalSignals,
       riskLevel: finalRisk,
-      requiresEscalation: insights.requiresEscalation || finalRisk === 'HIGH',
+      requiresEscalation: Boolean(insights.requiresEscalation),
       transcriptSource: audioBlob ? 'audio+whisper' : (fullTranscriptLog.length > 0 ? 'live-captions' : 'session-notes'),
       transcriptLength: combinedTranscript.length,
       recordingUrl: driveUrl,
@@ -4679,7 +4681,7 @@ Standard syllabus topics, coursework materials, and project documentation review
     if (riskEl) riskEl.value = finalRisk;
 
     if (stepReport) {
-      stepReport.innerHTML = '<span class="step-icon" style="color:#10b981;">✅</span> <span style="color:#86efac;font-weight:600;">Official report points completely filled!</span>';
+      stepReport.innerHTML = '<span class="step-icon" style="color:#10b981;">✅</span> <span style="color:#047857;font-weight:600;">Report draft ready for review.</span>';
     }
 
     // 5. Update Post-Call Modal to Success State with Review and Action Buttons

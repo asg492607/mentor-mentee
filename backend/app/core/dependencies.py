@@ -35,15 +35,28 @@ def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials
         else:
             user_doc = student_doc
         
-        user_data = user_doc.to_dict() if user_doc and user_doc.exists else {}
-        role = user_data.get("role") or decoded_token.get("role") or ("STUDENT" if student_doc.exists else "FACULTY")
+        if not user_doc or not user_doc.exists:
+            raise ForbiddenException("No platform account has been provisioned for this user")
+
+        user_data = user_doc.to_dict() or {}
+        if user_data.get("status") != "approved" or user_data.get("isApproved") is not True:
+            raise ForbiddenException("Your account is awaiting approval")
+
+        # The server-side profile is authoritative. Token claims are cached until
+        # refresh and must never override a changed or revoked platform role.
+        role = user_data.get("role")
+        if not role:
+            raise ForbiddenException("Your platform account does not have an assigned role")
 
         current_user = {
             "uid": uid,
             "email": user_data.get("email") or decoded_token.get("email", ""),
             "role": role,
             "name": user_data.get("name") or decoded_token.get("name", "User"),
-            "department": user_data.get("department")
+            "department": user_data.get("department"),
+            "departmentId": user_data.get("departmentId"),
+            "schoolId": user_data.get("schoolId"),
+            "schoolName": user_data.get("schoolName"),
         }
         request.state.audit_actor = current_user
         return current_user

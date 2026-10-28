@@ -12,7 +12,7 @@ import { escapeHtml } from '/js/utils.js';
 
 /** Returns a coloured role badge HTML string for display in user tables. */
 function roleBadge(r) {
-  const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',CLASS_TEACHER:'badge-success',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
+  const cls = {STUDENT:'badge-info',FACULTY:'badge-accent',MENTOR:'badge-accent',CLASS_TEACHER:'badge-success',HOD:'badge-warning',DEAN:'badge-danger',ADMIN:'badge-muted'}[r]||'badge-muted';
   return `<span class="badge ${cls}">${r}</span>`;
 }
 
@@ -31,7 +31,7 @@ export async function render(container) {
                 <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 <input type="text" id="user-search" placeholder="Search by name or email...">
               </div>
-              ${['ALL','STUDENT','FACULTY','CLASS_TEACHER','HOD','DEAN','SECTION_HEAD','ADMIN'].map((r,i) =>
+              ${['ALL','STUDENT','FACULTY','MENTOR','CLASS_TEACHER','HOD','DEAN','SECTION_HEAD','ADMIN'].map((r,i) =>
                 `<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'} role-f" data-r="${r}">${r}</button>`
               ).join('')}
             </div>
@@ -260,6 +260,7 @@ export async function render(container) {
                 <select id="new-user-role" class="form-select" required>
                   <option value="STUDENT">Student</option>
                   <option value="FACULTY">Faculty</option>
+                  <option value="MENTOR">Mentor</option>
                   <option value="CLASS_TEACHER">Class Teacher</option>
                   <option value="HOD">HOD</option>
                   <option value="DEAN">Dean</option>
@@ -771,12 +772,12 @@ export async function render(container) {
 
   // Template downloads
   document.getElementById('btn-dl-student-tpl')?.addEventListener('click', () => {
-    const csvContent = "Name,Enrollment Number,Email Address,Mobile Number,Department,Class\nRahul Sharma,EN2024001,rahul.sharma@university.edu,9876543210,Computer Science,A\nPriya Patel,EN2024002,priya.patel@university.edu,9876543211,Computer Science,B\n";
+    const csvContent = "Name,Enrollment Number,Email Address,Mobile Number,Department,Class\nSample Student 1,EN2024001,student1@example.edu,0000000000,Computer Science,A\nSample Student 2,EN2024002,student2@example.edu,0000000000,Computer Science,B\n";
     downloadCSV(csvContent, "Student_Bulk_Import_Template.csv");
   });
 
   document.getElementById('btn-dl-teacher-tpl')?.addEventListener('click', () => {
-    const csvContent = "Name,Employee ID,Email Address,Mobile Number,Department,Designation\nDr. Anjali Mehta,EMP1001,anjali.mehta@university.edu,9123456789,Computer Science,Assistant Professor\nProf. Suresh Kumar,EMP1002,suresh.kumar@university.edu,9123456780,Information Technology,Associate Professor\n";
+    const csvContent = "Name,Employee ID,Email Address,Mobile Number,Department,Designation\nFaculty Sample 1,EMP1001,faculty1@example.edu,0000000000,Computer Science,Assistant Professor\nFaculty Sample 2,EMP1002,faculty2@example.edu,0000000000,Information Technology,Associate Professor\n";
     downloadCSV(csvContent, "Teacher_Bulk_Import_Template.csv");
   });
 
@@ -1491,7 +1492,7 @@ export async function render(container) {
           }
         }
 
-        // 3. Word token overlap match (e.g. "Suresh Kumar" matches "Suresh V. Kumar")
+        // 3. Match common name tokens while avoiding ambiguous short names.
         if (clean) {
           const cleanTokens = clean.split(' ').filter(t => t.length > 1);
           if (cleanTokens.length > 0) {

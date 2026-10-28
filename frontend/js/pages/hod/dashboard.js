@@ -5,7 +5,7 @@ import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StatsService, IssueService, FacultyService, NotificationService } from '/js/services.js';
 import { showModal } from '/js/components/modal.js';
-import { escapeHtml } from '/js/utils.js';
+import { departmentScope, escapeHtml } from '/js/utils.js';
 import { showToast } from '/js/components/toast.js';
 import { parseImportFile, isRowObjectEmpty } from '/js/excel-import.js';
 import { exportMentorStudentReport, exportSingleMentorReport } from '/js/report-export.js';
@@ -151,6 +151,9 @@ function openRaiseIssueModal(user, dept, students, onIssueCreated) {
         category: cat,
         priority: pri,
         department: dept || user.department || '',
+        departmentId: user.departmentId || null,
+        schoolId: user.schoolId || null,
+        schoolName: user.schoolName || null,
         studentId: selectedStudent?.id || null,
         studentName: selectedStudent?.name || (studentId ? 'Department Student' : 'Department Wide'),
         studentEnrollment: selectedStudent?.enrollmentNumber || null,
@@ -254,7 +257,8 @@ export async function render(container) {
 
   try {
     const dept = user.department;
-    const data = await StatsService.getDeptStats(dept);
+    const deptScope = departmentScope(user);
+    const data = await StatsService.getDeptStats(deptScope);
     const { 
       totalStudents = 0, 
       totalMentors = 0, 
@@ -721,7 +725,7 @@ const highRiskList = (students || [])
     const btnDownloadTemplate = document.getElementById('btn-hod-download-template');
     if (btnDownloadTemplate) {
       btnDownloadTemplate.addEventListener('click', () => {
-        const csvContent = "role,name,email,password,class,enrollmentNumber\nSTUDENT,John Doe,john@example.com,pass123,A,EN1001\nFACULTY,Dr. Smith,smith@example.com,pass123,,EMP001\n";
+        const csvContent = "role,name,email,password,class,enrollmentNumber\nSTUDENT,Sample Student,student@example.com,REPLACE_WITH_STRONG_PASSWORD,A,EN1001\nFACULTY,Sample Faculty,faculty@example.com,REPLACE_WITH_STRONG_PASSWORD,,EMP001\n";
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
@@ -842,7 +846,7 @@ const highRiskList = (students || [])
       if (!list) return;
       try {
         const { ClassService } = await import('/js/services.js');
-        const classes = await ClassService.getByDepartment(dept);
+        const classes = await ClassService.getByDepartment(deptScope);
         if (!classes || !classes.length) {
           list.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem;">No classes defined.</span>';
           return;
@@ -888,13 +892,13 @@ const highRiskList = (students || [])
         addClassBtn.disabled = true;
         try {
           const { ClassService } = await import('/js/services.js');
-          const existing = await ClassService.getByDepartment(dept);
+          const existing = await ClassService.getByDepartment(deptScope);
           if (existing.some(c => (c.className || '').toLowerCase() === name.toLowerCase())) {
             showToast(`Class "${name}" already exists for ${dept}`, 'warning');
             addClassBtn.disabled = false;
             return;
           }
-          await ClassService.create({ department: dept, className: name });
+          await ClassService.create({ department: dept, departmentId: user.departmentId || null, schoolId: user.schoolId || null, schoolName: user.schoolName || null, className: name });
           if (input) input.value = '';
           showToast(`Class "${name}" added successfully!`, 'success');
           await loadClasses();

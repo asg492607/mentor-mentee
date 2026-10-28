@@ -35,7 +35,7 @@ export async function render(container) {
     </div>`;
   const wrap = container.querySelector('#attendance-content');
   try {
-    const classes = (await ClassService.getAll()).filter(item => item.classTeacherId === (user.id || user.uid));
+    const classes = await ClassService.getByTeacher(user.id || user.uid);
     if (!classes.length) {
       wrap.innerHTML = `<div class="empty-state" style="padding:28px;"><h3>No class assigned</h3><p>Ask an administrator to assign you as class teacher for a class under Institutions &amp; Departments.</p></div>`;
       return;
@@ -46,7 +46,7 @@ export async function render(container) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px;">
         <div class="form-group" style="margin:0;"><label class="form-label">Class</label><select id="attendance-class" class="form-select">${classes.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.className)} · ${escapeHtml(item.department || '')}</option>`).join('')}</select></div>
         <div class="form-group" style="margin:0;"><label class="form-label">Date</label><input id="attendance-date" type="date" class="form-input" value="${localDate}"></div>
-        <div class="form-group" style="margin:0;"><label class="form-label">Session / period (optional)</label><input id="attendance-period" class="form-input" placeholder="Morning / Period 1"></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">Session / period</label><input id="attendance-period" class="form-input" placeholder="Daily / Period 1" required></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
         <div><label class="form-label" for="attendance-file">Apply attendance from a file</label><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><small style="color:var(--text-muted);">Columns: enrollmentNumber, status (Present / Absent)</small></div>
@@ -78,7 +78,7 @@ export async function render(container) {
       const selected = classes.find(item => item.id === classSelect.value);
       rosterWrap.innerHTML = '<div class="spinner"></div>';
       const students = await AcademicStudentService.getByClass(selected);
-      roster = students.map(student => ({ ...student, present: true }));
+      roster = students.map(student => ({ ...student, present: false }));
       drawRoster();
     };
     classSelect.addEventListener('change', () => loadClass().catch(error => showToast(error.message, 'error')));

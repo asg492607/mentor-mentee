@@ -9,6 +9,20 @@ import { showToast } from '/js/components/toast.js';
 import { escapeHtml } from '/js/utils.js';
 import { getUserProfile } from '/js/auth.js';
 
+const formatAttendanceTime = value => {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+const formatAttendanceDuration = seconds => {
+  if (seconds === null || seconds === undefined || seconds === '') return '—';
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  const minutes = Math.floor(value / 60);
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
+};
+
 export async function exportMentorStudentReport(format = 'excel') {
   showToast(`Preparing ${format.toUpperCase()} classwise allocation report...`, 'info');
   try {
@@ -842,7 +856,7 @@ function openPrintableMultiClassMentorsWindow(mentorsList, relevantStudents, cla
 }
 
 /**
- * Export an official MIT-ADT University Mentorship Session Report (exact meet template).
+ * Export a meeting and attendance record for printing or saving as PDF.
  * @param {object} meeting - Meeting data object
  */
 export function exportMeetingSessionReport(meeting) {
@@ -866,10 +880,11 @@ export function exportMeetingSessionReport(meeting) {
   } catch (e) { }
 
   const time = rpt.time || (meeting.scheduledAt ? new Date(meeting.scheduledAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—');
-  const dept = rpt.department || meeting.department || 'Department of Computer Science & Engineering (Core)';
+  const dept = rpt.department || meeting.department || '';
   const preparedBy = rpt.preparedBy || meeting.mentorName || 'Faculty Mentor';
   const checkedBy = rpt.checkedBy || '';
-  const hodName = rpt.hodName || 'Dr. Suvarna Pawar';
+  const verifiedBy = rpt.verifiedBy || '';
+  const hodName = rpt.hodName || '';
 
   // Validate and sanitize content strings against single-character/dummy placeholders like "n", "na", etc.
   const isValidReportContent = (str) => {
@@ -933,12 +948,21 @@ export function exportMeetingSessionReport(meeting) {
   const actions = tasksStr ? (actionTaken ? `${actionTaken}\n\nStudent Action Items:\n${tasksStr}` : tasksStr) : (actionTaken || '');
   const remarks = getValidFirst(rpt.remarks, ai.remarks, meeting.notes?.remarks);
   const confidential = getValidFirst(rpt.confidentialObservations, ai.confidentialObservations, meeting.notes?.confidentialObservations, meeting.notes?.privateObservations);
-  const riskLevel = (rpt.riskLevel || ai.riskLevel || 'LOW').toUpperCase();
-  const riskSignals = rpt.riskSignals || ai.riskSignals || [];
+  const requestedRisk = String(rpt.riskLevel || ai.riskLevel || 'NOT_ASSESSED').toUpperCase();
+  const riskLevel = ['HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'].includes(requestedRisk) ? requestedRisk : 'NOT_ASSESSED';
+  const riskLabel = riskLevel === 'NOT_ASSESSED' ? 'Not assessed' : `${riskLevel} risk`;
+  const riskColor = riskLevel === 'HIGH' ? '#dc2626' : riskLevel === 'MEDIUM' ? '#d97706' : riskLevel === 'LOW' ? '#16a34a' : '#64748b';
+  const riskSignals = Array.isArray(rpt.riskSignals) ? rpt.riskSignals : Array.isArray(ai.riskSignals) ? ai.riskSignals : [];
   const rawRecordingUrl = meeting.recordingUrl || meeting.lastRecording?.url || meeting.recordingDownloadUrl || rpt.recordingUrl || ai.recordingUrl || '';
   const isProtectedLocalRecording = meeting.recordingStorage === 'local_storage'
     || String(rawRecordingUrl).includes('/recording/content');
-  const recordingUrl = isProtectedLocalRecording ? '' : rawRecordingUrl;
+  let recordingUrl = '';
+  if (!isProtectedLocalRecording && rawRecordingUrl) {
+    try {
+      const candidate = new URL(String(rawRecordingUrl), window.location.origin);
+      if (candidate.protocol === 'https:' || (candidate.protocol === 'http:' && candidate.origin === window.location.origin)) recordingUrl = candidate.href;
+    } catch { /* Ignore malformed or unsafe recording links in the exported document. */ }
+  }
 
   // Collect students list for attendance sheet (excluding placeholder non-student strings)
   const isPlaceholderStudent = (name) => {
@@ -948,10 +972,12 @@ export function exportMeetingSessionReport(meeting) {
 
     let studentsList = [];
   if (Array.isArray(meeting.attendees) && meeting.attendees.length > 0) {
-    studentsList = meeting.attendees.map(a => ({
+    studentsList = [...meeting.attendees].sort((a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0)).map(a => ({
       name: a.name || 'Participant',
-      enrollment: a.enrollmentNumber || a.enrollment || a.prn || 'Verified',
-      timestamp: a.joinedAt ? new Date(a.joinedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : (a.timestamp || 'Joined')
+      enrollment: a.enrollmentNumber || a.enrollment || a.prn || '—',
+      joinedAt: a.joinedAt || null,
+      leftAt: a.leftAt || null,
+      durationSeconds: a.durationSeconds ?? (a.joinedAt && a.leftAt ? Math.max(0, Math.floor((new Date(a.leftAt) - new Date(a.joinedAt)) / 1000)) : null)
     }));
   } else if (Array.isArray(rpt.students) && rpt.students.length > 0) {
     studentsList = rpt.students.filter(s => !isPlaceholderStudent(s.name || s.studentName));
@@ -964,9 +990,10 @@ export function exportMeetingSessionReport(meeting) {
   }
 
   const isGroupSession = meeting.studentId === 'ALL' || (meeting.studentName || '').toLowerCase() === 'group meeting' || (topic || '').toLowerCase().includes('group');
-  const totalStudentsText = studentsList.length > 0 
-    ? `${studentsList.length} student${studentsList.length !== 1 ? 's' : ''}` 
-    : (isGroupSession ? 'All Assigned Mentees (Group Session)' : '0 students recorded');
+  const participantCount = Array.isArray(meeting.attendees) && meeting.attendees.length
+    ? new Set(meeting.attendees.map(attendee => attendee?.userId || attendee?.name).filter(Boolean)).size
+    : studentsList.length;
+  const totalStudentsText = `${participantCount} participant${participantCount === 1 ? '' : 's'} recorded`;
 
   const bannerUrl = window.location.origin + '/assets/images/mit_adt_header_banner.jpg';
 
@@ -975,12 +1002,14 @@ export function exportMeetingSessionReport(meeting) {
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${i + 1}</td>
       <td style="border:1px solid #64748b;padding:5px 8px;font-weight:600;">${escapeHtml(s.name || s.studentName || '—')}</td>
       <td style="text-align:center;border:1px solid #64748b;padding:5px 8px;">${escapeHtml(s.enrollment || s.enrollmentNumber || s.rollNumber || '—')}</td>
-      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;color:#059669;font-size:8.5pt;font-weight:600;">Present ${s.timestamp ? `(Joined: ${escapeHtml(s.timestamp)})` : '[Verified Digital Attendance]'}</td>
+      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;">${escapeHtml(s.joinedAt ? formatAttendanceTime(s.joinedAt) : 'Attendance event not recorded')}</td>
+      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;">${escapeHtml(formatAttendanceTime(s.leftAt))}</td>
+      <td style="border:1px solid #64748b;padding:5px 8px;text-align:center;">${escapeHtml(formatAttendanceDuration(s.durationSeconds))}</td>
     </tr>
   `).join('') : `
     <tr>
-      <td colspan="4" style="text-align:center;padding:16px;color:#64748b;font-style:italic;">
-        ${isGroupSession ? 'Group Mentorship Session conducted for all assigned mentees.' : 'No individual student attendees recorded.'}
+      <td colspan="6" style="text-align:center;padding:16px;color:#64748b;font-style:italic;">
+        ${isGroupSession ? 'Group session has no individual attendance events recorded.' : 'No individual attendance events recorded.'}
       </td>
     </tr>
   `;
@@ -990,12 +1019,13 @@ export function exportMeetingSessionReport(meeting) {
     showToast('Please allow pop-ups to generate the report', 'warning');
     return;
   }
+  reportWin.opener = null;
 
   reportWin.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mentorship Session Report - ${topic}</title>
+  <title>Mentorship Session Report - ${escapeHtml(topic)}</title>
   <style>
     @page {
       size: A4 portrait;
@@ -1088,43 +1118,43 @@ export function exportMeetingSessionReport(meeting) {
 
       <div class="rpt-title">
         <h1>Mentorship Session Report</h1>
-        <div class="sub">Official Record of Mentor-Mentee Interaction</div>
+        <div class="sub">Meeting and attendance record</div>
       </div>
 
       <table class="info-table">
-        <tr><td>Meeting Topic / Agenda</td><td><strong>${topic}</strong></td></tr>
-        <tr><td>Date of Meeting</td><td>${formattedDate}</td></tr>
-        <tr><td>Time of Meeting</td><td>${time}</td></tr>
-        <tr><td>Department</td><td>${dept}</td></tr>
-        <tr><td>Mentor / Faculty</td><td>Prof. ${preparedBy}</td></tr>
-        <tr><td>Risk Assessment</td><td><span style="font-weight:700; color:${riskLevel === 'HIGH' ? '#dc2626' : riskLevel === 'MEDIUM' ? '#d97706' : '#16a34a'};">${riskLevel} RISK</span>${riskSignals.length > 0 ? ` &nbsp;<span style="font-size:8pt;color:#64748b;">(${riskSignals.join(', ')})</span>` : ''}</td></tr>
-        <tr><td>Total Students Present</td><td>${totalStudentsText} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance verified on Page 2)</em></td></tr>
-        ${recordingUrl ? `<tr><td>Session Recording</td><td><a href="${recordingUrl}" target="_blank" style="color:#2563eb;text-decoration:underline;font-weight:600;">📁 View Meeting Recording (Google Drive)</a></td></tr>` : ''}
+        <tr><td>Meeting Topic / Agenda</td><td><strong>${escapeHtml(topic)}</strong></td></tr>
+        <tr><td>Date of Meeting</td><td>${escapeHtml(formattedDate)}</td></tr>
+        <tr><td>Time of Meeting</td><td>${escapeHtml(time)}</td></tr>
+        <tr><td>Department</td><td>${escapeHtml(dept)}</td></tr>
+        <tr><td>Mentor / Faculty</td><td>Prof. ${escapeHtml(preparedBy)}</td></tr>
+        <tr><td>Risk Assessment</td><td><span style="font-weight:700; color:${riskColor};">${escapeHtml(riskLabel)}</span>${riskSignals.length > 0 ? ` &nbsp;<span style="font-size:8pt;color:#64748b;">(${riskSignals.map(escapeHtml).join(', ')})</span>` : ''}</td></tr>
+        <tr><td>Total Participants Recorded</td><td>${totalStudentsText} &nbsp;<em style="font-size:8pt;color:#64748b;">(Attendance timeline on Page 2)</em></td></tr>
+        ${recordingUrl ? `<tr><td>Session Recording</td><td><a href="${escapeHtml(recordingUrl)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;font-weight:600;">📁 View Meeting Recording</a></td></tr>` : ''}
       </table>
 
       <div class="section">
         <div class="section-head">Issues Discussed</div>
-        <div class="section-body">${issues}</div>
+        <div class="section-body">${escapeHtml(issues)}</div>
       </div>
 
       ${(extractedSentences && extractedSentences !== issues) ? `
       <div class="section">
         <div class="section-head">Key Sentences &amp; Dialogue Extracted from Voice Recording</div>
-        <div class="section-body" style="white-space: pre-wrap; font-size: 9pt; line-height: 1.45;">${extractedSentences}</div>
+        <div class="section-body" style="white-space: pre-wrap; font-size: 9pt; line-height: 1.45;">${escapeHtml(extractedSentences)}</div>
       </div>` : ''}
 
       <div class="section">
         <div class="section-head">Action Items &amp; Resolutions</div>
-        <div class="section-body">${actions}</div>
+        <div class="section-body">${escapeHtml(actions)}</div>
       </div>
 
       ${confidential ? `
       <div class="section">
         <div class="section-head" style="background:#fef2f2; color:#991b1b; border-color:#f87171;">🔒 Confidential Faculty Observations (Institutional Review)</div>
-        <div class="section-body" style="border-color:#f87171; background:#fffafa;">${confidential}</div>
+        <div class="section-body" style="border-color:#f87171; background:#fffafa;">${escapeHtml(confidential)}</div>
       </div>` : ''}
 
-      ${remarks ? `<div class="section"><div class="section-head">Additional Remarks</div><div class="section-body">${remarks}</div></div>` : ''}
+      ${remarks ? `<div class="section"><div class="section-head">Additional Remarks</div><div class="section-body">${escapeHtml(remarks)}</div></div>` : ''}
 
       <div class="sig-block">
         <div class="sig-block-title">Signatures &amp; Authorization</div>
@@ -1132,35 +1162,34 @@ export function exportMeetingSessionReport(meeting) {
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Prepared By</div>
-            <div><span class="sig-name">Prof. ${preparedBy}</span></div>
+            <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
             <div class="sig-role">Mentor / Faculty</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Checked By</div>
-            <div><span class="sig-name">${checkedBy ? checkedBy : 'Prof. _________________'}</span></div>
+            <div><span class="sig-name">${escapeHtml(checkedBy || '_________________')}</span></div>
             <div class="sig-role">Coordinator / Faculty</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Verify By</div>
             <div>
-              <div style="font-size:7.5pt; font-weight:700;">Dr. Nilesh Thorat</div>
-              <div style="font-size:7.5pt; font-weight:700; margin-top:1px;">Dr. Aman Singh</div>
+              <div><span class="sig-name">${escapeHtml(verifiedBy || '_________________')}</span></div>
             </div>
             <div class="sig-role">Verification Committee</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Approved By (HOD)</div>
-            <div><span class="sig-name">${hodName || 'Dr. _________________'}</span></div>
-            <div class="sig-role">Head of Department, ${dept}</div>
+            <div><span class="sig-name">${escapeHtml(hodName || '_________________')}</span></div>
+            <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="rpt-footer">This is an official document of MIT Art, Design &amp; Technology University, Pune &bull; Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 1 of 2</div>
+    <div class="rpt-footer">Generated by the MIT ADT mentorship platform on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 1 of 2</div>
   </div>
 
   <!-- ===== PAGE 2: Attendance List ===== -->
@@ -1171,27 +1200,29 @@ export function exportMeetingSessionReport(meeting) {
       </div>
 
       <div class="rpt-title">
-        <h1>Student Attendance Sheet</h1>
-        <div class="sub">Annexure to Mentorship Session Report</div>
+        <h1>Meeting Attendance Timeline</h1>
+        <div class="sub">Chronological participant join and departure records</div>
       </div>
 
       <div style="font-size:9pt; margin-bottom:8px; border:1px solid #94a3b8; padding:5px 10px; background:#f8fafc;">
-        <strong>Meeting Topic:</strong> ${topic} &emsp;|&emsp;
-        <strong>Date:</strong> ${formattedDate} &emsp;|&emsp;
-        <strong>Mentor:</strong> Prof. ${preparedBy}
+        <strong>Meeting Topic:</strong> ${escapeHtml(topic)} &emsp;|&emsp;
+        <strong>Date:</strong> ${escapeHtml(formattedDate)} &emsp;|&emsp;
+        <strong>Mentor:</strong> Prof. ${escapeHtml(preparedBy)}
       </div>
 
       <table class="att-table">
         <thead>
           <tr>
             <th>Sr. No.</th>
-            <th>Student Name</th>
-            <th>Enrollment No.</th>
-            <th>Signature / Verification</th>
+            <th>Participant</th>
+            <th>Enrollment / ID</th>
+            <th>Joined</th>
+            <th>Left</th>
+            <th>Duration</th>
           </tr>
         </thead>
         <tbody>
-          ${attendanceRows || '<tr><td colspan="4" style="text-align:center;padding:16px;color:#64748b;">No students recorded</td></tr>'}
+          ${attendanceRows || '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b;">No attendance events recorded</td></tr>'}
         </tbody>
       </table>
 
@@ -1201,35 +1232,34 @@ export function exportMeetingSessionReport(meeting) {
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Prepared By</div>
-            <div><span class="sig-name">Prof. ${preparedBy}</span></div>
+            <div><span class="sig-name">Prof. ${escapeHtml(preparedBy)}</span></div>
             <div class="sig-role">Mentor / Faculty</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Checked By</div>
-            <div><span class="sig-name">${checkedBy ? checkedBy : 'Prof. _________________'}</span></div>
+            <div><span class="sig-name">${escapeHtml(checkedBy || '_________________')}</span></div>
             <div class="sig-role">Coordinator / Faculty</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Verify By</div>
             <div>
-              <div style="font-size:7.5pt; font-weight:700;">Dr. Nilesh Thorat</div>
-              <div style="font-size:7.5pt; font-weight:700; margin-top:1px;">Dr. Aman Singh</div>
+              <div><span class="sig-name">${escapeHtml(verifiedBy || '_________________')}</span></div>
             </div>
             <div class="sig-role">Verification Committee</div>
           </div>
           <div class="sig-col">
             <div class="sig-space"></div>
             <div class="sig-label">Approved By (HOD)</div>
-            <div><span class="sig-name">${hodName || 'Dr. _________________'}</span></div>
-            <div class="sig-role">Head of Department, ${dept}</div>
+            <div><span class="sig-name">${escapeHtml(hodName || '_________________')}</span></div>
+            <div class="sig-role">Head of Department, ${escapeHtml(dept)}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="rpt-footer">This is an official document of MIT Art, Design &amp; Technology University, Pune &bull; Generated on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 2 of 2</div>
+    <div class="rpt-footer">Generated by the MIT ADT mentorship platform on ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} &bull; Page 2 of 2</div>
   </div>
 
 </body>

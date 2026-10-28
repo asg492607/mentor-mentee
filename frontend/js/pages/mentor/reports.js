@@ -4,22 +4,25 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StatsService, MeetingService, TaskService } from '/js/services.js';
+import { StatsService, MeetingService } from '/js/services.js';
 import { exportSingleMentorReport, exportMeetingSessionReport } from '/js/report-export.js';
 import { AIService } from '/js/services/ai-service.js';
+import { escapeHtml } from '/js/utils.js';
+import { getAttendanceStatus } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
-  const map = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' };
-  return `<span class="badge ${map[r] || 'badge-muted'}">${r || 'N/A'}</span>`;
+  const level = String(r || 'NOT_ASSESSED').toUpperCase();
+  const map = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success', NOT_ASSESSED: 'badge-muted' };
+  return `<span class="badge ${map[level] || 'badge-muted'}">${escapeHtml(level === 'NOT_ASSESSED' ? 'Not assessed' : level)}</span>`;
 }
 
 function fmt(val, suffix = '') {
-  return val !== undefined && val !== null && val !== '' ? `${val}${suffix}` : '—';
+  return val !== undefined && val !== null && val !== '' ? `${escapeHtml(val)}${escapeHtml(suffix)}` : '—';
 }
 
 function statusBadge(s) {
   const cls = { REQUESTED: 'badge-warning', APPROVED: 'badge-success', ONGOING: 'badge-info', REJECTED: 'badge-danger', COMPLETED: 'badge-muted', CANCELLED: 'badge-muted' }[s] || 'badge-muted';
-  return `<span class="badge ${cls}">${s || 'SCHEDULED'}</span>`;
+  return `<span class="badge ${cls}">${escapeHtml(s || 'SCHEDULED')}</span>`;
 }
 
 // Render the AI Meeting Intelligence panel from aiInsights data
@@ -27,43 +30,45 @@ function renderAIIntelligencePanel(ai) {
   const analyzed = ai?.analyzed || 0;
   const total = ai?.total || 0;
   const pct = ai?.coveragePercent || 0;
-  const rb = ai?.riskBreakdown || { HIGH: 0, MEDIUM: 0, LOW: 0 };
+  const rb = ai?.riskBreakdown || { HIGH: 0, MEDIUM: 0, LOW: 0, NOT_ASSESSED: 0 };
   const issues = ai?.recurringIssues || [];
   const escalations = ai?.escalationRequired || [];
   const recent = ai?.recentInsights || [];
 
   const issueChips = issues.length > 0
     ? issues.slice(0, 6).map(i =>
-        `<span style="display:inline-block;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:0.72rem;padding:3px 8px;border-radius:6px;margin:2px;">${i}</span>`
+        `<span style="display:inline-block;background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6;font-size:0.72rem;padding:3px 8px;border-radius:6px;margin:2px;">${escapeHtml(i)}</span>`
       ).join('')
     : '<p style="color:#475569;font-size:0.8rem;font-style:italic;">Complete more AI-analyzed meetings to see patterns</p>';
 
   const escalationHTML = escalations.length > 0
-    ? `<div style="font-size:0.85rem;color:#fca5a5;font-weight:700;">${escalations.length} meeting(s) need escalation</div><p style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">AI flagged critical student issues</p>`
-    : '<div style="font-size:0.85rem;color:#4ade80;">&#x2705; No escalations required</div><p style="font-size:0.75rem;color:#64748b;margin-top:4px;">All sessions within normal parameters</p>';
+    ? `<div style="font-size:0.85rem;color:#b91c1c;font-weight:700;">${Number(escalations.length)} meeting(s) record an escalation requirement</div><p style="font-size:0.75rem;color:#64748b;margin-top:4px;">Review the source notes before taking action.</p>`
+    : '<div style="font-size:0.85rem;color:#047857;">No escalation requirement is recorded</div><p style="font-size:0.75rem;color:#64748b;margin-top:4px;">This reflects saved meeting records.</p>';
 
   const recentHTML = recent.length > 0 ? `
     <div style="padding:0 20px 20px;">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">&#x1F4C5; Recent AI-Analyzed Sessions</div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         ${recent.map(ins => {
-          const riskColor = ins.riskLevel === 'HIGH' ? '#fca5a5' : ins.riskLevel === 'MEDIUM' ? '#fcd34d' : '#6ee7b7';
-          const riskBg = ins.riskLevel === 'HIGH' ? 'rgba(239,68,68,0.2)' : ins.riskLevel === 'MEDIUM' ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)';
+          const riskLevel = ['HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'].includes(String(ins.riskLevel || 'NOT_ASSESSED').toUpperCase()) ? String(ins.riskLevel || 'NOT_ASSESSED').toUpperCase() : 'NOT_ASSESSED';
+          const riskColor = riskLevel === 'HIGH' ? '#b91c1c' : riskLevel === 'MEDIUM' ? '#92400e' : riskLevel === 'LOW' ? '#047857' : '#475569';
+          const riskBg = riskLevel === 'HIGH' ? '#fee2e2' : riskLevel === 'MEDIUM' ? '#fef3c7' : riskLevel === 'LOW' ? '#dcfce7' : '#f1f5f9';
           const summary = (ins.issuesSummary || '').slice(0, 120) + ((ins.issuesSummary || '').length > 120 ? '...' : '');
-          const dateStr = ins.generatedAt ? new Date(ins.generatedAt).toLocaleDateString('en-IN') : '';
+          const date = ins.generatedAt ? new Date(ins.generatedAt) : null;
+          const dateStr = date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-IN') : '';
           const src = ins.transcriptSource === 'gemini+live' ? '&#x1F3A4; Gemini+Live' : '&#x1F3A4; Live Only';
-          return `<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
+          return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
             <div>
-              <div style="font-size:0.82rem;font-weight:600;color:#e2e8f0;margin-bottom:2px;">${ins.topic || 'Mentorship Session'}</div>
-              <div style="font-size:0.75rem;color:#64748b;">${summary}</div>
+              <div style="font-size:0.82rem;font-weight:600;color:#1e293b;margin-bottom:2px;">${escapeHtml(ins.topic || 'Mentorship Session')}</div>
+              <div style="font-size:0.75rem;color:#64748b;">${escapeHtml(summary)}</div>
               <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
-                <span style="font-size:0.68rem;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 7px;border-radius:5px;">&#x2713; ${ins.taskCount || 0} Tasks</span>
-                <span style="font-size:0.68rem;background:rgba(16,185,129,0.2);color:#6ee7b7;padding:2px 7px;border-radius:5px;">&#x2192; ${ins.actionCount || 0} Actions</span>
-                <span style="font-size:0.68rem;background:rgba(100,116,139,0.2);color:#94a3b8;padding:2px 7px;border-radius:5px;">${src}</span>
+                <span style="font-size:0.68rem;background:#ede9fe;color:#4338ca;padding:2px 7px;border-radius:5px;">&#x2713; ${Number(ins.taskCount) || 0} Tasks</span>
+                <span style="font-size:0.68rem;background:#dcfce7;color:#047857;padding:2px 7px;border-radius:5px;">&#x2192; ${Number(ins.actionCount) || 0} Actions</span>
+                <span style="font-size:0.68rem;background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:5px;">${src}</span>
               </div>
             </div>
             <div style="text-align:right;">
-              <span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;background:${riskBg};color:${riskColor};">${ins.riskLevel}</span>
+              <span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:0.72rem;font-weight:700;background:${riskBg};color:${riskColor};">${riskLevel === 'NOT_ASSESSED' ? 'Not assessed' : riskLevel}</span>
               <div style="font-size:0.68rem;color:#475569;margin-top:4px;">${dateStr}</div>
             </div>
           </div>`;
@@ -73,37 +78,38 @@ function renderAIIntelligencePanel(ai) {
 
   const bodyHTML = analyzed > 0 ? `
     <div style="padding:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-      <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x26A0;&#xFE0F; AI Risk Breakdown</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">High Risk</span><span style="font-size:1rem;font-weight:800;color:#ef4444;">${rb.HIGH}</span></div>
-          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">Medium Risk</span><span style="font-size:1rem;font-weight:800;color:#f59e0b;">${rb.MEDIUM}</span></div>
-          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#e2e8f0;flex:1;">Low Risk</span><span style="font-size:1rem;font-weight:800;color:#22c55e;">${rb.LOW}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#334155;flex:1;">High Risk</span><span style="font-size:1rem;font-weight:800;color:#b91c1c;">${Number(rb.HIGH) || 0}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#334155;flex:1;">Medium Risk</span><span style="font-size:1rem;font-weight:800;color:#92400e;">${Number(rb.MEDIUM) || 0}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#334155;flex:1;">Low Risk</span><span style="font-size:1rem;font-weight:800;color:#047857;">${Number(rb.LOW) || 0}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#94a3b8;flex-shrink:0;"></span><span style="font-size:0.82rem;color:#334155;flex:1;">Not assessed</span><span style="font-size:1rem;font-weight:800;color:#475569;">${Number(rb.NOT_ASSESSED) || 0}</span></div>
         </div>
       </div>
-      <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.07);">
+      <div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x1F50D; Recurring Issue Topics</div>
         ${issueChips}
       </div>
-      <div style="background:${escalations.length > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)'};border-radius:12px;padding:16px;border:1px solid ${escalations.length > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.07)'};">
+      <div style="background:${escalations.length > 0 ? '#fff1f2' : '#fff'};border-radius:12px;padding:16px;border:1px solid ${escalations.length > 0 ? '#fecdd3' : '#e2e8f0'};">
         <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;margin-bottom:10px;">&#x1F6A8; Escalation Alerts</div>
         ${escalationHTML}
       </div>
     </div>
     ${recentHTML}` :
-    '<div style="padding:24px;text-align:center;"><p style="font-size:0.85rem;color:#64748b;">&#x1F916; No meetings analyzed yet. End a meeting with <strong style="color:#a5b4fc;">Live Captions (CC)</strong> turned on &mdash; AI will auto-generate a report immediately.</p></div>';
+    '<div style="padding:24px;text-align:center;"><p style="font-size:0.85rem;color:#64748b;">&#x1F916; No meetings analyzed yet. End a meeting with <strong style="color:#5b21b6;">Live Captions (CC)</strong> turned on &mdash; AI will auto-generate a report immediately.</p></div>';
 
   return `
-  <div id="ai-meeting-intelligence" class="card" style="margin-bottom:24px;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%);border:1px solid rgba(139,92,246,0.3);overflow:hidden;">
+  <div id="ai-meeting-intelligence" class="card" style="margin-bottom:24px;background:linear-gradient(135deg,#ffffff 0%,#f5f3ff 100%);border:1px solid #ddd6fe;overflow:hidden;">
     <div style="padding:16px 20px;border-bottom:1px solid rgba(139,92,246,0.2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">&#x1F916;</div>
         <div>
-          <h3 style="font-size:1rem;font-weight:800;margin:0;color:#c4b5fd;">AI Meeting Intelligence</h3>
-          <p style="font-size:0.75rem;color:#94a3b8;margin:2px 0 0;">Auto-extracted from ${analyzed} of ${total} meetings &bull; ${pct}% transcript coverage &bull; No Google Drive needed</p>
+          <h3 style="font-size:1rem;font-weight:800;margin:0;color:#5b21b6;">AI Meeting Intelligence</h3>
+          <p style="font-size:0.75rem;color:#64748b;margin:2px 0 0;">Auto-extracted from ${analyzed} of ${total} meetings &bull; ${pct}% transcript coverage</p>
         </div>
       </div>
-      <span style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;font-size:0.72rem;padding:4px 10px;border-radius:8px;font-weight:600;">&#x1F3A4; Gemini Deep Transcription Active</span>
+      <span style="background:#dcfce7;border:1px solid #bbf7d0;color:#047857;font-size:0.72rem;padding:4px 10px;border-radius:8px;font-weight:600;">Meeting transcript insights</span>
     </div>
     ${bodyHTML}
   </div>`;
@@ -176,15 +182,16 @@ export async function render(container) {
     // Dynamic client-side fallback/enhancement if backend doesn't provide complete aiInsights
     if (!aiInsights || !aiInsights.analyzed) {
       const analyzedMeetings = sortedMeetings.filter(m => m.aiNotes || m.report || m.hasAiNotes);
-      const rb = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+      const rb = { HIGH: 0, MEDIUM: 0, LOW: 0, NOT_ASSESSED: 0 };
       const recurringIssues = [];
       const escalationRequired = [];
       const recentInsights = [];
 
       analyzedMeetings.forEach(m => {
-        const rLevel = (m.report?.riskLevel || m.aiNotes?.riskLevel || 'LOW').toUpperCase();
+        const requestedRisk = String(m.report?.riskLevel || m.aiNotes?.riskLevel || 'NOT_ASSESSED').toUpperCase();
+        const rLevel = ['HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'].includes(requestedRisk) ? requestedRisk : 'NOT_ASSESSED';
         if (rb[rLevel] !== undefined) rb[rLevel]++;
-        else rb.LOW++;
+        else rb.NOT_ASSESSED++;
 
         if (rLevel === 'HIGH') escalationRequired.push(m);
 
@@ -227,7 +234,7 @@ export async function render(container) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
           <div>
             <h2 style="font-size:1.2rem;font-weight:800;margin:0;">📊 My Mentorship Report Center</h2>
-            <p style="color:var(--text-muted);font-size:0.82rem;margin:3px 0 0;">Download comprehensive batch reports or official PDF reports per individual meeting session</p>
+            <p style="color:var(--text-muted);font-size:0.82rem;margin:3px 0 0;">Download cohort reports or meeting records for individual sessions</p>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-sm" id="btn-ai-cohort-audit" style="display:flex;align-items:center;gap:6px;font-weight:700;background:linear-gradient(135deg, #6366f1, #a855f7);color:white;border:none;border-radius:10px;padding:8px 16px;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
@@ -297,10 +304,10 @@ export async function render(container) {
                     <tbody>
                       ${atRisk.map(s => `
                         <tr>
-                          <td style="font-weight:600;">${s.name}</td>
+                          <td style="font-weight:600;">${escapeHtml(s.name || '—')}</td>
                           <td style="color:${(parseFloat(s.cgpa) || 0) < 6 ? 'var(--danger)' : 'inherit'};">${fmt(s.cgpa)}</td>
-                          <td style="color:${(parseFloat(s.attendance) || 0) < 75 ? 'var(--danger)' : 'inherit'};">${fmt(s.attendance, '%')}</td>
-                          <td><span style="font-weight:700;color:${(s.riskScore || 0) > 60 ? 'var(--danger)' : 'var(--warning)'};">${s.riskScore || 0}</span><span style="color:var(--text-muted);font-size:0.75rem;">/100</span></td>
+                          <td style="color:${getAttendanceStatus(s).isLow ? 'var(--danger)' : getAttendanceStatus(s).key === 'BELOW_TARGET' ? 'var(--warning)' : 'inherit'};">${fmt(s.attendance, '%')}${getAttendanceStatus(s).isLow ? ' · Low' : ''}</td>
+                          <td><span style="font-weight:700;color:${(Number(s.riskScore) || 0) > 60 ? 'var(--danger)' : 'var(--warning)'};">${Number(s.riskScore) || 0}</span><span style="color:var(--text-muted);font-size:0.75rem;">/100</span></td>
                           <td>${riskBadge(s.riskLevel)}</td>
                         </tr>
                       `).join('')}
@@ -319,7 +326,7 @@ export async function render(container) {
                 <span style="color:var(--accent);">📋</span> Individual Meeting Session Reports
               </h3>
               <p style="font-size:0.78rem;color:var(--text-muted);margin:3px 0 0;">
-                Download official MIT-ADT University Mentorship Session Reports (with Issues Discussed, Remedial Actions, Signatures &amp; Verified Attendance)
+                Download meeting reports with recorded attendance events and optional review fields
               </p>
             </div>
             <span class="badge badge-accent" style="font-size:0.8rem;">${sortedMeetings.length} Total Sessions</span>
@@ -339,7 +346,7 @@ export async function render(container) {
                       <th style="padding:12px;">Mentee / Attendees</th>
                       <th style="padding:12px;">Date &amp; Time</th>
                       <th style="padding:12px;">Status</th>
-                      <th style="padding:12px;text-align:right;">Official Report</th>
+                      <th style="padding:12px;text-align:right;">Meeting Report</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -413,15 +420,15 @@ export async function render(container) {
                     ${sortedStudents.map((s, i) => `
                       <tr>
                         <td style="padding:12px;color:var(--text-muted);font-size:0.82rem;">${i + 1}</td>
-                        <td style="padding:12px;font-weight:600;">${s.name || '—'}</td>
-                        <td style="padding:12px;font-size:0.85rem;">${s.enrollmentNumber || s.rollNumber || '—'}</td>
-                        <td style="padding:12px;"><span class="badge badge-muted">${s.class ? `Class ${s.class}` : 'Unassigned'}</span></td>
+                        <td style="padding:12px;font-weight:600;">${escapeHtml(s.name || '—')}</td>
+                        <td style="padding:12px;font-size:0.85rem;">${escapeHtml(s.enrollmentNumber || s.rollNumber || '—')}</td>
+                        <td style="padding:12px;"><span class="badge badge-muted">${s.class ? `Class ${escapeHtml(s.class)}` : 'Unassigned'}</span></td>
                         <td style="padding:12px;color:${(parseFloat(s.cgpa) || 0) < 6 ? 'var(--danger)' : 'inherit'};font-weight:600;">${fmt(s.cgpa)}</td>
-                        <td style="padding:12px;color:${(parseFloat(s.attendance) || 0) < 75 ? 'var(--danger)' : 'inherit'};">${fmt(s.attendance, '%')}</td>
+                        <td style="padding:12px;color:${getAttendanceStatus(s).isLow ? 'var(--danger)' : getAttendanceStatus(s).key === 'BELOW_TARGET' ? 'var(--warning)' : 'inherit'};">${fmt(s.attendance, '%')}${getAttendanceStatus(s).isLow ? ' · Low' : ''}</td>
                         <td style="padding:12px;">${riskBadge(s.riskLevel)}</td>
-                        <td style="padding:12px;font-size:0.82rem;color:var(--text-muted);">${s.department || '—'}</td>
+                        <td style="padding:12px;font-size:0.82rem;color:var(--text-muted);">${escapeHtml(s.department || '—')}</td>
                         <td style="padding:12px;text-align:right;">
-                          <a href="#/mentor/booklet?studentId=${s.id}" class="btn btn-xs btn-secondary" style="display:inline-flex;align-items:center;gap:4px;">
+                          <a href="#/mentor/booklet?studentId=${encodeURIComponent(s.id)}" class="btn btn-xs btn-secondary" style="display:inline-flex;align-items:center;gap:4px;">
                             <i class="ph ph-book-open"></i> Booklet
                           </a>
                         </td>
@@ -437,7 +444,7 @@ export async function render(container) {
 
         <!-- ── AI Enhanced Report Modal ── -->
         <div id="ai-report-modal" class="modal-backdrop" style="display:none;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);position:fixed;inset:0;justify-content:center;align-items:center;">
-          <div class="modal" style="max-width:680px;width:95%;max-height:90vh;overflow-y:auto;background:var(--bg-card,#1e293b);border-radius:16px;border:1px solid var(--border);color:var(--text-primary);padding:28px;box-shadow:0 16px 48px rgba(0,0,0,0.4);">
+          <div class="modal" style="max-width:680px;width:95%;max-height:90vh;overflow-y:auto;background:#fff;border-radius:16px;border:1px solid var(--border);color:var(--text-primary);padding:28px;box-shadow:0 16px 48px rgba(15,23,42,0.16);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;">
               <h3 style="margin:0;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:8px;">
                 <span>✨</span> AI Enhanced Mentorship Report
@@ -585,7 +592,7 @@ export async function render(container) {
             ? new Date(m.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
             : 'Date not set';
 
-          const existingRisk = meetingData.report?.riskLevel || meetingData.aiNotes?.riskLevel || report.riskLevel || 'LOW';
+          const existingRisk = meetingData.report?.riskLevel || meetingData.aiNotes?.riskLevel || report.riskLevel || 'NOT_ASSESSED';
           const existingConfidential = meetingData.report?.confidentialObservations || meetingData.report?.confidentialNotes || meetingData.aiNotes?.confidentialObservations || meetingData.aiNotes?.confidentialNotes || '';
           const existingTasks = Array.isArray(meetingData.aiNotes?.actionItems)
             ? meetingData.aiNotes.actionItems.join('\n')
@@ -595,9 +602,9 @@ export async function render(container) {
             || String(recUrl).includes('/recording/content');
 
           body.innerHTML = `
-            <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,rgba(255,255,255,0.03));border-radius:12px;border:1px solid var(--border);">
+            <div style="margin-bottom:16px;padding:14px;background:var(--bg-secondary,#f8fafc);border-radius:12px;border:1px solid var(--border);">
               <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">${topic}</div>
-              <div style="font-size:0.8rem;color:var(--text-muted);">${dateStr} • ${m.studentName || 'Mentee'} • ${m.department || 'CSE'}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">${dateStr} • ${m.studentName || 'Mentee'} • ${m.department || 'Department not recorded'}</div>
               ${recUrl ? (protectedLocalRecording ? `
                 <div style="margin-top:8px;font-size:0.8rem;">
                   <button id="btn-download-protected-recording" class="btn btn-sm btn-secondary" type="button">⬇ Download protected recording</button>
@@ -627,6 +634,7 @@ export async function render(container) {
               <div class="form-group">
                 <label style="font-weight:700;font-size:0.82rem;color:var(--text-secondary);">Risk Level Assessment</label>
                 <select id="ai-rpt-risk" class="form-select" style="border-radius:8px;padding:8px 12px;width:100%;">
+                  <option value="NOT_ASSESSED" ${existingRisk === 'NOT_ASSESSED' ? 'selected' : ''}>⚪ Not assessed</option>
                   <option value="LOW" ${existingRisk === 'LOW' ? 'selected' : ''}>🟢 LOW RISK</option>
                   <option value="MEDIUM" ${existingRisk === 'MEDIUM' ? 'selected' : ''}>🟡 MEDIUM RISK</option>
                   <option value="HIGH" ${existingRisk === 'HIGH' ? 'selected' : ''}>🔴 HIGH RISK (Escalate)</option>
@@ -645,7 +653,7 @@ export async function render(container) {
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
               <button class="btn btn-sm btn-secondary" id="btn-ai-rpt-close" style="border-radius:8px;">Close</button>
               <button class="btn btn-sm btn-primary" id="btn-ai-rpt-save-dl" data-id="${m.id}" style="border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;">
-                <i class="ph ph-file-pdf"></i> Save & Download Official PDF
+                <i class="ph ph-file-pdf"></i> Save & Download Report PDF
               </button>
             </div>
           `;
@@ -673,7 +681,7 @@ export async function render(container) {
             const issuesDiscussed = body.querySelector('#ai-rpt-issues')?.value || '';
             const actionItems = body.querySelector('#ai-rpt-actions')?.value || '';
             const tasksRaw = body.querySelector('#ai-rpt-tasks')?.value || '';
-            const riskLevel = body.querySelector('#ai-rpt-risk')?.value || 'LOW';
+            const riskLevel = body.querySelector('#ai-rpt-risk')?.value || 'NOT_ASSESSED';
             const confidentialNotes = body.querySelector('#ai-rpt-confidential')?.value || '';
             const remarks = body.querySelector('#ai-rpt-remarks')?.value || '';
 
@@ -690,7 +698,6 @@ export async function render(container) {
               confidentialNotes,
               tasks: taskLines,
               preparedBy: user.name || m.mentorName || 'Faculty Mentor',
-              verifiedAt: new Date().toISOString(),
               generatedAt: meetingData.report?.generatedAt || new Date().toISOString()
             };
 
@@ -711,7 +718,6 @@ export async function render(container) {
               await MeetingService.saveAINotes(m.id, updatedAiNotes);
               await MeetingService.update(m.id, {
                 hasAiNotes: true,
-                status: m.status === 'REQUESTED' ? 'APPROVED' : (m.status || 'COMPLETED'),
                 notes: {
                   ...(m.notes || {}),
                   issuesDiscussed,
@@ -721,24 +727,6 @@ export async function render(container) {
                   aiGeneratedAt: new Date().toISOString()
                 }
               });
-
-              // Sync action tasks into TaskService if single student
-              if (taskLines.length > 0 && m.studentId && m.studentId !== 'ALL') {
-                try {
-                  for (const taskDesc of taskLines.slice(0, 5)) {
-                    await TaskService.create({
-                      title: taskDesc.slice(0, 80),
-                      description: `Action item from meeting session on ${dateStr}: ${taskDesc}`,
-                      studentId: m.studentId,
-                      mentorId: user.id,
-                      status: 'PENDING',
-                      dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
-                    });
-                  }
-                } catch (tErr) {
-                  console.warn('Could not sync task items:', tErr);
-                }
-              }
 
               // Update local memory
               meetingData.report = updatedReport;
@@ -750,10 +738,10 @@ export async function render(container) {
               console.error('Error saving AI report to Firestore:', saveErr);
             }
 
-            // Export official PDF report
+            // Export the saved meeting record.
             exportMeetingSessionReport({ ...meetingData, report: updatedReport });
             modal.style.display = 'none';
-            showToast('Official AI-enhanced report saved and PDF downloaded!', 'success');
+            showToast('Meeting report saved and PDF downloaded.', 'success');
           });
 
         } catch (err) {

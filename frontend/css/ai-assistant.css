@@ -669,21 +669,69 @@
   background: var(--bg-hover, rgba(241, 245, 249, 0.6));
 }
 
-html[data-theme="dark"] .ai-table {
-  background: #1e293b;
+/* The assistant follows the platform's fixed light color scheme. */
+.lumina-ai-window {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #e2e8f0;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.16);
 }
 
-html[data-theme="dark"] .ai-table th {
-  background: #0f172a;
-  color: #f1f5f9;
-  border-bottom-color: #334155;
+.lumina-ai-header {
+  background: linear-gradient(135deg, #f5f3ff 0%, #fdf2f8 100%);
+  border-bottom-color: #e2e8f0;
 }
 
-html[data-theme="dark"] .ai-table td {
-  border-bottom-color: #334155;
-  color: #cbd5e1;
+.lumina-ai-body::-webkit-scrollbar-thumb { background: #cbd5e1; }
+.lumina-ai-welcome-title,
+.lumina-ai-name { color: #0f172a; }
+.lumina-ai-welcome-icon { color: #5b21b6; }
+.lumina-ai-role-pill { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.lumina-ai-chip i { color: #5b21b6; }
+.lumina-ai-welcome-desc,
+.lumina-ai-status,
+.lumina-ai-chips-title,
+.lumina-ai-msg-meta { color: #64748b; }
+
+.lumina-ai-chip {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #334155;
 }
 
-html[data-theme="dark"] .ai-table tr:hover td {
-  background: rgba(51, 65, 85, 0.5);
+.lumina-ai-chip:hover {
+  background: #f5f3ff;
+  color: #312e81;
+}
+
+.lumina-ai-msg.assistant .lumina-ai-bubble {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.lumina-ai-bubble .ai-md-h2,
+.lumina-ai-bubble .ai-md-h4,
+.lumina-ai-bubble .oli-num { color: #5b21b6; }
+.lumina-ai-bubble .ai-md-h3,
+.lumina-ai-bubble pre { color: #1e293b; }
+
+.lumina-ai-bubble .ai-inline-code {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.lumina-ai-bubble .ai-code-block {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.lumina-ai-bubble .ai-code-header {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.lumina-ai-bubble .ai-copy-btn {
+  background: #cbd5e1;
+  color: #1e293b;
 }

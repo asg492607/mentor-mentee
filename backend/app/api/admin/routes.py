@@ -53,7 +53,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
     if not firebase_auth:
         raise BadRequestException("Firebase authentication is not configured")
     role = str(data.get("role", "")).upper()
-    if role not in {"STUDENT", "FACULTY", "CLASS_TEACHER", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
+    if role not in {"STUDENT", "FACULTY", "MENTOR", "CLASS_TEACHER", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
         raise BadRequestException("Invalid role")
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
@@ -103,7 +103,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "cgpa": data.get("cgpa", 0),
             "attendance": data.get("attendance", 0),
             "attendanceStatus": data.get("attendanceStatus", "NOT_RECORDED"),
-            "riskLevel": data.get("riskLevel", "LOW"),
+            "riskLevel": data.get("riskLevel", "NOT_ASSESSED"),
             "mentorId": data.get("mentorId"),
             "secondaryMentorId": None,
             "mentorIds": [data.get("mentorId")] if data.get("mentorId") else [],

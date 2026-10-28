@@ -79,6 +79,38 @@ async function batchUpdateDocs(collectionName, documents, updatesFor) {
   }
 }
 
+async function getRecordsByDepartment(collectionName, departmentScope) {
+  if (!departmentScope) return [];
+  const isId = departmentScope.startsWith('id:');
+  const isLegacyScope = departmentScope.startsWith('legacy:');
+  const departmentId = isId ? departmentScope.slice(3) : '';
+  const [legacyDepartment = '', legacySchoolId = ''] = isLegacyScope
+    ? departmentScope.slice(7).split('|')
+    : [];
+  let departmentName = isId ? '' : isLegacyScope ? legacyDepartment : departmentScope;
+  let schoolId = isLegacyScope ? legacySchoolId : '';
+  if (isId) {
+    const departmentDoc = await getDoc(doc(db, 'departments', departmentId));
+    const department = departmentDoc.exists() ? departmentDoc.data() : null;
+    departmentName = String(department?.name || '');
+    schoolId = String(department?.schoolId || '');
+  }
+  const queries = [];
+  if (departmentId) queries.push(query(collection(db, collectionName), where('departmentId', '==', departmentId)));
+  if (departmentName) {
+    const legacyFilters = [
+      where('department', '==', departmentName),
+      where('departmentId', '==', null),
+      where('schoolId', '==', schoolId || null)
+    ];
+    queries.push(query(collection(db, collectionName), ...legacyFilters));
+  }
+  const snapshots = await Promise.all(queries.map(ref => getDocs(ref)));
+  const records = new Map();
+  snapshots.forEach(snapshot => snapshot.docs.forEach(item => records.set(item.id, { id: item.id, ...item.data() })));
+  return [...records.values()].map(deepEscape);
+}
+
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 
 import { getAllCellNames } from '/js/utils/mit-cells-data.js';
@@ -183,18 +215,16 @@ export const StudentService = {
     const cacheKey = `students_dept_${dept}`;
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
-    const res = dept.startsWith('id:')
-      ? snaps(await getDocs(query(collection(db, 'students'), where('departmentId', '==', dept.slice(3)))))
-      : snaps(await getDocs(query(collection(db, 'students'), where('department', '==', dept))));
+    const res = await getRecordsByDepartment('students', dept);
     CacheManager.set(cacheKey, res, 5 * 60 * 1000);
     return res;
   },
 
   async getUnassigned(dept = null) {
-    let q = query(collection(db, 'students'), where('mentorId', '==', null));
-    if (dept?.startsWith('id:')) q = query(collection(db, 'students'), where('mentorId', '==', null), where('departmentId', '==', dept.slice(3)));
-    else if (dept) q = query(collection(db, 'students'), where('mentorId', '==', null), where('department', '==', dept));
-    return snaps(await getDocs(q));
+    const students = dept
+      ? await getRecordsByDepartment('students', dept)
+      : snaps(await getDocs(query(collection(db, 'students'), where('mentorId', '==', null))));
+    return students.filter(student => !student.mentorId && !student.secondaryMentorId);
   },
 
   async update(uid, data) {
@@ -559,11 +589,10 @@ export const FacultyService = {
 
   async getByDepartment(dept) {
     if (!dept) return [];
-    if (dept.startsWith('id:')) return snaps(await getDocs(query(collection(db, 'faculty'), where('departmentId', '==', dept.slice(3)))));
     const cacheKey = `faculty_dept_${dept}`;
     const cached = CacheManager.get(cacheKey);
     if (cached) return cached;
-    const res = snaps(await getDocs(query(collection(db, 'faculty'), where('department', '==', dept))));
+    const res = await getRecordsByDepartment('faculty', dept);
     CacheManager.set(cacheKey, res, 5 * 60 * 1000);
     return res;
   },
@@ -629,14 +658,8 @@ export const MeetingService = {
   async getByDepartment(dept) {
     if (!dept) return this.getAll();
     try {
-      const allMeetings = await this.getAll();
-      const userDept = String(dept).trim().toLowerCase();
-      const filtered = allMeetings.filter(m => {
-        if (!m) return false;
-        const mDept = String(m.department || m.mentorDepartment || '').trim().toLowerCase();
-        return mDept === userDept;
-      });
-      return filtered.length > 0 ? filtered : allMeetings;
+      const list = await getRecordsByDepartment('meetings', dept);
+      return list.sort((a, b) => new Date(b.scheduledAt || b.createdAt || 0) - new Date(a.scheduledAt || a.createdAt || 0));
     } catch (e) {
       console.warn('MeetingService.getByDepartment error:', e);
       return [];
@@ -644,42 +667,22 @@ export const MeetingService = {
   },
 
   async recordAttendance(meetingId, user) {
-    if (!meetingId || !user) return;
+    if (!meetingId || !user?.sessionId) return;
     try {
-      const attendee = {
-        userId: user.id || user.uid,
-        name: user.name || 'Participant',
-        email: user.email || '',
-        role: user.role || 'STUDENT',
-        class: user.class || '',
-        enrollmentNumber: user.enrollmentNumber || user.prn || '',
-        department: user.department || '',
-        joinedAt: new Date().toISOString(),
-        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        status: 'ATTENDED',
-        attended: true
-      };
-
-      const meetingRef = doc(db, 'meetings', meetingId);
-      const meetingSnap = await getDoc(meetingRef);
-      if (!meetingSnap.exists()) return;
-      const data = meetingSnap.data();
-      const attendees = Array.isArray(data.attendees) ? [...data.attendees] : [];
-
-      const existingIdx = attendees.findIndex(a => a.userId === attendee.userId || (a.email && a.email === attendee.email));
-      if (existingIdx >= 0) {
-        attendees[existingIdx] = { ...attendees[existingIdx], ...attendee };
-      } else {
-        attendees.push(attendee);
-      }
-
-      await updateDoc(meetingRef, {
-        attendees,
-        attendanceCount: attendees.length,
-        updatedAt: now()
-      });
+      const { api } = await import('/js/api.js');
+      await api.post(`/meetings/${encodeURIComponent(meetingId)}/attendance`, { sessionId: user.sessionId });
     } catch (err) {
       console.warn('[Meeting Attendance] Error recording attendance:', err);
+    }
+  },
+
+  async recordAttendanceLeave(meetingId, sessionId) {
+    if (!meetingId || !sessionId) return;
+    try {
+      const { api } = await import('/js/api.js');
+      await api.post(`/meetings/${encodeURIComponent(meetingId)}/attendance/leave`, { sessionId });
+    } catch (err) {
+      console.warn('[Meeting Attendance] Error recording attendee departure:', err);
     }
   },
 
@@ -1119,9 +1122,10 @@ export const IssueService = {
   },
 
   async getByStudent(studentId) {
-    const q = query(collection(db, 'issues'), where('studentId', '==', studentId));
-    const list = snaps(await getDocs(q));
-    return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const { api } = await import('/js/api.js');
+    const list = await api.get('/student/issues');
+    return (Array.isArray(list) ? list : []).filter(issue => issue.studentId === studentId)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   },
 
   async getByMentor(mentorId) {
@@ -1131,7 +1135,7 @@ export const IssueService = {
   },
 
   async getByDepartment(dept) {
-    return snaps(await getDocs(query(collection(db, 'issues'), where('department', '==', dept))));
+    return getRecordsByDepartment('issues', dept);
   },
 
   async getEscalated(level) {
@@ -1447,7 +1451,7 @@ export const ChatService = {
     // For students, also fetch group chats where student is in studentIds or studentId is ALL
     if (isStudent) {
       try {
-        const groupQ = query(collection(db, 'chats'), where('studentId', '==', 'ALL'));
+        const groupQ = query(collection(db, 'chats'), where('studentIds', 'array-contains', userId));
         const groupSnaps = await getDocs(groupQ);
         groupSnaps.docs.forEach(d => {
           const data = { id: d.id, ...d.data() };
@@ -1659,13 +1663,17 @@ export const ClassService = {
 
   async getByDepartment(dept) {
     if (!dept) return [];
-    if (dept.startsWith('id:')) return snaps(await getDocs(query(collection(db, 'classes'), where('departmentId', '==', dept.slice(3)))));
-    return snaps(await getDocs(query(collection(db, 'classes'), where('department', '==', dept))));
+    return getRecordsByDepartment('classes', dept);
   },
 
   async getByDepartmentId(departmentId) {
     if (!departmentId) return [];
     return snaps(await getDocs(query(collection(db, 'classes'), where('departmentId', '==', departmentId))));
+  },
+
+  async getByTeacher(teacherId) {
+    if (!teacherId) return [];
+    return snaps(await getDocs(query(collection(db, 'classes'), where('classTeacherId', '==', teacherId))));
   },
 
   async create(data) {
@@ -1687,9 +1695,25 @@ export const ClassService = {
       throw new Error('Link this department to a school before creating classrooms.');
     }
     if (schoolsConfigured && !linkedDepartment) throw new Error('Select a department configured under a school.');
+    const requestedDuration = Number(data.durationYears);
+    let durationYears = Number.isInteger(requestedDuration) && requestedDuration >= 1 && requestedDuration <= 8 ? requestedDuration : 0;
+    if (data.course) {
+      const academicSettings = await getDoc(doc(db, 'settings', 'academics'));
+      const courses = academicSettings.exists() ? academicSettings.data().courses || [] : [];
+      const configuredCourse = courses.find(item => String(item.name || '').trim().toLowerCase() === String(data.course).trim().toLowerCase());
+      const configuredDuration = Number(configuredCourse?.durationYears);
+      if (Number.isInteger(configuredDuration) && configuredDuration >= 1 && configuredDuration <= 8) {
+        if (durationYears && durationYears !== configuredDuration) throw new Error('Class duration must match the configured course duration.');
+        durationYears = configuredDuration;
+      }
+      else throw new Error('Configure this course duration before creating its classroom.');
+    }
     const ref = await addDoc(collection(db, 'classes'), {
       ...data,
       className,
+      durationYears: durationYears || null,
+      semesterCount: durationYears ? durationYears * 2 : null,
+      semesterDurationMonths: 6,
       department: linkedDepartment?.name || department,
       departmentId: data.departmentId || linkedDepartment?.id || null,
       schoolId: data.schoolId || linkedDepartment?.schoolId || null,
@@ -1922,7 +1946,7 @@ export const AllocationService = {
 export const StatsService = {
   // Compute risk level based on academic data
   computeRisk(student) {
-    if (!student) return { riskScore: 0, riskLevel: 'LOW', factors: [] };
+    if (!student) return { riskScore: 0, riskLevel: 'NOT_ASSESSED', factors: [] };
 
     let score = 0;
     const factors = [];
@@ -1937,8 +1961,12 @@ export const StatsService = {
 
     // Attendance (0 - 40 pts)
     const attendance = parseFloat(student.attendance) || 0;
-    if (attendance > 0 || student.attendance !== undefined) {
-      if (attendance < 60) { score += 40; factors.push('Critical Attendance (< 60%)'); }
+    const attendanceSessions = Number(student.attendanceSessions || 0);
+    const attendanceRecorded = attendanceSessions > 0 || attendance > 0
+      || (student.attendanceStatus && student.attendanceStatus !== 'NOT_RECORDED');
+    if (attendanceRecorded) {
+      if (attendance <= 40) { score += 40; factors.push('Low Attendance (≤ 40%)'); }
+      else if (attendance < 60) { score += 40; factors.push('Critical Attendance (< 60%)'); }
       else if (attendance < 75) { score += 25; factors.push('Low Attendance (< 75%)'); }
       else if (attendance < 85) { score += 10; factors.push('Moderate Attendance (< 85%)'); }
     }
@@ -1949,7 +1977,8 @@ export const StatsService = {
     else if (openIssues > 0) { score += 10; factors.push('Open Grievance / Issues'); }
 
     // Risk Level Mapping
-    let riskLevel = 'LOW';
+    const hasAssessmentData = cgpa > 0 || attendanceRecorded || openIssues > 0;
+    let riskLevel = hasAssessmentData ? 'LOW' : 'NOT_ASSESSED';
     if (score >= 60) riskLevel = 'HIGH';
     else if (score >= 30) riskLevel = 'MEDIUM';
 

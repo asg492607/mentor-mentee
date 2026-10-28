@@ -235,31 +235,6 @@
   margin-left: auto;
 }
 
-.theme-toggle-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--bg-glass);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.theme-toggle-btn:hover {
-  background: var(--accent-light);
-  color: var(--accent);
-}
-
-.theme-toggle-btn svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
 .notification-bell {
   position: relative;
   width: 36px;
@@ -726,6 +701,11 @@
   background: var(--danger);
 }
 
+.progress-bar-fill.fill-muted {
+  background: var(--text-muted);
+  opacity: 0.45;
+}
+
 /* ---------- Empty State ---------- */
 .empty-state {
   display: flex;
@@ -1052,8 +1032,7 @@
     font-size: 0.7rem;
   }
 
-  .header-icon-btn,
-  .theme-toggle-btn {
+  .header-icon-btn {
     width: 36px;
     height: 36px;
     min-width: 36px;
@@ -1170,7 +1149,6 @@
   }
 
   .notification-bell,
-  .theme-toggle-btn,
   .header-icon-btn {
     width: 34px;
     height: 34px;
@@ -2547,14 +2525,14 @@
 }
 
 .modal-backdrop {
-  background: rgba(4, 7, 15, 0.75) !important;
+  background: rgba(15, 23, 42, 0.28) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   backdrop-filter: blur(8px) !important;
 }
 
 .modal {
   border-radius: var(--radius-xl) !important;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border) !important;
+  box-shadow: 0 20px 48px -15px rgba(15, 23, 42, 0.16), 0 0 0 1px var(--border) !important;
   animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
@@ -2567,4 +2545,29 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+#ai-meeting-intelligence {
+  background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%) !important;
+  color: #1e293b;
+  border-color: #ddd6fe !important;
+}
+
+#ai-meeting-intelligence [style*="background:rgba(255,255,255"],
+#ai-meeting-intelligence [style*="background: rgba(255,255,255"] {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+#ai-meeting-intelligence [style*="color:#e2e8f0"],
+#ai-meeting-intelligence [style*="color: #e2e8f0"],
+#ai-meeting-intelligence [style*="color:#94a3b8"],
+#ai-meeting-intelligence [style*="color: #94a3b8"],
+#ai-meeting-intelligence [style*="color:#a5b4fc"],
+#ai-meeting-intelligence [style*="color: #a5b4fc"],
+#ai-meeting-intelligence [style*="color:#c4b5fd"],
+#ai-meeting-intelligence [style*="color: #c4b5fd"],
+#ai-meeting-intelligence [style*="color:#fca5a5"],
+#ai-meeting-intelligence [style*="color: #fca5a5"] {
+  color: #334155 !important;
 }

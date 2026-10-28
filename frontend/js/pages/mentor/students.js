@@ -67,7 +67,7 @@ export async function render(container) {
       const bData = booklets[idx];
       const bookletPct = BookletService.calculateCompletion(bData);
       const withRisk = !s.riskLevel ? { ...s, ...StatsService.computeRisk(s) } : s;
-      return { ...withRisk, bookletPct };
+      return { ...withRisk, bookletPct, attendanceState: getAttendanceStatus(withRisk) };
     });
 
     // Only show unapproved students in the pending queue
@@ -126,7 +126,7 @@ export async function render(container) {
             <tr>
               <td>
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <div class="avatar avatar-sm">${(s.name||'?')[0]}</div>
+                  <div class="avatar avatar-sm">${escapeHtml(String(s.name || '?').slice(0, 1))}</div>
                   <div>
                     <p style="font-weight:600;font-size:0.875rem;">${escapeHtml(s.name || '—')}</p>
                     <p style="color:var(--text-muted);font-size:0.75rem;">${escapeHtml(s.enrollmentNumber || '')}</p>
@@ -139,9 +139,9 @@ export async function render(container) {
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div style="flex:1;max-width:60px;" class="progress-bar-wrap">
-                    <div class="progress-bar-fill ${(s.attendance||0)<75?'fill-danger':(s.attendance||0)<85?'fill-warning':'fill-success'}" style="width:${s.attendance||0}%"></div>
+                    <div class="progress-bar-fill ${s.attendanceState.isLow ? 'fill-danger' : s.attendanceState.key === 'BELOW_TARGET' ? 'fill-warning' : s.attendanceState.key === 'NOT_RECORDED' ? 'fill-muted' : 'fill-success'}" style="width:${Math.min(100, Math.max(0, Number(s.attendance) || 0))}%"></div>
                   </div>
-                  <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendance||0}% ${getAttendanceStatus(s).isLow ? `<span class="badge badge-danger">Low attendance</span>` : ''}</span>
+                  <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendanceState.key === 'NOT_RECORDED' ? 'Not recorded' : `${Math.min(100, Math.max(0, Number(s.attendance) || 0))}%`} ${s.attendanceState.isLow ? `<span class="badge badge-danger">Low attendance</span>` : s.attendanceState.key === 'BELOW_TARGET' ? `<span class="badge badge-warning">Below target</span>` : ''}</span>
                 </div>
               </td>
               <td>

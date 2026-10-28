@@ -4,10 +4,12 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { StudentService, StatsService } from '/js/services.js';
+import { departmentScope, escapeHtml } from '/js/utils.js';
+import { getAttendanceStatus } from '/js/services/academic-service.js';
 
 function riskBadge(r) {
   const cls = {HIGH:'badge-danger',MEDIUM:'badge-warning',LOW:'badge-success'}[r]||'badge-muted';
-  return `<span class="badge ${cls}">${r||'N/A'}</span>`;
+  return `<span class="badge ${cls}">${escapeHtml(r||'N/A')}</span>`;
 }
 
 export async function render(container) {
@@ -41,7 +43,7 @@ export async function render(container) {
   let filter   = 'ALL';
 
   try {
-    let raw = await StudentService.getByDepartment(user.department);
+    let raw = await StudentService.getByDepartment(departmentScope(user));
     // Compute missing risk
     students = raw.map(s => s.riskLevel ? s : { ...s, ...StatsService.computeRisk(s) });
     // Sort by riskScore desc
@@ -66,27 +68,32 @@ export async function render(container) {
       <table class="data-table">
         <thead><tr><th>#</th><th>Student</th><th>CGPA</th><th>Attendance</th><th>Open Issues</th><th>Risk Score</th><th>Level</th></tr></thead>
         <tbody>
-          ${list.map((s,i) => `
+          ${list.map((s,i) => {
+            const attendanceStatus = getAttendanceStatus(s);
+            const attendance = Math.min(100, Math.max(0, Number(s.attendance) || 0));
+            const cgpa = Number(s.cgpa) || 0;
+            const riskScore = Math.min(100, Math.max(0, Number(s.riskScore) || 0));
+            return `
             <tr>
               <td style="color:var(--text-muted);">${i+1}</td>
               <td>
-                <p style="font-weight:600;font-size:0.875rem;">${s.name}</p>
-                <p style="color:var(--text-muted);font-size:0.75rem;">${s.enrollmentNumber||''}</p>
+                <p style="font-weight:600;font-size:0.875rem;">${escapeHtml(s.name || 'Student')}</p>
+                <p style="color:var(--text-muted);font-size:0.75rem;">${escapeHtml(s.enrollmentNumber||'')}</p>
               </td>
-              <td style="font-weight:600;color:${(s.cgpa||0)<6?'var(--danger)':(s.cgpa||0)<7?'var(--warning)':'inherit'};">${s.cgpa||'—'}</td>
+              <td style="font-weight:600;color:${cgpa<6?'var(--danger)':cgpa<7?'var(--warning)':'inherit'};">${escapeHtml(s.cgpa||'—')}</td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div style="flex:1;max-width:60px;" class="progress-bar-wrap">
-                    <div class="progress-bar-fill ${(s.attendance||0)<75?'fill-danger':'fill-warning'}" style="width:${s.attendance||0}%"></div>
+                    <div class="progress-bar-fill ${attendanceStatus.isLow ? 'fill-danger' : attendanceStatus.key === 'BELOW_TARGET' ? 'fill-warning' : attendanceStatus.key === 'NOT_RECORDED' ? 'fill-muted' : 'fill-success'}" style="width:${attendance}%"></div>
                   </div>
-                  <span style="font-size:0.78rem;color:var(--text-muted);">${s.attendance||0}%</span>
+                  <span style="font-size:0.78rem;color:var(--text-muted);">${attendanceStatus.key === 'NOT_RECORDED' ? 'Not recorded' : `${attendance}%`}${attendanceStatus.isLow ? ' · Low' : attendanceStatus.key === 'BELOW_TARGET' ? ' · Below target' : ''}</span>
                 </div>
               </td>
-              <td>${s.openIssueCount||0}</td>
-              <td><span style="font-weight:700;font-size:1rem;color:${(s.riskScore||0)>60?'var(--danger)':(s.riskScore||0)>30?'var(--warning)':'var(--success)'};">${s.riskScore||0}</span><span style="color:var(--text-muted);font-size:0.75rem;">/100</span></td>
+              <td>${Number(s.openIssuesCount ?? s.openIssueCount) || 0}</td>
+              <td><span style="font-weight:700;font-size:1rem;color:${riskScore>60?'var(--danger)':riskScore>30?'var(--warning)':'var(--success)'};">${riskScore}</span><span style="color:var(--text-muted);font-size:0.75rem;">/100</span></td>
               <td>${riskBadge(s.riskLevel)}</td>
             </tr>
-          `).join('')}
+          `; }).join('')}
         </tbody>
       </table>
     `;

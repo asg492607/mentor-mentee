@@ -4,7 +4,8 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, IssueService, NotificationService, SettingsService } from '/js/services.js';
+import { IssueService, SettingsService } from '/js/services.js';
+import { api } from '/js/api.js';
 import { AIService } from '/js/services/ai-service.js';
 import { escapeHtml } from '/js/utils.js';
 import { t, getLanguage } from '/js/i18n.js';
@@ -207,32 +208,7 @@ export async function render(container) {
     if (btn) btn.disabled = true;
 
     try {
-      const freshUser = await StudentService.get(user.id).catch(() => null);
-      if (freshUser) {
-        Object.assign(user, freshUser);
-        localStorage.setItem('lumina_profile', JSON.stringify(user));
-      }
-
-      const id = await IssueService.create({
-        title,
-        category,
-        priority,
-        description,
-        studentId: user.id,
-        studentName: user.name,
-        mentorId: user.mentorId || null,
-        department: user.department || null
-      });
-
-      if (user.mentorId) {
-        await NotificationService.create({
-          userId: user.mentorId,
-          type: 'ISSUE_RAISED',
-          title: 'New Issue Raised',
-          message: `${user.name} raised a ${priority} priority issue: ${title}`,
-          relatedId: id
-        }).catch(() => null);
-      }
+      await api.post('/student/issues', { title, category, priority, description });
 
       showToast(t('issues.toast_submitted', 'Issue submitted successfully and routed to mentor!'), 'success');
       const formEl = document.getElementById('issue-form');

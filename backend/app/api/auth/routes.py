@@ -16,13 +16,56 @@ from app.config import settings
 from app.firebase.client import firebase_auth, db
 from app.services.auth_service import AuthService
 from app.core.dependencies import get_current_user
-from app.core.exceptions import ForbiddenException, ServiceUnavailableException, UnauthorizedException
+from app.core.exceptions import BadRequestException, ForbiddenException, ServiceUnavailableException, UnauthorizedException
 from app.core.role_claims import claims_for_account
 from app.utils.helpers import get_timestamp
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 token_security = HTTPBearer(auto_error=False)
 _auth_rate_limits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+
+
+@router.get("/institution-options")
+def get_public_institution_options():
+    """Return the non-sensitive school, department, and classroom choices for registration."""
+    if not db:
+        raise ServiceUnavailableException("Institution directory is temporarily unavailable")
+
+    records = [
+        {**(snapshot.to_dict() or {}), 'id': snapshot.id}
+        for snapshot in db.collection('departments').stream()
+    ]
+    schools = {
+        item['id']: item.get('name')
+        for item in records
+        if str(item.get('type') or '').upper() in {'SCHOOL', 'COLLEGE'}
+    }
+    departments = [
+        {
+            'id': item['id'],
+            'name': item.get('name'),
+            'type': item.get('type'),
+            'schoolId': item.get('schoolId'),
+            'schoolName': item.get('schoolName') or schools.get(item.get('schoolId')),
+        }
+        for item in records
+        if str(item.get('type') or '').upper() not in {'SCHOOL', 'COLLEGE', 'SECTION'}
+    ]
+    classes = [
+        {
+            'id': item.id,
+            'className': item.get('className'),
+            'departmentId': item.get('departmentId'),
+            'course': item.get('course') or '',
+            'durationYears': item.get('durationYears') or 4,
+            'year': item.get('year'),
+        }
+        for item in db.collection('classes').stream()
+        if item.get('departmentId')
+    ]
+    departments.sort(key=lambda item: str(item.get('name') or '').casefold())
+    classes.sort(key=lambda item: (str(item.get('departmentId')), str(item.get('className') or '').casefold()))
+    return {'departments': departments, 'classes': classes}
 
 def _auth_rate_limit(key: str, action: str, maximum: int, seconds: int) -> None:
     now = time.monotonic()
@@ -56,7 +99,7 @@ def _get_profile(uid: str):
 
 
 def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
-    """Issue claims from a server-verified profile and return that profile."""
+    """Issue claims only for a server-provisioned, approved platform account."""
     uid = decoded.get('uid')
     email = str(decoded.get('email') or '').strip().lower()
     if not uid:
@@ -79,18 +122,14 @@ def _provision_claims(decoded: dict[str, Any]) -> dict[str, Any]:
         firebase_auth.set_custom_user_claims(uid, claims_for_account('ADMIN', True))
         return profile
 
-    if not profile:
-        profile = {
-            'id': uid, 'email': email, 'role': 'STUDENT',
-            'name': decoded.get('name') or 'User',
-            'status': 'approved', 'isApproved': True,
-            'createdAt': get_timestamp(), 'updatedAt': get_timestamp()
-        }
-        db.collection('students').document(uid).set(profile, merge=True)
+    if not profile or profile_collection not in {'students', 'faculty'}:
+        raise ForbiddenException("No platform account has been provisioned for this user")
+    if profile.get('status') != 'approved' or profile.get('isApproved') is not True:
+        raise ForbiddenException("Your account is awaiting approval")
 
-    role = str(profile.get('role') or ('STUDENT' if profile_collection == 'students' else 'FACULTY')).upper()
-    profile['status'] = 'approved'
-    profile['isApproved'] = True
+    role = str(profile.get('role') or '').upper()
+    if not role:
+        raise ForbiddenException("Your platform account does not have an assigned role")
     firebase_auth.set_custom_user_claims(uid, claims_for_account(role, True))
     return {**profile, 'id': uid}
 
@@ -200,37 +239,138 @@ def register_account(payload: dict[str, Any], request: Request):
     terms_accepted = bool(payload.get('termsAccepted') or profile_input.get('termsAccepted'))
     if not terms_accepted:
         raise UnauthorizedException("You must accept the Terms & Conditions and Privacy Policy to register")
+
+    department = str(profile_input.get('department') or '').strip()
+    department_id = str(profile_input.get('departmentId') or '').strip()
+    department_record = None
+    if department_id:
+        department_doc = db.collection('departments').document(department_id).get()
+        if department_doc.exists:
+            department_record = {**(department_doc.to_dict() or {}), 'id': department_doc.id}
+    elif department:
+        matches = list(db.collection('departments').where('name', '==', department).limit(2).get())
+        if len(matches) == 1:
+            department_record = {**(matches[0].to_dict() or {}), 'id': matches[0].id}
+    if (
+        not department_record
+        or str(department_record.get('type') or '').upper() in {'SCHOOL', 'COLLEGE', 'SECTION'}
+        or (department and department_record.get('name') != department)
+    ):
+        raise BadRequestException("Select a valid academic department")
+    department = str(department_record.get('name') or '').strip()
+    department_id = str(department_record.get('id') or '').strip()
+    school_id = department_record.get('schoolId')
+    school_name = department_record.get('schoolName')
+    if school_id and not school_name:
+        school_doc = db.collection('departments').document(str(school_id)).get()
+        school_name = (school_doc.to_dict() or {}).get('name') if school_doc.exists else None
+
+    if role == 'STUDENT':
+        class_name = str(profile_input.get('class') or '').strip()
+        class_id = str(profile_input.get('classId') or '').strip()
+        enrollment = str(profile_input.get('enrollmentNumber') or '').strip()
+        try:
+            year = int(profile_input.get('year'))
+        except (TypeError, ValueError):
+            raise BadRequestException("Select a valid student year")
+        if not class_name or not enrollment or not 1 <= year <= 8:
+            raise BadRequestException("Department, class, enrollment number, and a valid year are required")
+        class_doc = db.collection('classes').document(class_id).get() if class_id else None
+        if not class_doc or not class_doc.exists:
+            matching_classes = list(
+                db.collection('classes')
+                .where('departmentId', '==', department_id)
+                .where('className', '==', class_name)
+                .limit(2)
+                .get()
+            )
+            class_doc = matching_classes[0] if len(matching_classes) == 1 else None
+        if not class_doc or not class_doc.exists:
+            raise BadRequestException("Select a classroom configured for this department")
+        class_record = class_doc.to_dict() or {}
+        if (
+            class_record.get('departmentId') != department_id
+            or str(class_record.get('className') or '').strip() != class_name
+        ):
+            raise BadRequestException("The selected classroom does not belong to this department")
+        class_id = class_doc.id
+        try:
+            duration_years = int(class_record.get('durationYears') or profile_input.get('durationYears') or 4)
+        except (TypeError, ValueError):
+            duration_years = 4
+        duration_years = max(1, min(8, duration_years))
+        if year > duration_years:
+            raise BadRequestException(f"The selected course has {duration_years} year(s)")
+        try:
+            class_year = int(class_record.get('year')) if class_record.get('year') is not None else None
+        except (TypeError, ValueError):
+            class_year = {
+                'FY': 1, 'FIRST': 1, 'FIRST YEAR': 1,
+                'SY': 2, 'SECOND': 2, 'SECOND YEAR': 2,
+                'TY': 3, 'THIRD': 3, 'THIRD YEAR': 3,
+                'LY': 4, 'FINAL': 4, 'FINAL YEAR': 4, 'FOURTH YEAR': 4,
+            }.get(str(class_record.get('year') or '').strip().upper())
+        if class_year and class_year != year:
+            raise BadRequestException("The selected year does not match this classroom")
+        normalized_enrollment = enrollment.casefold()
+        existing = db.collection('students').where('enrollmentNumberNormalized', '==', normalized_enrollment).limit(1).get()
+        if not existing:
+            existing = db.collection('students').where('enrollmentNumber', '==', enrollment).limit(1).get()
+        if existing:
+            raise BadRequestException("Enrollment number is already registered")
+    elif not department or not str(profile_input.get('designation') or '').strip() or not str(profile_input.get('employeeId') or '').strip():
+        raise BadRequestException("Department, designation, and employee ID are required for faculty registration")
+
+    user = None
+    collection = 'students' if role == 'STUDENT' else 'faculty'
     try:
         user = firebase_auth.create_user(email=email, password=password)
+        profile = {
+            'id': user.uid, 'email': email, 'name': str(profile_input['name']).strip(),
+            'role': role, 'department': department,
+            'departmentId': department_id, 'schoolId': school_id,
+            'schoolName': school_name,
+            'createdAt': get_timestamp(), 'updatedAt': get_timestamp(),
+            'status': 'pending', 'isApproved': False,
+            'termsAccepted': True, 'termsAcceptedAt': get_timestamp(),
+        }
+        if role == 'STUDENT':
+            profile.update({
+                'year': year, 'class': class_name,
+                'classId': class_id,
+                'course': class_record.get('course') or profile_input.get('course') or '',
+                'program': class_record.get('course') or profile_input.get('course') or '',
+                'durationYears': duration_years,
+                'semesterCount': duration_years * 2,
+                'semesterDurationMonths': 6,
+                'yearLabel': str(profile_input.get('yearLabel') or ''),
+                'enrollmentNumber': enrollment,
+                'enrollmentNumberNormalized': normalized_enrollment,
+                'cgpa': 0, 'attendance': 0, 'riskLevel': 'LOW', 'mentorId': None,
+            })
+        else:
+            profile.update({
+                'designation': str(profile_input['designation']).strip(),
+                'employeeId': str(profile_input['employeeId']).strip(),
+                'maxStudents': 20, 'assignedStudentCount': 0,
+            })
+        db.collection(collection).document(user.uid).set(profile)
+        return {'profile': profile}
     except Exception as exc:
+        if user:
+            try:
+                db.collection(collection).document(user.uid).delete()
+            except Exception:
+                logger.exception("Could not remove incomplete registration profile %s", user.uid)
+            try:
+                firebase_auth.delete_user(user.uid)
+            except Exception:
+                logger.exception("Could not remove incomplete registration account %s", user.uid)
         message = str(exc).lower()
         if 'already exists' in message or 'email already' in message:
             raise UnauthorizedException("This email is already registered")
-        raise ServiceUnavailableException("Unable to create the account")
-
-    profile = {
-        'id': user.uid, 'email': email, 'name': str(profile_input['name']).strip(),
-        'role': role, 'department': profile_input.get('department') or None,
-        'createdAt': get_timestamp(), 'updatedAt': get_timestamp(),
-        'status': 'pending', 'isApproved': False,
-        'termsAccepted': True, 'termsAcceptedAt': get_timestamp(),
-    }
-    if role == 'STUDENT':
-        profile.update({
-            'year': profile_input.get('year'), 'class': profile_input.get('class') or None,
-            'enrollmentNumber': profile_input.get('enrollmentNumber') or None,
-            'cgpa': 0, 'attendance': 0, 'riskLevel': 'LOW', 'mentorId': None,
-        })
-        collection = 'students'
-    else:
-        profile.update({
-            'designation': profile_input.get('designation') or None,
-            'employeeId': profile_input.get('employeeId') or None,
-            'maxStudents': 20, 'assignedStudentCount': 0,
-        })
-        collection = 'faculty'
-    db.collection(collection).document(user.uid).set(profile)
-    return {'profile': profile}
+        logger.exception("Self-registration failed")
+        raise ServiceUnavailableException("Unable to complete registration. Please try again.")
 
 
 @router.post("/bootstrap-claims")
@@ -279,20 +419,14 @@ def bootstrap_legacy_claims(credentials: HTTPAuthorizationCredentials = Depends(
         firebase_auth.set_custom_user_claims(uid, claims_for_account('ADMIN', True))
         return {"status": "claims_updated", "profile": admin_profile}
 
-    if not profile:
-        profile = {
-            'id': uid, 'email': email, 'role': 'STUDENT',
-            'name': decoded.get('name') or 'User',
-            'status': 'approved', 'isApproved': True,
-            'createdAt': get_timestamp(), 'updatedAt': get_timestamp()
-        }
-        db.collection('students').document(uid).set(profile, merge=True)
+    if not profile or profile_collection not in {'students', 'faculty'}:
+        raise ForbiddenException("No platform account has been provisioned for this user")
+    if profile.get('status') != 'approved' or profile.get('isApproved') is not True:
+        raise ForbiddenException("Your account is awaiting approval")
 
-    role = str(profile.get('role') or ('STUDENT' if profile_collection == 'students' else 'FACULTY')).upper()
-    profile['status'] = 'approved'
-    profile['isApproved'] = True
-    if profile_doc and profile_doc.exists and profile.get('status') != 'approved':
-        profile_doc.reference.update({'status': 'approved', 'isApproved': True})
+    role = str(profile.get('role') or '').upper()
+    if not role:
+        raise ForbiddenException("Your platform account does not have an assigned role")
 
     firebase_auth.set_custom_user_claims(uid, claims_for_account(role, True))
     return {"status": "claims_updated", "profile": {**profile, 'id': uid}}

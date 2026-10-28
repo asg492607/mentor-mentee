@@ -321,17 +321,6 @@ onAuthChange((user) => {
 // Global Click Handler
 document.addEventListener('click', (e) => {
 
-    if (e.target.closest('#global-theme-toggle')) {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        try { localStorage.setItem('lumina_theme', newTheme); } catch (_) {}
-        const icon = document.getElementById('global-theme-icon');
-        if (icon) {
-            icon.className = newTheme === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
-        }
-    }
-
     if (e.target.closest('#global-ai-copilot-btn')) {
         aiAssistantWidget.toggleWindow();
     }

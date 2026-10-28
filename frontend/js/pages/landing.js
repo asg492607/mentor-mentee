@@ -24,6 +24,19 @@ export async function render(container) {
           transition: all 0.3s ease;
         }
 
+        .mobile-nav-toggle {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          background: #fff;
+          color: var(--text-primary);
+          cursor: pointer;
+        }
+
         .brand-logo-wrap {
           display: flex;
           align-items: center;
@@ -183,7 +196,7 @@ export async function render(container) {
         /* ── Metric Cards Grid ── */
         .metrics-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
           gap: 20px;
           max-width: 1100px;
           margin: 0 auto 80px auto;
@@ -191,11 +204,11 @@ export async function render(container) {
         }
 
         .metric-card {
-          background: var(--bg-secondary);
+          background: var(--bg-card);
           border: 1px solid var(--border);
           border-radius: 16px;
-          padding: 24px;
-          text-align: center;
+          padding: 22px;
+          text-align: left;
           transition: transform 0.3s ease, border-color 0.3s ease;
         }
 
@@ -205,20 +218,19 @@ export async function render(container) {
         }
 
         .metric-val {
-          font-size: 2.2rem;
+          font-size: 1.15rem;
           font-weight: 800;
           background: linear-gradient(135deg, #6c47ff, #a855f7);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
         }
 
         .metric-lbl {
-          font-size: 0.85rem;
-          color: var(--text-muted);
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+          font-size: 0.84rem;
+          color: var(--text-secondary);
+          font-weight: 500;
+          line-height: 1.5;
         }
 
         /* ── Special Thanks & Pilot Card ── */
@@ -365,9 +377,26 @@ export async function render(container) {
             grid-template-columns: 1fr;
             padding: 20px 16px;
           }
+          .mobile-nav-toggle { display: inline-flex; }
           .nav-links {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 12px;
+            right: 12px;
             display: none;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow-lg);
           }
+          .nav-links.open { display: flex; }
+          .nav-links li { width: 100%; }
+          .nav-links .nav-link { display: block; padding: 11px 12px; border-radius: 8px; }
+          .nav-links .nav-link:hover { background: var(--bg-secondary); }
           .landing-header {
             padding: 10px 12px;
           }
@@ -494,7 +523,10 @@ export async function render(container) {
           </div>
         </a>
 
-        <ul class="nav-links">
+        <button id="landing-mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="landing-nav-links">
+          <i class="ph ph-list" aria-hidden="true"></i>
+        </button>
+        <ul class="nav-links" id="landing-nav-links">
           <li><a href="#features" class="nav-link">${t('landing.nav_features', 'Features')}</a></li>
           <li><a href="#roles" class="nav-link">${t('landing.nav_portals', 'User Roles')}</a></li>
           <li><a href="#ecosystem" class="nav-link">${t('landing.cloud_tag', 'Cloud Platform')}</a></li>
@@ -523,11 +555,11 @@ export async function render(container) {
         </div>
 
         <h1 class="hero-title">
-          ${t('landing.hero_title_1', 'Next-Gen Mentorship,')} <span>${t('landing.hero_title_2', 'Zero Paperwork, Infinite Impact.')}</span>
+          ${t('landing.hero_title_1', 'One place for')} <span>${t('landing.hero_title_2', 'student support and success.')}</span>
         </h1>
 
         <p class="hero-desc">
-          ${t('landing.hero_desc', 'The all-in-one platform unifying student mentorship booklets, AI-powered academic copilots, high-definition WebRTC video meetings, and institutional grievance escalation for premier universities.')}
+          ${t('landing.hero_desc', 'Coordinate admissions, attendance, academic progress, meetings, and mentorship across MIT ADT University schools and departments.')}
         </p>
 
         <div class="hero-ctas">
@@ -537,7 +569,7 @@ export async function render(container) {
             </a>
           ` : `
             <a href="#/login" class="btn-gradient" style="padding:14px 36px;font-size:1.05rem;">
-              ${t('landing.cta_get_started', 'Get Started Free')} <i class="ph ph-arrow-right"></i>
+              ${t('landing.cta_get_started', 'Sign in to the portal')} <i class="ph ph-arrow-right"></i>
             </a>
           `}
           <a href="#features" class="btn-glass" style="padding:14px 28px;font-size:1.02rem;">
@@ -545,27 +577,23 @@ export async function render(container) {
           </a>
         </div>
 
-        <!-- Institutional Metrics Showcase -->
+        <!-- Platform areas; avoid presenting unverified institutional totals. -->
         <div class="metrics-grid">
           <div class="metric-card">
-            <div class="metric-val">1,200+</div>
-            <div class="metric-lbl">${t('landing.stat_students', 'Active Students Mentored')}</div>
+            <div class="metric-val">Admissions</div>
+            <div class="metric-lbl">Student intake and academic placement</div>
           </div>
           <div class="metric-card">
-            <div class="metric-val">20 : 1</div>
-            <div class="metric-lbl">${t('landing.stat_ratio', '20:1 Max Mentee Ratio')}</div>
+            <div class="metric-val">Attendance</div>
+            <div class="metric-lbl">Class registers and low-attendance follow-up</div>
           </div>
           <div class="metric-card">
-            <div class="metric-val">100%</div>
-            <div class="metric-lbl">${t('landing.stat_paperless', 'Paperless Compliance')}</div>
+            <div class="metric-val">Academic record</div>
+            <div class="metric-lbl">Results, progress, and student history</div>
           </div>
           <div class="metric-card">
-            <div class="metric-val">4-Tier</div>
-            <div class="metric-lbl">${t('landing.feat_escalation_title', 'Grievance Escalation')}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-val">24/7</div>
-            <div class="metric-lbl">${t('landing.feat_copilot_title', 'AI Academic Copilot')}</div>
+            <div class="metric-val">Mentorship</div>
+            <div class="metric-lbl">Department-based mentor support and meetings</div>
           </div>
         </div>
 
@@ -586,7 +614,7 @@ export async function render(container) {
           </h2>
 
           <p style="font-size:1.02rem;color:var(--text-secondary);max-width:880px;margin:0 auto;line-height:1.7;">
-            ${t('landing.pilot_desc', 'We extend our heartfelt gratitude and special recognition to Dr. Suvarna Pawar Mam, Head of Department (HOD) of CSE Core, for her visionary leadership, constant guidance, and pioneering initiative in piloting the Lumina Mentorship Platform for the TY CSE Core batch at MIT-ADT University. Her dedicated support and feedback have been instrumental in fostering academic excellence and student success.')}
+            ${t('landing.pilot_desc', 'With appreciation to Dr. Suvarna Joshi for supporting student mentorship and academic success at MIT ADT University.')}
           </p>
         </div>
       </section>
@@ -626,40 +654,10 @@ export async function render(container) {
             <span style="font-size:0.75rem;color:#a855f7;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
               ${t('landing.lead_tag', 'Team Lead (Student)')}
             </span>
-            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Atharva Gandhi</h3>
+            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Atharva</h3>
             <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.lead_role', 'Student Team Lead')}</p>
             <p class="feature-card-desc">
               ${t('landing.lead_desc', 'Lead platform architect and developer overseeing end-to-end system design and deployment.')}
-            </p>
-          </div>
-
-          <!-- Student Team Member Card (Vaibhav Bariyar) -->
-          <div class="feature-card" style="border-top:4px solid #ec4899;">
-            <div class="feature-icon-wrap" style="background:rgba(236,72,153,0.15);color:#ec4899;">
-              <i class="ph ph-user"></i>
-            </div>
-            <span style="font-size:0.75rem;color:#ec4899;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              ${t('landing.member_tag', 'Contributor')}
-            </span>
-            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Vaibhav Bariyar</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.member_role', 'Student Team Member')}</p>
-            <p class="feature-card-desc">
-              ${t('landing.member_1_desc', 'Contributor assisting with feature implementations and testing.')}
-            </p>
-          </div>
-
-          <!-- Student Team Member Card (Satwik Dhole) -->
-          <div class="feature-card" style="border-top:4px solid #3b82f6;">
-            <div class="feature-icon-wrap" style="background:rgba(59,130,246,0.15);color:#3b82f6;">
-              <i class="ph ph-user"></i>
-            </div>
-            <span style="font-size:0.75rem;color:#3b82f6;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:block;margin-bottom:4px;">
-              ${t('landing.member_tag', 'Contributor')}
-            </span>
-            <h3 class="feature-card-title" style="font-size:1.3rem;margin-bottom:4px;">Satwik Dhole</h3>
-            <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;margin-bottom:12px;">${t('landing.member_role', 'Student Team Member')}</p>
-            <p class="feature-card-desc">
-              ${t('landing.member_2_desc', 'Contributor assisting with platform development, feature enhancements, and testing.')}
             </p>
           </div>
 
@@ -1082,8 +1080,8 @@ export async function render(container) {
         </div>
         <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;">
           <p style="margin:0 0 10px 0;"><strong>${t('landing.roles_tag', 'Active Role')}:</strong> <span class="badge badge-accent">${roleKey.toUpperCase()}</span></p>
-          <p style="margin:0 0 10px 0;"><strong>${t('common.status', 'Status')}:</strong> ${t('landing.sync_status', 'System Verified & Synced with Firestore')}</p>
-          <p style="margin:0;"><strong>${t('landing.feature_access', 'Feature Access')}:</strong> ${t('landing.workspace_enabled', 'Full Workspace Privileges Enabled')}</p>
+          <p style="margin:0 0 10px 0;"><strong>${t('common.status', 'Status')}:</strong> ${t('landing.sync_status', 'Sign-in required to access live student data')}</p>
+          <p style="margin:0;"><strong>${t('landing.feature_access', 'Feature Access')}:</strong> ${t('landing.workspace_enabled', 'Access follows your assigned role')}</p>
         </div>
       </div>
     `;
@@ -1103,6 +1101,32 @@ export async function render(container) {
 
   // Initial tab render
   renderRoleTab('student');
+
+  const mobileNavToggle = container.querySelector('#landing-mobile-nav-toggle');
+  const landingNav = container.querySelector('#landing-nav-links');
+  mobileNavToggle?.addEventListener('click', () => {
+    const isOpen = landingNav?.classList.toggle('open') || false;
+    mobileNavToggle.setAttribute('aria-expanded', String(isOpen));
+    mobileNavToggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+    const icon = mobileNavToggle.querySelector('i');
+    if (icon) icon.className = isOpen ? 'ph ph-x' : 'ph ph-list';
+  });
+  landingNav?.querySelectorAll('a').forEach(link => link.addEventListener('click', () => {
+    landingNav.classList.remove('open');
+    mobileNavToggle?.setAttribute('aria-expanded', 'false');
+    mobileNavToggle?.setAttribute('aria-label', 'Open navigation');
+    const icon = mobileNavToggle?.querySelector('i');
+    if (icon) icon.className = 'ph ph-list';
+  }));
+
+  container.querySelectorAll('a[href^="#"]:not([href^="#/"])').forEach(link => {
+    link.addEventListener('click', event => {
+      const target = container.querySelector(link.getAttribute('href'));
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
 
 
 

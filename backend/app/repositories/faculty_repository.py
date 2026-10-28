@@ -6,7 +6,7 @@ class FacultyRepository(BaseRepository):
         super().__init__('faculty')
 
     def get_by_department(self, dept: str) -> list[dict]:
-        return self.query(filters=[('department', '==', dept)])
+        return self.query_department_scope(dept)
 
     def get_available(self, dept: str) -> list[dict]:
         mentors = self.get_by_department(dept)

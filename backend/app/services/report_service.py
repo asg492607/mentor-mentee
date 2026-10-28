@@ -37,7 +37,7 @@ class ReportService:
                 "total": len(meetings),
                 "coveragePercent": 0,
                 "recurringIssues": [],
-                "riskBreakdown": {"HIGH": 0, "MEDIUM": 0, "LOW": 0},
+                "riskBreakdown": {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "NOT_ASSESSED": 0},
                 "riskStudents": [],
                 "escalationRequired": [],
                 "topActionCategories": [],
@@ -57,7 +57,9 @@ class ReportService:
 
         for m in meetings_with_ai:
             ai = m.get('aiNotes', {})
-            risk_level = ai.get('riskLevel', 'LOW')
+            risk_level = str(ai.get('riskLevel') or 'NOT_ASSESSED').upper()
+            if risk_level not in {'HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'}:
+                risk_level = 'NOT_ASSESSED'
             risk_breakdown[risk_level] += 1
 
             if risk_level in ('HIGH', 'MEDIUM'):
@@ -98,13 +100,16 @@ class ReportService:
         )
         for m in sorted_meetings[:5]:
             ai = m.get('aiNotes', {})
+            risk_level = str(ai.get('riskLevel') or 'NOT_ASSESSED').upper()
+            if risk_level not in {'HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'}:
+                risk_level = 'NOT_ASSESSED'
             recent_insights.append({
                 "meetingId": m.get('id'),
                 "studentId": m.get('studentId'),
                 "topic": ai.get('topic', ''),
-                "riskLevel": ai.get('riskLevel', 'LOW'),
+                "riskLevel": risk_level,
                 "issuesSummary": (ai.get('issuesDiscussed') or '')[:200],
-                "actionCount": len((ai.get('actionItems') or '').split('\n')),
+                "actionCount": len([item for item in (ai.get('actionItems') or '').split('\n') if item.strip()]),
                 "taskCount": len(ai.get('tasks') or []),
                 "transcriptSource": ai.get('transcriptSource', 'live-only'),
                 "generatedAt": ai.get('generatedAt', '')
@@ -122,7 +127,8 @@ class ReportService:
             "riskBreakdown": {
                 "HIGH": risk_breakdown.get('HIGH', 0),
                 "MEDIUM": risk_breakdown.get('MEDIUM', 0),
-                "LOW": risk_breakdown.get('LOW', 0)
+                "LOW": risk_breakdown.get('LOW', 0),
+                "NOT_ASSESSED": risk_breakdown.get('NOT_ASSESSED', 0)
             },
             "riskStudents": risk_students,
             "escalationRequired": escalation_required,

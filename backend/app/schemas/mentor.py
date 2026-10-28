@@ -27,5 +27,5 @@ class AssignedStudentResponse(BaseModel):
     year: int
     cgpa: Optional[float] = None
     attendance: Optional[float] = None
-    riskLevel: RiskLevel = RiskLevel.LOW
+    riskLevel: RiskLevel = RiskLevel.NOT_ASSESSED
     lastMeetingDate: Optional[str] = None

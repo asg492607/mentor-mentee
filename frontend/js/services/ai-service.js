@@ -294,12 +294,12 @@ How can I assist you today?`;
       : (studentName ? `1. ${studentName}` : 'No attendee list available');
 
     const prompt = `You are Lumina AI, an expert academic and mentorship intelligence analyst for MIT-ADT University.
-Analyze the following recorded meeting audio transcript, live closed captions, room chat, and faculty notes. Extract a rigorous, exhaustive, highly precise institutional mentorship report.
+Analyze the supplied transcript, room chat, and faculty notes and prepare a concise review draft.
 
 --- SESSION CONTEXT ---
 Topic / Meeting Type: ${meetingTopic || 'Mentorship Session'}
 Target Student(s) / Attendees: ${studentName || 'Mentee(s)'}
-Academic Department: ${department || 'Department of Computer Science & Engineering (Core)'}
+Academic Department: ${department || 'Not recorded'}
 Registered Attendees:
 ${attendeeStr}
 
@@ -312,36 +312,34 @@ ${chatMessages || '(No chat messages)'}
 --- MENTOR MANUAL OBSERVATIONS & NOTES ---
 ${notes || '(No manual notes)'}
 
---- INSTRUCTIONS FOR HIGH-PRECISION EXTRACTION ---
-1. Identify the primary Meeting Agenda & Topic directly from how the session opened and the topics explored in the voice recording.
-2. Identify all student concerns, difficulties, backlogs, attendance deficits, exam hurdles, or personal/hostel issues explicitly or implicitly discussed.
-3. Group issues into distinct bold academic categories (e.g., **Academic Performance & Lab Submissions**, **Attendance Defaulter Status**, **KT & Backlog Clearance Plan**, **Examination Readiness**, **Personal & Psychological Well-being**, **Career, Certifications & Internship Placement**).
-4. Specify concrete remedial actions and agreed interventions with clear timelines.
-5. Extract individual actionable student tasks (short, crisp, one per line) to automatically synchronize with the student's task manager.
-6. Provide confidential faculty observations regarding the mentee's mindset, stress, emotional state, sincerity, and whether university counseling or parental notification is warranted.
-7. Evaluate risk triage level strictly: HIGH (critical backlogs / severe attendance shortage < 60% / deep distress), MEDIUM (moderate backlogs / attendance 60-75% / academic warning), or LOW (satisfactory standing).
-8. Format the output strictly under the following markdown section headers:
+--- EXTRACTION RULES ---
+1. Use only facts explicitly present in the supplied transcript, chat, or faculty notes. Do not infer concerns, attendance, grades, compliance, emotions, or outcomes.
+2. Do not invent agreed actions, assigned tasks, deadlines, recommendations, or follow-up dates. If none are recorded, write "Not recorded."
+3. Confidential observations may only restate explicit faculty notes. Never infer a student's mental or emotional state from a transcript.
+4. Set risk to HIGH, MEDIUM, or LOW only when that rating is explicitly stated with supporting information in the supplied content. Otherwise use NOT_ASSESSED. Do not recommend escalation unless the source explicitly records it.
+5. Label the output as an AI-assisted draft for human review. Do not claim institutional approval, verification, or compliance.
+6. Format the output strictly under the following markdown section headers:
 
 ### 📌 Meeting Agenda & Executive Topic
-[Specific meeting agenda and core subject matter derived directly from the voice recording dialogue]
+[Topic found in the supplied content, or "Not recorded."]
 
 ### ⚠️ Issues Discussed
-[Detailed bullet points with bold category headings describing every problem, challenge, or topic raised by the student or mentor in the recording]
+[Only issues explicitly raised, or "Not recorded."]
 
 ### ✅ Action Items & Remedial Measures
-[Numbered concrete remedial actions, faculty guidance, and institutional support steps agreed upon with deadlines]
+[Only agreed actions explicitly captured, or "Not recorded."]
 
 ### 🎯 Student Tasks
-[Concise bulleted list of 2-5 specific tasks assigned to the student for follow-up before next review, one per line]
+[Only tasks explicitly assigned in the supplied content, or "Not recorded."]
 
 ### 🔒 Confidential Faculty Observations
-[Confidential observations on the student's attitude, emotional state, engagement, stress signals, and faculty recommendations — kept private from the student]
+[Explicit confidential faculty notes only, or "Not recorded."]
 
 ### 🚨 Risk Assessment & Triage
-[State RISK LEVEL: LOW, MEDIUM, or HIGH followed by specific risk factors or corroborating indicators]
+[State HIGH, MEDIUM, LOW only when explicitly supported; otherwise state NOT_ASSESSED.]
 
 ### 📝 Additional Remarks
-[Professional, constructive summary remarks for official university record and NAAC/NBA compliance]`;
+[Brief factual remarks only. Do not claim compliance, approval, or verification.]`;
 
     try {
       const res = await this.chat({
@@ -368,7 +366,7 @@ ${notes || '(No manual notes)'}
       tasks: [],
       confidentialObservations: '',
       remarks: '',
-      riskLevel: 'LOW',
+      riskLevel: 'NOT_ASSESSED',
       riskSignals: [],
       requiresEscalation: false
     };
@@ -388,9 +386,11 @@ ${notes || '(No manual notes)'}
             tasks: Array.isArray(parsed.tasks) ? parsed.tasks : (typeof parsed.tasks === 'string' ? parsed.tasks.split('\n').filter(Boolean) : []),
             confidentialObservations: parsed.confidentialObservations || parsed.privateObservations || '',
             remarks: parsed.remarks || '',
-            riskLevel: (parsed.riskLevel || 'LOW').toUpperCase(),
+            riskLevel: ['HIGH', 'MEDIUM', 'LOW', 'NOT_ASSESSED'].includes(String(parsed.riskLevel || 'NOT_ASSESSED').toUpperCase())
+              ? String(parsed.riskLevel || 'NOT_ASSESSED').toUpperCase()
+              : 'NOT_ASSESSED',
             riskSignals: Array.isArray(parsed.riskSignals) ? parsed.riskSignals : [],
-            requiresEscalation: !!parsed.requiresEscalation || (parsed.riskLevel || '').toUpperCase() === 'HIGH'
+            requiresEscalation: !!parsed.requiresEscalation
           };
         }
       } catch (e) {
@@ -420,9 +420,8 @@ ${notes || '(No manual notes)'}
             result.confidentialObservations = val;
           } else if (header.includes('remark') && !result.remarks) {
             result.remarks = val;
-          } else if (header.includes('risk') && result.riskLevel === 'LOW') {
-            result.riskLevel = /high/i.test(val) ? 'HIGH' : /medium/i.test(val) ? 'MEDIUM' : 'LOW';
-            result.requiresEscalation = result.riskLevel === 'HIGH';
+          } else if (header.includes('risk') && result.riskLevel === 'NOT_ASSESSED') {
+            result.riskLevel = /\bhigh\b/i.test(val) ? 'HIGH' : /\bmedium\b/i.test(val) ? 'MEDIUM' : /\blow\b/i.test(val) ? 'LOW' : 'NOT_ASSESSED';
           }
         }
       }
@@ -462,11 +461,12 @@ ${notes || '(No manual notes)'}
         } else if (header.includes('risk') || header.includes('triage') || header.includes('signal')) {
           if (/high/i.test(body)) {
             result.riskLevel = 'HIGH';
-            result.requiresEscalation = true;
           } else if (/medium|moderate/i.test(body)) {
             result.riskLevel = 'MEDIUM';
-          } else {
+          } else if (/\blow\b/i.test(body)) {
             result.riskLevel = 'LOW';
+          } else {
+            result.riskLevel = 'NOT_ASSESSED';
           }
           result.riskSignals = body.split('\n')
             .map(l => l.replace(/^[\s•\-*\d.)]+/, '').trim())
@@ -495,7 +495,7 @@ ${notes || '(No manual notes)'}
         } else if (header.includes('confidential')) {
           result.confidentialObservations = body;
         } else if (header.includes('risk')) {
-          result.riskLevel = /high/i.test(body) ? 'HIGH' : /medium/i.test(body) ? 'MEDIUM' : 'LOW';
+          result.riskLevel = /\bhigh\b/i.test(body) ? 'HIGH' : /\bmedium\b/i.test(body) ? 'MEDIUM' : /\blow\b/i.test(body) ? 'LOW' : 'NOT_ASSESSED';
         } else if (header.includes('remark')) {
           result.remarks = body;
         }
@@ -515,26 +515,16 @@ ${notes || '(No manual notes)'}
   }
 
   /**
-   * Fallback extraction when AI API is unavailable — synthesizes structured, high-quality
-   * institutional mentorship points instead of dumping raw verbatim dialogue.
+   * Fallback extraction that reports only captured facts and never invents actions or findings.
    */
   _fallbackExtraction({ transcript = '', chatMessages = '', notes = '', meetingTopic = '', studentName = '' }) {
     const isGoodStr = s => s && typeof s === 'string' && s.trim().length > 2 && !/^(n|na|nil|none)$/i.test(s.trim());
     const allText = [transcript, chatMessages, notes].filter(isGoodStr).join('\n');
-    const lowerAll = (allText + ' ' + (meetingTopic || '')).toLowerCase();
-
-    let riskLevel = 'LOW';
-    let requiresEscalation = false;
-    const riskSignals = [];
-
-    if (/fail|kt|backlog|critical|depress|anxiety|severe|medical|attendance below 60/i.test(lowerAll)) {
-      riskLevel = 'HIGH';
-      requiresEscalation = true;
-      riskSignals.push('Critical academic backlog or attendance crisis identified');
-    } else if (/attendance|warning|low mark|struggling|difficulty|exam|fee|hostel/i.test(lowerAll)) {
-      riskLevel = 'MEDIUM';
-      riskSignals.push('Academic regularisation or attendance monitoring required');
-    }
+    const lowerAll = allText.toLowerCase();
+    const explicitRisk = lowerAll.match(/\b(high|medium|low) risk\b/i)?.[1]?.toUpperCase() || '';
+    const riskLevel = explicitRisk || 'NOT_ASSESSED';
+    const requiresEscalation = /\b(requires? escalation|escalate this|urgent intervention)\b/i.test(lowerAll);
+    const riskSignals = explicitRisk ? ['A risk rating was explicitly stated in the captured content.'] : [];
 
     // Extract genuine student problems from text
     const cleanLines = allText.split('\n')
@@ -545,39 +535,19 @@ ${notes || '(No manual notes)'}
     if (cleanLines.length > 0) {
       issuesList = cleanLines.slice(0, Math.min(5, cleanLines.length)).map(l => `• ${l}`);
     } else {
-      const topicContext = meetingTopic || 'Academic Review';
-      issuesList = [
-        `• **Curriculum & Subject Progress**: Evaluated student coursework comprehension and syllabus pacing for ${topicContext}.`,
-        `• **Attendance Compliance & Regularity**: Reviewed classroom and laboratory attendance records to ensure compliance with university thresholds (>=75%).`,
-        `• **Continuous Assessment & Lab Work**: Assessed performance in internal tests, unit tests, and timely submission of practical journals.`
-      ];
+      issuesList = ['• No discussion details were recorded.'];
     }
 
-    const actionItems = [
-      `1. Complete and submit all pending laboratory assignments and tutorial worksheets within 7 working days.`,
-      `2. Maintain continuous attendance above 75% across all core and elective lectures.`,
-      `3. Attend scheduled remedial doubt-clearing sessions with course faculty.`,
-      `4. Next mentorship milestone check-in scheduled to review academic progress and CIE marks.`
-    ].join('\n');
-
-    const tasks = [
-      'Submit pending coursework assignments and practical journals',
-      'Maintain regular lecture and lab attendance compliance (>=75%)',
-      'Follow up on doubt-clearing with subject faculty mentor'
-    ];
-
-    const confidential = riskLevel === 'HIGH'
-      ? 'Student flagged for close academic follow-up. Recommended counseling or parental contact if attendance does not improve.'
-      : 'Student demonstrated positive engagement during session. Advised consistent time management and study schedules.';
-
-    const remarks = `Mentorship interaction logged successfully for ${studentName || 'mentee'}. Verified compliant with institutional mentoring guidelines.`;
+    const remarks = allText
+      ? 'AI-assisted draft based on the captured session content. Review before sharing.'
+      : 'No transcript, chat, or faculty notes were captured. Complete the report manually before sharing.';
 
     return {
       topic: meetingTopic || 'Mentorship Session Review',
       issuesDiscussed: issuesList.join('\n'),
-      actionItems,
-      tasks,
-      confidentialObservations: confidential,
+      actionItems: '',
+      tasks: [],
+      confidentialObservations: '',
       remarks,
       riskLevel,
       riskSignals,
@@ -586,21 +556,23 @@ ${notes || '(No manual notes)'}
   }
 
   /**
-   * Generate a comprehensive official mentorship meeting report using AI.
+   * Generate a reviewable mentorship meeting report draft using AI.
    */
   async generateMentorMeetingReport({ meeting = {}, studentName = '', studentProfile = {}, transcript = '', notes = '' }) {
     const topic = meeting.type || meeting.description || 'Mentorship Session';
-    const dept = meeting.department || studentProfile.department || 'Department of Computer Science & Engineering (Core)';
+    const dept = meeting.department || studentProfile.department || 'Not recorded';
 
-    const prompt = `You are Lumina AI, generating an official MIT-ADT University Mentorship Session Report.
+    const prompt = `You are Lumina AI, preparing a mentorship session report draft for human review.
 Session Topic: ${topic}
 Student: ${studentName || meeting.studentName || 'Mentee'}
 Department: ${dept}
 CGPA: ${studentProfile.cgpa || meeting.studentCGPA || 'N/A'} | Attendance: ${studentProfile.attendance || meeting.studentAttendance || 'N/A'}% | Current Risk: ${studentProfile.riskLevel || meeting.riskLevel || 'N/A'}
 Backlogs: ${studentProfile.backlogs || 'N/A'}
 
-Meeting Notes: ${(notes && notes.trim().length > 3 && !/^(n|na|nil|none)$/i.test(notes.trim())) ? notes : ((meeting.notes?.summary && meeting.notes.summary.trim().length > 3 && !/^(n|na|nil|none)$/i.test(meeting.notes.summary.trim())) ? meeting.notes.summary : 'General academic review and mentorship guidance')}
+Meeting Notes: ${(notes && notes.trim().length > 3 && !/^(n|na|nil|none)$/i.test(notes.trim())) ? notes : ((meeting.notes?.summary && meeting.notes.summary.trim().length > 3 && !/^(n|na|nil|none)$/i.test(meeting.notes.summary.trim())) ? meeting.notes.summary : 'Not recorded')}
 Transcript / Audio Excerpt: ${(transcript || '').slice(0, 1500)}
+
+Use only facts explicitly present in these notes or transcript. Do not invent student concerns, grades, attendance, emotional observations, completed actions, tasks, deadlines, or follow-up dates. Write "Not recorded" for missing fields. Do not claim approval, verification, or compliance. Risk must be NOT_ASSESSED unless the source explicitly states a supported LOW, MEDIUM, or HIGH rating. Confidential observations must only restate explicit faculty notes; do not infer mental health or sincerity.
 
 Format the report strictly using these '### ' section headers:
 
@@ -608,22 +580,22 @@ Format the report strictly using these '### ' section headers:
 [1-2 formal sentences summarizing the meeting focus]
 
 ### ⚠️ Issues Discussed
-[3-5 bullet points with bold labels detailing student difficulties, backlogs, attendance, or personal concerns]
+[Only concerns explicitly recorded, or "Not recorded."]
 
 ### ✅ Action Taken & Remedial Measures
-[3-5 concrete numbered steps with clear remedial solutions and milestones]
+[Only actions explicitly agreed, or "Not recorded."]
 
 ### 🎯 Student Tasks
-[Simple bullet list of 2-4 tasks assigned to the mentee, one per line]
+[Only assigned tasks, or "Not recorded."]
 
 ### 🔒 Confidential Faculty Observations
-[Private observations on student academic mindset, stress, and behavioral readiness]
+[Explicit faculty notes only, or "Not recorded."]
 
 ### 🚨 Risk Assessment & Triage
-[Risk Level: LOW | MEDIUM | HIGH with 1-2 bullet indicators]
+[Risk Level: NOT_ASSESSED unless a supported rating is explicitly stated]
 
 ### 📝 Additional Remarks
-[1-2 formal sentences of assessment and encouragement]`;
+[Brief factual remarks. Do not claim institutional compliance or approval.]`;
 
     try {
       const res = await this.chat({
@@ -817,7 +789,7 @@ Format strictly as:
       }),
       this.extractRiskSignals(transcript, context.studentName || 'Student').catch(err => {
         console.warn('extractRiskSignals error in analyzeMeetingAudioWithGemini:', err);
-        return { riskLevel: 'LOW', signals: [] };
+        return { riskLevel: 'NOT_ASSESSED', signals: [] };
       })
     ]);
 
@@ -829,7 +801,7 @@ Format strictly as:
       tasks: insights.tasks || [],
       confidentialObservations: insights.confidentialObservations || '',
       remarks: insights.remarks || '',
-      riskLevel: insights.riskLevel || riskData.riskLevel || 'LOW',
+      riskLevel: insights.riskLevel || riskData.riskLevel || 'NOT_ASSESSED',
       riskSignals: insights.riskSignals?.length > 0 ? insights.riskSignals : (riskData.signals || []),
       requiresEscalation: insights.requiresEscalation || riskData.requiresEscalation || false
     };
@@ -837,7 +809,7 @@ Format strictly as:
 
   async extractRiskSignals(transcript, studentName = 'Student') {
     if (!transcript || transcript.trim().length < 50) {
-      return { riskLevel: 'LOW', signals: [], recommendations: [] };
+      return { riskLevel: 'NOT_ASSESSED', signals: [], recommendations: [] };
     }
 
     const prompt = `Analyze this mentorship meeting transcript for student risk signals. Student: ${studentName}
@@ -845,9 +817,9 @@ Format strictly as:
 TRANSCRIPT:
 ${transcript.slice(0, 2000)}
 
-Identify academic, personal, or psychological risk indicators. Respond with ONLY a JSON object (no markdown):
+Use only explicit risk evidence in the transcript. Do not infer mental health, attendance, grades, or intent. If there is no clear evidence, set the risk level to NOT_ASSESSED. Do not suggest escalation unless the transcript explicitly requests it. Respond with ONLY a JSON object (no markdown):
 {
-  "riskLevel": "LOW|MEDIUM|HIGH",
+  "riskLevel": "NOT_ASSESSED|LOW|MEDIUM|HIGH",
   "signals": ["signal 1", "signal 2"],
   "recommendations": ["recommendation 1", "recommendation 2"],
   "requiresEscalation": false,
@@ -862,11 +834,21 @@ Identify academic, personal, or psychological risk indicators. Respond with ONLY
       });
       // Parse JSON from response
       const jsonMatch = res.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const riskLevel = String(parsed.riskLevel || 'NOT_ASSESSED').toUpperCase();
+        return {
+          riskLevel: ['NOT_ASSESSED', 'LOW', 'MEDIUM', 'HIGH'].includes(riskLevel) ? riskLevel : 'NOT_ASSESSED',
+          signals: Array.isArray(parsed.signals) ? parsed.signals.filter(item => typeof item === 'string').slice(0, 20) : [],
+          recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.filter(item => typeof item === 'string').slice(0, 20) : [],
+          requiresEscalation: parsed.requiresEscalation === true,
+          escalationReason: typeof parsed.escalationReason === 'string' ? parsed.escalationReason.slice(0, 500) : ''
+        };
+      }
     } catch (e) {
       console.warn('extractRiskSignals fallback:', e);
     }
-    return { riskLevel: 'LOW', signals: [], recommendations: [], requiresEscalation: false };
+    return { riskLevel: 'NOT_ASSESSED', signals: [], recommendations: [], requiresEscalation: false };
   }
 
   /**

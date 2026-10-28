@@ -52,6 +52,14 @@ export async function render(container) {
     // Update risk if needed
     const risk = StatsService.computeRisk(fullProfile);
     const attendanceStatus = getAttendanceStatus(fullProfile);
+    const attendanceValue = Math.min(100, Math.max(0, Number(fullProfile.attendance) || 0));
+    const attendanceColor = attendanceStatus.isLow ? 'var(--danger)'
+      : attendanceStatus.key === 'BELOW_TARGET' ? 'var(--warning)'
+        : attendanceStatus.key === 'NOT_RECORDED' ? 'var(--text-muted)' : 'var(--success)';
+    const attendanceFill = attendanceStatus.isLow ? 'fill-danger'
+      : attendanceStatus.key === 'BELOW_TARGET' ? 'fill-warning'
+        : attendanceStatus.key === 'NOT_RECORDED' ? 'fill-muted' : 'fill-success';
+    const attendanceDisplay = attendanceStatus.key === 'NOT_RECORDED' ? 'Not recorded' : `${attendanceValue}%`;
 
     const upcomingMeetings = (meetings || []).filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
     const unacknowledgedMeets = (meetings || []).filter(m => m.status === 'COMPLETED' && !m.studentAcknowledged && !m.isGroup);
@@ -253,12 +261,12 @@ export async function render(container) {
                 <div>
                   <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
                     <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.attendance', 'Attendance')}</span>
-                    <strong style="color:${(fullProfile.attendance||100)<75?'var(--danger)':(fullProfile.attendance||100)<85?'var(--warning)':'var(--success)'};">${fullProfile.attendance || 0}%</strong>
+                    <strong style="color:${attendanceColor};">${attendanceDisplay}</strong>
                   </div>
                   <div class="progress-bar-wrap" style="height:8px; border-radius:4px; background:var(--bg-input);">
-                    <div class="progress-bar-fill ${(fullProfile.attendance||0)<75?'fill-danger':(fullProfile.attendance||0)<85?'fill-warning':'fill-success'}" style="width:${fullProfile.attendance||0}%; border-radius:4px;"></div>
+                    <div class="progress-bar-fill ${attendanceFill}" style="width:${attendanceValue}%; border-radius:4px;"></div>
                   </div>
-                  ${attendanceStatus.isLow ? `<span class="badge ${attendanceStatus.badgeClass}" style="display:inline-flex;margin-top:8px;">${attendanceStatus.label} · threshold 40%</span>` : ''}
+                  ${attendanceStatus.key !== 'ON_TRACK' ? `<span class="badge ${attendanceStatus.badgeClass}" style="display:inline-flex;margin-top:8px;">${attendanceStatus.label}${attendanceStatus.isLow ? ' · threshold 40%' : ''}</span>` : ''}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
                   <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.risk_score', 'Academic Risk')}</span>
