@@ -313,26 +313,28 @@ def update_student_fees(student_id: str, data: dict, user=Depends(get_current_us
         current_snapshot = finance_ref.get(transaction=transaction)
         current = current_snapshot.to_dict() or {}
         payment_snapshot = payment_ref.get(transaction=transaction) if payment_amount > 0 else None
+        duplicate_payment = False
         if payment_snapshot and payment_snapshot.exists:
             existing_payment = payment_snapshot.to_dict() or {}
             if existing_payment.get("studentId") != student_id or _money(existing_payment.get("amount"), "Stored payment") != payment_amount:
                 raise BadRequestException("This payment reference was already used for a different payment")
-            return current
+            duplicate_payment = True
+        new_payment_amount = 0 if duplicate_payment else payment_amount
         current_total = _money(current.get("totalAmount"), "Stored total fee", optional=True)
         current_paid = _money(current.get("amountPaid", 0), "Stored amount paid")
         total = requested_total if "totalAmount" in data else current_total
-        if total is None and payment_amount > 0:
+        if total is None and new_payment_amount > 0:
             raise BadRequestException("Set a total fee before recording a payment")
         if total is not None and total < current_paid:
             raise BadRequestException("Total fee cannot be lower than payments already recorded")
         outstanding = max(0, round(float(total or 0) - current_paid, 2))
-        if payment_amount > outstanding:
+        if new_payment_amount > outstanding:
             raise BadRequestException(f"Payment exceeds the outstanding balance of ₹{outstanding:.2f}")
-        paid = round(current_paid + payment_amount, 2)
+        paid = round(current_paid + new_payment_amount, 2)
         effective_due_date = due_date if "dueDate" in data else current.get("dueDate")
-        if total is None and (payment_amount > 0 or effective_due_date):
+        if total is None and (new_payment_amount > 0 or effective_due_date):
             raise BadRequestException("Set a total fee before adding a due date or payment")
-        if total is None and not note and payment_amount == 0:
+        if total is None and not note and new_payment_amount == 0:
             raise BadRequestException("Set a total fee before creating a fee record")
         profile = {
             "studentId": student_id,
@@ -356,7 +358,7 @@ def update_student_fees(student_id: str, data: dict, user=Depends(get_current_us
             "createdAt": current.get("createdAt") or now,
         }
         transaction.set(finance_ref, profile, merge=True)
-        if payment_amount > 0:
+        if new_payment_amount > 0:
             transaction.set(payment_ref, {
                 "studentId": student_id,
                 "amount": payment_amount,
@@ -618,6 +620,7 @@ def admit_student(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD)))
             "enrollmentNumber": enrollment,
             "enrollmentNumberNormalized": enrollment.casefold(),
             "mobileNumber": mobile,
+            "fatherContact": str(data.get("fatherContact") or data.get("parentContact") or "").strip()[:30],
             "course": course,
             "program": course,
             "class": placement.get("class"),

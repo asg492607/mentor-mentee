@@ -93,7 +93,28 @@ function summarizeResults(results, students) {
 }
 
 function isYearDown(student) {
-  return student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN';
+  return Boolean(student && (student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN'));
+}
+
+const progressionAliases = {
+  enrollmentNumber: ['enrollmentnumber', 'enrollmentno', 'enrollment', 'rollno', 'rollnumber', 'studentid'],
+  decision: ['decision', 'result', 'standing', 'progression', 'action'],
+  targetYear: ['targetyear', 'newyear', 'year'],
+  academicYear: ['academicyear', 'session'],
+  reason: ['reason', 'decisionreason', 'remarks', 'notes']
+};
+const progressionKey = value => {
+  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return Object.entries(progressionAliases).find(([, aliases]) => aliases.includes(key))?.[0] || key;
+};
+
+function downloadProgressionTemplate() {
+  const csv = 'enrollmentNumber,decision,targetYear,academicYear,reason\nSTU001,YEAR_DOWN,2,2026-27,Repeat decision approved by Exam Section\nSTU002,PROGRESS,3,2026-27,Eligible to progress after result review\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'exam-progression-decisions-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function openProgressionDecision(student, config, action, onSaved) {
@@ -177,6 +198,12 @@ export async function render(container) {
           <div class="card" style="padding:22px;margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Academic progression decisions</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Review students with backlogs and record the formal decision to repeat or progress. A backlog alone does not automatically mark a student year down.</p></div><span id="progression-candidate-count" class="badge ${progressionCandidates.length ? 'badge-warning' : 'badge-success'}">${progressionCandidates.length} need review / already repeating</span></div>
             <div id="exam-progression-queue"></div>
+            <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;"><div><h4 style="margin:0;">Bulk progression decisions</h4><p style="margin:4px 0 0;color:var(--text-muted);font-size:.78rem;">Upload official Exam Section decisions by enrollment number. A reason is required for every row.</p></div><button id="download-progression-template" class="btn btn-secondary btn-sm">Download template</button></div>
+              <p style="margin:0 0 10px;color:var(--text-muted);font-size:.76rem;">Columns: enrollmentNumber, decision (YEAR_DOWN or PROGRESS), targetYear, academicYear, reason. YEAR_DOWN must keep the current year; PROGRESS can advance or clear a repeat.</p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input type="file" id="progression-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:380px;"><button id="import-progression" class="btn btn-primary" disabled>Save ready decisions</button></div>
+              <div id="progression-import-preview" style="margin-top:12px;"></div>
+            </div>
           </div>
           <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px;">
             <div class="stat-card"><div class="stat-label">Active students</div><div class="stat-value">${analysis.activeStudentCount}</div></div>
@@ -217,6 +244,104 @@ export async function render(container) {
     }));
   };
   renderProgressionQueue();
+  container.querySelector('#download-progression-template').addEventListener('click', downloadProgressionTemplate);
+  const progressionFile = container.querySelector('#progression-file');
+  const progressionPreview = container.querySelector('#progression-import-preview');
+  const progressionButton = container.querySelector('#import-progression');
+  let progressionRows = [];
+  let progressionImporting = false;
+  let progressionProgress = '';
+  const renderProgressionPreview = () => {
+    const ready = progressionRows.filter(row => !row.validationError && !row.saved);
+    progressionButton.disabled = progressionImporting || ready.length === 0;
+    progressionButton.textContent = progressionImporting ? progressionProgress : ready.length ? `Save ${ready.length} ready decision(s)` : 'Save ready decisions';
+    progressionPreview.innerHTML = progressionRows.length
+      ? `<p style="margin:0 0 8px;font-size:.78rem;font-weight:600;">${ready.length} ready · ${progressionRows.filter(row => row.saved).length} saved · ${progressionRows.filter(row => row.error || row.validationError).length} skipped / failed</p><div style="max-height:280px;overflow:auto;"><table class="data-table"><thead><tr><th>Enrollment</th><th>Student</th><th>Decision</th><th>Target year</th><th>Academic year</th><th>Status</th></tr></thead><tbody>${progressionRows.slice(0, 250).map(row => `<tr><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.student?.name || '—')}</td><td>${escapeHtml(row.decision || '—')}</td><td>${row.targetYear || '—'}</td><td>${escapeHtml(row.academicYear || '—')}</td><td><span class="badge ${row.saved ? 'badge-success' : row.error || row.validationError ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.saved ? 'Saved' : row.error || row.validationError || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${progressionRows.length > 250 ? '<small style="color:var(--text-muted);">Showing 250 of ' + progressionRows.length + ' rows.</small>' : ''}`
+      : '';
+  };
+  progressionFile.addEventListener('change', async () => {
+    progressionRows = [];
+    progressionPreview.innerHTML = '';
+    progressionButton.disabled = true;
+    const file = progressionFile.files?.[0];
+    if (!file) return;
+    try {
+      const matrix = await parseImportFile(file);
+      if (matrix.length < 2) throw new Error('The progression file has no data rows.');
+      const headers = matrix[0].map(progressionKey);
+      if (!headers.includes('enrollmentNumber') || !headers.includes('decision') || !headers.includes('reason')) throw new Error('The file must include enrollmentNumber, decision and reason columns.');
+      const studentByEnrollment = new Map();
+      activeStudents.forEach(student => {
+        const key = String(student.enrollmentNumber || '').trim().toLowerCase();
+        if (key) studentByEnrollment.set(key, student);
+      });
+      const seen = new Set();
+      progressionRows = matrix.slice(1).map(cells => {
+        const row = {};
+        headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
+        const enrollmentNumber = String(row.enrollmentNumber || '').trim();
+        const student = studentByEnrollment.get(enrollmentNumber.toLowerCase());
+        const rawDecision = String(row.decision || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+        const decision = ['YEAR_DOWN', 'REPEAT', 'REPEAT_YEAR'].includes(rawDecision) ? 'YEAR_DOWN'
+          : ['PROGRESS', 'ADVANCE', 'CLEAR', 'CURRENT'].includes(rawDecision) ? 'PROGRESS' : '';
+        const course = (config.courses || []).find(item => String(item.name || '').trim().toLowerCase() === String(student?.course || student?.program || '').trim().toLowerCase());
+        const duration = Number(student?.durationYears || course?.durationYears) || 0;
+        const currentYear = Number(student?.year) || 1;
+        const targetYear = row.targetYear === ''
+          ? decision === 'PROGRESS' && isYearDown(student) && currentYear < duration ? currentYear + 1 : currentYear
+          : Number(row.targetYear);
+        const reason = String(row.reason || '').trim().slice(0, 500);
+        const academicYear = String(row.academicYear || config.activeAcademicYear || student?.academicYear || '').trim().slice(0, 20);
+        let validationError = '';
+        if (!enrollmentNumber) validationError = 'Enrollment number is required';
+        else if (!student) validationError = 'Enrollment number was not found in active students';
+        else if (seen.has(enrollmentNumber.toLowerCase())) validationError = 'Enrollment appears more than once in this file';
+        else if (!decision) validationError = 'Decision must be YEAR_DOWN or PROGRESS';
+        else if (!Number.isInteger(duration) || duration < 1) validationError = 'Configure course duration before importing progression';
+        else if (!Number.isInteger(targetYear) || targetYear < 1 || targetYear > duration) validationError = `Target year must be between 1 and ${duration}`;
+        else if (decision === 'YEAR_DOWN' && targetYear !== currentYear) validationError = 'Year-down must keep the student in their current year';
+        else if (decision === 'PROGRESS' && targetYear < currentYear) validationError = 'A progression decision cannot move a student to an earlier year';
+        else if (decision === 'PROGRESS' && targetYear === currentYear && !isYearDown(student)) validationError = 'Choose a later year for a student who is not repeating';
+        else if (!reason) validationError = 'Decision reason is required';
+        if (!validationError) seen.add(enrollmentNumber.toLowerCase());
+        return { enrollmentNumber, student, decision, targetYear, academicYear, reason, validationError, error: '', saved: false };
+      }).filter(row => row.enrollmentNumber || row.decision || row.reason);
+      renderProgressionPreview();
+    } catch (error) {
+      progressionPreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read progression file.')}</p>`;
+      showToast(error.message || 'Could not read progression file.', 'error');
+    }
+  });
+  progressionButton.addEventListener('click', async () => {
+    const ready = progressionRows.filter(row => !row.validationError && !row.saved);
+    if (!ready.length) return;
+    progressionImporting = true;
+    let saved = 0;
+    for (let index = 0; index < ready.length; index++) {
+      const row = ready[index];
+      row.error = '';
+      try {
+        const updated = await api.put(`/admissions/students/${encodeURIComponent(row.student.id)}/lifecycle`, {
+          academicStanding: row.decision === 'YEAR_DOWN' ? 'YEAR_DOWN' : 'CURRENT',
+          year: row.targetYear,
+          academicYear: row.academicYear,
+          reason: row.reason
+        });
+        Object.assign(row.student, updated);
+        row.saved = true;
+        saved++;
+      } catch (error) {
+        row.error = error.message || 'Could not save progression decision';
+      }
+      progressionProgress = `Saving ${index + 1} / ${ready.length}…`;
+      renderProgressionPreview();
+    }
+    progressionImporting = false;
+    progressionProgress = '';
+    renderProgressionPreview();
+    renderProgressionQueue();
+    showToast(`${saved} progression decision(s) saved${ready.length - saved ? `, ${ready.length - saved} failed` : ''}.`, saved ? 'success' : 'error');
+  });
   container.querySelector('#download-result-template').addEventListener('click', template);
   const fileInput = container.querySelector('#results-file');
   const preview = container.querySelector('#results-preview');

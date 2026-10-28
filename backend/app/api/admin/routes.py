@@ -93,6 +93,7 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "enrollmentNumber": data.get("enrollmentNumber"),
             "enrollmentNumberNormalized": str(data.get("enrollmentNumber") or "").strip().casefold() or None,
             "mobileNumber": data.get("mobileNumber"),
+            "fatherContact": str(data.get("fatherContact") or data.get("parentContact") or "").strip()[:30],
             "course": data.get("course") or data.get("program"),
             "program": data.get("program") or data.get("course"),
             "durationYears": data.get("durationYears"),

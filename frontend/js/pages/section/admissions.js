@@ -6,7 +6,7 @@ import { showModal } from '/js/components/modal.js';
 import { StudentService, ClassService, DepartmentService } from '/js/services.js';
 import { api } from '/js/api.js';
 import { AcademicConfigService, FinanceService, yearNumber, yearLabel } from '/js/services/academic-service.js';
-import { parseImportFile } from '/js/excel-import.js';
+import { normalizeImportDate, parseImportFile } from '/js/excel-import.js';
 import { escapeHtml } from '/js/utils.js';
 
 const fieldAliases = {
@@ -14,6 +14,7 @@ const fieldAliases = {
   enrollmentNumber: ['enrollmentnumber', 'enrollmentno', 'enrollment', 'rollno', 'rollnumber', 'studentid'],
   email: ['email', 'emailaddress', 'studentemail'],
   mobileNumber: ['mobile', 'mobilenumber', 'phone', 'contact', 'mobileno'],
+  fatherContact: ['fathercontact', 'fathercontactno', 'fathercontactnumber', 'parentcontact', 'parentcontactno', 'parentmobile', 'parentphone', 'guardiancontact'],
   department: ['department', 'dept', 'branch', 'specialization'],
   school: ['school', 'schoolname', 'college', 'collegeof'],
   course: ['course', 'coursename', 'program', 'programname', 'programme', 'degree'],
@@ -22,7 +23,8 @@ const fieldAliases = {
   admissionYear: ['admissionyear', 'joiningyear', 'entryyear'],
   academicYear: ['academicyear', 'session', 'academicsession'],
   admissionStatus: ['admissionstatus', 'admissiontype'],
-  provisionalUntil: ['provisionaluntil', 'provisionalduedate', 'reviewdate']
+  provisionalUntil: ['provisionaluntil', 'provisionalduedate', 'reviewdate'],
+  admissionNotes: ['admissionnotes', 'pendingdocuments', 'admissioncomment']
 };
 
 function normalizeKey(value) {
@@ -30,13 +32,83 @@ function normalizeKey(value) {
   return Object.entries(fieldAliases).find(([, aliases]) => aliases.includes(key))?.[0] || key;
 }
 
+const feeAliases = {
+  enrollmentNumber: ['enrollmentnumber', 'enrollmentno', 'enrollment', 'rollno', 'rollnumber', 'studentid'],
+  totalAmount: ['totalamount', 'totalfee', 'feeamount', 'fees', 'tuitionfee'],
+  dueDate: ['duedate', 'feeduedate', 'paymentduedate'],
+  paymentAmount: ['paymentamount', 'amountpaid', 'payment', 'paidamount'],
+  reference: ['reference', 'receipt', 'receiptno', 'receiptid', 'transactionid', 'transactionreference'],
+  note: ['note', 'notes', 'comment', 'comments']
+};
+const courseAliases = {
+  name: ['name', 'course', 'coursename', 'program', 'programname', 'programme', 'degree'],
+  durationYears: ['durationyears', 'duration', 'years', 'courseyears'],
+  semesterCount: ['semestercount', 'semesters', 'totalsemesters'],
+  semesterDurationMonths: ['semesterdurationmonths', 'semestermonths', 'monthspersemester']
+};
+
+function feeKey(value) {
+  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return Object.entries(feeAliases).find(([, aliases]) => aliases.includes(key))?.[0] || key;
+}
+
+function courseKey(value) {
+  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return Object.entries(courseAliases).find(([, aliases]) => aliases.includes(key))?.[0] || key;
+}
+
 function downloadTemplate() {
-  const csv = 'name,enrollmentNumber,email,mobileNumber,school,department,course,class,year,admissionYear,academicYear,admissionStatus,provisionalUntil\nSample Student,STU001,student@example.edu,0000000000,School of Engineering,Computer Science,BTech,CS-A,FY,2026,2026-27,ADMITTED,\n';
+  const csv = 'name,enrollmentNumber,email,mobileNumber,fatherContact,school,department,course,class,year,admissionYear,academicYear,admissionStatus,provisionalUntil\nSample Student,STU001,student@example.edu,0000000000,0000000000,School of Engineering,Computer Science,BTech,CS-A,FY,2026,2026-27,ADMITTED,\n';
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   link.download = 'admission-list-template.csv';
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function downloadFeeTemplate() {
+  const csv = 'enrollmentNumber,totalAmount,dueDate,paymentAmount,reference,note\nSTU001,100000,2026-12-31,25000,RECEIPT-001,First installment\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'student-fees-import-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadAdmissionStatusTemplate() {
+  const csv = 'enrollmentNumber,admissionStatus,provisionalUntil,admissionNotes\nSTU001,PROVISIONAL,2026-12-31,Submit final marksheet\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'admission-status-update-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadCourseTemplate() {
+  const csv = 'courseName,durationYears,semesterCount,semesterDurationMonths\nBTech Computer Engineering,4,8,6\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'course-duration-import-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+async function paymentImportKey(studentId, reference) {
+  const value = `${studentId}|${String(reference || '').trim().toLowerCase()}`;
+  if (globalThis.crypto?.subtle && globalThis.TextEncoder) {
+    try {
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+      return `fee_${Array.from(new Uint8Array(digest).slice(0, 24), byte => byte.toString(16).padStart(2, '0')).join('')}`;
+    } catch (_) { /* use a deterministic fallback when Web Crypto is unavailable */ }
+  }
+  let first = 2166136261;
+  let second = 2246822519;
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    first = Math.imul(first ^ code, 16777619);
+    second = Math.imul(second ^ code, 3266489917);
+  }
+  return `fee_${(first >>> 0).toString(16)}${(second >>> 0).toString(16)}`;
 }
 
 function buildIntakeCohorts(students) {
@@ -58,12 +130,6 @@ function buildIntakeCohorts(students) {
 function money(value) {
   const amount = Number(value);
   return Number.isFinite(amount) ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount) : '—';
-}
-
-function isIsoDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function feeStatusBadge(status) {
@@ -206,17 +272,31 @@ export async function render(container) {
                 <div class="form-group" style="margin:0;"><label class="form-label">Duration (years)</label><input id="course-duration" class="form-input" type="number" min="1" max="8" placeholder="1–8" required></div>
                 <button class="btn btn-secondary" id="add-course">Add course</button>
               </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;"><input id="course-import-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:380px;"><button class="btn btn-secondary btn-sm" id="download-course-template">Download course template</button><button id="import-courses" class="btn btn-secondary btn-sm" disabled>Import course rows</button></div>
+              <div id="course-import-preview" style="margin-top:10px;"></div>
               <div id="course-list" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"></div>
               <div style="display:flex;justify-content:flex-end;margin-top:14px;"><button class="btn btn-primary" id="save-academic-config">Save academic setup</button></div>
             </div>
             <div class="card" style="padding:22px;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-              <div><h3 style="margin:0;">Import admission list</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">CSV or Excel. Required: name, enrollment number, email, mobile, department and course. Optional: admissionStatus (ADMITTED or PROVISIONAL) and provisionalUntil (YYYY-MM-DD). The mobile number is the initial password.</p></div>
+              <div><h3 style="margin:0;">Import admission list</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">CSV or Excel. Required: name, enrollment number, email, mobile, department and course. Optional: parent contact, admissionStatus (ADMITTED or PROVISIONAL) and provisionalUntil. The mobile number is the initial password.</p></div>
                 <button class="btn btn-secondary btn-sm" id="download-admission-template">Download template</button>
               </div>
               <input type="file" id="admission-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:480px;">
               <div id="admission-preview" style="margin-top:16px;"></div>
               <div style="display:flex;justify-content:flex-end;margin-top:14px;"><button class="btn btn-primary" id="import-admissions" disabled>Import ready students</button></div>
+            </div>
+            <div class="card" style="padding:22px;margin-top:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:10px;"><div><h3 style="margin:0;">Bulk update admission status</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Update existing students by enrollment number, including provisional review dates and pending-document notes.</p></div><button id="download-admission-status-template" class="btn btn-secondary btn-sm">Download template</button></div>
+              <p style="margin:0 0 12px;color:var(--text-muted);font-size:.78rem;">Columns: enrollmentNumber, admissionStatus (ADMITTED or PROVISIONAL), provisionalUntil, admissionNotes. Rows are previewed and matched before updates run.</p>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><input type="file" id="admission-status-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><button id="import-admission-status" class="btn btn-primary" disabled>Update ready students</button></div>
+              <div id="admission-status-preview" style="margin-top:14px;"></div>
+            </div>
+            <div class="card" style="padding:22px;margin-top:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Bulk fee schedules and receipts</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Import fee totals, due dates and received payments by enrollment number. Preview validates each row before any ledger entry is saved.</p></div><button class="btn btn-secondary btn-sm" id="download-fee-template">Download fee template</button></div>
+              <p style="margin:0 0 12px;color:var(--text-muted);font-size:.78rem;">Columns: enrollmentNumber (required), totalAmount, dueDate, paymentAmount, reference, note. Leave optional cells blank to keep existing values. A payment requires a unique receipt reference and creates a separate ledger entry; re-importing that reference is idempotent.</p>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><input type="file" id="fee-import-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><button class="btn btn-primary" id="import-fees" disabled>Import ready fee rows</button></div>
+              <div id="fee-import-preview" style="margin-top:14px;"></div>
             </div>
             <div class="card" style="padding:22px;margin-top:20px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Student lifecycle, allocation and fee directory</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Manage provisional documents, repeat-year decisions, fee schedules, due dates, and recorded payments.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><input id="admission-search" class="form-input" style="min-width:210px;" placeholder="Search name or enrollment"><select id="admission-course-filter" class="form-select" style="min-width:160px;"><option value="">All courses</option></select><select id="admission-year-filter" class="form-select" style="min-width:130px;"><option value="">All years</option></select><select id="admission-status-filter" class="form-select" style="min-width:145px;"><option value="">All admissions</option><option value="PROVISIONAL">Provisional</option><option value="ADMITTED">Admitted</option></select><select id="admission-standing-filter" class="form-select" style="min-width:145px;"><option value="">All standings</option><option value="YEAR_DOWN">Repeating year</option><option value="CURRENT">Current year</option></select><select id="admission-fee-filter" class="form-select" style="min-width:130px;"><option value="">All fees</option><option value="OVERDUE">Overdue</option><option value="DUE">Due</option><option value="PARTIAL">Partial</option><option value="PAID">Paid</option><option value="NOT_SET">Not set</option></select></div></div>
@@ -299,6 +379,75 @@ export async function render(container) {
     }));
   };
   renderCourses();
+  container.querySelector('#download-course-template').addEventListener('click', downloadCourseTemplate);
+  const courseFile = container.querySelector('#course-import-file');
+  const coursePreview = container.querySelector('#course-import-preview');
+  const courseImportButton = container.querySelector('#import-courses');
+  let courseImportRows = [];
+  const renderCoursePreview = () => {
+    const ready = courseImportRows.filter(row => !row.error && !row.alreadyConfigured);
+    courseImportButton.disabled = ready.length === 0;
+    coursePreview.innerHTML = courseImportRows.length
+      ? `<p style="margin:0 0 6px;font-size:.78rem;color:var(--text-secondary);">${ready.length} ready · ${courseImportRows.filter(row => row.alreadyConfigured).length} already configured · ${courseImportRows.filter(row => row.error).length} skipped</p><div style="max-height:220px;overflow:auto;"><table class="data-table"><thead><tr><th>Course</th><th>Duration</th><th>Semesters</th><th>Months per semester</th><th>Status</th></tr></thead><tbody>${courseImportRows.map(row => `<tr><td>${escapeHtml(row.name || '—')}</td><td>${row.durationYears || '—'} years</td><td>${row.semesterCount || '—'}</td><td>${row.semesterDurationMonths || '—'}</td><td><span class="badge ${row.error ? 'badge-danger' : row.alreadyConfigured ? 'badge-muted' : 'badge-info'}">${escapeHtml(row.error || (row.alreadyConfigured ? 'Already configured' : 'Ready'))}</span></td></tr>`).join('')}</tbody></table></div>`
+      : '';
+  };
+  courseFile.addEventListener('change', async () => {
+    courseImportRows = [];
+    coursePreview.innerHTML = '';
+    courseImportButton.disabled = true;
+    const file = courseFile.files?.[0];
+    if (!file) return;
+    try {
+      const matrix = await parseImportFile(file);
+      if (matrix.length < 2) throw new Error('The course file has no data rows.');
+      const headers = matrix[0].map(courseKey);
+      if (!headers.includes('name') || !headers.includes('durationYears')) throw new Error('The course file must include courseName and durationYears columns.');
+      const namesSeen = new Set();
+      courseImportRows = matrix.slice(1).map(cells => {
+        const row = {};
+        headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
+        const name = String(row.name || '').trim();
+        const durationYears = Number(row.durationYears);
+        const semesterCount = durationYears * 2;
+        const semesterDurationMonths = 6;
+        const existing = (config.courses || []).find(course => String(course.name || '').trim().toLowerCase() === name.toLowerCase());
+        let error = '';
+        if (!name) error = 'Course name is required';
+        else if (!Number.isInteger(durationYears) || durationYears < 1 || durationYears > 8) error = 'Duration must be a whole number from 1 to 8 years';
+        else if (row.semesterCount && Number(row.semesterCount) !== semesterCount) error = `Semester count must be ${semesterCount} (2 per year)`;
+        else if (row.semesterDurationMonths && Number(row.semesterDurationMonths) !== semesterDurationMonths) error = 'Each semester must be 6 months';
+        else if (existing && Number(existing.durationYears) !== durationYears) error = 'Course already exists with a different duration';
+        else if (namesSeen.has(name.toLowerCase())) error = 'Course appears more than once in this file';
+        if (name) namesSeen.add(name.toLowerCase());
+        return { name, durationYears, semesterCount, semesterDurationMonths, error, alreadyConfigured: Boolean(existing && !error) };
+      }).filter(row => row.name);
+      renderCoursePreview();
+    } catch (error) {
+      coursePreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read course file.')}</p>`;
+      showToast(error.message || 'Could not read course file.', 'error');
+    }
+  });
+  courseImportButton.addEventListener('click', async () => {
+    const ready = courseImportRows.filter(row => !row.error && !row.alreadyConfigured);
+    if (!ready.length) return;
+    const previousCourses = config.courses || [];
+    const additions = ready.map(({ name, durationYears, semesterCount, semesterDurationMonths }) => ({ name, durationYears, semesterCount, semesterDurationMonths }));
+    courseImportButton.disabled = true;
+    try {
+      config.courses = [...previousCourses, ...additions];
+      config.activeAcademicYear = container.querySelector('#active-academic-year').value.trim();
+      await AcademicConfigService.save(config);
+      ready.forEach(row => { row.alreadyConfigured = true; });
+      renderCourses();
+      showToast(`${additions.length} course(s) imported with ${additions.reduce((sum, course) => sum + course.semesterCount, 0)} total semesters.`, 'success');
+    } catch (error) {
+      config.courses = previousCourses;
+      showToast(error.message || 'Could not save imported courses.', 'error');
+    } finally {
+      courseImportButton.disabled = false;
+      renderCoursePreview();
+    }
+  });
   container.querySelector('#admission-count').textContent = students.length;
   renderDirectory();
 
@@ -346,7 +495,8 @@ export async function render(container) {
         const duration = course?.durationYears || 0;
         const year = yearNumber(row.year || 'FY') || 1;
         const admissionStatus = String(row.admissionStatus || 'ADMITTED').trim().toUpperCase();
-        const provisionalUntil = String(row.provisionalUntil || '').trim();
+        const provisionalInput = String(row.provisionalUntil || '').trim();
+        const provisionalUntil = normalizeImportDate(provisionalInput);
         let error = '';
         if (!row.name || !row.email || !row.mobileNumber || !row.enrollmentNumber || !row.department || !row.course) error = 'Missing required field';
         else if (!row.email.includes('@')) error = 'Invalid email';
@@ -356,7 +506,7 @@ export async function render(container) {
         else if (!course) error = 'Course is not configured';
         else if (year > duration) error = `Year exceeds ${duration}-year course`;
         else if (!['ADMITTED', 'PROVISIONAL'].includes(admissionStatus)) error = 'Admission status must be ADMITTED or PROVISIONAL';
-        else if (provisionalUntil && !isIsoDate(provisionalUntil)) error = 'Provisional date must be a valid date in YYYY-MM-DD format';
+        else if (provisionalInput && !provisionalUntil) error = 'Provisional date must be a valid date (use YYYY-MM-DD when ambiguous)';
         const deptMatches = departments.filter(item => String(item.name || '').trim().toLowerCase() === String(row.department || '').trim().toLowerCase());
         const schoolMatch = row.school ? deptMatches.find(item => {
           const linkedSchool = allInstitutionRecords.find(school => school.id === item.schoolId);
@@ -369,7 +519,7 @@ export async function render(container) {
         return { ...row, admissionStatus, provisionalUntil, departmentId: departmentRecord?.id || null, schoolId: departmentRecord?.schoolId || null, schoolName: departmentRecord?.schoolName || allInstitutionRecords.find(school => school.id === departmentRecord?.schoolId)?.name || null, year, yearLabel: yearLabel(year, duration), durationYears: duration, status: error ? 'Skipped' : 'Ready', error };
       }).filter(row => row.name || row.email || row.enrollmentNumber);
       const ready = preview.filter(row => row.status === 'Ready').length;
-      previewWrap.innerHTML = `<p style="margin:0 0 8px;font-weight:600;">${ready} ready · ${preview.length - ready} skipped</p><div style="max-height:320px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>School / Department</th><th>Course / Year</th><th>Admission</th><th>Status</th></tr></thead><tbody>${preview.map(row => `<tr><td>${escapeHtml(row.name || '—')}</td><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.schoolName || row.school || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(row.department || '—')}</div></td><td>${escapeHtml(row.course || '—')} · ${escapeHtml(row.yearLabel || '—')}</td><td>${escapeHtml(row.admissionStatus === 'PROVISIONAL' ? `Provisional${row.provisionalUntil ? ` · review ${row.provisionalUntil}` : ''}` : 'Admitted')}</td><td><span class="badge ${row.error ? 'badge-warning' : 'badge-success'}">${escapeHtml(row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>`;
+      previewWrap.innerHTML = `<p id="admission-import-summary" style="margin:0 0 8px;font-weight:600;">${ready} ready · ${preview.length - ready} skipped</p><div style="max-height:320px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>School / Department</th><th>Course / Year</th><th>Admission</th><th>Status</th></tr></thead><tbody>${preview.map((row, index) => `<tr data-admission-row="${index}"><td>${escapeHtml(row.name || '—')}</td><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.schoolName || row.school || '—')}<div style="font-size:.74rem;color:var(--text-muted);">${escapeHtml(row.department || '—')}</div></td><td>${escapeHtml(row.course || '—')} · ${escapeHtml(row.yearLabel || '—')}</td><td>${escapeHtml(row.admissionStatus === 'PROVISIONAL' ? `Provisional${row.provisionalUntil ? ` · review ${row.provisionalUntil}` : ''}` : 'Admitted')}</td><td><span class="badge ${row.error ? 'badge-warning' : 'badge-success'}">${escapeHtml(row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>`;
       importButton.disabled = !ready;
     } catch (error) {
       previewWrap.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read file.')}</p>`;
@@ -396,7 +546,7 @@ export async function render(container) {
         }
         const profile = await api.post('/admissions/students', {
           role: 'STUDENT', name: row.name, email: row.email, password: row.mobileNumber,
-          mobileNumber: row.mobileNumber, enrollmentNumber: row.enrollmentNumber,
+          mobileNumber: row.mobileNumber, enrollmentNumber: row.enrollmentNumber, fatherContact: row.fatherContact || '',
           department: row.department, departmentId: row.departmentId, schoolId: row.schoolId, schoolName: row.schoolName,
           course: row.course, program: row.course,
           class: row.class || null, classId: classRecord?.id || null, year: row.year, yearLabel: row.yearLabel,
@@ -405,17 +555,250 @@ export async function render(container) {
           provisionalUntil: row.provisionalUntil
         });
         students.unshift({ ...profile, role: 'STUDENT' });
+        row.status = 'Imported';
         created++;
       } catch (error) {
         failed++;
+        row.status = 'Failed';
         row.error = error.message || 'Import failed';
       }
+      const rowIndex = preview.indexOf(row);
+      const statusBadge = previewWrap.querySelector(`[data-admission-row="${rowIndex}"] .badge`);
+      if (statusBadge) {
+        statusBadge.className = `badge ${row.status === 'Imported' ? 'badge-success' : 'badge-danger'}`;
+        statusBadge.textContent = row.status === 'Imported' ? 'Imported' : row.error;
+      }
+      const summary = previewWrap.querySelector('#admission-import-summary');
+      if (summary) summary.textContent = `${preview.filter(item => item.status === 'Ready').length} ready · ${preview.filter(item => item.status === 'Imported').length} imported · ${preview.filter(item => item.error || item.status === 'Skipped').length} skipped / failed`;
       importButton.textContent = `Importing ${index + 1} / ${ready.length}…`;
     }
     container.querySelector('#admission-count').textContent = students.length;
     renderDirectory();
     importButton.textContent = 'Import ready students';
-    importButton.disabled = false;
+    importButton.disabled = !preview.some(row => row.status === 'Ready');
     showToast(`${created} student account(s) created${failed ? `, ${failed} failed` : ''}.`, created ? 'success' : 'error');
+  });
+
+  container.querySelector('#download-admission-status-template').addEventListener('click', downloadAdmissionStatusTemplate);
+  const admissionStatusFile = container.querySelector('#admission-status-file');
+  const admissionStatusPreview = container.querySelector('#admission-status-preview');
+  const admissionStatusButton = container.querySelector('#import-admission-status');
+  let admissionStatusRows = [];
+  let admissionStatusUpdating = false;
+  let admissionStatusProgress = '';
+  const renderAdmissionStatusPreview = () => {
+    const ready = admissionStatusRows.filter(row => !row.validationError && !row.imported);
+    admissionStatusButton.disabled = admissionStatusUpdating || ready.length === 0;
+    admissionStatusButton.textContent = admissionStatusUpdating ? admissionStatusProgress : ready.length ? `Update ${ready.length} ready student(s)` : 'Update ready students';
+    admissionStatusPreview.innerHTML = admissionStatusRows.length
+      ? `<p style="margin:0 0 8px;font-weight:600;">${ready.length} ready · ${admissionStatusRows.filter(row => row.imported).length} updated · ${admissionStatusRows.filter(row => row.error || row.validationError).length} skipped / failed</p><div style="max-height:300px;overflow:auto;"><table class="data-table"><thead><tr><th>Enrollment</th><th>Student</th><th>Admission status</th><th>Review date</th><th>Status</th></tr></thead><tbody>${admissionStatusRows.slice(0, 250).map(row => `<tr><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.student?.name || '—')}</td><td>${escapeHtml(row.admissionStatus || '—')}</td><td>${escapeHtml(row.provisionalUntil || (row.admissionStatus === 'PROVISIONAL' ? 'Keep existing' : 'Cleared on admission'))}</td><td><span class="badge ${row.imported ? 'badge-success' : row.error || row.validationError ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.imported ? 'Updated' : row.error || row.validationError || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${admissionStatusRows.length > 250 ? `<small style="color:var(--text-muted);">Showing 250 of ${admissionStatusRows.length} rows.</small>` : ''}`
+      : '';
+  };
+  admissionStatusFile.addEventListener('change', async () => {
+    admissionStatusRows = [];
+    admissionStatusPreview.innerHTML = '';
+    admissionStatusButton.disabled = true;
+    const file = admissionStatusFile.files?.[0];
+    if (!file) return;
+    try {
+      const matrix = await parseImportFile(file);
+      if (matrix.length < 2) throw new Error('The admission status file has no data rows.');
+      const headers = matrix[0].map(normalizeKey);
+      if (!headers.includes('enrollmentNumber') || !headers.includes('admissionStatus')) throw new Error('The file must include enrollmentNumber and admissionStatus columns.');
+      const byEnrollment = new Map();
+      students.forEach(student => {
+        const key = String(student.enrollmentNumber || '').trim().toLowerCase();
+        if (key) byEnrollment.set(key, student);
+      });
+      const seen = new Set();
+      admissionStatusRows = matrix.slice(1).map(cells => {
+        const row = {};
+        headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
+        const enrollmentNumber = String(row.enrollmentNumber || '').trim();
+        const student = byEnrollment.get(enrollmentNumber.toLowerCase());
+        const status = String(row.admissionStatus || '').trim().toUpperCase();
+        const dateInput = String(row.provisionalUntil || '').trim();
+        const provisionalUntil = normalizeImportDate(dateInput);
+        let validationError = '';
+        if (!enrollmentNumber) validationError = 'Enrollment number is required';
+        else if (!student) validationError = 'Enrollment number was not found';
+        else if (seen.has(enrollmentNumber.toLowerCase())) validationError = 'Enrollment appears more than once in this file';
+        else if (!['ADMITTED', 'PROVISIONAL'].includes(status)) validationError = 'Status must be ADMITTED or PROVISIONAL';
+        else if (dateInput && !provisionalUntil) validationError = 'Review date must be valid (use YYYY-MM-DD when ambiguous)';
+        else if (!row.admissionNotes && !dateInput && status === String(student.admissionStatus || 'ADMITTED').toUpperCase()) validationError = 'No admission status change or notes provided';
+        if (!validationError) seen.add(enrollmentNumber.toLowerCase());
+        return {
+          enrollmentNumber, student, admissionStatus: status, provisionalUntil,
+          admissionNotes: String(row.admissionNotes || '').slice(0, 500),
+          validationError, error: '', imported: false
+        };
+      }).filter(row => row.enrollmentNumber || row.admissionStatus || row.admissionNotes);
+      renderAdmissionStatusPreview();
+    } catch (error) {
+      admissionStatusPreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read admission status file.')}</p>`;
+      showToast(error.message || 'Could not read admission status file.', 'error');
+    }
+  });
+  admissionStatusButton.addEventListener('click', async () => {
+    const ready = admissionStatusRows.filter(row => !row.validationError && !row.imported);
+    if (!ready.length) return;
+    admissionStatusUpdating = true;
+    let saved = 0;
+    for (let index = 0; index < ready.length; index++) {
+      const row = ready[index];
+      row.error = '';
+      try {
+        const updated = await api.put(`/admissions/students/${encodeURIComponent(row.student.id)}/lifecycle`, {
+          admissionStatus: row.admissionStatus,
+          ...(row.provisionalUntil ? { provisionalUntil: row.provisionalUntil } : {}),
+          ...(row.admissionNotes ? { admissionNotes: row.admissionNotes } : {})
+        });
+        Object.assign(row.student, updated);
+        row.imported = true;
+        saved++;
+      } catch (error) {
+        row.error = error.message || 'Could not update admission record';
+      }
+      admissionStatusProgress = `Updating ${index + 1} / ${ready.length}…`;
+      renderAdmissionStatusPreview();
+    }
+    admissionStatusUpdating = false;
+    admissionStatusProgress = '';
+    renderAdmissionStatusPreview();
+    renderDirectory();
+    showToast(`${saved} admission record(s) updated${ready.length - saved ? `, ${ready.length - saved} failed` : ''}.`, saved ? 'success' : 'error');
+  });
+
+  container.querySelector('#download-fee-template').addEventListener('click', downloadFeeTemplate);
+  const feeFileInput = container.querySelector('#fee-import-file');
+  const feePreview = container.querySelector('#fee-import-preview');
+  const feeImportButton = container.querySelector('#import-fees');
+  let feeImportRows = [];
+  let feeImporting = false;
+  let feeImportProgress = '';
+  const renderFeePreview = () => {
+    const ready = feeImportRows.filter(row => !row.validationError && !row.imported);
+    const failures = feeImportRows.filter(row => row.error || row.validationError);
+    feeImportButton.disabled = feeImporting || ready.length === 0;
+    feeImportButton.textContent = feeImporting ? feeImportProgress : ready.length ? `Import ${ready.length} ready fee row(s)` : 'Import ready fee rows';
+    feePreview.innerHTML = feeImportRows.length
+      ? `<p style="margin:0 0 8px;font-weight:600;">${ready.length} ready · ${feeImportRows.filter(row => row.imported).length} imported · ${failures.length} skipped / failed</p><div style="max-height:340px;overflow:auto;"><table class="data-table"><thead><tr><th>Enrollment</th><th>Student</th><th>Total fee</th><th>Due date</th><th>Payment</th><th>Status</th></tr></thead><tbody>${feeImportRows.slice(0, 300).map(row => `<tr><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.student?.name || '—')}</td><td>${row.totalAmount === null ? 'Keep existing' : money(row.totalAmount)}</td><td>${escapeHtml(row.dueDate || 'Keep existing')}</td><td>${row.paymentAmount > 0 ? money(row.paymentAmount) : '—'}</td><td><span class="badge ${row.imported ? 'badge-success' : row.error ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.imported ? 'Imported' : row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${feeImportRows.length > 300 ? `<p style="font-size:.75rem;color:var(--text-muted);">Showing first 300 of ${feeImportRows.length} rows.</p>` : ''}`
+      : '';
+  };
+
+  feeFileInput.addEventListener('change', async () => {
+    feeImportRows = [];
+    feeImportButton.disabled = true;
+    feePreview.innerHTML = '';
+    const file = feeFileInput.files?.[0];
+    if (!file) return;
+    try {
+      const matrix = await parseImportFile(file);
+      if (matrix.length < 2) throw new Error('The selected file has no fee rows.');
+      const headers = matrix[0].map(feeKey);
+      if (!headers.includes('enrollmentNumber')) throw new Error('The fee file must include an enrollmentNumber column.');
+      const byEnrollment = new Map();
+      students.forEach(student => {
+        const key = String(student.enrollmentNumber || '').trim().toLowerCase();
+        if (key) byEnrollment.set(key, student);
+      });
+      const seenEnrollments = new Set();
+      const seenReferences = new Set();
+      feeImportRows = matrix.slice(1).map(cells => {
+        const row = {};
+        headers.forEach((header, column) => { row[header] = String(cells[column] ?? '').trim(); });
+        const enrollmentNumber = String(row.enrollmentNumber || '').trim();
+        const student = byEnrollment.get(enrollmentNumber.toLowerCase());
+        const finance = student ? financeByStudent.get(student.id) : null;
+        const parseAmount = (raw, label) => {
+          if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+          const amount = Number(String(raw).replace(/[₹,$\s]/g, ''));
+          if (!Number.isFinite(amount) || amount < 0 || Math.round(amount * 100) !== amount * 100) throw new Error(`${label} must be a non-negative amount with at most two decimal places`);
+          return Math.round(amount * 100) / 100;
+        };
+        let totalAmount = null;
+        let paymentAmount = null;
+        let error = '';
+        try {
+          totalAmount = parseAmount(row.totalAmount, 'Total fee');
+          paymentAmount = parseAmount(row.paymentAmount, 'Payment amount') || 0;
+          const dueDateInput = row.dueDate || '';
+          const dueDate = normalizeImportDate(dueDateInput);
+          if (dueDateInput && !dueDate) throw new Error('Due date must be valid (use YYYY-MM-DD when ambiguous)');
+          if (!enrollmentNumber) throw new Error('Enrollment number is required');
+          if (!student) throw new Error('Enrollment number was not found');
+          if (seenEnrollments.has(enrollmentNumber.toLowerCase())) throw new Error('Enrollment number appears more than once in this file');
+          const referenceKey = String(row.reference || '').trim().toLowerCase();
+          if (paymentAmount > 0 && !referenceKey) throw new Error('Receipt reference is required when recording a payment');
+          if (paymentAmount > 0 && referenceKey && seenReferences.has(referenceKey)) throw new Error('Receipt reference appears more than once in this file');
+          const hasChange = totalAmount !== null || Boolean(dueDate) || paymentAmount > 0 || Boolean(row.note);
+          if (!hasChange) throw new Error('Provide a fee total, due date, payment, or note');
+          const paid = Number(finance?.amountPaid) || 0;
+          const effectiveTotal = totalAmount === null ? (finance?.totalAmount === null || finance?.totalAmount === undefined ? null : Number(finance.totalAmount)) : totalAmount;
+          if (totalAmount !== null && totalAmount > 1000000000 || paymentAmount > 1000000000) throw new Error('Amounts cannot exceed ₹1,000,000,000');
+          if (effectiveTotal !== null && effectiveTotal < paid) throw new Error('Total fee is lower than payments already recorded');
+          if (paymentAmount > 0 && effectiveTotal === null) throw new Error('Set a total fee before recording a payment');
+          if (dueDate && effectiveTotal === null) throw new Error('Set a total fee before adding a due date');
+          if (paymentAmount > Math.max(0, (effectiveTotal || 0) - paid)) throw new Error('Payment exceeds the outstanding balance');
+          seenEnrollments.add(enrollmentNumber.toLowerCase());
+          if (paymentAmount > 0 && referenceKey) seenReferences.add(referenceKey);
+        } catch (parseError) {
+          error = parseError.message || 'Invalid fee row';
+        }
+        return {
+          enrollmentNumber,
+          student,
+          totalAmount,
+          dueDate: normalizeImportDate(row.dueDate || ''),
+          paymentAmount,
+          reference: String(row.reference || '').slice(0, 100),
+          note: String(row.note || '').slice(0, 500),
+          paymentId: null,
+          error,
+          validationError: error,
+          imported: false
+        };
+      }).filter(row => row.enrollmentNumber || row.totalAmount !== null || row.paymentAmount > 0 || row.dueDate || row.note);
+      await Promise.all(feeImportRows.filter(row => row.student && row.paymentAmount > 0 && row.reference).map(async row => {
+        row.paymentId = await paymentImportKey(row.student.id, row.reference);
+      }));
+      renderFeePreview();
+    } catch (error) {
+      feePreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read fee file.')}</p>`;
+      showToast(error.message || 'Could not read fee file.', 'error');
+    }
+  });
+
+  feeImportButton.addEventListener('click', async () => {
+    const ready = feeImportRows.filter(row => !row.validationError && !row.imported);
+    if (!ready.length) return;
+    feeImporting = true;
+    let saved = 0;
+    for (let index = 0; index < ready.length; index++) {
+      const row = ready[index];
+      row.error = '';
+      try {
+        const record = await FinanceService.update(row.student.id, {
+          ...(row.totalAmount !== null ? { totalAmount: row.totalAmount } : {}),
+          ...(row.dueDate ? { dueDate: row.dueDate } : {}),
+          ...(row.paymentAmount > 0 ? { paymentAmount: row.paymentAmount, paymentId: row.paymentId } : {}),
+          ...(row.reference ? { reference: row.reference } : {}),
+          ...(row.note ? { note: row.note } : {})
+        });
+        row.imported = true;
+        row.error = '';
+        financeByStudent.set(row.student.id, record);
+        saved++;
+      } catch (error) {
+        row.error = error.message || 'Could not save fee row';
+      }
+      feeImportProgress = `Importing ${index + 1} / ${ready.length}…`;
+      renderFeePreview();
+    }
+    feeImporting = false;
+    feeImportProgress = '';
+    renderFeePreview();
+    renderDirectory();
+    showToast(`${saved} fee row(s) imported${ready.length - saved ? `, ${ready.length - saved} failed` : ''}.`, saved ? 'success' : 'error');
   });
 }

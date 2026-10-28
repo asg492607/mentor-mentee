@@ -6,6 +6,32 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { DepartmentService, StudentService, FacultyService, ClassService } from '/js/services.js';
 import { escapeHtml } from '/js/utils.js';
+import { parseImportFile } from '/js/excel-import.js';
+
+const normalizeImportValue = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const structureFields = {
+  schoolName: ['school', 'schoolname', 'college', 'collegename'],
+  schoolCode: ['schoolcode', 'collegecode'],
+  schoolHead: ['schoolhead', 'dean', 'schooldean'],
+  departmentName: ['department', 'departmentname', 'dept', 'deptname', 'branch'],
+  departmentCode: ['departmentcode', 'deptcode', 'branchcode'],
+  departmentHead: ['departmenthead', 'hod', 'hodname'],
+  classroom: ['class', 'classroom', 'classname', 'section', 'division'],
+  classTeacherEmail: ['classteacheremail', 'teacheremail', 'facultyemail']
+};
+const structureKey = value => {
+  const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return Object.entries(structureFields).find(([, aliases]) => aliases.includes(key))?.[0] || key;
+};
+
+function downloadStructureTemplate() {
+  const csv = 'schoolName,schoolCode,schoolHead,departmentName,departmentCode,departmentHead,classroom,classTeacherEmail\nSchool of Engineering,SOE,Dean Name,Computer Engineering,CE,Dr. HOD,FY-CE-A,teacher@example.edu\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'university-structure-import-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
 
 export async function render(container) {
   const user = getUserProfile();
@@ -33,6 +59,13 @@ export async function render(container) {
               <div class="form-group" style="margin:0;"><label class="form-label">Head / HOD</label><input type="text" id="d-hod" class="form-input" placeholder="Dr. Name"></div>
               <button class="btn btn-primary" id="btn-add-dept">Add</button>
             </div>
+          </div>
+
+          <div class="card" style="padding:22px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:10px;"><div><h3 style="margin:0;">Bulk import university structure</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Build schools, departments, classrooms and optional class-teacher assignments from one CSV or Excel workbook. Existing matching records are reused.</p></div><button id="download-structure-template" class="btn btn-secondary btn-sm">Download template</button></div>
+            <p style="margin:0 0 12px;color:var(--text-muted);font-size:.78rem;">Required schoolName and schoolCode for new schools. Add departmentName and departmentCode for departments; classroom and classTeacherEmail are optional. Repeat school/department columns for each classroom row.</p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><input type="file" id="structure-import-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><button id="import-structure" class="btn btn-primary" disabled>Import ready rows</button></div>
+            <div id="structure-import-preview" style="margin-top:14px;"></div>
           </div>
 
           <div id="dept-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;">
@@ -473,6 +506,159 @@ export async function render(container) {
       renderDepts();
     } catch (err) { showToast(err.message, 'error'); }
     finally { btn.disabled = false; }
+  });
+
+  container.querySelector('#download-structure-template').addEventListener('click', downloadStructureTemplate);
+  const structureFile = container.querySelector('#structure-import-file');
+  const structurePreview = container.querySelector('#structure-import-preview');
+  const structureImport = container.querySelector('#import-structure');
+  let structureRows = [];
+  let structureImporting = false;
+  let structureImportProgress = '';
+  const renderStructurePreview = () => {
+    const ready = structureRows.filter(row => !row.validationError && !row.imported);
+    const skipped = structureRows.filter(row => row.validationError || row.error);
+    structureImport.disabled = structureImporting || ready.length === 0;
+    structureImport.textContent = structureImporting ? structureImportProgress : ready.length ? `Import ${ready.length} ready row(s)` : 'Import ready rows';
+    structurePreview.innerHTML = structureRows.length
+      ? `<p style="margin:0 0 8px;font-weight:600;">${ready.length} ready · ${structureRows.filter(row => row.imported).length} imported · ${skipped.length} skipped / failed</p><div style="max-height:340px;overflow:auto;"><table class="data-table"><thead><tr><th>School</th><th>Department</th><th>Classroom</th><th>Class teacher</th><th>Status</th></tr></thead><tbody>${structureRows.slice(0, 300).map(row => `<tr><td>${escapeHtml(row.schoolName || '—')}</td><td>${escapeHtml(row.departmentName || '—')}</td><td>${escapeHtml(row.classroom || '—')}</td><td>${escapeHtml(row.classTeacherEmail || '—')}</td><td><span class="badge ${row.imported ? 'badge-success' : row.validationError || row.error ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.imported ? 'Imported' : row.error || row.validationError || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${structureRows.length > 300 ? `<p style="font-size:.75rem;color:var(--text-muted);">Showing first 300 of ${structureRows.length} rows.</p>` : ''}`
+      : '';
+  };
+
+  structureFile.addEventListener('change', async () => {
+    structureRows = [];
+    structurePreview.innerHTML = '';
+    structureImport.disabled = true;
+    const file = structureFile.files?.[0];
+    if (!file) return;
+    try {
+      const matrix = await parseImportFile(file);
+      if (matrix.length < 2) throw new Error('The selected file has no structure rows.');
+      const headers = matrix[0].map(structureKey);
+      if (!headers.includes('schoolName')) throw new Error('The structure file must include a schoolName column.');
+      const facultiesByEmail = new Map();
+      const schoolCodesInFile = new Map();
+      const departmentCodesInFile = new Map();
+      faculty.forEach(member => {
+        const key = String(member.email || '').trim().toLowerCase();
+        if (!key) return;
+        const values = facultiesByEmail.get(key) || [];
+        values.push(member);
+        facultiesByEmail.set(key, values);
+      });
+      structureRows = matrix.slice(1).map(cells => {
+        const row = {};
+        headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
+        const schoolName = row.schoolName || '';
+        const schoolCode = String(row.schoolCode || '').trim().toUpperCase();
+        const departmentName = row.departmentName || '';
+        const departmentCode = String(row.departmentCode || '').trim().toUpperCase();
+        const classroom = row.classroom || '';
+        const classTeacherEmail = String(row.classTeacherEmail || '').trim().toLowerCase();
+        const school = schools.find(item => normalizeImportValue(item.name) === normalizeImportValue(schoolName));
+        const department = departmentName ? depts.find(item => normalizeImportValue(item.name) === normalizeImportValue(departmentName)
+          && ((school && item.schoolId === school.id) || (!item.schoolId && normalizeImportValue(item.schoolName) === normalizeImportValue(schoolName)))) : null;
+        const teacherMatches = classTeacherEmail ? facultiesByEmail.get(classTeacherEmail) || [] : [];
+        let validationError = '';
+        const schoolKey = normalizeImportValue(schoolName);
+        const departmentKey = `${schoolKey}|${normalizeImportValue(departmentName)}`;
+        if (schoolCodesInFile.has(schoolKey) && schoolCode && schoolCodesInFile.get(schoolKey) !== schoolCode) validationError = 'School code conflicts with another row in this file';
+        else if (schoolCode) schoolCodesInFile.set(schoolKey, schoolCode);
+        if (!validationError && departmentCodesInFile.has(departmentKey) && departmentCode && departmentCodesInFile.get(departmentKey) !== departmentCode) validationError = 'Department code conflicts with another row in this file';
+        else if (!validationError && departmentCode) departmentCodesInFile.set(departmentKey, departmentCode);
+        if (!validationError && !schoolName) validationError = 'School name is required';
+        else if (!validationError && school && schoolCode && school.code && normalizeImportValue(schoolCode) !== normalizeImportValue(school.code)) validationError = 'School code conflicts with the existing record';
+        else if (!validationError && !school && !schoolCode) validationError = 'School code is required for a new school';
+        else if (!validationError && departmentName && !department && !departmentCode) validationError = 'Department code is required for a new department';
+        else if (!validationError && classroom && !departmentName) validationError = 'A classroom must belong to a department';
+        else if (!validationError && classTeacherEmail && !classroom) validationError = 'A class teacher requires a classroom';
+        else if (!validationError && classTeacherEmail && teacherMatches.length !== 1) validationError = teacherMatches.length ? 'Teacher email is ambiguous' : 'Class teacher email was not found';
+        else if (!validationError && classTeacherEmail && !['FACULTY', 'MENTOR', 'CLASS_TEACHER'].includes(String(teacherMatches[0]?.role || '').toUpperCase())) validationError = 'Selected user is not eligible as a class teacher';
+        else if (!validationError && department && departmentCode && department.code && normalizeImportValue(departmentCode) !== normalizeImportValue(department.code)) validationError = 'Department code conflicts with the existing record';
+        const teacher = teacherMatches[0] || null;
+        if (!validationError && teacher) {
+          const sameDept = department
+            ? (teacher.departmentId ? teacher.departmentId === department.id : normalizeImportValue(teacher.department) === normalizeImportValue(department.name))
+            : (!teacher.departmentId && normalizeImportValue(teacher.department) === normalizeImportValue(departmentName));
+          const sameSchool = school
+            ? (teacher.schoolId ? teacher.schoolId === school.id : !teacher.schoolName || normalizeImportValue(teacher.schoolName) === normalizeImportValue(school.name))
+            : (!teacher.schoolId && normalizeImportValue(teacher.schoolName) === normalizeImportValue(schoolName));
+          if (!sameDept || !sameSchool) validationError = 'Class teacher must belong to this department and school';
+        }
+        return {
+          schoolName, schoolCode, schoolHead: String(row.schoolHead || '').trim(),
+          departmentName, departmentCode, departmentHead: String(row.departmentHead || '').trim(),
+          classroom, classTeacherEmail, validationError, error: '', imported: false
+        };
+      }).filter(row => row.schoolName || row.departmentName || row.classroom || row.classTeacherEmail);
+      renderStructurePreview();
+    } catch (error) {
+      structurePreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read structure file.')}</p>`;
+      showToast(error.message || 'Could not read structure file.', 'error');
+    }
+  });
+
+  structureImport.addEventListener('click', async () => {
+    const ready = structureRows.filter(row => !row.validationError && !row.imported);
+    if (!ready.length) return;
+    structureImporting = true;
+    let imported = 0;
+    for (let index = 0; index < ready.length; index++) {
+      const row = ready[index];
+      row.error = '';
+      try {
+        let school = schools.find(item => normalizeImportValue(item.name) === normalizeImportValue(row.schoolName));
+        if (!school) {
+          const record = { type: 'School', name: row.schoolName, code: row.schoolCode, hodName: row.schoolHead };
+          const id = await DepartmentService.create(record);
+          school = { id, ...record };
+          depts.push(school);
+          schools.push(school);
+        }
+        let department = row.departmentName ? depts.find(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase())
+          && normalizeImportValue(item.name) === normalizeImportValue(row.departmentName)
+          && (item.schoolId === school.id || (!item.schoolId && normalizeImportValue(item.schoolName) === normalizeImportValue(school.name)))) : null;
+        if (row.departmentName && !department) {
+          const record = { type: 'Department', name: row.departmentName, code: row.departmentCode, hodName: row.departmentHead, schoolId: school.id, schoolName: school.name };
+          const id = await DepartmentService.create(record);
+          department = { id, ...record };
+          depts.push(department);
+        }
+        if (row.classroom) {
+          if (!department) throw new Error('Department was not created or resolved');
+          let classroom = allClasses.find(item => (item.departmentId === department.id || (!item.departmentId && normalizeImportValue(item.department) === normalizeImportValue(department.name)))
+            && (!item.schoolId || item.schoolId === school.id)
+            && (!item.schoolName || normalizeImportValue(item.schoolName) === normalizeImportValue(school.name))
+            && normalizeImportValue(item.className) === normalizeImportValue(row.classroom));
+          if (!classroom) {
+            const record = { department: department.name, departmentId: department.id, schoolId: school.id, schoolName: school.name, className: row.classroom };
+            const id = await ClassService.create(record);
+            classroom = { id, ...record };
+            allClasses.push(classroom);
+          }
+          if (row.classTeacherEmail) {
+            const teacher = faculty.find(item => String(item.email || '').trim().toLowerCase() === row.classTeacherEmail);
+            if (!teacher) throw new Error('Class teacher was not found');
+            if (classroom.classTeacherId !== teacher.id) {
+              await ClassService.assignTeacher(classroom.id, teacher.id);
+              classroom.classTeacherId = teacher.id;
+            }
+          }
+        }
+        row.imported = true;
+        imported++;
+      } catch (error) {
+        row.error = error.message || 'Could not import this structure row';
+      }
+      structureImportProgress = `Importing ${index + 1} / ${ready.length}…`;
+      renderStructurePreview();
+    }
+    structureImporting = false;
+    structureImportProgress = '';
+    renderStructurePreview();
+    await loadAll();
+    renderDepts();
+    showToast(`${imported} structure row(s) imported${ready.length - imported ? `, ${ready.length - imported} failed` : ''}.`, imported ? 'success' : 'error');
   });
 
   renderDepts();

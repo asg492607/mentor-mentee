@@ -17,6 +17,15 @@ const keyOf = value => {
   return Object.entries(aliases).find(([, options]) => options.includes(key))?.[0] || key;
 };
 
+function downloadAttendanceTemplate() {
+  const csv = 'enrollmentNumber,status\nSTU001,Present\nSTU002,Absent\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'class-attendance-import-template.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function renderAttendanceAnalysis(students, records) {
   const perStudent = new Map();
   const perMonth = new Map();
@@ -106,9 +115,10 @@ export async function render(container) {
         <div class="form-group" style="margin:0;"><label class="form-label">Session / period</label><input id="attendance-period" class="form-input" placeholder="Daily / Period 1" required></div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-        <div><label class="form-label" for="attendance-file">Apply attendance from a file</label><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><small style="color:var(--text-muted);">Columns: enrollmentNumber, status (Present / Absent)</small></div>
+        <div><label class="form-label" for="attendance-file">Import attendance from CSV or Excel</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:350px;"><button id="download-attendance-template" class="btn btn-secondary btn-sm">Download template</button><button id="apply-attendance-file" class="btn btn-primary btn-sm" disabled>Apply preview</button></div><small style="color:var(--text-muted);">Columns: enrollmentNumber, status (Present / Absent). Preview and confirm before changing the register.</small></div>
         <span id="attendance-count" class="badge badge-info"></span>
       </div>
+      <div id="attendance-file-preview" style="margin-bottom:14px;"></div>
       <div id="attendance-analysis"></div>
       <div id="attendance-roster"><div class="spinner"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;">
@@ -117,8 +127,19 @@ export async function render(container) {
       </div>`;
 
     let roster = [];
+    let attendanceImportRows = [];
     const classSelect = wrap.querySelector('#attendance-class');
     const rosterWrap = wrap.querySelector('#attendance-roster');
+    const importPreview = wrap.querySelector('#attendance-file-preview');
+    const applyImport = wrap.querySelector('#apply-attendance-file');
+    const renderImportPreview = () => {
+      const ready = attendanceImportRows.filter(row => !row.error && !row.applied);
+      const skipped = attendanceImportRows.filter(row => row.error);
+      applyImport.disabled = ready.length === 0;
+      importPreview.innerHTML = attendanceImportRows.length
+        ? `<p style="margin:0 0 8px;font-size:.8rem;color:var(--text-secondary);">${ready.length} ready · ${attendanceImportRows.filter(row => row.applied).length} applied · ${skipped.length} skipped</p><div style="max-height:240px;overflow:auto;"><table class="data-table"><thead><tr><th>Enrollment</th><th>Student</th><th>Attendance</th><th>Status</th></tr></thead><tbody>${attendanceImportRows.slice(0, 200).map(row => `<tr><td>${escapeHtml(row.enrollmentNumber || '—')}</td><td>${escapeHtml(row.student?.name || '—')}</td><td>${row.present ? 'Present' : 'Absent'}</td><td><span class="badge ${row.applied ? 'badge-success' : row.error ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.applied ? 'Applied' : row.error || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${attendanceImportRows.length > 200 ? `<small style="color:var(--text-muted);">Showing 200 of ${attendanceImportRows.length} rows.</small>` : ''}`
+        : '';
+    };
     const drawRoster = () => {
       const present = roster.filter(student => student.present).length;
       wrap.querySelector('#attendance-count').textContent = `${present} present · ${roster.length - present} absent · ${roster.length} total`;
@@ -143,37 +164,62 @@ export async function render(container) {
       wrap.querySelector('#attendance-analysis').innerHTML = renderAttendanceAnalysis(students, records);
       drawRoster();
     };
-    classSelect.addEventListener('change', () => loadClass().catch(error => showToast(error.message, 'error')));
+    classSelect.addEventListener('change', () => {
+      attendanceImportRows = [];
+      renderImportPreview();
+      wrap.querySelector('#attendance-file').value = '';
+      loadClass().catch(error => showToast(error.message, 'error'));
+    });
     await loadClass();
 
     wrap.querySelector('#mark-all-present').addEventListener('click', () => {
       roster = roster.map(student => ({ ...student, present: true }));
       drawRoster();
     });
+    wrap.querySelector('#download-attendance-template').addEventListener('click', downloadAttendanceTemplate);
     wrap.querySelector('#attendance-file').addEventListener('change', async event => {
+      attendanceImportRows = [];
+      renderImportPreview();
       const file = event.target.files?.[0];
       if (!file) return;
       try {
         const matrix = await parseImportFile(file);
+        if (matrix.length < 2) throw new Error('The attendance file has no student rows.');
         const headers = matrix[0].map(keyOf);
-        const statuses = new Map();
-        matrix.slice(1).forEach(cells => {
+        if (!headers.includes('enrollmentNumber') || !headers.includes('status')) throw new Error('The file must include enrollmentNumber and status columns.');
+        const seen = new Set();
+        const duplicateEnrollments = new Set();
+        attendanceImportRows = matrix.slice(1).map(cells => {
           const row = {};
           headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
-          if (row.enrollmentNumber && /^(present|absent|p|a|yes|no|1|0|true|false)$/i.test(row.status || '')) {
-            statuses.set(row.enrollmentNumber.toLowerCase(), /^(present|p|yes|1|true)$/i.test(row.status));
-          }
+          const enrollmentNumber = String(row.enrollmentNumber || '').trim();
+          const enrollmentKey = enrollmentNumber.toLowerCase();
+          if (seen.has(enrollmentKey)) duplicateEnrollments.add(enrollmentKey);
+          seen.add(enrollmentKey);
+          const normalizedStatus = String(row.status || '').trim();
+          const validStatus = /^(present|absent|p|a|yes|no|1|0|true|false)$/i.test(normalizedStatus);
+          const student = roster.find(item => String(item.enrollmentNumber || '').trim().toLowerCase() === enrollmentKey);
+          return {
+            enrollmentNumber,
+            student,
+            present: /^(present|p|yes|1|true)$/i.test(normalizedStatus),
+            error: !enrollmentNumber ? 'Enrollment number is required' : !validStatus ? 'Status must be Present or Absent' : !student ? 'Student is not in the selected class' : '',
+            applied: false
+          };
         });
-        let matched = 0;
-        roster = roster.map(student => {
-          const enrollment = String(student.enrollmentNumber || '').toLowerCase();
-          if (!statuses.has(enrollment)) return student;
-          matched++;
-          return { ...student, present: statuses.get(enrollment) };
+        attendanceImportRows.forEach(row => {
+          if (duplicateEnrollments.has(row.enrollmentNumber.toLowerCase())) row.error = 'Enrollment appears more than once in file';
         });
-        drawRoster();
-        showToast(`Applied ${matched} attendance row(s) to this class.`, 'success');
+        renderImportPreview();
       } catch (error) { showToast(error.message || 'Could not read attendance file.', 'error'); }
+    });
+    applyImport.addEventListener('click', () => {
+      const statuses = new Map(attendanceImportRows.filter(row => !row.error && !row.applied).map(row => [row.student.id, row.present]));
+      roster = roster.map(student => statuses.has(student.id) ? { ...student, present: statuses.get(student.id) } : student);
+      attendanceImportRows.forEach(row => { if (!row.error && !row.applied) row.applied = true; });
+      drawRoster();
+      renderImportPreview();
+      showToast(`Applied ${statuses.size} attendance row(s) to the register.`, 'success');
     });
     wrap.querySelector('#save-attendance').addEventListener('click', async event => {
       const button = event.currentTarget;

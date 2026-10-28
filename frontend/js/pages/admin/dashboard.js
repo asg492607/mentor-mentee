@@ -197,7 +197,7 @@ export async function render(container) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <!-- Quick Actions -->
         <div class="card" style="padding:24px;">
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Quick Actions</h3>
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Quick Actions &amp; Bulk Imports</h3>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
               <div class="form-group" style="margin:0;">
@@ -213,8 +213,9 @@ export async function render(container) {
             <a href="#/admin/users?assign=true" class="btn btn-accent" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;font-weight:600;">🔗 Assign Mentors via Sheet (Excel/CSV) →</a>
             <button id="btn-dash-open-multi-class-mentors" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;background:rgba(108,71,255,0.08);border-color:var(--accent);color:var(--accent);font-weight:600;"><i class="ph ph-users-three" style="font-size:1.1rem;color:var(--accent);"></i> 👥 Multi-Class Mentors Directory &amp; Report →</button>
             <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
-            <a href="#/admin/users"       class="btn btn-secondary">Manage Users →</a>
-            <a href="#/admin/departments" class="btn btn-secondary">Manage Departments →</a>
+            <a href="#/admin/users"       class="btn btn-secondary">Bulk Import Students &amp; Faculty →</a>
+            <a href="#/admin/departments" class="btn btn-secondary">Bulk Import Schools, Departments &amp; Classrooms →</a>
+            <div style="padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary);font-size:.76rem;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Role dashboard imports</strong><br>Admission Cell: student intake, course durations and fee ledgers · Exam Section: semester results · Class Teachers: attendance registers.</div>
             <button id="btn-clean-duplicates-dash" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:var(--warning);border-color:var(--warning)88;">🧹 Clean Duplicate Database Records</button>
             <a href="#/admin/settings" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:#ef4444;border-color:rgba(239,68,68,0.4);">🐞 Manage Web Issues &amp; Bug Reports (Admin Only) →</a>
             <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>

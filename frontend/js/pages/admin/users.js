@@ -772,7 +772,7 @@ export async function render(container) {
 
   // Template downloads
   document.getElementById('btn-dl-student-tpl')?.addEventListener('click', () => {
-    const csvContent = "Name,Enrollment Number,Email Address,Mobile Number,Department,Class\nSample Student 1,EN2024001,student1@example.edu,0000000000,Computer Science,A\nSample Student 2,EN2024002,student2@example.edu,0000000000,Computer Science,B\n";
+    const csvContent = "Name,Enrollment Number,Email Address,Mobile Number,Parent Contact,Department,Class\nSample Student 1,EN2024001,student1@example.edu,0000000000,0000000000,Computer Science,A\nSample Student 2,EN2024002,student2@example.edu,0000000000,0000000000,Computer Science,B\n";
     downloadCSV(csvContent, "Student_Bulk_Import_Template.csv");
   });
 
@@ -913,6 +913,7 @@ export async function render(container) {
     if (['enrollmentnumber', 'enrollmentno', 'enrollment', 'rollno', 'rollnumber', 'employeeid', 'empid', 'id'].includes(h)) return 'enrollmentNumber';
     if (['emailaddress', 'email', 'username', 'useremail'].includes(h)) return 'email';
     if (['mobilenumber', 'numbermobile', 'mobile', 'phone', 'contact', 'mobileno', 'phonenumber'].includes(h)) return 'mobileNumber';
+    if (['fathercontact', 'fathercontactno', 'fathercontactnumber', 'parentcontact', 'parentcontactno', 'parentmobile', 'parentphone', 'guardiancontact'].includes(h)) return 'fatherContact';
     if (['department', 'dept', 'branch'].includes(h)) return 'department';
     if (['role', 'usertype', 'type'].includes(h)) return 'role';
     if (['class', 'section'].includes(h)) return 'class';
@@ -992,6 +993,7 @@ export async function render(container) {
           enrollmentNumber: enrollVal,
           email: emailVal,
           mobileNumber: mobileVal,
+          fatherContact: rowData.fatherContact || '',
           department: deptVal,
           role: roleVal,
           class: rowData.class || null,
@@ -1152,6 +1154,7 @@ export async function render(container) {
           email:            row.email,
           password:         row.mobileNumber,
           mobileNumber:     row.mobileNumber,
+          fatherContact:    row.fatherContact || '',
           department:       deptVal || null,
           enrollmentNumber: row.enrollmentNumber,
           employeeId:       row.enrollmentNumber,
