@@ -24,6 +24,63 @@ const keyOf = value => {
   return Object.entries(aliases).find(([, options]) => options.includes(key))?.[0] || key;
 };
 
+function resultTimestamp(value) {
+  if (value?.toDate) return value.toDate().getTime();
+  if (Number.isFinite(value?.seconds)) return value.seconds * 1000;
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function summarizeResults(results, students) {
+  const activeStudents = students.filter(student => !['PENDING', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(student.status || '').toUpperCase()) && student.isApproved !== false);
+  const studentById = new Map(activeStudents.map(student => [student.id, student]));
+  const latestByStudent = new Map();
+  results.forEach(result => {
+    if (!studentById.has(result.studentId)) return;
+    const current = latestByStudent.get(result.studentId);
+    const semester = Number(result.semesterNumber) || 0;
+    const currentSemester = Number(current?.semesterNumber) || 0;
+    if (!current || semester > currentSemester || (semester === currentSemester && resultTimestamp(result.updatedAt) > resultTimestamp(current.updatedAt))) {
+      latestByStudent.set(result.studentId, result);
+    }
+  });
+  const learners = [...latestByStudent.values()].map(result => {
+    const marks = (Array.isArray(result.subjects) ? result.subjects : [])
+      .map(subject => subject?.marks === null || subject?.marks === undefined || subject?.marks === '' ? null : Number(subject.marks))
+      .filter(mark => Number.isFinite(mark) && mark >= 0 && mark <= 100);
+    const average = marks.length ? marks.reduce((sum, mark) => sum + mark, 0) / marks.length : null;
+    const band = average === null ? 'NOT_ASSESSED' : average < 50 ? 'SLOW' : average < 75 ? 'MEDIUM' : 'ADVANCED';
+    return { result, student: studentById.get(result.studentId), average, band };
+  });
+  const assessed = learners.filter(item => item.average !== null);
+  const averages = assessed.map(item => item.average);
+  const bands = { SLOW: 0, MEDIUM: 0, ADVANCED: 0, NOT_ASSESSED: 0 };
+  learners.forEach(item => { bands[item.band]++; });
+  const cohorts = new Map();
+  learners.forEach(item => {
+    const course = String(item.student.course || item.student.program || 'Course not set');
+    const semester = Number(item.result.semesterNumber) || item.result.semester || '—';
+    const key = `${course.toLowerCase()}|${semester}`;
+    const cohort = cohorts.get(key) || { course, semester: String(item.result.semester || `Semester ${semester}`), students: 0, assessed: 0, marksTotal: 0, slow: 0, medium: 0, advanced: 0 };
+    cohort.students++;
+    if (item.average !== null) { cohort.assessed++; cohort.marksTotal += item.average; }
+    if (item.band === 'SLOW') cohort.slow++;
+    if (item.band === 'MEDIUM') cohort.medium++;
+    if (item.band === 'ADVANCED') cohort.advanced++;
+    cohorts.set(key, cohort);
+  });
+  return {
+    activeStudentCount: activeStudents.length,
+    recordCount: results.filter(result => studentById.has(result.studentId)).length,
+    latestLearnerCount: learners.length,
+    assessedCount: assessed.length,
+    averageMarks: averages.length ? averages.reduce((sum, value) => sum + value, 0) / averages.length : null,
+    bands,
+    cohorts: [...cohorts.values()].map(cohort => ({ ...cohort, averageMarks: cohort.assessed ? cohort.marksTotal / cohort.assessed : null }))
+      .sort((a, b) => (b.students - a.students) || a.course.localeCompare(b.course))
+  };
+}
+
 function template() {
   const csv = 'enrollmentNumber,semester,sgpa,cgpa,backlogs,examName,academicYear,subject,marks,grade\nSTU001,Semester 1,8.2,8.2,0,End Semester,2026-27,Mathematics,82,A\n';
   const link = document.createElement('a');
@@ -35,10 +92,12 @@ function template() {
 
 export async function render(container) {
   const user = getUserProfile();
-  const [allStudents, config] = await Promise.all([
+  const [allStudents, config, results] = await Promise.all([
     StudentService.getAllFresh().catch(() => []),
-    AcademicConfigService.get().catch(() => ({ activeAcademicYear: '' }))
+    AcademicConfigService.get().catch(() => ({ activeAcademicYear: '', courses: [] })),
+    ResultService.getAll().catch(error => { console.warn('Published results could not be loaded for analysis:', error); return []; })
   ]);
+  const analysis = summarizeResults(results, allStudents);
   let rowsToImport = [];
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -50,8 +109,18 @@ export async function render(container) {
             <span class="badge badge-accent">EXAM SECTION</span><h2 style="margin:10px 0 4px;">Publish semester results</h2>
             <p style="margin:0;color:var(--text-secondary);">Upload results by enrollment number. Each configured course year contains two six-month semesters; results outside the course duration are rejected.</p>
           </div>
+          <div class="card" style="padding:22px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;"><div><h3 style="margin:0;">Result coverage and learner analysis</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Latest semester result per active student. Marks bands use subject marks only: slow &lt;50, medium 50–74, advanced ≥75.</p></div><span class="badge badge-info">${analysis.latestLearnerCount}/${analysis.activeStudentCount} students have results</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+              <div class="stat-card"><div class="stat-label">Published result records</div><div class="stat-value">${analysis.recordCount}</div></div>
+              <div class="stat-card"><div class="stat-label">Latest results with marks</div><div class="stat-value">${analysis.assessedCount}<span style="font-size:.72rem;color:var(--text-muted);"> / ${analysis.latestLearnerCount}</span></div></div>
+              <div class="stat-card"><div class="stat-label">Mean latest subject marks</div><div class="stat-value">${analysis.averageMarks === null ? '—' : `${analysis.averageMarks.toFixed(1)}%`}</div></div>
+              <div class="stat-card"><div class="stat-label">Slow / medium / advanced</div><div class="stat-value" style="font-size:1.15rem;">${analysis.bands.SLOW} / ${analysis.bands.MEDIUM} / ${analysis.bands.ADVANCED}</div><div style="font-size:.72rem;color:var(--text-muted);">${analysis.bands.NOT_ASSESSED} latest results lack subject marks</div></div>
+            </div>
+            ${analysis.cohorts.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Course</th><th>Latest semester</th><th>Students</th><th>Mean marks</th><th>Slow</th><th>Medium</th><th>Advanced</th></tr></thead><tbody>${analysis.cohorts.slice(0, 12).map(cohort => `<tr><td>${escapeHtml(cohort.course)}</td><td>${escapeHtml(cohort.semester)}</td><td>${cohort.students}</td><td>${cohort.averageMarks === null ? '—' : `${cohort.averageMarks.toFixed(1)}%`}<span style="font-size:.7rem;color:var(--text-muted);"> (${cohort.assessed} assessed)</span></td><td>${cohort.slow}</td><td>${cohort.medium}</td><td>${cohort.advanced}</td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--text-muted);font-size:.84rem;">No active student results have been published yet.</p>'}
+          </div>
           <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px;">
-            <div class="stat-card"><div class="stat-label">Students</div><div class="stat-value">${allStudents.length}</div></div>
+            <div class="stat-card"><div class="stat-label">Active students</div><div class="stat-value">${analysis.activeStudentCount}</div></div>
             <div class="stat-card"><div class="stat-label">Active academic year</div><div class="stat-value" style="font-size:1.2rem;">${escapeHtml(config.activeAcademicYear || 'Not configured')}</div></div>
             <div class="stat-card"><div class="stat-label">Courses configured</div><div class="stat-value">${(config.courses || []).length}</div></div>
           </div>

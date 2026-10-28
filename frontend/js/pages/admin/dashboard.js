@@ -6,7 +6,8 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
-import { StudentService, FacultyService, DepartmentService, AllocationService, IssueService } from '/js/services.js';
+import { StudentService, FacultyService, DepartmentService, AllocationService, IssueService, StatsService } from '/js/services.js';
+import { escapeHtml } from '/js/utils.js';
 
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -68,7 +69,8 @@ export async function render(container) {
       if (pct >= 25) filledBookletCount++;
     });
 
-    const unassigned = uniqueStudents.filter(s => !s.mentorId).length;
+    const activeStudents = uniqueStudents.filter(student => !['PENDING', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(student.status || '').toUpperCase()) && student.isApproved !== false);
+    const unassigned = activeStudents.filter(s => !s.mentorId).length;
 
     // Deduplicate recent registrations
     const uniqueUserMap = new Map();
@@ -83,6 +85,21 @@ export async function render(container) {
       .slice(0, 6)
       .map(u => ({ ...u, role: u.cgpa !== undefined ? 'STUDENT' : (u.role || 'FACULTY') }));
     const totalAllUsers = uniqueStudents.length + faculty.length;
+    const academicSummary = StatsService.summarizeStudents(activeStudents);
+    const pendingAdmissions = uniqueStudents.filter(student => ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(String(student.status || student.admissionStatus || '').toUpperCase()) || student.isApproved === false).length;
+    const pendingFaculty = faculty.filter(member => String(member.status || '').toUpperCase() === 'PENDING' || member.isApproved === false).length;
+    const academicDepartments = depts.filter(department => !['SCHOOL', 'COLLEGE'].includes(String(department.type || '').toUpperCase()));
+    const deptHealth = new Map(academicDepartments.map(department => [department.id, { id: department.id, name: department.name, school: department.schoolName || '—', students: [] }]));
+    activeStudents.forEach(student => {
+      let row = student.departmentId ? deptHealth.get(student.departmentId) : null;
+      if (!row && student.department) {
+        const matches = [...deptHealth.values()].filter(item => String(item.name || '').trim().toLowerCase() === String(student.department).trim().toLowerCase() && (!student.schoolId || academicDepartments.find(department => department.id === item.id)?.schoolId === student.schoolId));
+        if (matches.length === 1) row = matches[0];
+      }
+      if (row) row.students.push(student);
+    });
+    const deptHealthRows = [...deptHealth.values()].map(row => ({ ...row, analysis: StatsService.summarizeStudents(row.students) }))
+      .sort((a, b) => b.analysis.frCount - a.analysis.frCount || b.analysis.learnerCounts.SLOW - a.analysis.learnerCounts.SLOW || b.students.length - a.students.length);
 
     const content = document.getElementById('admin-content');
     content.innerHTML = `
@@ -149,6 +166,23 @@ export async function render(container) {
             <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">System Admin</div>
           </div>
         </div>
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div><h3 style="margin:0;">Academic and allocation health</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Institution-wide student data. Averages include only records that have been submitted.</p></div>
+          <a href="#/admin/departments" class="btn btn-xs btn-secondary">Manage organization</a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;">
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean marks</div><strong style="font-size:1.15rem;">${academicSummary.averageSubjectMarks === null ? '—' : `${academicSummary.averageSubjectMarks}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${academicSummary.marksAssessed} assessed</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean attendance</div><strong style="font-size:1.15rem;">${academicSummary.averageAttendance === null ? '—' : `${academicSummary.averageAttendance}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${academicSummary.attendanceRecorded}/${academicSummary.total} with records</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">FR attendance</div><strong style="font-size:1.15rem;color:${academicSummary.frCount ? 'var(--danger)' : 'var(--success)'};">${academicSummary.frCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">40% or below</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Slow learner band</div><strong style="font-size:1.15rem;color:${academicSummary.learnerCounts.SLOW ? 'var(--warning)' : 'var(--success)'};">${academicSummary.learnerCounts.SLOW}</strong><div style="font-size:.72rem;color:var(--text-muted);">latest marks below 50%</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Unassigned students</div><strong style="font-size:1.15rem;color:${unassigned ? 'var(--warning)' : 'var(--success)'};">${unassigned}</strong><div style="font-size:.72rem;color:var(--text-muted);">no primary mentor set</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Pending review</div><strong style="font-size:1.15rem;">${pendingAdmissions + pendingFaculty}</strong><div style="font-size:.72rem;color:var(--text-muted);">${pendingAdmissions} student · ${pendingFaculty} faculty</div></div>
+        </div>
+        <h4 style="font-size:.84rem;margin:0 0 8px;">Departments needing attention</h4>
+        ${deptHealthRows.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Department</th><th>School</th><th>Students</th><th>FR</th><th>Slow band</th><th>Unassigned</th><th>Mean marks</th></tr></thead><tbody>${deptHealthRows.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.name || 'Department')}</td><td>${escapeHtml(row.school)}</td><td>${row.students.length}</td><td><span class="badge ${row.analysis.frCount ? 'badge-danger' : 'badge-success'}">${row.analysis.frCount}</span></td><td>${row.analysis.learnerCounts.SLOW}</td><td>${row.analysis.unassignedCount}</td><td>${row.analysis.averageSubjectMarks === null ? '—' : `${row.analysis.averageSubjectMarks}%`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="font-size:.8rem;color:var(--text-muted);">No academic department data is configured.</p>'}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">

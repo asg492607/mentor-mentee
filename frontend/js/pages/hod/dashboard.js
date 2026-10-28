@@ -16,6 +16,20 @@ function riskBadge(r) {
   return `<span class="badge ${cls}">${r||'N/A'}</span>`;
 }
 
+function buildDepartmentCohorts(students) {
+  const groups = new Map();
+  students.forEach(student => {
+    const course = String(student.course || student.program || 'Course not set');
+    const year = String(student.yearLabel || student.year || 'Year not set');
+    const classroom = String(student.class || 'Class not set');
+    const key = `${course.toLowerCase()}|${year.toLowerCase()}|${classroom.toLowerCase()}`;
+    if (!groups.has(key)) groups.set(key, { course, year, classroom, students: [] });
+    groups.get(key).students.push(student);
+  });
+  return [...groups.values()].map(group => ({ ...group, analysis: StatsService.summarizeStudents(group.students) }))
+    .sort((a, b) => b.analysis.frCount - a.analysis.frCount || b.analysis.learnerCounts.SLOW - a.analysis.learnerCounts.SLOW || b.students.length - a.students.length);
+}
+
 
 async function notifyDeans(issueId, title, message) {
   try {
@@ -268,7 +282,8 @@ export async function render(container) {
       resolvedIssues = 0, 
       students = [], 
       mentors = [], 
-      issues = [] 
+      issues = [],
+      meetings = []
     } = data || {};
 
         const severeIssues = (issues || [])
@@ -279,20 +294,40 @@ const highRiskList = (students || [])
       .filter(s => s.riskLevel === 'HIGH')
       .sort((a,b) => (b.riskScore||0) - (a.riskScore||0));
     const frStudents = (students || []).filter(student => getAttendanceStatus(student).isLow);
-    const learnerCounts = {
-      SLOW: students.filter(student => student.learnerLevel === 'SLOW').length,
-      MEDIUM: students.filter(student => student.learnerLevel === 'MEDIUM').length,
-      ADVANCED: students.filter(student => student.learnerLevel === 'ADVANCED').length,
-    };
+    const cohortAnalysis = data.cohortAnalysis || StatsService.summarizeStudents(students);
+    const learnerCounts = cohortAnalysis.learnerCounts;
+    const classCohorts = buildDepartmentCohorts(students);
+    const completedMeetings = meetings.filter(meeting => String(meeting.status || '').toUpperCase() === 'COMPLETED').length;
+    const pendingMeetings = meetings.filter(meeting => String(meeting.status || '').toUpperCase() === 'REQUESTED').length;
+    const activeMeetings = meetings.filter(meeting => ['APPROVED', 'SCHEDULED', 'ONGOING', 'IN_PROGRESS'].includes(String(meeting.status || '').toUpperCase())).length;
+    const interventionMeetingStudentIds = new Set(meetings.filter(meeting => meeting.attendanceIntervention === true && ['REQUESTED', 'APPROVED', 'SCHEDULED', 'ONGOING', 'IN_PROGRESS'].includes(String(meeting.status || '').toUpperCase())).map(meeting => meeting.studentId));
+    const frWithOpenMeeting = frStudents.filter(student => interventionMeetingStudentIds.has(student.id)).length;
+    const monthKeys = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date();
+      date.setDate(1);
+      date.setMonth(date.getMonth() - 5 + index);
+      return { key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`, label: date.toLocaleDateString('en-IN', { month: 'short' }) };
+    });
+    const departmentMeetingsByMonth = new Map(monthKeys.map(month => [month.key, 0]));
+    meetings.forEach(meeting => {
+      const date = new Date(meeting.createdAt || meeting.scheduledAt || '');
+      if (!Number.isNaN(date.getTime())) {
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (departmentMeetingsByMonth.has(key)) departmentMeetingsByMonth.set(key, departmentMeetingsByMonth.get(key) + 1);
+      }
+    });
+    const maxDepartmentMeetings = Math.max(1, ...departmentMeetingsByMonth.values());
 
     const escalations = (issues || []).filter(i => i.escalationLevel === 'HOD' || i.escalationLevel === 'DEAN' || (i.department === dept && (i.status === 'ESCALATED' || i.status === 'OPEN'))).sort((a,b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
     // Build mentor performance
-    const mentorStats = mentors.map(m => {
+    const mentorStats = mentors.filter(member => member.isApproved !== false && !['PENDING', 'REJECTED', 'DISABLED'].includes(String(member.status || '').toUpperCase())).map(m => {
       const mStudents = students.filter(s => s.mentorId === m.id);
       const mRisk     = mStudents.filter(s => s.riskLevel === 'HIGH').length;
-      return { ...m, studentCount: mStudents.length, highRisk: mRisk };
-    });
+      const analysis = StatsService.summarizeStudents(mStudents);
+      return { ...m, studentCount: mStudents.length, highRisk: mRisk, analysis };
+    }).sort((a, b) => b.analysis.frCount - a.analysis.frCount || b.analysis.learnerCounts.SLOW - a.analysis.learnerCounts.SLOW || b.studentCount - a.studentCount);
+    const pendingFaculty = mentors.filter(member => String(member.status || '').toUpperCase() === 'PENDING' || member.isApproved === false);
 
     const content = container.querySelector('#hod-content');
     if (!content) return;
@@ -339,12 +374,33 @@ const highRiskList = (students || [])
       <div class="card" style="padding:20px;margin-bottom:24px;border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
           <div><h3 style="margin:0;color:var(--danger);">FR students — low attendance</h3><p style="margin:3px 0 0;color:var(--text-muted);font-size:.8rem;">FR means recorded attendance at or below 40%. Request a special support meeting for follow-up.</p></div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge badge-danger">${frStudents.length} FR</span><span class="badge badge-muted">Not assessed ${students.filter(student => !student.learnerLevel || student.learnerLevel === 'NOT_ASSESSED').length}</span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge badge-danger">${frStudents.length} FR</span><span class="badge badge-muted">Not assessed ${learnerCounts.NOT_ASSESSED}</span></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <span class="badge badge-danger">Slow marks band (&lt;50%): ${learnerCounts.SLOW}</span><span class="badge badge-warning">Medium (50–74%): ${learnerCounts.MEDIUM}</span><span class="badge badge-success">Advanced (≥75%): ${learnerCounts.ADVANCED}</span>
         </div>
         ${frStudents.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Attendance</th><th>Latest marks</th><th>Learner level</th><th>Follow-up</th></tr></thead><tbody>${frStudents.slice(0, 12).map(student => `<tr><td>${escapeHtml(student.name || 'Student')}<div style="font-size:.75rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td>${escapeHtml(student.class || '—')}</td><td><span class="badge badge-danger">FR · ${Math.max(0, Number(student.attendance) || 0)}%</span></td><td>${student.latestSubjectAverage === null || student.latestSubjectAverage === undefined ? '—' : `${escapeHtml(student.latestSubjectAverage)}%`}</td><td>${escapeHtml(student.learnerLevel || 'Not assessed')}</td><td><button class="btn btn-xs btn-primary hod-fr-meeting" data-student-id="${student.id}">Special meeting</button></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--text-muted);">No recorded FR attendance cases in this department.</p>'}
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div><h3 style="margin:0;">Department academic health</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Averages use students with published marks or recorded attendance; sample sizes are shown.</p></div>
+          <span class="badge badge-info">Attendance coverage · ${cohortAnalysis.attendanceRecorded}/${cohortAnalysis.total}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px;">
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean subject marks</div><strong style="font-size:1.2rem;">${cohortAnalysis.averageSubjectMarks === null ? '—' : `${cohortAnalysis.averageSubjectMarks}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${cohortAnalysis.marksAssessed} students assessed</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mean attendance</div><strong style="font-size:1.2rem;">${cohortAnalysis.averageAttendance === null ? '—' : `${cohortAnalysis.averageAttendance}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${cohortAnalysis.attendanceRecorded} students with records</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Below 75% attendance</div><strong style="font-size:1.2rem;color:${cohortAnalysis.belowTargetAttendance ? 'var(--warning)' : 'var(--success)'};">${cohortAnalysis.belowTargetAttendance}</strong><div style="font-size:.72rem;color:var(--text-muted);">FR cases: ${cohortAnalysis.frCount}</div></div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Students without mentor</div><strong style="font-size:1.2rem;color:${cohortAnalysis.unassignedCount ? 'var(--warning)' : 'var(--success)'};">${cohortAnalysis.unassignedCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">of ${cohortAnalysis.total} department students</div></div>
+        </div>
+        <h4 style="font-size:.84rem;margin:0 0 8px;">Course, year, and class comparison</h4>
+        ${classCohorts.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Course</th><th>Year</th><th>Class</th><th>Students</th><th>Mean marks</th><th>Mean attendance</th><th>FR</th><th>Slow band</th></tr></thead><tbody>${classCohorts.slice(0, 12).map(group => `<tr><td>${escapeHtml(group.course)}</td><td>${escapeHtml(group.year)}</td><td>${escapeHtml(group.classroom)}</td><td>${group.students.length}</td><td>${group.analysis.averageSubjectMarks === null ? '—' : `${group.analysis.averageSubjectMarks}% (${group.analysis.marksAssessed})`}</td><td>${group.analysis.averageAttendance === null ? '—' : `${group.analysis.averageAttendance}% (${group.analysis.attendanceRecorded})`}</td><td><span class="badge ${group.analysis.frCount ? 'badge-danger' : 'badge-success'}">${group.analysis.frCount}</span></td><td>${group.analysis.learnerCounts.SLOW}</td></tr>`).join('')}</tbody></table></div>` : '<p style="color:var(--text-muted);font-size:.8rem;">No department students are available for comparison.</p>'}
+      </div>
+
+      <div class="card" style="padding:20px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Mentorship follow-through</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Meeting volume by request date, with active and completed status counts.</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge badge-info">${meetings.length} total</span><span class="badge badge-warning">${pendingMeetings} requested</span><span class="badge badge-primary">${activeMeetings} scheduled / active</span><span class="badge badge-success">${completedMeetings} completed</span></div></div>
+        <p style="font-size:.78rem;color:var(--text-secondary);margin:0 0 10px;">${frWithOpenMeeting} of ${frStudents.length} current FR students have an open support meeting.</p>
+        ${meetings.length ? `<div style="display:grid;grid-template-columns:repeat(6,minmax(36px,1fr));gap:10px;align-items:end;height:100px;padding:4px;">${monthKeys.map(month => { const count = departmentMeetingsByMonth.get(month.key) || 0; const height = count ? Math.max(8, Math.round(count / maxDepartmentMeetings * 72)) : 3; return `<div title="${month.label}: ${count} requests" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:5px;"><span style="font-size:.7rem;color:var(--text-secondary);">${count}</span><div style="width:min(100%,40px);height:${height}px;background:var(--accent);border-radius:5px 5px 2px 2px;"></div><span style="font-size:.68rem;color:var(--text-muted);">${month.label}</span></div>`; }).join('')}</div>` : '<p style="margin:0;color:var(--text-muted);font-size:.8rem;">No department meeting records yet.</p>'}
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
@@ -504,12 +560,12 @@ const highRiskList = (students || [])
       <!-- Approvals Queue -->
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header"><h3>Pending Faculty Approvals</h3></div>
-        ${mentors.filter(m => !m.isApproved).length === 0
+        ${pendingFaculty.length === 0
           ? '<p style="padding:20px;color:var(--text-muted);">No pending approvals.</p>'
           : `<table class="data-table">
               <thead><tr><th>Name</th><th>Email</th><th>Action</th></tr></thead>
               <tbody>
-                ${mentors.filter(m => !m.isApproved).map(m => `
+                ${pendingFaculty.map(m => `
                   <tr>
                     <td><strong>${m.name}</strong></td>
                     <td>${m.email}</td>
@@ -527,12 +583,16 @@ const highRiskList = (students || [])
         ${mentorStats.length === 0
           ? '<p style="padding:20px;color:var(--text-muted);">No mentors found.</p>'
           : `<table class="data-table">
-              <thead><tr><th>Mentor</th><th>Students</th><th>High Risk</th></tr></thead>
+              <thead><tr><th>Mentor</th><th>Students</th><th>Mean marks</th><th>Mean attendance</th><th>FR</th><th>Slow band</th><th>High risk</th></tr></thead>
               <tbody>
                 ${mentorStats.map(m => `
                   <tr>
                     <td style="font-weight:600;">${m.name}</td>
                     <td>${m.studentCount}</td>
+                    <td>${m.analysis.averageSubjectMarks === null ? '—' : `${m.analysis.averageSubjectMarks}%`}</td>
+                    <td>${m.analysis.averageAttendance === null ? '—' : `${m.analysis.averageAttendance}%`}</td>
+                    <td><span class="badge ${m.analysis.frCount ? 'badge-danger' : 'badge-success'}">${m.analysis.frCount}</span></td>
+                    <td>${m.analysis.learnerCounts.SLOW}</td>
                     <td><span class="badge ${m.highRisk>3?'badge-danger':m.highRisk>1?'badge-warning':'badge-success'}">${m.highRisk}</span></td>
                   </tr>
                 `).join('')}

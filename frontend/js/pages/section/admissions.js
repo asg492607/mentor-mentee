@@ -36,6 +36,22 @@ function downloadTemplate() {
   URL.revokeObjectURL(link.href);
 }
 
+function buildIntakeCohorts(students) {
+  const cohorts = new Map();
+  students.forEach(student => {
+    const school = String(student.schoolName || student.schoolId || 'School not set');
+    const department = String(student.department || 'Department not set');
+    const course = String(student.course || student.program || 'Course not set');
+    const year = String(student.yearLabel || student.year || 'Year not set');
+    const key = [school, department, course, year].map(value => value.trim().toLowerCase()).join('|');
+    const cohort = cohorts.get(key) || { school, department, course, year, total: 0, assigned: 0 };
+    cohort.total++;
+    if (student.mentorId) cohort.assigned++;
+    cohorts.set(key, cohort);
+  });
+  return [...cohorts.values()].sort((a, b) => (b.total - b.assigned) - (a.total - a.assigned) || b.total - a.total);
+}
+
 export async function render(container) {
   const user = getUserProfile();
   await DepartmentService.backfillReferences().catch(error => console.warn('Academic links could not be refreshed:', error));
@@ -45,6 +61,11 @@ export async function render(container) {
   let departments = allInstitutionRecords.filter(item => !['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
   const schools = allInstitutionRecords.filter(item => ['SCHOOL', 'COLLEGE'].includes(String(item.type || '').toUpperCase()));
   let preview = [];
+  const activeStudents = students.filter(student => !['PENDING', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(student.status || '').toUpperCase()) && student.isApproved !== false);
+  const pendingStudents = students.length - activeStudents.length;
+  const assignedStudents = activeStudents.filter(student => student.mentorId).length;
+  const intakeCohorts = buildIntakeCohorts(activeStudents);
+  const overallAssignmentCoverage = activeStudents.length ? Math.round(assignedStudents / activeStudents.length * 100) : 0;
 
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
@@ -58,6 +79,16 @@ export async function render(container) {
                 <div><span class="badge badge-accent">ADMISSION CELL</span><h2 style="margin:10px 0 4px;">Student intake and academic setup</h2><p style="margin:0;color:var(--text-secondary);">Import the admitted student register. Their course, cohort and year will be available to mentors and class teachers.</p></div>
                 <div style="min-width:180px;text-align:center;padding:14px 20px;border-radius:12px;background:var(--bg-card);"><div class="stat-label">Registered students</div><div class="stat-value" id="admission-count">…</div></div>
               </div>
+            </div>
+            <div class="card" style="padding:20px;margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Intake and placement analysis</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Active admitted students grouped by school, department, course, and year.</p></div><span class="badge badge-info">${intakeCohorts.length} cohorts</span></div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:14px;">
+                <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Active students</div><strong style="font-size:1.15rem;">${activeStudents.length}</strong></div>
+                <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Mentor allocation</div><strong style="font-size:1.15rem;color:${overallAssignmentCoverage < 100 ? 'var(--warning)' : 'var(--success)'};">${overallAssignmentCoverage}%</strong><div style="font-size:.72rem;color:var(--text-muted);">${assignedStudents}/${activeStudents.length} assigned</div></div>
+                <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Needs mentor allocation</div><strong style="font-size:1.15rem;color:${activeStudents.length - assignedStudents ? 'var(--warning)' : 'var(--success)'};">${activeStudents.length - assignedStudents}</strong></div>
+                <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Pending student review</div><strong style="font-size:1.15rem;">${pendingStudents}</strong></div>
+              </div>
+              ${intakeCohorts.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>School</th><th>Department</th><th>Course</th><th>Year</th><th>Students</th><th>Mentor coverage</th></tr></thead><tbody>${intakeCohorts.slice(0, 12).map(cohort => `<tr><td>${escapeHtml(cohort.school)}</td><td>${escapeHtml(cohort.department)}</td><td>${escapeHtml(cohort.course)}</td><td>${escapeHtml(cohort.year)}</td><td>${cohort.total}</td><td>${cohort.total ? Math.round(cohort.assigned / cohort.total * 100) : 0}% <span style="font-size:.7rem;color:var(--text-muted);">(${cohort.assigned}/${cohort.total})</span></td></tr>`).join('')}</tbody></table></div>` : '<p style="margin:0;color:var(--text-muted);font-size:.8rem;">No admitted students are available for analysis yet.</p>'}
             </div>
             <div class="card" style="padding:22px;margin-bottom:20px;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;">

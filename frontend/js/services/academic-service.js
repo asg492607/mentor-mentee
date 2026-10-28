@@ -141,6 +141,11 @@ export const AttendanceService = {
     const snap = await getDocs(query(collection(db, 'attendance_records'), where('studentId', '==', studentId)));
     return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   },
+  async getByClass(classId) {
+    if (!classId) return [];
+    const snap = await getDocs(query(collection(db, 'attendance_records'), where('classId', '==', classId)));
+    return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  },
   async getMonthlyByStudent(studentId) {
     const records = await this.getByStudent(studentId);
     const months = new Map();
@@ -215,5 +220,9 @@ export const ResultService = {
   async getByStudent(studentId) {
     const snap = await getDocs(query(collection(db, 'academic_results'), where('studentId', '==', studentId)));
     return snap.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (b.semesterNumber || 0) - (a.semesterNumber || 0) || String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  },
+  async getAll() {
+    const snap = await getDocs(collection(db, 'academic_results'));
+    return snap.docs.map(item => ({ id: item.id, ...item.data() }));
   }
 };

@@ -10,8 +10,8 @@ import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
 import { StatsService, MeetingService, NotificationService, BookletService } from '/js/services.js';
 import { startTour } from '/js/components/tour.js';
-import { getAttendanceStatus } from '/js/services/academic-service.js';
-import { AttendanceInterventionService } from '/js/services/academic-service.js';
+import { getAttendanceStatus, AttendanceInterventionService } from '/js/services/academic-service.js';
+import { escapeHtml } from '/js/utils.js';
 
 function riskBadge(r) {
   const cls = { HIGH: 'badge-danger', MEDIUM: 'badge-warning', LOW: 'badge-success' }[r] || 'badge-muted';
@@ -169,6 +169,25 @@ export async function render(container) {
     const compliantBooklets = students.filter(s => BookletService.calculateCompletion(s.booklet) >= 25).length;
     const lowAttendanceStudents = data.lowAttendanceStudents || students.filter(s => getAttendanceStatus(s).isLow);
     const pendingMeetings = meetings.filter(m => m.status === 'REQUESTED');
+    const cohort = data.cohortAnalysis || StatsService.summarizeStudents(students);
+    const learnerTotal = cohort.learnerCounts.SLOW + cohort.learnerCounts.MEDIUM + cohort.learnerCounts.ADVANCED;
+    const bandBar = (label, key, color) => {
+      const count = cohort.learnerCounts[key] || 0;
+      const width = learnerTotal ? Math.round(count / learnerTotal * 100) : 0;
+      return `<div style="display:grid;grid-template-columns:92px 1fr 34px;align-items:center;gap:8px;margin:8px 0;"><span style="font-size:.78rem;color:var(--text-secondary);">${label}</span><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${width}%;background:${color};"></div></div><strong style="font-size:.78rem;text-align:right;">${count}</strong></div>`;
+    };
+    const supportCandidates = students.map(student => {
+      const attendanceStatus = getAttendanceStatus(student);
+      const reasons = [];
+      if (attendanceStatus.isLow) reasons.push('FR attendance');
+      if (student.riskLevel === 'HIGH') reasons.push('High risk');
+      if (student.learnerLevel === 'SLOW') reasons.push('Slow marks band');
+      if (attendanceStatus.key === 'BELOW_TARGET') reasons.push('Below 75% attendance');
+      return { student, reasons, priority: (attendanceStatus.isLow ? 8 : 0) + (student.riskLevel === 'HIGH' ? 4 : 0) + (student.learnerLevel === 'SLOW' ? 2 : 0) + (attendanceStatus.key === 'BELOW_TARGET' ? 1 : 0) };
+    }).filter(item => item.reasons.length).sort((a, b) => b.priority - a.priority);
+    const supportQueue = supportCandidates.slice(0, 5);
+    const concludedMeetings = meetings.filter(meeting => ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(String(meeting.status || '').toUpperCase()));
+    const meetingCompletion = concludedMeetings.length ? Math.round(concludedMeetings.filter(meeting => meeting.status === 'COMPLETED').length / concludedMeetings.length * 100) : null;
     const dash = container.querySelector('#mentor-dash');
     if (!dash) return;
 
@@ -193,6 +212,23 @@ export async function render(container) {
 
         <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
           ${renderStats(totalStudents, pendingRequests, highRisk, completedMeetings, compliantBooklets, lowAttendanceStudents.length)}
+        </div>
+
+        <div class="card" style="padding:20px;margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div><h3 style="margin:0;">Cohort analysis</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Computed from assigned students’ latest published marks and recorded class attendance.</p></div>
+            <a href="#/mentor/reports" class="btn btn-xs btn-secondary">Detailed report</a>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin-bottom:16px;">
+            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Average attendance</div><strong style="font-size:1.2rem;">${cohort.averageAttendance === null ? '—' : `${cohort.averageAttendance}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${cohort.attendanceRecorded}/${cohort.total} students have records</div></div>
+            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Average subject marks</div><strong style="font-size:1.2rem;">${cohort.averageSubjectMarks === null ? '—' : `${cohort.averageSubjectMarks}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${cohort.marksAssessed}/${cohort.total} assessed</div></div>
+            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Attendance below 75%</div><strong style="font-size:1.2rem;color:${cohort.belowTargetAttendance ? 'var(--warning)' : 'var(--success)'};">${cohort.belowTargetAttendance}</strong><div style="font-size:.72rem;color:var(--text-muted);">FR threshold is 40% or below</div></div>
+            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Meeting completion</div><strong style="font-size:1.2rem;">${meetingCompletion === null ? '—' : `${meetingCompletion}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${completedMeetings} completed · ${pendingRequests} awaiting response</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;">
+            <div><h4 style="font-size:.82rem;margin:0 0 8px;">Learner bands <span style="font-weight:400;color:var(--text-muted);">(${learnerTotal} assessed)</span></h4>${bandBar('Slow · <50%', 'SLOW', 'var(--danger)')}${bandBar('Medium · 50–74%', 'MEDIUM', 'var(--warning)')}${bandBar('Advanced · ≥75%', 'ADVANCED', 'var(--success)')}${cohort.learnerCounts.NOT_ASSESSED ? `<p style="margin:8px 0 0;color:var(--text-muted);font-size:.75rem;">${cohort.learnerCounts.NOT_ASSESSED} students have no published subject marks yet.</p>` : ''}</div>
+            <div><h4 style="font-size:.82rem;margin:0 0 8px;">Needs follow-up <span class="badge badge-warning">${supportCandidates.length > 5 ? '5+' : supportCandidates.length}</span></h4>${supportQueue.length ? supportQueue.map(({ student, reasons }) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);"><div><strong style="font-size:.8rem;">${escapeHtml(student.name || 'Student')}</strong><div style="font-size:.72rem;color:var(--text-muted);">${reasons.map(escapeHtml).join(' · ')}</div></div><a class="btn btn-xs btn-secondary" href="#/mentor/booklet?studentId=${encodeURIComponent(student.id)}">Review</a></div>`).join('') : '<p style="color:var(--text-muted);font-size:.8rem;">No students currently match the FR, high-risk, slow-band, or below-target attendance rules.</p>'}</div>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">

@@ -60,6 +60,9 @@ export async function render(container) {
       : attendanceStatus.key === 'BELOW_TARGET' ? 'fill-warning'
         : attendanceStatus.key === 'NOT_RECORDED' ? 'fill-muted' : 'fill-success';
     const attendanceDisplay = attendanceStatus.key === 'NOT_RECORDED' ? 'Not recorded' : `${attendanceValue}%`;
+    const latestMarks = fullProfile.latestSubjectAverage === null || fullProfile.latestSubjectAverage === undefined || fullProfile.latestSubjectAverage === '' ? NaN : Number(fullProfile.latestSubjectAverage);
+    const hasLatestMarks = Number.isFinite(latestMarks) && latestMarks >= 0 && latestMarks <= 100;
+    const learnerBand = ['SLOW', 'MEDIUM', 'ADVANCED'].includes(fullProfile.learnerLevel) ? fullProfile.learnerLevel : 'Not assessed';
 
     const upcomingMeetings = (meetings || []).filter(m => (m.status === 'APPROVED' || m.status === 'ONGOING') && (m.status === 'ONGOING' || (m.scheduledAt && new Date(m.scheduledAt) > new Date())));
     const unacknowledgedMeets = (meetings || []).filter(m => m.status === 'COMPLETED' && !m.studentAcknowledged && !m.isGroup);
@@ -257,6 +260,14 @@ export async function render(container) {
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                   <span style="color:var(--text-secondary);font-size:0.875rem;">${t('profile.cgpa', 'CGPA')}</span>
                   <strong style="font-size:1.1rem; color:${(fullProfile.cgpa||0)<6?'var(--danger)':(fullProfile.cgpa||0)<7?'var(--warning)':'var(--success)'};">${fullProfile.cgpa || '—'}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="color:var(--text-secondary);font-size:0.875rem;">Latest subject marks</span>
+                  <strong style="font-size:1.05rem;color:${hasLatestMarks && latestMarks < 50 ? 'var(--danger)' : hasLatestMarks && latestMarks < 75 ? 'var(--warning)' : hasLatestMarks ? 'var(--success)' : 'var(--text-muted)'};">${hasLatestMarks ? `${latestMarks}%` : 'Not published'}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="color:var(--text-secondary);font-size:0.875rem;">Learner band</span>
+                  <span class="badge ${learnerBand === 'SLOW' ? 'badge-danger' : learnerBand === 'MEDIUM' ? 'badge-warning' : learnerBand === 'ADVANCED' ? 'badge-success' : 'badge-muted'}">${learnerBand}</span>
                 </div>
                 <div>
                   <div style="display:flex;justify-content:space-between;margin-bottom:6px;">

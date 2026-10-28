@@ -1946,7 +1946,56 @@ export const AllocationService = {
 
 // ─── STATS & REPORTS ─────────────────────────────────────────────────────────
 
+const isActiveAcademicRecord = record => !['PENDING', 'SUBMITTED', 'UNDER_REVIEW', 'REJECTED', 'DISABLED', 'SUSPENDED'].includes(String(record?.status || record?.admissionStatus || '').toUpperCase())
+  && record?.isApproved !== false;
+
 export const StatsService = {
+  summarizeStudents(students = []) {
+    const cohort = Array.isArray(students) ? students : [];
+    const recordedAttendance = cohort.map(student => {
+      const value = student.attendance === null || student.attendance === undefined || student.attendance === '' ? NaN : Number(student.attendance);
+      const sessions = Number(student.attendanceSessions) || 0;
+      const status = String(student.attendanceStatus || '').toUpperCase();
+      const recorded = sessions > 0 || (Number.isFinite(value) && value > 0) || ['LOW', 'BELOW_TARGET', 'ON_TRACK'].includes(status);
+      return recorded && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
+    }).filter(value => value !== null);
+    const marks = cohort.map(student => student.latestSubjectAverage === null || student.latestSubjectAverage === undefined || student.latestSubjectAverage === '' ? NaN : Number(student.latestSubjectAverage))
+      .filter(value => Number.isFinite(value) && value >= 0 && value <= 100);
+    const learnerCounts = { SLOW: 0, MEDIUM: 0, ADVANCED: 0, NOT_ASSESSED: 0 };
+    cohort.forEach(student => {
+      const average = student.latestSubjectAverage === null || student.latestSubjectAverage === undefined || student.latestSubjectAverage === '' ? NaN : Number(student.latestSubjectAverage);
+      let level = Number.isFinite(average) && average >= 0 && average <= 100
+        ? average < 50 ? 'SLOW' : average < 75 ? 'MEDIUM' : 'ADVANCED'
+        : String(student.learnerLevel || 'NOT_ASSESSED').toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(learnerCounts, level)) level = 'NOT_ASSESSED';
+      learnerCounts[level]++;
+    });
+    const riskCounts = { HIGH: 0, MEDIUM: 0, LOW: 0, NOT_ASSESSED: 0 };
+    cohort.forEach(student => {
+      const level = String(student.riskLevel || 'NOT_ASSESSED').toUpperCase();
+      riskCounts[Object.prototype.hasOwnProperty.call(riskCounts, level) ? level : 'NOT_ASSESSED']++;
+    });
+    const frStudents = cohort.filter(student => {
+      const attendance = student.attendance === null || student.attendance === undefined || student.attendance === '' ? NaN : Number(student.attendance);
+      return (Number(student.attendanceSessions) > 0 || (Number.isFinite(attendance) && attendance > 0) || student.attendanceStatus === 'LOW')
+        && Number.isFinite(attendance) && attendance <= 40;
+    });
+    return {
+      total: cohort.length,
+      attendanceRecorded: recordedAttendance.length,
+      attendanceCoverage: cohort.length ? Math.round(recordedAttendance.length / cohort.length * 100) : 0,
+      averageAttendance: recordedAttendance.length ? Math.round(recordedAttendance.reduce((sum, value) => sum + value, 0) / recordedAttendance.length * 10) / 10 : null,
+      belowTargetAttendance: recordedAttendance.filter(value => value < 75).length,
+      frCount: frStudents.length,
+      frStudents,
+      averageSubjectMarks: marks.length ? Math.round(marks.reduce((sum, value) => sum + value, 0) / marks.length * 10) / 10 : null,
+      marksAssessed: marks.length,
+      learnerCounts,
+      riskCounts,
+      unassignedCount: cohort.filter(student => !student.mentorId).length,
+    };
+  },
+
   // Compute risk level based on academic data
   computeRisk(student) {
     if (!student) return { riskScore: 0, riskLevel: 'NOT_ASSESSED', factors: [] };
@@ -1993,22 +2042,19 @@ export const StatsService = {
     const cached = forceRefresh ? null : CacheManager.get(cacheKey);
     if (cached) return cached;
 
-    const [students, meetings, issues] = await Promise.all([
+    const [studentRecords, meetings, issues] = await Promise.all([
       StudentService.getByMentor(mentorId, forceRefresh),
       MeetingService.getByMentor(mentorId),
       IssueService.getByMentor(mentorId)
     ]);
+    const students = studentRecords.filter(isActiveAcademicRecord);
 
     const totalStudents = students.length;
     const pendingRequests = meetings.filter(m => m.status === 'REQUESTED').length;
     const highRiskStudents = students.filter(s => s.riskLevel === 'HIGH').length;
-    const lowAttendanceStudents = students.filter(s => s.attendanceStatus === 'LOW' || (Number(s.attendanceSessions) > 0 && Number(s.attendance) <= 40));
-    const learnerCounts = {
-      SLOW: students.filter(s => s.learnerLevel === 'SLOW').length,
-      MEDIUM: students.filter(s => s.learnerLevel === 'MEDIUM').length,
-      ADVANCED: students.filter(s => s.learnerLevel === 'ADVANCED').length,
-      NOT_ASSESSED: students.filter(s => !s.learnerLevel || s.learnerLevel === 'NOT_ASSESSED').length
-    };
+    const cohortAnalysis = this.summarizeStudents(students);
+    const lowAttendanceStudents = cohortAnalysis.frStudents;
+    const learnerCounts = cohortAnalysis.learnerCounts;
     const openIssues = issues.filter(i => i.status === 'OPEN').length;
     const completedMeetings = meetings.filter(m => m.status === 'COMPLETED').length;
 
@@ -2018,6 +2064,7 @@ export const StatsService = {
       highRiskStudents,
       lowAttendanceStudents,
       learnerCounts,
+      cohortAnalysis,
       openIssues,
       completedMeetings,
       students,
@@ -2030,74 +2077,62 @@ export const StatsService = {
   },
 
   async getDeptStats(department) {
-    const [students, allFaculty, issues] = await Promise.all([
+    const [studentRecords, allFaculty, issues, meetings] = await Promise.all([
       StudentService.getByDepartment(department),
       FacultyService.getByDepartment(department),
-      IssueService.getByDepartment(department)
+      IssueService.getByDepartment(department),
+      MeetingService.getByDepartment(department)
     ]);
+    const students = studentRecords.filter(isActiveAcademicRecord);
     // Only count actual mentors (FACULTY/MENTOR role), not HOD/DEAN/ADMIN etc.
     const mentors = allFaculty.filter(f => f.role === 'FACULTY' || f.role === 'MENTOR');
+    const activeMentors = mentors.filter(isActiveAcademicRecord);
     const highRisk = students.filter(s => s.riskLevel === 'HIGH').length;
-    const lowAttendanceStudents = students.filter(s => s.attendanceStatus === 'LOW' || (Number(s.attendanceSessions) > 0 && Number(s.attendance) <= 40));
-    const learnerCounts = {
-      SLOW: students.filter(s => s.learnerLevel === 'SLOW').length,
-      MEDIUM: students.filter(s => s.learnerLevel === 'MEDIUM').length,
-      ADVANCED: students.filter(s => s.learnerLevel === 'ADVANCED').length,
-      NOT_ASSESSED: students.filter(s => !s.learnerLevel || s.learnerLevel === 'NOT_ASSESSED').length
-    };
-    return { totalStudents: students.length, totalMentors: mentors.length, highRiskStudents: highRisk, lowAttendanceStudents, learnerCounts, openIssues: issues.filter(i => i.status === 'OPEN').length, resolvedIssues: issues.filter(i => i.status === 'RESOLVED').length, students, mentors, issues };
+    const cohortAnalysis = this.summarizeStudents(students);
+    return { totalStudents: students.length, totalMentors: activeMentors.length, highRiskStudents: highRisk, lowAttendanceStudents: cohortAnalysis.frStudents, learnerCounts: cohortAnalysis.learnerCounts, cohortAnalysis, openIssues: issues.filter(i => i.status === 'OPEN' || i.status === 'ESCALATED').length, resolvedIssues: issues.filter(i => i.status === 'RESOLVED').length, students, mentors, issues, meetings };
   },
 
   async getInstitutionStats() {
-    const [
-      studentCountSnap,
-      facultyCountSnap,
-      highRiskSnap,
-      openIssueSnap,
-      totalIssueSnap,
-      depts,
-      facultySample,
-      lowAttendanceSnap,
-      slowLearnerSnap,
-      mediumLearnerSnap,
-      advancedLearnerSnap
-    ] = await Promise.all([
-      getCountFromServer(collection(db, 'students')).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(collection(db, 'faculty')).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(query(collection(db, 'students'), where('riskLevel', '==', 'HIGH'))).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(query(collection(db, 'issues'), where('status', '==', 'OPEN'))).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(collection(db, 'issues')).catch(() => ({ data: () => ({ count: 0 }) })),
-      DepartmentService.getAll(),
+    const [studentRecords, facultyRecords, allIssues, allMeetings, departmentRecords] = await Promise.all([
+      StudentService.getAll(),
       FacultyService.getAll(),
-      getDocs(query(collection(db, 'students'), where('attendanceStatus', '==', 'LOW'))).catch(() => ({ docs: [] })),
-      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'SLOW'))).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'MEDIUM'))).catch(() => ({ data: () => ({ count: 0 }) })),
-      getCountFromServer(query(collection(db, 'students'), where('learnerLevel', '==', 'ADVANCED'))).catch(() => ({ data: () => ({ count: 0 }) }))
+      IssueService.getAll(),
+      MeetingService.getAll(),
+      DepartmentService.getAll()
     ]);
-
-    const totalStudents = studentCountSnap.data().count;
-    const totalFaculty = facultyCountSnap.data().count;
-    const highRiskStudents = highRiskSnap.data().count;
-    const openIssues = openIssueSnap.data().count;
-    const totalIssues = totalIssueSnap.data().count;
+    const students = studentRecords.filter(isActiveAcademicRecord);
+    const faculty = facultyRecords;
+    const issues = allIssues;
+    const meetings = allMeetings;
+    const depts = departmentRecords.filter(department => !['SCHOOL', 'COLLEGE'].includes(String(department.type || '').toUpperCase()));
+    const analysis = this.summarizeStudents(students);
+    const pendingStudentApprovals = studentRecords.filter(student => !isActiveAcademicRecord(student)).length;
+    const highRiskStudents = analysis.riskCounts.HIGH;
+    const openIssues = issues.filter(issue => !['RESOLVED', 'CLOSED'].includes(String(issue.status || '').toUpperCase())).length;
+    const completedMeetings = meetings.filter(meeting => String(meeting.status || '').toUpperCase() === 'COMPLETED').length;
+    const pendingMeetingRequests = meetings.filter(meeting => String(meeting.status || '').toUpperCase() === 'REQUESTED').length;
 
     return {
-      totalStudents,
-      totalFaculty,
+      totalStudents: students.length,
+      pendingStudentApprovals,
+      totalFaculty: faculty.filter(isActiveAcademicRecord).length,
+      pendingFacultyApprovals: faculty.filter(record => !isActiveAcademicRecord(record)).length,
       totalDepartments: depts.length,
+      totalSchools: departmentRecords.filter(department => ['SCHOOL', 'COLLEGE'].includes(String(department.type || '').toUpperCase())).length,
       highRiskStudents,
       openIssues,
-      totalIssues,
-      lowAttendanceStudents: snaps(lowAttendanceSnap),
-      learnerCounts: {
-        SLOW: slowLearnerSnap.data().count,
-        MEDIUM: mediumLearnerSnap.data().count,
-        ADVANCED: advancedLearnerSnap.data().count
-      },
-      completedMeetings: 0,
-      students: [],
-      faculty: facultySample,
-      issues: [],
+      totalIssues: issues.length,
+      lowAttendanceStudents: analysis.frStudents,
+      learnerCounts: analysis.learnerCounts,
+      riskCounts: analysis.riskCounts,
+      cohortAnalysis: analysis,
+      completedMeetings,
+      pendingMeetingRequests,
+      totalMeetings: meetings.length,
+      students,
+      faculty,
+      issues,
+      meetings,
       depts
     };
   }

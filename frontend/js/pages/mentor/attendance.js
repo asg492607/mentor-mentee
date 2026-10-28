@@ -17,6 +17,63 @@ const keyOf = value => {
   return Object.entries(aliases).find(([, options]) => options.includes(key))?.[0] || key;
 };
 
+function renderAttendanceAnalysis(students, records) {
+  const perStudent = new Map();
+  const perMonth = new Map();
+  const sessions = new Set();
+  let presentCount = 0;
+  records.forEach(record => {
+    const sessionKey = record.sessionId || `${record.date || ''}_${record.period || ''}`;
+    if (sessionKey) sessions.add(sessionKey);
+    if (record.present === true) presentCount++;
+    const student = perStudent.get(record.studentId) || { records: 0, present: 0 };
+    student.records++;
+    if (record.present === true) student.present++;
+    perStudent.set(record.studentId, student);
+    const monthKey = String(record.date || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(monthKey)) return;
+    const month = perMonth.get(monthKey) || { records: 0, present: 0, sessions: new Set() };
+    month.records++;
+    if (record.present === true) month.present++;
+    if (sessionKey) month.sessions.add(sessionKey);
+    perMonth.set(monthKey, month);
+  });
+  const recordedStudents = students.filter(student => perStudent.has(student.id));
+  const attendanceRate = records.length ? Math.round(presentCount / records.length * 1000) / 10 : null;
+  const frStudents = recordedStudents.map(student => {
+    const totals = perStudent.get(student.id);
+    return { ...student, sessions: totals.records, attendance: Math.round(totals.present / totals.records * 1000) / 10 };
+  }).filter(student => student.attendance <= 40).sort((a, b) => a.attendance - b.attendance);
+  const monthKeys = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - 5 + index);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  });
+  return `
+    <div class="card" style="padding:20px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+        <div><h3 style="margin:0;">Class attendance analysis</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.8rem;">Calculated from saved class register records. FR is attendance at or below 40%.</p></div>
+        <span class="badge ${frStudents.length ? 'badge-danger' : 'badge-success'}">${frStudents.length} FR students</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:16px;">
+        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Class attendance rate</div><strong style="font-size:1.2rem;">${attendanceRate === null ? '—' : `${attendanceRate}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${presentCount}/${records.length} student-session marks present</div></div>
+        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Recorded coverage</div><strong style="font-size:1.2rem;">${recordedStudents.length}/${students.length}</strong><div style="font-size:.72rem;color:var(--text-muted);">students with at least one record</div></div>
+        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Register sessions</div><strong style="font-size:1.2rem;">${sessions.size}</strong><div style="font-size:.72rem;color:var(--text-muted);">unique saved class sessions</div></div>
+        <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Absent marks</div><strong style="font-size:1.2rem;color:${records.length - presentCount ? 'var(--warning)' : 'var(--success)'};">${records.length - presentCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">across recorded sessions</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
+        <div><h4 style="font-size:.84rem;margin:0 0 8px;">Monthly trend</h4>${records.length ? `<table class="data-table"><thead><tr><th>Month</th><th>Sessions</th><th>Attendance</th></tr></thead><tbody>${monthKeys.map(key => {
+          const month = perMonth.get(key);
+          const percent = month?.records ? Math.round(month.present / month.records * 1000) / 10 : null;
+          const label = new Date(`${key}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+          return `<tr><td>${escapeHtml(label)}</td><td>${month?.sessions.size || 0}</td><td>${percent === null ? '—' : `<strong style="color:${percent <= 40 ? 'var(--danger)' : percent < 75 ? 'var(--warning)' : 'var(--success)'};">${percent}%</strong>`}</td></tr>`;
+        }).join('')}</tbody></table>` : '<p style="font-size:.8rem;color:var(--text-muted);">No previous class attendance has been saved yet.</p>'}</div>
+        <div><h4 style="font-size:.84rem;margin:0 0 8px;">FR follow-up</h4>${frStudents.length ? `<table class="data-table"><thead><tr><th>Student</th><th>Sessions</th><th>Attendance</th></tr></thead><tbody>${frStudents.slice(0, 8).map(student => `<tr><td>${escapeHtml(student.name || 'Student')}<div style="font-size:.72rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td>${student.sessions}</td><td><span class="badge badge-danger">${student.attendance}%</span></td></tr>`).join('')}</tbody></table>` : '<p style="font-size:.8rem;color:var(--text-muted);">No students are at or below 40% based on recorded registers.</p>'}</div>
+      </div>
+    </div>`;
+}
+
 export async function render(container) {
   const user = getUserProfile();
   container.innerHTML = `
@@ -52,6 +109,7 @@ export async function render(container) {
         <div><label class="form-label" for="attendance-file">Apply attendance from a file</label><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><small style="color:var(--text-muted);">Columns: enrollmentNumber, status (Present / Absent)</small></div>
         <span id="attendance-count" class="badge badge-info"></span>
       </div>
+      <div id="attendance-analysis"></div>
       <div id="attendance-roster"><div class="spinner"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;">
         <button id="mark-all-present" class="btn btn-secondary btn-sm">Mark everyone present</button>
@@ -77,8 +135,12 @@ export async function render(container) {
     const loadClass = async () => {
       const selected = classes.find(item => item.id === classSelect.value);
       rosterWrap.innerHTML = '<div class="spinner"></div>';
-      const students = await AcademicStudentService.getByClass(selected);
+      const [students, records] = await Promise.all([
+        AcademicStudentService.getByClass(selected),
+        AttendanceService.getByClass(selected.id)
+      ]);
       roster = students.map(student => ({ ...student, present: false }));
+      wrap.querySelector('#attendance-analysis').innerHTML = renderAttendanceAnalysis(students, records);
       drawRoster();
     };
     classSelect.addEventListener('change', () => loadClass().catch(error => showToast(error.message, 'error')));
@@ -128,6 +190,7 @@ export async function render(container) {
           actor: user
         });
         showToast('Attendance saved and student summaries updated.', 'success');
+        await loadClass().catch(error => console.warn('Could not refresh class attendance analysis:', error));
       } catch (error) { showToast(error.message || 'Could not save attendance.', 'error'); }
       finally { button.disabled = false; button.textContent = 'Save attendance'; }
     });
