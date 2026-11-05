@@ -148,6 +148,25 @@
   transition: all var(--transition-fast);
 }
 
+.phone-otp-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.phone-otp-status {
+  flex: 1 1 180px;
+  color: var(--text-muted);
+  font-size: .76rem;
+}
+
+.phone-otp-status[data-state="error"] { color: var(--danger); }
+.phone-otp-code-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.phone-otp-code-row .form-input { max-width: 180px; }
+.phone-otp-code-row[hidden] { display: none !important; }
+
 .form-textarea {
   resize: vertical;
   min-height: 100px;

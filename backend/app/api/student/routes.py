@@ -135,6 +135,8 @@ def verify_parent_phone(data: dict, user=Depends(get_student_user)):
         proof = firebase_auth.verify_id_token(proof_token, check_revoked=True)
     except Exception:
         raise BadRequestException("Phone verification expired. Request a new code and try again")
+    if (proof.get("firebase") or {}).get("sign_in_provider") != "phone":
+        raise ForbiddenException("Complete SMS verification before saving this number")
     if proof.get("phone_number") != phone:
         raise ForbiddenException("The verified number does not match the parent number entered")
 

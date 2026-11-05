@@ -4,6 +4,7 @@ import { getUserProfile } from '/js/auth.js';
 import { createSidebar } from '/js/components/sidebar.js';
 import { createHeader } from '/js/components/header.js';
 import { showToast } from '/js/components/toast.js';
+import { PhoneOtpController } from '/js/components/phone-otp.js';
 import { StudentService, StatsService } from '/js/services.js';
 import { escapeHtml } from '/js/utils.js';
 import { t } from '/js/i18n.js';
@@ -144,7 +145,7 @@ export async function render(container) {
   contentWrap.insertAdjacentHTML('beforeend', `
     <div class="card" style="margin-top:24px;padding:24px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-        <div><h3 style="margin:0;">Marks and monthly attendance</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Exam Section results and class register records.</p></div>
+        <div><h3 style="margin:0;">Marks and monthly attendance</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Records entered by your administrator.</p></div>
         <span class="badge ${profile.learnerLevel === 'SLOW' ? 'badge-danger' : profile.learnerLevel === 'MEDIUM' ? 'badge-warning' : profile.learnerLevel === 'ADVANCED' ? 'badge-success' : 'badge-muted'}">${profile.learnerLevel === 'NOT_ASSESSED' || !profile.learnerLevel ? 'Learner level not assessed' : `${escapeHtml(profile.learnerLevel)} learner`}</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
@@ -153,93 +154,17 @@ export async function render(container) {
       </div>
     </div>
     <div class="card" style="margin-top:20px;padding:24px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
-        <div><h3 style="margin:0;">Parent / guardian phone</h3><p style="margin:4px 0 0;color:var(--text-muted);font-size:.82rem;">Verify the number with an SMS code. The profile will only save a verified number.</p></div>
-        <span id="parent-phone-status" class="badge ${profile.parentPhoneVerified ? 'badge-success' : 'badge-muted'}">${profile.parentPhoneVerified ? 'Verified' : 'Not verified'}</span>
-      </div>
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-group" style="margin:0;flex:1;min-width:240px;"><label class="form-label" for="parent-phone">Phone number (international format)</label><input id="parent-phone" type="tel" class="form-input" value="${escapeHtml(profile.parentPhone || '')}" placeholder="+919876543210" autocomplete="tel"></div>
-        <button id="parent-phone-send" class="btn btn-secondary" type="button">Send OTP</button>
-      </div>
-      <div id="parent-phone-code-wrap" style="display:none;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
-        <div class="form-group" style="margin:0;flex:1;min-width:180px;"><label class="form-label" for="parent-phone-code">SMS verification code</label><input id="parent-phone-code" type="text" class="form-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter code"></div>
-        <button id="parent-phone-verify" class="btn btn-primary" type="button">Verify and save</button>
-      </div>
-      <div id="parent-phone-recaptcha" aria-hidden="true"></div>
-      <p id="parent-phone-message" role="status" style="margin:10px 0 0;color:var(--text-muted);font-size:.82rem;"></p>
+      <h3 style="margin:0 0 6px;">Parent / guardian phone</h3>
+      <p style="margin:0 0 12px;color:var(--text-muted);font-size:.82rem;">Verify this number by SMS before saving it.</p>
+      <div class="form-group" style="margin:0;max-width:420px;"><label class="form-label" for="parent-phone">Phone number</label><input id="parent-phone" type="tel" class="form-input" value="${escapeHtml(profile.parentPhone || '')}" placeholder="+919876543210" autocomplete="tel"></div>
     </div>
   `);
 
-  let otpApp = null;
-  let otpAuth = null;
-  let otpVerifier = null;
-  let otpConfirmation = null;
-  let otpPhone = '';
-  async function clearOtpSession() {
-    try { otpVerifier?.clear(); } catch (_) {}
-    if (otpAuth) {
-      const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-      await signOut(otpAuth).catch(() => {});
-    }
-    if (otpApp) {
-      const { deleteApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-      await deleteApp(otpApp).catch(() => {});
-    }
-    otpApp = otpAuth = otpVerifier = otpConfirmation = null;
-    otpPhone = '';
-  }
   const parentPhoneInput = contentWrap.querySelector('#parent-phone');
-  const parentPhoneMessage = contentWrap.querySelector('#parent-phone-message');
-  contentWrap.querySelector('#parent-phone-send')?.addEventListener('click', async event => {
-    const button = event.currentTarget;
-    const phone = parentPhoneInput.value.trim();
-    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
-      parentPhoneMessage.textContent = 'Enter a valid international phone number, for example +919876543210.';
-      return;
-    }
-    button.disabled = true;
-    parentPhoneMessage.textContent = 'Sending verification code…';
-    try {
-      await clearOtpSession();
-      const { firebaseConfig } = await import('/js/firebase-init.js');
-      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-      const { getAuth, RecaptchaVerifier, signInWithPhoneNumber } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-      otpApp = initializeApp(firebaseConfig, `parent-phone-${Date.now()}`);
-      otpAuth = getAuth(otpApp);
-      otpVerifier = new RecaptchaVerifier(otpAuth, contentWrap.querySelector('#parent-phone-recaptcha'), { size: 'invisible' });
-      otpConfirmation = await signInWithPhoneNumber(otpAuth, phone, otpVerifier);
-      otpPhone = phone;
-      contentWrap.querySelector('#parent-phone-code-wrap').style.display = 'flex';
-      parentPhoneMessage.textContent = `A code was sent to ${phone}.`;
-    } catch (error) {
-      await clearOtpSession();
-      parentPhoneMessage.textContent = error.message || 'Could not send the code. Check Firebase Phone Authentication and try again.';
-    } finally { button.disabled = false; }
-  });
-  contentWrap.querySelector('#parent-phone-verify')?.addEventListener('click', async event => {
-    const button = event.currentTarget;
-    const code = contentWrap.querySelector('#parent-phone-code').value.trim();
-    if (!otpConfirmation || otpPhone !== parentPhoneInput.value.trim() || !code) {
-      parentPhoneMessage.textContent = 'Send a code to this number and enter it before verifying.';
-      return;
-    }
-    button.disabled = true;
-    parentPhoneMessage.textContent = 'Verifying number…';
-    try {
-      const result = await otpConfirmation.confirm(code);
-      const phoneProofToken = await result.user.getIdToken(true);
-      const { api } = await import('/js/api.js');
-      const saved = await api.post('/student/profile/parent-phone/verify', { parentPhone: otpPhone, phoneProofToken });
-      const refreshed = await StudentService.getFresh(user.id).catch(() => null);
-      Object.assign(profile, refreshed || saved);
-      contentWrap.querySelector('#parent-phone-status').className = 'badge badge-success';
-      contentWrap.querySelector('#parent-phone-status').textContent = 'Verified';
-      parentPhoneMessage.textContent = 'Parent / guardian number verified and saved.';
-      await clearOtpSession();
-      contentWrap.querySelector('#parent-phone-code-wrap').style.display = 'none';
-    } catch (error) {
-      parentPhoneMessage.textContent = error.message || 'The code was invalid or expired. Request another code.';
-    } finally { button.disabled = false; }
+  new PhoneOtpController(parentPhoneInput, {
+    scope: 'profile',
+    field: 'parentPhone',
+    currentVerified: profile.parentPhoneVerified === true
   });
 
   document.getElementById('btn-save')?.addEventListener('click', async () => {

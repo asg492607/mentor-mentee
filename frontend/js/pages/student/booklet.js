@@ -8,6 +8,7 @@ import { showToast } from '../../components/toast.js';
 import { createSidebar } from '../../components/sidebar.js';
 import { createHeader } from '../../components/header.js';
 import { BookletService } from '../../services.js';
+import { PhoneOtpController } from '../../components/phone-otp.js';
 
 export async function render(container) {
     const user = getUserProfile();
@@ -489,14 +490,32 @@ export async function render(container) {
         });
     });
 
+    const bookletForm = document.getElementById('booklet-form');
+    const phoneOtpControllers = Array.from(bookletForm.querySelectorAll('input[type="tel"][name^="personal."]')).map(input => {
+        const field = input.name.split('.').pop();
+        return new PhoneOtpController(input, {
+            scope: 'booklet',
+            field,
+            currentVerified: bookletData.phoneVerifiedFields?.[field] === true
+        });
+    });
+
     // Form Submission
-    document.getElementById('booklet-form').addEventListener('submit', async (e) => {
+    bookletForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const unverifiedPhone = phoneOtpControllers.find(controller => !controller.isVerifiedForCurrentValue());
+        if (unverifiedPhone) {
+            showToast('Verify each phone number before saving the booklet.', 'warning');
+            unverifiedPhone.input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            unverifiedPhone.input.focus();
+            return;
+        }
         const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Saving...';
 
         try {
+            await Promise.all(phoneOtpControllers.map(controller => controller.saveIfCleared()));
             const formData = new FormData(e.target);
             const updateData = {
                 personal: {

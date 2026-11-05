@@ -3,6 +3,7 @@ import { db } from '../firebase-init.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { showToast } from './toast.js';
 import { escapeHtml } from '../utils.js';
+import { PhoneOtpController } from './phone-otp.js';
 
 let modalContainer = null;
 
@@ -129,8 +130,17 @@ export async function openProfileModal() {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
   const modal = document.getElementById('global-faculty-profile-modal');
+  const phoneInput = document.getElementById('prof-phone');
+  const phoneOtp = new PhoneOtpController(phoneInput, {
+    scope: 'profile',
+    field: 'phone',
+    currentVerified: profile.phoneVerified === true
+  });
 
-  const closeModal = () => modal?.remove();
+  const closeModal = () => {
+    phoneOtp.dispose();
+    modal?.remove();
+  };
   document.getElementById('close-profile-modal-btn')?.addEventListener('click', closeModal);
   document.getElementById('cancel-profile-modal-btn')?.addEventListener('click', closeModal);
   modal?.addEventListener('click', (e) => {
@@ -139,6 +149,11 @@ export async function openProfileModal() {
 
   document.getElementById('faculty-profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!phoneOtp.isVerifiedForCurrentValue()) {
+      showToast('Verify the contact number before saving it.', 'warning');
+      phoneInput?.focus();
+      return;
+    }
     const saveBtn = document.getElementById('btn-save-profile');
     if (saveBtn) {
       saveBtn.disabled = true;
@@ -146,12 +161,11 @@ export async function openProfileModal() {
     }
 
     try {
+      await phoneOtp.saveIfCleared();
       const updates = {
         name: document.getElementById('prof-name')?.value.trim() || '',
         designation: document.getElementById('prof-designation')?.value.trim() || '',
         department: document.getElementById('prof-dept')?.value.trim() || '',
-        phone: document.getElementById('prof-phone')?.value.trim() || '',
-        contactNumber: document.getElementById('prof-phone')?.value.trim() || '',
         employeeId: document.getElementById('prof-empid')?.value.trim() || '',
         cabinNumber: document.getElementById('prof-cabin')?.value.trim() || '',
         officeHours: document.getElementById('prof-hours')?.value.trim() || '',

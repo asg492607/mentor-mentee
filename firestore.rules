@@ -313,6 +313,37 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0;
     }
 
+    function verifiedBookletPhone(fieldName, phoneValue) {
+      let receiptPath = /databases/$(database)/documents/verified_phone_numbers/$(uid() + '_booklet_' + fieldName);
+      return phoneValue == null || phoneValue == ''
+        || (exists(receiptPath)
+          && get(receiptPath).data.userId == uid()
+          && get(receiptPath).data.phone == phoneValue);
+    }
+
+    function bookletPhonesVerifiedOnCreate() {
+      let personal = request.resource.data.get('personal', {});
+      return verifiedBookletPhone('fatherPhoneO', personal.get('fatherPhoneO', ''))
+        && verifiedBookletPhone('fatherPhoneR', personal.get('fatherPhoneR', ''))
+        && verifiedBookletPhone('fatherPhoneM', personal.get('fatherPhoneM', ''))
+        && verifiedBookletPhone('motherPhoneO', personal.get('motherPhoneO', ''))
+        && verifiedBookletPhone('motherPhoneR', personal.get('motherPhoneR', ''))
+        && verifiedBookletPhone('motherPhoneM', personal.get('motherPhoneM', ''))
+        && verifiedBookletPhone('guardianPhone', personal.get('guardianPhone', ''));
+    }
+
+    function bookletPhonesUnchangedOrVerified() {
+      let oldPersonal = resource.data.get('personal', {});
+      let newPersonal = request.resource.data.get('personal', {});
+      return (oldPersonal.get('fatherPhoneO', '') == newPersonal.get('fatherPhoneO', '') || verifiedBookletPhone('fatherPhoneO', newPersonal.get('fatherPhoneO', '')))
+        && (oldPersonal.get('fatherPhoneR', '') == newPersonal.get('fatherPhoneR', '') || verifiedBookletPhone('fatherPhoneR', newPersonal.get('fatherPhoneR', '')))
+        && (oldPersonal.get('fatherPhoneM', '') == newPersonal.get('fatherPhoneM', '') || verifiedBookletPhone('fatherPhoneM', newPersonal.get('fatherPhoneM', '')))
+        && (oldPersonal.get('motherPhoneO', '') == newPersonal.get('motherPhoneO', '') || verifiedBookletPhone('motherPhoneO', newPersonal.get('motherPhoneO', '')))
+        && (oldPersonal.get('motherPhoneR', '') == newPersonal.get('motherPhoneR', '') || verifiedBookletPhone('motherPhoneR', newPersonal.get('motherPhoneR', '')))
+        && (oldPersonal.get('motherPhoneM', '') == newPersonal.get('motherPhoneM', '') || verifiedBookletPhone('motherPhoneM', newPersonal.get('motherPhoneM', '')))
+        && (oldPersonal.get('guardianPhone', '') == newPersonal.get('guardianPhone', '') || verifiedBookletPhone('guardianPhone', newPersonal.get('guardianPhone', '')));
+    }
+
     function studentOwnsClass(classId) {
       return approvedStudent()
         && ('classId' in get(/databases/$(database)/documents/students/$(uid())).data)
@@ -529,11 +560,19 @@ service cloud.firestore {
         || (approvedStudent() && studentId == uid())
         || (isTeachingStaff() && mentorsStudent(studentId))
       );
-      allow create, update: if signedIn() && (
-        isAdmin() || (approvedStudent() && studentId == uid())
-        || (isTeachingStaff() && mentorsStudent(studentId))
-      );
+      allow create: if isAdmin()
+        || (approvedStudent() && studentId == uid() && bookletPhonesVerifiedOnCreate())
+        || (isTeachingStaff() && mentorsStudent(studentId) && bookletPhonesVerifiedOnCreate());
+      allow update: if isAdmin()
+        || ((approvedStudent() && studentId == uid())
+          && bookletPhonesUnchangedOrVerified())
+        || (isTeachingStaff() && mentorsStudent(studentId)
+          && bookletPhonesUnchangedOrVerified());
       allow delete: if isAdmin();
+    }
+
+    match /verified_phone_numbers/{receiptId} {
+      allow read, write: if false;
     }
 
     // Web Issues / Feedback
