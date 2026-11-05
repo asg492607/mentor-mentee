@@ -53,13 +53,15 @@ def create_user(data: dict, user=Depends(get_admin_user)):
     if not firebase_auth:
         raise BadRequestException("Firebase authentication is not configured")
     role = str(data.get("role", "")).upper()
-    if role not in {"STUDENT", "FACULTY", "MENTOR", "CLASS_TEACHER", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
+    if role not in {"STUDENT", "FACULTY", "MENTOR", "HOD", "SECTION_HEAD", "DEAN", "ADMIN"}:
         raise BadRequestException("Invalid role")
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
     if not email or len(password) < 6:
         raise BadRequestException("A valid email and password of at least 6 characters are required")
-    placement = resolve_academic_placement(data) if role in {"STUDENT", "FACULTY", "MENTOR", "CLASS_TEACHER", "HOD"} else {}
+    if role == "SECTION_HEAD" and "exam" in str(data.get("department") or "").strip().casefold():
+        raise BadRequestException("Exam department roles are removed. Admin manages marks and attendance.")
+    placement = resolve_academic_placement(data) if role in {"STUDENT", "FACULTY", "MENTOR", "HOD"} else {}
     faculty_repo = FacultyRepository()
     if role == "STUDENT" and data.get("mentorId"):
         mentor = faculty_repo.get_by_id(str(data.get("mentorId")))
@@ -123,7 +125,6 @@ def create_user(data: dict, user=Depends(get_admin_user)):
             "isApproved": True,
             "maxStudents": data.get("maxStudents", 20),
             "assignedStudentCount": data.get("assignedStudentCount", 0),
-            "classTeacherFor": data.get("classTeacherFor", []),
         })
     repo = StudentRepository() if role == "STUDENT" else FacultyRepository()
     repo.create(profile, doc_id=created.uid)
@@ -166,8 +167,12 @@ def update_user(user_id: str, data: dict, user=Depends(get_admin_user)):
                                  if user_id in {student.get("mentorId"), student.get("secondaryMentorId")}]
             if assigned_students:
                 raise BadRequestException("Reassign this teacher's students before changing them to a non-mentor role")
+    next_role = str(updates.get("role", (existing_student or existing_faculty).get("role", ""))).upper()
+    next_department = str(updates.get("department", (existing_student or existing_faculty).get("department", ""))).strip().casefold()
+    if next_role == "SECTION_HEAD" and "exam" in next_department:
+        raise BadRequestException("Exam department roles are removed. Admin manages marks and attendance.")
     if ("department" in updates or "departmentId" in updates or "schoolId" in updates or "classId" in updates) and str(existing_student.get("role") if existing_student else existing_faculty.get("role", "")).upper() in {
-        "STUDENT", "FACULTY", "MENTOR", "CLASS_TEACHER", "HOD"
+        "STUDENT", "FACULTY", "MENTOR", "HOD"
     }:
         existing_profile = existing_student or existing_faculty
         placement = resolve_academic_placement({**existing_profile, **updates})
@@ -218,6 +223,14 @@ def update_user(user_id: str, data: dict, user=Depends(get_admin_user)):
             ),
         )
     return updated_profile
+
+
+@router.post("/classes/{class_id}/attendance/recalculate")
+def recalculate_admin_class_attendance(class_id: str, user=Depends(get_admin_user)):
+    """Rebuild student attendance summaries after an administrator saves a register."""
+    from app.services.attendance_service import recalculate_class_attendance
+
+    return recalculate_class_attendance(class_id)
 
 
 @router.put("/users/{user_id}/approve")

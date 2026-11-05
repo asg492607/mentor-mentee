@@ -16,8 +16,7 @@ const structureFields = {
   departmentName: ['department', 'departmentname', 'dept', 'deptname', 'branch'],
   departmentCode: ['departmentcode', 'deptcode', 'branchcode'],
   departmentHead: ['departmenthead', 'hod', 'hodname'],
-  classroom: ['class', 'classroom', 'classname', 'section', 'division'],
-  classTeacherEmail: ['classteacheremail', 'teacheremail', 'facultyemail']
+  classroom: ['class', 'classroom', 'classname', 'section', 'division']
 };
 const structureKey = value => {
   const key = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -25,7 +24,7 @@ const structureKey = value => {
 };
 
 function downloadStructureTemplate() {
-  const csv = 'schoolName,schoolCode,schoolHead,departmentName,departmentCode,departmentHead,classroom,classTeacherEmail\nSchool of Engineering,SOE,Dean Name,Computer Engineering,CE,Dr. HOD,FY-CE-A,teacher@example.edu\n';
+  const csv = 'schoolName,schoolCode,schoolHead,departmentName,departmentCode,departmentHead,classroom\nSchool of Engineering,SOE,Dean Name,Computer Engineering,CE,Dr. HOD,FY-CE-A\n';
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   link.download = 'university-structure-import-template.csv';
@@ -44,7 +43,7 @@ export async function render(container) {
         <div class="page-content">
           <div class="card" style="padding:24px;margin-bottom:20px;">
             <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">University structure</h3>
-            <p style="font-size:.82rem;color:var(--text-secondary);margin:-8px 0 16px;">Create schools first, then link departments, classrooms, teachers and students to the right school.</p>
+            <p style="font-size:.82rem;color:var(--text-secondary);margin:-8px 0 16px;">Create schools first, then link departments, classrooms and students to the right school.</p>
             <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
               <div class="form-group" style="margin:0;">
                 <label class="form-label">Add</label>
@@ -63,7 +62,7 @@ export async function render(container) {
 
           <div class="card" style="padding:22px;margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:10px;"><div><h3 style="margin:0;">Bulk import university structure</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Build schools, departments, classrooms and optional class-teacher assignments from one CSV or Excel workbook. Existing matching records are reused.</p></div><button id="download-structure-template" class="btn btn-secondary btn-sm">Download template</button></div>
-            <p style="margin:0 0 12px;color:var(--text-muted);font-size:.78rem;">Required schoolName and schoolCode for new schools. Add departmentName and departmentCode for departments; classroom and classTeacherEmail are optional. Repeat school/department columns for each classroom row.</p>
+            <p style="margin:0 0 12px;color:var(--text-muted);font-size:.78rem;">Required schoolName and schoolCode for new schools. Add departmentName and departmentCode for departments; classroom is optional. Repeat school/department columns for each classroom row.</p>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><input type="file" id="structure-import-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:420px;"><button id="import-structure" class="btn btn-primary" disabled>Import ready rows</button></div>
             <div id="structure-import-preview" style="margin-top:14px;"></div>
           </div>
@@ -244,10 +243,6 @@ export async function render(container) {
                 ${deptClasses.length ? deptClasses.map(c => `
                   <span class="badge badge-info" style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;padding:5px 8px;">
                     Class ${escapeHtml(c.className)}
-                    <select class="class-teacher-select" data-id="${c.id}" aria-label="Class teacher for ${escapeHtml(c.className)}" style="max-width:160px;border:0;background:transparent;color:inherit;font-size:.72rem;">
-                      <option value="">No class teacher</option>
-                      ${faculty.filter(f => ['FACULTY','MENTOR','CLASS_TEACHER'].includes(String(f.role || '').toUpperCase()) && (f.departmentId ? f.departmentId === d.id : f.department === d.name && (!d.schoolId || !f.schoolId || d.schoolId === f.schoolId))).map(f => `<option value="${escapeHtml(f.id)}" ${c.classTeacherId === f.id ? 'selected' : ''}>${escapeHtml(f.name || 'Faculty')}</option>`).join('')}
-                    </select>
                     <button class="btn-edit-class" data-id="${escapeHtml(c.id)}" data-name="${escapeHtml(c.className)}" title="Rename classroom" style="background:none;border:none;color:currentColor;cursor:pointer;padding:0;">✎</button>
                     <button class="btn-del-class" data-id="${c.id}" style="background:none;border:none;color:currentColor;cursor:pointer;opacity:0.7;padding:0;" title="Delete class">✕</button>
                   </span>
@@ -267,21 +262,6 @@ export async function render(container) {
   }
 
   function attachDeptEventListeners() {
-    document.querySelectorAll('.class-teacher-select').forEach(select => {
-      select.addEventListener('change', async event => {
-        const target = event.currentTarget;
-        try {
-          await ClassService.assignTeacher(target.dataset.id, target.value || null);
-          const record = allClasses.find(item => item.id === target.dataset.id);
-          if (record) record.classTeacherId = target.value || null;
-          showToast('Class teacher assignment saved.', 'success');
-        } catch (error) {
-          showToast('Could not assign class teacher: ' + error.message, 'error');
-          renderDepts();
-        }
-      });
-    });
-
     // Open Change HOD Modal Listener
     document.querySelectorAll('.btn-open-change-hod').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -521,7 +501,7 @@ export async function render(container) {
     structureImport.disabled = structureImporting || ready.length === 0;
     structureImport.textContent = structureImporting ? structureImportProgress : ready.length ? `Import ${ready.length} ready row(s)` : 'Import ready rows';
     structurePreview.innerHTML = structureRows.length
-      ? `<p style="margin:0 0 8px;font-weight:600;">${ready.length} ready · ${structureRows.filter(row => row.imported).length} imported · ${skipped.length} skipped / failed</p><div style="max-height:340px;overflow:auto;"><table class="data-table"><thead><tr><th>School</th><th>Department</th><th>Classroom</th><th>Class teacher</th><th>Status</th></tr></thead><tbody>${structureRows.slice(0, 300).map(row => `<tr><td>${escapeHtml(row.schoolName || '—')}</td><td>${escapeHtml(row.departmentName || '—')}</td><td>${escapeHtml(row.classroom || '—')}</td><td>${escapeHtml(row.classTeacherEmail || '—')}</td><td><span class="badge ${row.imported ? 'badge-success' : row.validationError || row.error ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.imported ? 'Imported' : row.error || row.validationError || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${structureRows.length > 300 ? `<p style="font-size:.75rem;color:var(--text-muted);">Showing first 300 of ${structureRows.length} rows.</p>` : ''}`
+      ? `<p style="margin:0 0 8px;font-weight:600;">${ready.length} ready · ${structureRows.filter(row => row.imported).length} imported · ${skipped.length} skipped / failed</p><div style="max-height:340px;overflow:auto;"><table class="data-table"><thead><tr><th>School</th><th>Department</th><th>Classroom</th><th>Status</th></tr></thead><tbody>${structureRows.slice(0, 300).map(row => `<tr><td>${escapeHtml(row.schoolName || '—')}</td><td>${escapeHtml(row.departmentName || '—')}</td><td>${escapeHtml(row.classroom || '—')}</td><td><span class="badge ${row.imported ? 'badge-success' : row.validationError || row.error ? 'badge-danger' : 'badge-info'}">${escapeHtml(row.imported ? 'Imported' : row.error || row.validationError || 'Ready')}</span></td></tr>`).join('')}</tbody></table></div>${structureRows.length > 300 ? `<p style="font-size:.75rem;color:var(--text-muted);">Showing first 300 of ${structureRows.length} rows.</p>` : ''}`
       : '';
   };
 
@@ -536,16 +516,8 @@ export async function render(container) {
       if (matrix.length < 2) throw new Error('The selected file has no structure rows.');
       const headers = matrix[0].map(structureKey);
       if (!headers.includes('schoolName')) throw new Error('The structure file must include a schoolName column.');
-      const facultiesByEmail = new Map();
       const schoolCodesInFile = new Map();
       const departmentCodesInFile = new Map();
-      faculty.forEach(member => {
-        const key = String(member.email || '').trim().toLowerCase();
-        if (!key) return;
-        const values = facultiesByEmail.get(key) || [];
-        values.push(member);
-        facultiesByEmail.set(key, values);
-      });
       structureRows = matrix.slice(1).map(cells => {
         const row = {};
         headers.forEach((header, index) => { row[header] = String(cells[index] ?? '').trim(); });
@@ -554,11 +526,9 @@ export async function render(container) {
         const departmentName = row.departmentName || '';
         const departmentCode = String(row.departmentCode || '').trim().toUpperCase();
         const classroom = row.classroom || '';
-        const classTeacherEmail = String(row.classTeacherEmail || '').trim().toLowerCase();
         const school = schools.find(item => normalizeImportValue(item.name) === normalizeImportValue(schoolName));
         const department = departmentName ? depts.find(item => normalizeImportValue(item.name) === normalizeImportValue(departmentName)
           && ((school && item.schoolId === school.id) || (!item.schoolId && normalizeImportValue(item.schoolName) === normalizeImportValue(schoolName)))) : null;
-        const teacherMatches = classTeacherEmail ? facultiesByEmail.get(classTeacherEmail) || [] : [];
         let validationError = '';
         const schoolKey = normalizeImportValue(schoolName);
         const departmentKey = `${schoolKey}|${normalizeImportValue(departmentName)}`;
@@ -571,26 +541,13 @@ export async function render(container) {
         else if (!validationError && !school && !schoolCode) validationError = 'School code is required for a new school';
         else if (!validationError && departmentName && !department && !departmentCode) validationError = 'Department code is required for a new department';
         else if (!validationError && classroom && !departmentName) validationError = 'A classroom must belong to a department';
-        else if (!validationError && classTeacherEmail && !classroom) validationError = 'A class teacher requires a classroom';
-        else if (!validationError && classTeacherEmail && teacherMatches.length !== 1) validationError = teacherMatches.length ? 'Teacher email is ambiguous' : 'Class teacher email was not found';
-        else if (!validationError && classTeacherEmail && !['FACULTY', 'MENTOR', 'CLASS_TEACHER'].includes(String(teacherMatches[0]?.role || '').toUpperCase())) validationError = 'Selected user is not eligible as a class teacher';
         else if (!validationError && department && departmentCode && department.code && normalizeImportValue(departmentCode) !== normalizeImportValue(department.code)) validationError = 'Department code conflicts with the existing record';
-        const teacher = teacherMatches[0] || null;
-        if (!validationError && teacher) {
-          const sameDept = department
-            ? (teacher.departmentId ? teacher.departmentId === department.id : normalizeImportValue(teacher.department) === normalizeImportValue(department.name))
-            : (!teacher.departmentId && normalizeImportValue(teacher.department) === normalizeImportValue(departmentName));
-          const sameSchool = school
-            ? (teacher.schoolId ? teacher.schoolId === school.id : !teacher.schoolName || normalizeImportValue(teacher.schoolName) === normalizeImportValue(school.name))
-            : (!teacher.schoolId && normalizeImportValue(teacher.schoolName) === normalizeImportValue(schoolName));
-          if (!sameDept || !sameSchool) validationError = 'Class teacher must belong to this department and school';
-        }
         return {
           schoolName, schoolCode, schoolHead: String(row.schoolHead || '').trim(),
           departmentName, departmentCode, departmentHead: String(row.departmentHead || '').trim(),
-          classroom, classTeacherEmail, validationError, error: '', imported: false
+          classroom, validationError, error: '', imported: false
         };
-      }).filter(row => row.schoolName || row.departmentName || row.classroom || row.classTeacherEmail);
+      }).filter(row => row.schoolName || row.departmentName || row.classroom);
       renderStructurePreview();
     } catch (error) {
       structurePreview.innerHTML = `<p class="text-danger">${escapeHtml(error.message || 'Could not read structure file.')}</p>`;
@@ -635,14 +592,6 @@ export async function render(container) {
             const id = await ClassService.create(record);
             classroom = { id, ...record };
             allClasses.push(classroom);
-          }
-          if (row.classTeacherEmail) {
-            const teacher = faculty.find(item => String(item.email || '').trim().toLowerCase() === row.classTeacherEmail);
-            if (!teacher) throw new Error('Class teacher was not found');
-            if (classroom.classTeacherId !== teacher.id) {
-              await ClassService.assignTeacher(classroom.id, teacher.id);
-              classroom.classTeacherId = teacher.id;
-            }
           }
         }
         row.imported = true;

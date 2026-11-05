@@ -385,7 +385,7 @@ export async function render(container) {
   if (catSelect && targetSelect) {
     catSelect.addEventListener('change', () => {
       const selectedCat = catSelect.value;
-      if (['Travel Section', 'Non-Teaching', 'Non-Academic Section', 'Exam Section', 'Student Section'].includes(selectedCat)) {
+      if (['Travel Section', 'Non-Teaching', 'Non-Academic Section', 'Student Section'].includes(selectedCat)) {
         targetSelect.value = selectedCat;
       }
     });

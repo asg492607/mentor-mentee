@@ -7,7 +7,8 @@
 import { onAuthChange, getCurrentUser, fetchUserProfile, getUserProfile } from './auth.js';
 import { initNotificationListener, stopNotificationListener, renderNotifications } from './notifications.js';
 import { openWebIssueModal } from './components/web-issue-modal.js';
-import { initAIAssistant, aiAssistantWidget } from './components/ai-assistant-widget.js';
+import { initAIAssistant, aiAssistantWidget } from './components/ai-assistant-widget.js?v=21';
+import { initVoiceAssistant } from './components/voice-assistant.js?v=1';
 import { onLanguageChange } from './i18n.js';
 import { escapeHtml } from './utils.js';
 
@@ -25,7 +26,6 @@ const routes = {
   '/chat': './pages/chat.js',
   '/mentor/dashboard': './pages/mentor/dashboard.js',
   '/mentor/students': './pages/mentor/students.js',
-  '/mentor/attendance': './pages/mentor/attendance.js',
   '/mentor/meetings': './pages/mentor/meetings.js',
   '/mentor/issues': './pages/mentor/issues.js',
   '/mentor/notes': './pages/mentor/notes.js',
@@ -48,6 +48,8 @@ const routes = {
   '/section/dashboard': './pages/section/dashboard.js',
   '/section/escalations': './pages/section/escalations.js',
   '/admin/dashboard': './pages/admin/dashboard.js',
+  '/admin/marks': './pages/admin/marks.js',
+  '/admin/attendance': './pages/admin/attendance.js',
   '/admin/users': './pages/admin/users.js',
   '/admin/departments': './pages/admin/departments.js',
   '/admin/allocation': './pages/admin/allocation.js',
@@ -67,13 +69,12 @@ function getRoleDashboardPath(role) {
     case 'STUDENT':  return '/student/dashboard';
     case 'FACULTY':
     case 'MENTOR': return '/mentor/dashboard';
-    case 'CLASS_TEACHER': return '/mentor/attendance';
     case 'HOD':      return '/hod/dashboard';
     case 'DEAN':     return '/dean/dashboard';
     case 'SECTION':
     case 'SECTION_HEAD': return '/section/dashboard';
     case 'ADMIN':    return '/admin/dashboard';
-    default:         return '/student/dashboard';
+    default:         return '/landing';
   }
 }
 
@@ -159,6 +160,12 @@ async function handleRoute() {
     const role = String(profile.role).toUpperCase();
     const isGlobalRoute = ['/chat', '/meeting-room'].includes(path);
 
+    // The former Exam Section dashboard has been retired; academic records are
+    // now managed by Admin. Admission Cell section users keep their dashboard.
+    if (role === 'SECTION_HEAD' && String(profile.department || '').trim().toLowerCase().includes('exam') && path.startsWith('/section')) {
+      return navigateTo('/landing');
+    }
+
     // 🔒 Mandatory 25% Booklet Lock for Students: Disabled for now
     /*
     if (role === 'STUDENT') {
@@ -183,7 +190,7 @@ async function handleRoute() {
 
     if (!isGlobalRoute) {
       if (path.startsWith('/student') && role !== 'STUDENT') return navigateTo(getRoleDashboardPath(role));
-      if (path.startsWith('/mentor') && path !== '/mentor/booklet' && !['FACULTY', 'MENTOR', 'CLASS_TEACHER'].includes(role)) return navigateTo(getRoleDashboardPath(role));
+      if (path.startsWith('/mentor') && path !== '/mentor/booklet' && !['FACULTY', 'MENTOR'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path === '/mentor/booklet' && !['FACULTY', 'MENTOR', 'HOD', 'DEAN', 'ADMIN'].includes(role)) return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/hod') && role !== 'HOD') return navigateTo(getRoleDashboardPath(role));
       if (path.startsWith('/dean') && role !== 'DEAN') return navigateTo(getRoleDashboardPath(role));
@@ -250,8 +257,10 @@ async function handleRoute() {
           .then(({ api }) => api.post('/security/page-view', { path }))
           .catch(() => {});
         initAIAssistant();
+        initVoiceAssistant();
       } else {
         aiAssistantWidget.unmount();
+        initVoiceAssistant();
       }
     } else {
       throw new Error(`Module ${modulePath} does not export a render function`);

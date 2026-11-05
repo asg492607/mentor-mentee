@@ -109,7 +109,7 @@ const progressionKey = value => {
 };
 
 function downloadProgressionTemplate() {
-  const csv = 'enrollmentNumber,decision,targetYear,academicYear,reason\nSTU001,YEAR_DOWN,2,2026-27,Repeat decision approved by Exam Section\nSTU002,PROGRESS,3,2026-27,Eligible to progress after result review\n';
+  const csv = 'enrollmentNumber,decision,targetYear,academicYear,reason\nSTU001,YEAR_DOWN,2,2026-27,Repeat decision approved by Admin\nSTU002,PROGRESS,3,2026-27,Eligible to progress after result review\n';
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   link.download = 'exam-progression-decisions-template.csv';
@@ -128,7 +128,7 @@ function openProgressionDecision(student, config, action, onSaved) {
     title: clearRepeat ? 'Clear year-down decision' : 'Record year-down decision',
     size: 'md',
     confirmText: clearRepeat ? 'Save progression' : 'Confirm year down',
-    content: `<p style="margin:0 0 12px;color:var(--text-secondary);">${escapeHtml(student.name || 'Student')} · ${escapeHtml(student.course || student.program || 'Course')} · currently ${escapeHtml(student.yearLabel || yearLabel(year, duration) || `Year ${year}`)} · ${Number(student.backlogs) || 0} backlog(s).</p><p style="font-size:.8rem;color:var(--text-muted);margin:0 0 14px;">Backlogs are a review signal. Record a year-down only when the Exam Section's progression decision requires the student to repeat.</p>${clearRepeat ? `<div class="form-group"><label class="form-label" for="progression-target-year">Year after clearing repeat</label><select id="progression-target-year" class="form-select">${yearOptions}</select></div>` : ''}<div class="form-group" style="margin-bottom:0;"><label class="form-label" for="progression-reason">Exam decision / reason</label><textarea id="progression-reason" class="form-input" maxlength="500" rows="3" placeholder="Required for the academic record"></textarea></div>`,
+    content: `<p style="margin:0 0 12px;color:var(--text-secondary);">${escapeHtml(student.name || 'Student')} · ${escapeHtml(student.course || student.program || 'Course')} · currently ${escapeHtml(student.yearLabel || yearLabel(year, duration) || `Year ${year}`)} · ${Number(student.backlogs) || 0} backlog(s).</p><p style="font-size:.8rem;color:var(--text-muted);margin:0 0 14px;">Backlogs are a review signal. Record a year-down only when the academic progression decision requires the student to repeat.</p>${clearRepeat ? `<div class="form-group"><label class="form-label" for="progression-target-year">Year after clearing repeat</label><select id="progression-target-year" class="form-select">${yearOptions}</select></div>` : ''}<div class="form-group" style="margin-bottom:0;"><label class="form-label" for="progression-reason">Decision / reason</label><textarea id="progression-reason" class="form-input" maxlength="500" rows="3" placeholder="Required for the academic record"></textarea></div>`,
     onConfirm: async close => {
       const button = document.getElementById('custom-modal-confirm');
       const reason = document.getElementById('progression-reason').value.trim();
@@ -166,6 +166,10 @@ function template() {
 
 export async function render(container) {
   const user = getUserProfile();
+  if (String(user?.role || '').toUpperCase() !== 'ADMIN') {
+    window.location.hash = '/admin/dashboard';
+    return;
+  }
   const [allStudents, config, results] = await Promise.all([
     StudentService.getAllFresh().catch(() => []),
     AcademicConfigService.get().catch(() => ({ activeAcademicYear: '', courses: [] })),
@@ -177,14 +181,14 @@ export async function render(container) {
   let rowsToImport = [];
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/section/dashboard', user.department)}
+      ${createSidebar(user.role, '/admin/marks', user.department)}
       <div class="main-content">
-        ${createHeader('Examination Results', user)}
+        ${createHeader('Manage Marks', user)}
         <div class="page-content"><div class="dashboard-container">
-          <div class="card" style="padding:24px;margin-bottom:20px;background:linear-gradient(135deg,rgba(99,102,241,.12),var(--bg-card));">
-            <span class="badge badge-accent">EXAM SECTION</span><h2 style="margin:10px 0 4px;">Publish semester results</h2>
-            <p style="margin:0;color:var(--text-secondary);">Upload results by enrollment number. Each configured course year contains two six-month semesters; results outside the course duration are rejected.</p>
-          </div>
+          <div style="margin-bottom:16px;"><h2 style="margin:0 0 4px;">Enter marks</h2><p style="margin:0;color:var(--text-muted);">Upload a results file, review the preview, then publish the ready records.</p></div>
+          <details style="margin-bottom:18px;border:1px solid var(--border);border-radius:10px;padding:12px;">
+            <summary style="cursor:pointer;font-size:.86rem;font-weight:600;">More results and progression tools</summary>
+            <div style="margin-top:14px;">
           <div class="card" style="padding:22px;margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px;"><div><h3 style="margin:0;">Result coverage and learner analysis</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Latest semester result per active student. Marks bands use subject marks only: slow &lt;50, medium 50–74, advanced ≥75.</p></div><span class="badge badge-info">${analysis.latestLearnerCount}/${analysis.activeStudentCount} students have results</span></div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
@@ -199,7 +203,7 @@ export async function render(container) {
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:12px;"><div><h3 style="margin:0;">Academic progression decisions</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Review students with backlogs and record the formal decision to repeat or progress. A backlog alone does not automatically mark a student year down.</p></div><span id="progression-candidate-count" class="badge ${progressionCandidates.length ? 'badge-warning' : 'badge-success'}">${progressionCandidates.length} need review / already repeating</span></div>
             <div id="exam-progression-queue"></div>
             <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;"><div><h4 style="margin:0;">Bulk progression decisions</h4><p style="margin:4px 0 0;color:var(--text-muted);font-size:.78rem;">Upload official Exam Section decisions by enrollment number. A reason is required for every row.</p></div><button id="download-progression-template" class="btn btn-secondary btn-sm">Download template</button></div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px;"><div><h4 style="margin:0;">Bulk progression decisions</h4><p style="margin:4px 0 0;color:var(--text-muted);font-size:.78rem;">Upload approved progression decisions by enrollment number. A reason is required for every row.</p></div><button id="download-progression-template" class="btn btn-secondary btn-sm">Download template</button></div>
               <p style="margin:0 0 10px;color:var(--text-muted);font-size:.76rem;">Columns: enrollmentNumber, decision (YEAR_DOWN or PROGRESS), targetYear, academicYear, reason. YEAR_DOWN must keep the current year; PROGRESS can advance or clear a repeat.</p>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input type="file" id="progression-file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:380px;"><button id="import-progression" class="btn btn-primary" disabled>Save ready decisions</button></div>
               <div id="progression-import-preview" style="margin-top:12px;"></div>
@@ -210,9 +214,11 @@ export async function render(container) {
             <div class="stat-card"><div class="stat-label">Active academic year</div><div class="stat-value" style="font-size:1.2rem;">${escapeHtml(config.activeAcademicYear || 'Not configured')}</div></div>
             <div class="stat-card"><div class="stat-label">Courses configured</div><div class="stat-value">${(config.courses || []).length}</div></div>
           </div>
+            </div>
+          </details>
           <div class="card" style="padding:22px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
-              <div><h3 style="margin:0;">Upload results file</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Required: enrollment number and semester, plus at least one result metric or subject row. Subject marks are retained; GPA is only updated when supplied.</p></div>
+              <div><h3 style="margin:0;">Upload results file</h3><p style="margin:5px 0 0;color:var(--text-secondary);font-size:.84rem;">Include enrollment number, semester, and marks or result metrics.</p></div>
               <button class="btn btn-secondary btn-sm" id="download-result-template">Download template</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:700px;margin-bottom:14px;">

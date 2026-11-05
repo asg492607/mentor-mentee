@@ -150,17 +150,17 @@ export async function render(container) {
         STUDENT: '/student/dashboard',
         FACULTY: '/mentor/dashboard',
         MENTOR:  '/mentor/dashboard',
-        CLASS_TEACHER: '/mentor/attendance',
         HOD:     '/hod/dashboard',
         DEAN:    '/dean/dashboard',
         SECTION_HEAD: '/section/dashboard',
         ADMIN:   '/admin/dashboard'
       };
       if (profile && profile.role) {
-          navigateTo(rolePathMap[profile.role.toUpperCase()] || '/student/dashboard');
+          const legacyExamSection = profile.role.toUpperCase() === 'SECTION_HEAD' && String(profile.department || '').trim().toLowerCase().includes('exam');
+          navigateTo(legacyExamSection ? '/landing' : (rolePathMap[profile.role.toUpperCase()] || '/landing'));
       } else {
           // Default fallback
-          navigateTo('/student/dashboard');
+          navigateTo('/landing');
       }
       
     } catch (error) {

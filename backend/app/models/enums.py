@@ -5,7 +5,6 @@ class UserRole(str, Enum):
     STUDENT = "STUDENT"
     FACULTY = "FACULTY"
     MENTOR = "MENTOR"
-    CLASS_TEACHER = "CLASS_TEACHER"
     SECTION_HEAD = "SECTION_HEAD"
     HOD = "HOD"
     DEAN = "DEAN"

@@ -904,7 +904,7 @@ export async function render(container) {
               <span class="faq-chevron">▼</span>
             </div>
             <div class="faq-answer">
-              ${t('landing.faq_a5', 'When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the Section Head (e.g., Exam Section), then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log throughout.')}
+              ${t('landing.faq_a5', 'When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the relevant active Section Head, then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log. Marks and class attendance corrections are managed by Admin.')}
             </div>
           </div>
 

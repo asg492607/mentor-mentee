@@ -28,10 +28,6 @@ def _is_admission_office(user: dict) -> bool:
     return user.get("role") == UserRole.SECTION_HEAD.value and user.get("department") == "Admission Cell"
 
 
-def _is_exam_office(user: dict) -> bool:
-    return user.get("role") == UserRole.SECTION_HEAD.value and user.get("department") == "Exam Section"
-
-
 def _require_admission_manager(user: dict) -> None:
     if user.get("role") != UserRole.ADMIN.value and not _is_admission_office(user):
         raise ForbiddenException("Only the Admin or Admission Cell can change admission and finance records")
@@ -102,14 +98,13 @@ def _fee_status(total_amount, amount_paid, due_date) -> str:
 
 @router.put("/students/{student_id}/lifecycle")
 def update_student_lifecycle(student_id: str, data: dict, user=Depends(get_current_user)):
-    """Record provisional admission and exam-approved repeat-year decisions."""
+    """Record provisional admission and admin-approved academic progression."""
     if not db:
         raise BadRequestException("Academic records are not configured")
     is_admin = user.get("role") == UserRole.ADMIN.value
     is_admission = _is_admission_office(user)
-    is_exam = _is_exam_office(user)
-    if not (is_admin or is_admission or is_exam):
-        raise ForbiddenException("Only the Admin, Admission Cell, or Exam Section can update this student lifecycle")
+    if not (is_admin or is_admission):
+        raise ForbiddenException("Only the Admin or Admission Cell can update this student lifecycle")
 
     allowed = {"admissionStatus", "provisionalUntil", "admissionNotes", "academicStanding", "year", "academicYear", "reason"}
     unknown = set(data) - allowed
@@ -119,8 +114,8 @@ def update_student_lifecycle(student_id: str, data: dict, user=Depends(get_curre
     if admission_fields.intersection(data) and not (is_admin or is_admission):
         raise ForbiddenException("Only the Admin or Admission Cell can change admission status")
     academic_fields = {"academicStanding", "year", "academicYear", "reason"}
-    if academic_fields.intersection(data) and not (is_admin or is_exam):
-        raise ForbiddenException("Only the Admin or Exam Section can change academic progression")
+    if academic_fields.intersection(data) and not is_admin:
+        raise ForbiddenException("Only the Admin can change academic progression")
     if not data:
         raise BadRequestException("Provide at least one lifecycle update")
 
@@ -403,10 +398,8 @@ def _optional_number(data: dict, field: str, *, maximum: float = None):
 
 
 @router.post("/results")
-def publish_semester_result(data: dict, user=Depends(require_role(UserRole.SECTION_HEAD))):
+def publish_semester_result(data: dict, user=Depends(require_role(UserRole.ADMIN))):
     """Validate a semester against the student's configured course and publish it atomically."""
-    if user.get("department") != "Exam Section":
-        raise ForbiddenException("Only the Exam Section can publish academic results")
     if not db:
         raise BadRequestException("Academic records are not configured")
 

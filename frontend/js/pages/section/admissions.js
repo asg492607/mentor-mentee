@@ -156,7 +156,7 @@ function openLifecycleModal(student, finance, onSaved) {
           <div class="form-group"><label class="form-label" for="life-admission-notes">Admission notes / pending documents</label><textarea id="life-admission-notes" class="form-input" maxlength="500" rows="3">${escapeHtml(student.admissionNotes || '')}</textarea></div>
           <div class="form-group"><label class="form-label">Academic standing</label><div class="form-input" style="height:auto;min-height:40px;display:flex;align-items:center;">${isYearDown ? 'Repeating the same year' : 'Current year'}</div></div>
           ${isYearDown && student.yearDownReason ? `<p style="margin:0;color:var(--text-muted);font-size:.75rem;">Exam decision: ${escapeHtml(student.yearDownReason)}</p>` : ''}
-          <p style="margin:8px 0 0;color:var(--text-muted);font-size:.75rem;">The Exam Section records year-down and progression decisions. A repeat keeps the student in ${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || 'their current year')}.</p>
+          <p style="margin:8px 0 0;color:var(--text-muted);font-size:.75rem;">Admins record year-down and progression decisions. A repeat keeps the student in ${escapeHtml(student.yearLabel || yearLabel(student.year, student.durationYears) || 'their current year')}.</p>
         </section>
         <section style="border:1px solid var(--border);border-radius:12px;padding:14px;">
           <h4 style="margin:0 0 4px;">Fee ledger · INR</h4><p style="margin:0 0 12px;color:var(--text-muted);font-size:.76rem;">Paid amounts are recorded as separate ledger entries and cannot exceed the outstanding balance.</p>
@@ -245,7 +245,7 @@ export async function render(container) {
           <div class="dashboard-container">
             <div class="card" style="padding:24px;margin-bottom:20px;background:linear-gradient(135deg,var(--accent-light),var(--bg-card));">
               <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;">
-                <div><span class="badge badge-accent">ADMISSION CELL</span><h2 style="margin:10px 0 4px;">Student intake and academic setup</h2><p style="margin:0;color:var(--text-secondary);">Import the admitted student register. Their course, cohort and year will be available to mentors and class teachers.</p></div>
+                <div><span class="badge badge-accent">ADMISSION CELL</span><h2 style="margin:10px 0 4px;">Student intake and academic setup</h2><p style="margin:0;color:var(--text-secondary);">Import the admitted student register. Their course, cohort and year will be available to mentors; admins manage attendance.</p></div>
                 <div style="min-width:180px;text-align:center;padding:14px 20px;border-radius:12px;background:var(--bg-card);"><div class="stat-label">Registered students</div><div class="stat-value" id="admission-count">…</div></div>
               </div>
             </div>

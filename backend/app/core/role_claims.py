@@ -1,7 +1,7 @@
 """Trusted Firebase custom claims for account roles."""
 
 VALID_ROLES = frozenset({
-    "STUDENT", "FACULTY", "MENTOR", "CLASS_TEACHER",
+    "STUDENT", "FACULTY", "MENTOR",
     "SECTION_HEAD", "HOD", "DEAN", "ADMIN",
 })
 SELF_SERVICE_ROLES = frozenset({"STUDENT"})
@@ -13,7 +13,7 @@ def claims_for_role(role: str) -> dict:
     claims = {"role": normalized}
     if normalized == "ADMIN":
         claims["admin"] = True
-    elif normalized in {"DEAN", "HOD", "SECTION_HEAD", "CLASS_TEACHER", "MENTOR"}:
+    elif normalized in {"DEAN", "HOD", "SECTION_HEAD", "MENTOR"}:
         claims["platform_role"] = normalized
     return claims
 

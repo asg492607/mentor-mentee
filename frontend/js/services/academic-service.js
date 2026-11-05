@@ -144,7 +144,7 @@ export const AttendanceService = {
 
     const { api } = await import('/js/api.js');
     try {
-      await api.post(`/mentor/classes/${encodeURIComponent(classInfo.id)}/attendance/recalculate`, {});
+      await api.post(`/admin/classes/${encodeURIComponent(classInfo.id)}/attendance/recalculate`, {});
     } finally {
       invalidateAcademicCaches();
     }

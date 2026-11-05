@@ -122,7 +122,8 @@ export const SettingsService = {
     if (!snap.exists()) return defaultSections;
     const existing = snap.data().sections || [];
     // Ensure all official cells are included without duplicates
-    const combined = Array.from(new Set([...defaultSections, ...existing]));
+    const combined = Array.from(new Set([...defaultSections, ...existing]))
+      .filter(section => !String(section).toLowerCase().includes('exam'));
     return combined;
   },
   async updateSections(sections) {
@@ -1674,11 +1675,6 @@ export const ClassService = {
     return snaps(await getDocs(query(collection(db, 'classes'), where('departmentId', '==', departmentId))));
   },
 
-  async getByTeacher(teacherId) {
-    if (!teacherId) return [];
-    return snaps(await getDocs(query(collection(db, 'classes'), where('classTeacherId', '==', teacherId))));
-  },
-
   async create(data) {
     const className = (data.className || '').trim();
     const department = (data.department || '').trim();
@@ -1725,20 +1721,6 @@ export const ClassService = {
     });
     CacheManager.invalidate('classes');
     return ref.id;
-  },
-
-  async assignTeacher(classId, teacherId = null) {
-    if (teacherId) {
-      const cls = snap(await getDoc(doc(db, 'classes', classId)));
-      const teacher = snap(await getDoc(doc(db, 'faculty', teacherId)));
-      if (!cls || !teacher) throw new Error('Class or teacher not found');
-      if (!(await sameDepartment(cls, teacher))) throw new Error('Class teachers must belong to the class department.');
-    }
-    await updateDoc(doc(db, 'classes', classId), {
-      classTeacherId: teacherId || null,
-      updatedAt: now()
-    });
-    CacheManager.invalidate('classes');
   },
 
   async update(id, data) {

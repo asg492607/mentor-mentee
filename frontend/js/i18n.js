@@ -410,7 +410,7 @@ export const translations = {
     'landing.faq_q4': 'How do WebRTC Video Meetings ensure privacy and host controls?',
     'landing.faq_a4': 'Video sessions run entirely peer-to-peer using native WebRTC with Firestore signaling. Mentors enter as Hosts with full controls—including an active Waiting Room, Admit/Deny permissions, participant kicking, and local audio/screen recording.',
     'landing.faq_q5': 'How does the 4-Tier Issue Escalation process operate?',
-    'landing.faq_a5': 'When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the Section Head (e.g., Exam Section), then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log throughout.',
+    'landing.faq_a5': 'When a student raises an academic or administrative issue, it is first reviewed by their Faculty Mentor. If unresolved, it escalates to the relevant active Section Head, then to the HOD, and finally to the Dean or Statutory Cells, maintaining an immutable audit log. Marks and class attendance corrections are managed by Admin.',
     'landing.faq_q6': 'Can HODs and Deans export data for NAAC and NIRF accreditations?',
     'landing.faq_a6': 'Yes. HODs, Deans, and Admins can export comprehensive Excel spreadsheets and university-formatted PDF dossiers containing booklet logs, meeting records, attendance correlations, and grievance resolution metrics.',
 

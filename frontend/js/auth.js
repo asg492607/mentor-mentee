@@ -142,7 +142,10 @@ export async function fetchUserProfile() {
       try {
         const { auth } = await import('./firebase-init.js');
         const { signInWithCustomToken } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-        if (auth && (!auth.currentUser || auth.currentUser.uid !== cachedUserProfile.id)) {
+        // Always re-sign with the fresh custom token so Firestore claims stay up-to-date.
+        // Skipping when auth.currentUser already existed was the root cause of
+        // "Missing or insufficient permissions" on the Admin Dashboard.
+        if (auth) {
           await signInWithCustomToken(auth, profile.customToken);
         }
       } catch (e) {

@@ -188,17 +188,6 @@ export const MIT_UNIVERSITY_CELLS = [
 
   // ─── 4. Operational Campus Sections ─────────────────────────────────────────
   {
-    id: 'exam_section',
-    category: 'Campus Operational Sections',
-    name: 'Exam Section',
-    shortCode: 'Exam',
-    description: 'Coordinates end-semester exam scheduling, hall tickets, revaluation requests, transcript issuance, and grade card distribution.',
-    email: 'exam.section@mituniversity.edu.in',
-    role: 'SECTION_HEAD',
-    icon: 'ph-exam',
-    color: '#4f46e5'
-  },
-  {
     id: 'admission_cell',
     category: 'Campus Operational Sections',
     name: 'Admission Cell',

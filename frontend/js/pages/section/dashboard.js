@@ -14,11 +14,6 @@ export async function render(container) {
     const page = await import('./admissions.js');
     return page.render(container);
   }
-  if (sectionName.includes('exam')) {
-    const page = await import('./exams.js');
-    return page.render(container);
-  }
-
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
       ${createSidebar(user.role, '/section/dashboard', user.department)}

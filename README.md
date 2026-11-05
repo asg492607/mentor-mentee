@@ -21,11 +21,10 @@ The system operates on a strict multi-tier hierarchy:
 
 1. **Student**: Can view their profile, request meetings with their assigned mentor, join video calls, raise issues, and track tasks.
 2. **Mentor (Faculty)**: Assigned to a cohort of students. Can view mentee stats, schedule/approve meetings, host video calls, manage waiting rooms, track action items, and resolve/escalate issues.
-3. **Class Teacher**: Assigned to a class by an Admin and responsible for its attendance register.
-4. **Section Head**: Manages specific operational sections defined by the Admin. Admission Cell and Exam Section heads manage student intake and semester results.
-5. **HOD (Head of Department)**: Views deep analytics for their specific department, handles escalated departmental issues, and bulk imports faculty/students via CSV.
-6. **Dean**: Views global analytics across the entire institution and handles the highest-level issue escalations.
-7. **Admin**: The system operator. Manages system-wide settings, creates dynamic Sections, registers user accounts, and allocates mentors (algorithmically or manually).
+3. **Section Head**: Manages operational sections defined by the Admin. The Admission Cell manages student intake.
+4. **HOD (Head of Department)**: Views deep analytics for their specific department, handles escalated departmental issues, and bulk imports faculty/students via CSV.
+5. **Dean**: Views global analytics across the entire institution and handles the highest-level issue escalations.
+6. **Admin**: The system operator. Manages system-wide settings, creates dynamic Sections, registers user accounts, allocates mentors, publishes marks, records attendance, and manages academic progression decisions.
 
 ## Core Features & Workflows
 
@@ -45,7 +44,7 @@ The system operates on a strict multi-tier hierarchy:
 The platform features a multi-tiered ticketing system for student issues:
 
 * A Student raises an issue (e.g., Academic, Financial, Personal).
-* The Mentor attempts to resolve it. If unable, they escalate it to the appropriate **Section Head** (e.g., Exam Section).
+* The Mentor attempts to resolve it. If unable, they escalate it to the appropriate active **Section Head**. Marks and class attendance corrections are handled by Admin through the academic-record workflow.
 * If the Section Head cannot resolve it, they escalate it up the chain to the **HOD**.
 * The HOD can resolve it or escalate it globally to the **Dean**.
 * A complete audit trail (`escalationHistory`) is permanently attached to the issue.
@@ -90,8 +89,8 @@ The platform includes a built-in, Google Meet-style video conferencing tool that
 ### Admissions, Results, and Class Attendance
 
 * **Admission Cell:** The Admission Cell dashboard accepts CSV/Excel student lists, checks duplicate emails and enrollment numbers, provisions approved student accounts, and stores course, course duration, FY/SY/TY/LY year, class, admission year, and academic year on the student profile. Course durations and the active academic year are configurable from the same dashboard.
-* **Exam Section:** The Exam Section dashboard imports semester results by enrollment number. SGPA, CGPA, backlogs, exam label, academic year, and optional subject marks are retained as academic result records and summarized on the student profile.
-* **Class Teachers:** Admins assign a class teacher to each configured class from Institutions & Departments. Assigned teachers can mark a roster or upload a CSV attendance register. Attendance percentages and risk summaries are recalculated on the student profile; attendance at or below 40% is flagged as Low Attendance for students and mentors.
+* **Marks and progression:** Admins use the Marks tab on the Admin Dashboard to import semester results by enrollment number and record progression decisions. SGPA, CGPA, backlogs, exam label, academic year, and subject marks are retained as academic result records and summarized on the student profile.
+* **Attendance:** Admins use the Attendance tab on the Admin Dashboard to mark class registers or upload a CSV attendance register. Attendance percentages and risk summaries are recalculated on the student profile; attendance at or below 40% is flagged as Low Attendance for students and mentors.
 * **Student and Mentor Views:** Students can see their semester results and attendance history in Academic Record. Assigned mentors see the updated course, year, result summary, attendance, and risk status in their student lists.
 
 ## Directory Structure

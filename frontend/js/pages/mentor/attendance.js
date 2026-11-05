@@ -85,25 +85,26 @@ function renderAttendanceAnalysis(students, records) {
 
 export async function render(container) {
   const user = getUserProfile();
+  if (String(user?.role || '').toUpperCase() !== 'ADMIN') {
+    window.location.hash = '/admin/dashboard';
+    return;
+  }
   container.innerHTML = `
     <div class="dashboard-layout fade-in">
-      ${createSidebar(user.role, '/mentor/attendance')}
+      ${createSidebar(user.role, '/admin/attendance')}
       <div class="main-content">
-        ${createHeader('Class Attendance', user)}
+        ${createHeader('Manage Attendance', user)}
         <div class="page-content"><div class="dashboard-container">
-          <div class="card" style="padding:22px;margin-bottom:18px;background:linear-gradient(135deg,rgba(16,185,129,.12),var(--bg-card));">
-            <span class="badge badge-success">CLASS TEACHER</span><h2 style="margin:10px 0 4px;">Record attendance</h2>
-            <p style="margin:0;color:var(--text-secondary);">Choose an assigned class and mark the register. Attendance percentages update on student and mentor dashboards after saving.</p>
-          </div>
-          <div id="attendance-content" class="card" style="padding:22px;"><div class="spinner"></div></div>
+          <div style="margin-bottom:16px;"><h2 style="margin:0 0 4px;">Take attendance</h2><p style="margin:0;color:var(--text-muted);">Choose a class and mark each student present or absent.</p></div>
+          <div id="attendance-content" class="card" style="padding:20px;"><div class="spinner"></div></div>
         </div></div>
       </div>
     </div>`;
   const wrap = container.querySelector('#attendance-content');
   try {
-    const classes = await ClassService.getByTeacher(user.id || user.uid);
+    const classes = await ClassService.getAll();
     if (!classes.length) {
-      wrap.innerHTML = `<div class="empty-state" style="padding:28px;"><h3>No class assigned</h3><p>Ask an administrator to assign you as class teacher for a class under Institutions &amp; Departments.</p></div>`;
+      wrap.innerHTML = `<div class="empty-state" style="padding:28px;"><h3>No classes available</h3><p>Create classes under Institutions &amp; Departments before recording attendance.</p></div>`;
       return;
     }
     const today = new Date();
@@ -114,15 +115,19 @@ export async function render(container) {
         <div class="form-group" style="margin:0;"><label class="form-label">Date</label><input id="attendance-date" type="date" class="form-input" value="${localDate}"></div>
         <div class="form-group" style="margin:0;"><label class="form-label">Session / period</label><input id="attendance-period" class="form-input" placeholder="Daily / Period 1" required></div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-        <div><label class="form-label" for="attendance-file">Import attendance from CSV or Excel</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:350px;"><button id="download-attendance-template" class="btn btn-secondary btn-sm">Download template</button><button id="apply-attendance-file" class="btn btn-primary btn-sm" disabled>Apply preview</button></div><small style="color:var(--text-muted);">Columns: enrollmentNumber, status (Present / Absent). Preview and confirm before changing the register.</small></div>
-        <span id="attendance-count" class="badge badge-info"></span>
-      </div>
-      <div id="attendance-file-preview" style="margin-bottom:14px;"></div>
-      <div id="attendance-analysis"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><span id="attendance-count" class="badge badge-info"></span></div>
+      <details style="margin-bottom:14px;border:1px solid var(--border);border-radius:10px;padding:12px;">
+        <summary style="cursor:pointer;font-size:.84rem;font-weight:600;">Import a register from a file</summary>
+        <div style="margin-top:12px;"><label class="form-label" for="attendance-file">CSV or Excel file</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="attendance-file" type="file" accept=".csv,.xlsx,.xls" class="form-input" style="max-width:350px;"><button id="download-attendance-template" class="btn btn-secondary btn-sm">Get template</button><button id="apply-attendance-file" class="btn btn-primary btn-sm" disabled>Apply preview</button></div><small style="color:var(--text-muted);">Use enrollmentNumber and status columns.</small></div>
+        <div id="attendance-file-preview" style="margin-top:12px;"></div>
+      </details>
+      <details style="margin-bottom:14px;border:1px solid var(--border);border-radius:10px;padding:12px;">
+        <summary style="cursor:pointer;font-size:.84rem;font-weight:600;">View attendance summary</summary>
+        <div id="attendance-analysis" style="margin-top:12px;"></div>
+      </details>
       <div id="attendance-roster"><div class="spinner"></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;">
-        <button id="mark-all-present" class="btn btn-secondary btn-sm">Mark everyone present</button>
+        <button id="mark-all-present" class="btn btn-secondary btn-sm">Mark all present</button>
         <button id="save-attendance" class="btn btn-primary">Save attendance</button>
       </div>`;
 
@@ -143,7 +148,7 @@ export async function render(container) {
     const drawRoster = () => {
       const present = roster.filter(student => student.present).length;
       wrap.querySelector('#attendance-count').textContent = `${present} present · ${roster.length - present} absent · ${roster.length} total`;
-      rosterWrap.innerHTML = roster.length ? `<div style="max-height:480px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Enrollment</th><th>Year</th><th>Admission</th><th>Academic standing</th><th>Present</th></tr></thead><tbody>${roster.map(student => { const yearDown = student.yearDown === true || String(student.academicStanding || '').toUpperCase() === 'YEAR_DOWN'; const provisional = String(student.admissionStatus || '').toUpperCase() === 'PROVISIONAL'; return `<tr><td>${escapeHtml(student.name || 'Student')}</td><td>${escapeHtml(student.enrollmentNumber || '—')}</td><td>${escapeHtml(student.yearLabel || student.year || '—')}</td><td>${provisional ? '<span class="badge badge-warning">Provisional</span>' : 'Admitted'}</td><td><span class="badge ${yearDown ? 'badge-warning' : 'badge-muted'}">${yearDown ? 'Repeating year' : 'Current'}</span></td><td><label style="display:flex;align-items:center;gap:8px;"><input class="attendance-toggle" data-id="${escapeHtml(student.id)}" type="checkbox" ${student.present ? 'checked' : ''}><span>${student.present ? 'Present' : 'Absent'}</span></label></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty-state"><h3>No students found for this class</h3><p>Check the students’ department and class assignments.</p></div>';
+      rosterWrap.innerHTML = roster.length ? `<div style="max-height:480px;overflow:auto;"><table class="data-table"><thead><tr><th>Student</th><th>Attendance</th></tr></thead><tbody>${roster.map(student => `<tr><td>${escapeHtml(student.name || 'Student')}<div style="font-size:.72rem;color:var(--text-muted);">${escapeHtml(student.enrollmentNumber || '')}</div></td><td><label style="display:flex;align-items:center;gap:8px;"><input class="attendance-toggle" data-id="${escapeHtml(student.id)}" type="checkbox" ${student.present ? 'checked' : ''}><span>${student.present ? 'Present' : 'Absent'}</span></label></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty-state"><h3>No students found for this class</h3><p>Check the students’ department and class assignments.</p></div>';
       rosterWrap.querySelectorAll('.attendance-toggle').forEach(input => input.addEventListener('change', () => {
         const student = roster.find(item => item.id === input.dataset.id);
         if (student) student.present = input.checked;

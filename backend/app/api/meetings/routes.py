@@ -22,7 +22,7 @@ router = APIRouter(prefix="/meetings", tags=["Meetings"])
 def request_attendance_intervention(student_id: str, user=Depends(get_current_user)):
     """Create one open special meeting request for a student flagged FR (attendance <= 40%)."""
     role = str(user.get("role") or "").upper()
-    if role not in {"FACULTY", "MENTOR", "CLASS_TEACHER", "HOD", "DEAN", "ADMIN"}:
+    if role not in {"FACULTY", "MENTOR", "HOD", "DEAN", "ADMIN"}:
         raise ForbiddenException("Your role cannot request an attendance intervention meeting")
     repo = MeetingRepository()
     student = repo.db.collection("students").document(student_id).get()
@@ -39,7 +39,7 @@ def request_attendance_intervention(student_id: str, user=Depends(get_current_us
     if sessions < 1 or attendance > 40:
         raise BadRequestException("A special FR meeting is available after attendance is recorded at 40% or below")
 
-    if role in {"FACULTY", "MENTOR", "CLASS_TEACHER"} and user["uid"] not in {
+    if role in {"FACULTY", "MENTOR"} and user["uid"] not in {
         student_data.get("mentorId"), student_data.get("secondaryMentorId")
     }:
         raise ForbiddenException("You can request this meeting only for a student assigned to you")

@@ -127,6 +127,9 @@ export async function render(container) {
         `).join('')}
       </div>
 
+      <details style="margin-bottom:20px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:650;">More dashboard insights</summary>
+        <div style="padding:0 16px 16px;">
       <!-- User Breakdown & Booklet Completion Card -->
       <div class="card" style="padding:20px;margin-bottom:24px;background:var(--bg-secondary);border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
@@ -194,10 +197,13 @@ export async function render(container) {
         ${deptHealthRows.length ? `<div style="overflow:auto;"><table class="data-table"><thead><tr><th>Department</th><th>School</th><th>Students</th><th>FR</th><th>Slow band</th><th>Repeating</th><th>Provisional</th><th>Unassigned</th><th>Mean marks</th></tr></thead><tbody>${deptHealthRows.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.name || 'Department')}</td><td>${escapeHtml(row.school)}</td><td>${row.students.length}</td><td><span class="badge ${row.analysis.frCount ? 'badge-danger' : 'badge-success'}">${row.analysis.frCount}</span></td><td>${row.analysis.learnerCounts.SLOW}</td><td>${row.analysis.yearDownCount}</td><td>${row.analysis.provisionalAdmissions}</td><td>${row.analysis.unassignedCount}</td><td>${row.analysis.averageSubjectMarks === null ? '—' : `${row.analysis.averageSubjectMarks}%`}</td></tr>`).join('')}</tbody></table></div>` : '<p style="font-size:.8rem;color:var(--text-muted);">No academic department data is configured.</p>'}
       </div>
 
+        </div>
+      </details>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <!-- Quick Actions -->
         <div class="card" style="padding:24px;">
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Quick Actions &amp; Bulk Imports</h3>
+          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:16px;">Common tasks</h3>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
               <div class="form-group" style="margin:0;">
@@ -209,16 +215,23 @@ export async function render(container) {
               </div>
               <button class="btn btn-primary" id="btn-auto-alloc">Auto Allocate</button>
             </div>
-            <div class="divider"></div>
-            <a href="#/admin/users?assign=true" class="btn btn-accent" style="background:linear-gradient(135deg,#6c47ff,#a855f7);color:#fff;border:none;font-weight:600;">🔗 Assign Mentors via Sheet (Excel/CSV) →</a>
-            <button id="btn-dash-open-multi-class-mentors" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;background:rgba(108,71,255,0.08);border-color:var(--accent);color:var(--accent);font-weight:600;"><i class="ph ph-users-three" style="font-size:1.1rem;color:var(--accent);"></i> 👥 Multi-Class Mentors Directory &amp; Report →</button>
-            <a href="#/admin/allocation"  class="btn btn-secondary">Manual Allocation →</a>
-            <a href="#/admin/users"       class="btn btn-secondary">Bulk Import Students &amp; Faculty →</a>
-            <a href="#/admin/departments" class="btn btn-secondary">Bulk Import Schools, Departments &amp; Classrooms →</a>
-            <div style="padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary);font-size:.76rem;color:var(--text-secondary);line-height:1.5;"><strong style="color:var(--text-primary);">Role dashboard imports</strong><br>Admission Cell: student intake, course durations and fee ledgers · Exam Section: semester results · Class Teachers: attendance registers.</div>
-            <button id="btn-clean-duplicates-dash" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:var(--warning);border-color:var(--warning)88;">🧹 Clean Duplicate Database Records</button>
-            <a href="#/admin/settings" class="btn btn-secondary" style="text-align:left;display:flex;align-items:center;gap:8px;color:#ef4444;border-color:rgba(239,68,68,0.4);">🐞 Manage Web Issues &amp; Bug Reports (Admin Only) →</a>
-            <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;display:flex;justify-content:flex-start;align-items:center;">⬇️ Download CSV Registration Template</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <a href="#/admin/marks" class="btn btn-primary"><i class="ph ph-notebook"></i> Enter marks</a>
+              <a href="#/admin/attendance" class="btn btn-primary"><i class="ph ph-calendar-check"></i> Take attendance</a>
+            </div>
+            <details style="border-top:1px solid var(--border);padding-top:12px;">
+              <summary style="cursor:pointer;color:var(--text-secondary);font-size:.84rem;font-weight:600;">More admin tools</summary>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+                <a href="#/admin/users?assign=true" class="btn btn-secondary">Assign mentors from a file</a>
+                <button id="btn-dash-open-multi-class-mentors" class="btn btn-secondary" style="text-align:left;">Mentor directory and report</button>
+                <a href="#/admin/allocation" class="btn btn-secondary">Manual mentor allocation</a>
+                <a href="#/admin/users" class="btn btn-secondary">Import students and faculty</a>
+                <a href="#/admin/departments" class="btn btn-secondary">Manage schools, departments and classes</a>
+                <button id="btn-clean-duplicates-dash" class="btn btn-secondary" style="text-align:left;color:var(--warning);">Clean duplicate records</button>
+                <a href="#/admin/settings" class="btn btn-secondary" style="text-align:left;">Web issues and bug reports</a>
+                <button id="btn-dash-download-template" class="btn btn-secondary" style="text-align:left;">Download registration template</button>
+              </div>
+            </details>
           </div>
         </div>
 
