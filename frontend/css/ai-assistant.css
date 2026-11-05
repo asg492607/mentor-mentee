@@ -179,6 +179,9 @@
   background: #34d399;
 }
 
+.lumina-ai-status-dot.offline { background: #f59e0b; }
+.lumina-ai-status-dot.checking { background: #94a3b8; }
+
 .lumina-ai-header-actions {
   display: flex;
   align-items: center;
@@ -302,6 +305,36 @@
   transform: translateX(4px);
   color: #ffffff;
 }
+
+.lumina-ai-more-suggestions {
+  margin-top: 10px;
+  align-self: flex-end;
+  border: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: #6d28d9;
+  font-size: .75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.lumina-ai-attendance-insight {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  margin: 0 0 14px;
+  padding: 11px 12px;
+  text-align: left;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.lumina-ai-attendance-insight strong { color: #92400e; }
+.lumina-ai-attendance-insight span { color: #78350f; }
 
 .lumina-ai-chip i {
   color: #c084fc;
@@ -703,6 +736,8 @@
   background: #f5f3ff;
   color: #312e81;
 }
+
+.lumina-ai-more-suggestions:hover { color: #4c1d95; text-decoration: underline; }
 
 .lumina-ai-msg.assistant .lumina-ai-bubble {
   background: #f8fafc;

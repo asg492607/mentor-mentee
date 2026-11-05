@@ -46,6 +46,17 @@ def _model_or_default(candidate: str | None, allowed: set[str], default: str) ->
     return candidate if candidate in allowed else default
 
 
+@router.get("/status")
+def status(user=Depends(get_current_user)):
+    """Report provider configuration without exposing credentials."""
+    providers = []
+    if settings.GROQ_API_KEY.strip():
+        providers.append("Groq")
+    if settings.GEMINI_API_KEY.strip():
+        providers.append("Gemini")
+    return {"configured": bool(providers), "providers": providers}
+
+
 @router.post("/chat")
 async def chat(data: ChatRequest, user=Depends(get_current_user)):
     _rate_limit(user["uid"], "chat", maximum=20, seconds=60)

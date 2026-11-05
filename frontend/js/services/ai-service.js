@@ -73,7 +73,7 @@ class AIServiceClass {
    * Builds the role-specific "Super Prompter" system prompt.
    * Enforces zero conversational filler, maximum information density, and structured markdown.
    */
-  buildSystemPrompt(user, activeRoute = '') {
+  buildSystemPrompt(user, activeRoute = '', attendanceContext = '') {
     const role = (user?.role || 'STUDENT').toUpperCase();
     const name = user?.name || 'User';
     const dept = user?.department || 'University Wing';
@@ -116,7 +116,11 @@ Focus Areas: Platform configurations, auto-allocation balancing logic, and compl
         rolePersona = `Role: Lumina University AI Copilot.`;
     }
 
-    return `You are Lumina Super Copilot — an elite, ultra-efficient academic mentorship intelligence system at MIT-ADT University.
+    const verifiedContext = attendanceContext
+      ? `\n\nVERIFIED ATTENDANCE REGISTER SUMMARY (aggregate facts only):\n${attendanceContext}\nUse these recorded facts only. A missing register entry does not prove absence. Never infer why a student was absent, diagnose a student, or imply misconduct. If the register is incomplete or the reason is unknown, say so and suggest a respectful fact-check.`
+      : '';
+
+    return `You are Lumina Super Copilot — an academic mentorship assistant at MIT-ADT University.
 
 ${rolePersona}
 Current Active View: ${activeRoute || 'Dashboard'}
@@ -131,16 +135,21 @@ STRICT SUPER-PROMPTER OUTPUT RULES:
    - Use 'inline code' for terms, IDs, and route references.
    - Use tables for structured comparisons.
 4. ACADEMIC EXCELLENCE: Maintain an encouraging, highly professional, and constructive tone.
-5. PLATFORM INTELLIGENCE: Lumina platform features include: Mentorship Booklet (mandatory 25% completion to unlock), WebRTC Video Meetings with Waiting Room, 4-tier Issue Escalation (Mentor -> Section Head -> HOD -> Dean), and Chat messaging.`;
+5. PLATFORM INTELLIGENCE: Lumina includes mentorship booklets, meetings, issues, chat, and admin-managed marks and attendance. Do not invent institutional policies or claim a record has been changed.
+6. SAFETY: Distinguish recorded facts from unknowns. Use non-judgmental language about attendance and academic risk.${verifiedContext}`;
+  }
+
+  async getStatus() {
+    return api.get('/api/ai/status');
   }
 
   /**
    * Main chat completion call through the authenticated backend proxy, then
    * the local offline knowledge base when no provider is configured.
    */
-  async chat({ messages, activeRoute = '', temperature = 0.25, maxTokens = 1500 }) {
+  async chat({ messages, activeRoute = '', temperature = 0.25, maxTokens = 1500, attendanceContext = '' }) {
     const user = getUserProfile();
-    const systemPrompt = this.buildSystemPrompt(user, activeRoute);
+    const systemPrompt = this.buildSystemPrompt(user, activeRoute, attendanceContext);
 
     const fullMessages = [
       { role: 'system', content: systemPrompt },
@@ -163,15 +172,11 @@ STRICT SUPER-PROMPTER OUTPUT RULES:
     // 3. Tertiary: Offline Knowledge Base
     console.error('AIService all online model attempts failed. Checking offline knowledge...', lastError);
     const lastUserMsg = messages[messages.length - 1]?.content || '';
-    const offlineReply = this.getOfflineKnowledgeResponse(lastUserMsg, user?.role);
-    if (offlineReply) {
-      return {
-        content: offlineReply + "\n\n*(Note: Generated via Lumina Offline Knowledge Engine)*",
-        model: 'lumina-offline-engine'
-      };
-    }
-
-    throw new Error(lastError?.message || 'AI service is unavailable. Configure a provider key on the backend.');
+    const offlineReply = this.getOfflineKnowledgeResponse(lastUserMsg, user?.role, attendanceContext);
+    return {
+      content: `${offlineReply}\n\n*(Offline guidance: the AI model provider is unavailable. Your message was not sent to a model.)*`,
+      model: 'lumina-offline-engine'
+    };
   }
 
   /**
@@ -248,8 +253,48 @@ Format as 3 concise bullet points:
   /**
    * Offline Knowledge Base for platform workflows and university FAQs.
    */
-  getOfflineKnowledgeResponse(query, role = 'STUDENT') {
+  getOfflineKnowledgeResponse(query, role = 'STUDENT', attendanceContext = '') {
     const q = query.toLowerCase();
+
+    if (/attendance|absen|absent|absence|fr\b|register|present mark/.test(q)) {
+      const recent = attendanceContext.match(/Past 30 days: (\d+) present and (\d+) absent marks across (\d+) recorded sessions/i);
+      const confirmedMonthPattern = recent && Number(recent[1]) === 0 && Number(recent[2]) > 0;
+      const facts = attendanceContext
+        ? `\n\n### Recorded context\n${attendanceContext}\n\nTreat this as register data only. Confirm whether the register is complete before describing a month-long absence.`
+        : '\n\nNo student attendance register summary was available for this request. Check the admin attendance register before making claims about attendance.';
+      const draft = String(role).toUpperCase() === 'STUDENT'
+        ? (confirmedMonthPattern
+          ? `Hello, my attendance register shows no present marks across ${recent[3]} recorded sessions in the past 30 days. Could you help me confirm that the register is complete? I would also like to review missed topics and agree on a manageable catch-up plan.`
+          : 'Hello, could you help me confirm that my attendance register is up to date? I would also like to review any missed topics and agree on a manageable catch-up plan.')
+        : (confirmedMonthPattern
+          ? `Hello, I’m checking in because the register currently shows no present marks across ${recent[3]} recorded sessions in the past 30 days. Could we confirm the register is complete and discuss what support would be useful? You only need to share what you are comfortable sharing.`
+          : 'Hello, I wanted to check in about the recorded attendance and confirm the register is complete. Is there support that would help you attend or catch up? You only need to share what you are comfortable sharing.');
+      return `### Attendance support\n1. **Confirm the record:** Check the class, date range, and whether every relevant session was entered.\n2. **Ask before assuming:** Use a private, neutral check-in; do not infer the cause of any absence.\n3. **Agree on a manageable next step:** Identify missed topics, available support, and a follow-up date.\n4. **Record only verified facts:** Separate confirmed absences from missing register entries.\n\n### Message draft\n${draft}${facts}`;
+    }
+
+    if (/mark|grade|result|backlog|score/.test(q)) {
+      return `### Academic record review\n1. Verify the student, semester, subject, and source document.\n2. Compare imported values with the approved source and flag blanks, duplicates, or out-of-range values.\n3. Ask the administrator to correct any discrepancy through the approved marks workflow.\n4. Keep a clear audit note; do not infer a grade or change a record from this chat.`;
+    }
+
+    if (/study|revision|timetable|schedule|catch.up|missed class|weekly routine|focus block/.test(q)) {
+      return `### Practical plan\n1. List the topics, tasks, and deadlines that are confirmed.\n2. Choose one priority task per study block and leave time for meals, rest, and classes.\n3. Use 25–45 minute focused blocks with a short recall exercise at the end.\n4. Review progress after three days and adjust the workload.\n\nShare the subjects, deadlines, and time available for a tailored schedule.`;
+    }
+
+    if (/meeting agenda|mentor meeting|check-in questions|meeting notes/.test(q)) {
+      return `### Mentor meeting agenda · 20 minutes\n1. **Check in · 3 min:** Ask what has gone well and what feels difficult.\n2. **Review facts · 5 min:** Look at the student’s records together and confirm gaps.\n3. **Agree on support · 8 min:** Choose one academic or attendance next step the student considers manageable.\n4. **Follow up · 4 min:** Record the agreed action, owner, and review date.`;
+    }
+
+    if (/booklet/.test(q) && /draft|feedback|review/.test(q)) {
+      return `### Booklet feedback draft\n- **Strength:** [Name a specific effort or achievement recorded in the booklet.]\n- **Growth area:** [Choose one skill or goal the student identified.]\n- **Next milestone:** [Agree on one measurable step and a review date.]\n\nReplace the placeholders only with details supported by the student’s entry.`;
+    }
+
+    if (/issue|escalat|ticket/.test(q) && /draft|write|description/.test(q)) {
+      return `### Issue draft\n**Summary:** [One sentence describing the issue]\n\n**Details:** [What happened, when it happened, and the confirmed academic impact]\n\n**Requested action:** [The specific help or decision requested]\n\nKeep the draft factual, remove private details that are not needed, and leave unknown information as a placeholder.`;
+    }
+
+    if (/draft|write|message|email|notice|memo|outreach/.test(q) && !/booklet|issue|escalat|ticket|meeting|agenda/.test(q)) {
+      return `### Drafting guidance\nUse a brief, respectful opening, state only the facts supplied, make one clear request, and offer a practical next step. Keep personal or academic details private and leave unknown details as placeholders.\n\nShare the recipient, confirmed facts, and desired outcome if you want a more specific draft.`;
+    }
 
     if (q.includes('booklet') || q.includes('25%') || q.includes('lock')) {
       return `### 📘 Mentorship Booklet Guide
@@ -275,10 +320,10 @@ Lumina includes a built-in serverless WebRTC video conferencing suite:
       return `### 🎫 Issue Escalation Matrix
 Lumina provides a transparent 4-tier escalation hierarchy:
 
-1. **Tier 1 (Mentor):** Student raises an issue (Academic, Exam, Travel, etc.). The assigned mentor attempts to resolve it.
-2. **Tier 2 (Section Head):** If unresolved, the mentor escalates it to the relevant Section Head (e.g., Exam Section).
-3. **Tier 3 (HOD):** Departmental matters can be escalated up to the Head of Department.
-4. **Tier 4 (Dean):** University-wide or complex cases are escalated to the Dean.
+1. **Tier 1 (Mentor):** The assigned mentor reviews the student’s concern and records the agreed next step.
+2. **Tier 2 (Section Head):** Unresolved requests go to the relevant active administrative section.
+3. **Academic record corrections:** Marks and class attendance are managed by Admin through the academic-record workflow.
+4. **Tier 3 / 4:** Departmental matters can be escalated to the HOD, then university-wide or complex cases to the Dean.
 All actions and status updates are tracked in the real-time timeline.`;
     }
 
@@ -289,15 +334,7 @@ Admins and HODs can allocate mentors through two methods:
 2. **Manual Allocation:** Allows granular 1-on-1 or bulk assignment of students to specific mentors or dual co-mentors.`;
     }
 
-    return `### 🎓 Lumina AI Copilot Platform Guide
-I am your Lumina Academic Assistant. You can ask me to:
-- **Draft Meeting Agendas & Notes**
-- **Help Write Clear Issue Descriptions**
-- **Formulate Academic & Career Goals**
-- **Review Mentorship Guidelines & University Policies**
-- **Plan Study & Revision Timetables**
-
-How can I assist you today?`;
+    return `### Lumina offline guidance\nI can still help with a safe first step, although the AI model provider is currently unavailable.\n\n- State the goal and the facts you have verified.\n- Mark unknown details as unknown instead of filling gaps with guesses.\n- For a draft, share the audience and the outcome you want.\n- For a plan, share the time available, deadlines, and constraints.\n\nTry again when the model provider is available for a tailored response.`;
   }
 
   /**

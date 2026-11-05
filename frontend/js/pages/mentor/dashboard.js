@@ -210,7 +210,6 @@ export async function render(container) {
           <a href="#/mentor/reports" class="btn btn-sm btn-secondary" style="display:flex; align-items:center; gap:6px; border-radius:20px; font-weight:600;">
             <i class="ph ph-chart-bar" style="font-size:1.1rem; color:var(--success);"></i> Export Reports
           </a>
-          ${String(user.role).toUpperCase() === 'CLASS_TEACHER' ? `<a href="#/mentor/attendance" class="btn btn-sm btn-secondary" style="display:flex;align-items:center;gap:6px;border-radius:20px;font-weight:600;"><i class="ph ph-calendar-check" style="font-size:1.1rem;color:var(--success);"></i> Class Attendance</a>` : ''}
         </div>
 
         <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
@@ -227,12 +226,12 @@ export async function render(container) {
             <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Average subject marks</div><strong style="font-size:1.2rem;">${cohort.averageSubjectMarks === null ? '—' : `${cohort.averageSubjectMarks}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${cohort.marksAssessed}/${cohort.total} assessed</div></div>
             <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Attendance below 75%</div><strong style="font-size:1.2rem;color:${cohort.belowTargetAttendance ? 'var(--warning)' : 'var(--success)'};">${cohort.belowTargetAttendance}</strong><div style="font-size:.72rem;color:var(--text-muted);">FR threshold is 40% or below</div></div>
             <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Meeting completion</div><strong style="font-size:1.2rem;">${meetingCompletion === null ? '—' : `${meetingCompletion}%`}</strong><div style="font-size:.72rem;color:var(--text-muted);">${completedMeetings} completed · ${pendingRequests} awaiting response</div></div>
-            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Repeating same year</div><strong style="font-size:1.2rem;color:${cohort.yearDownCount ? 'var(--danger)' : 'var(--success)'};">${cohort.yearDownCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">confirmed Exam Section decisions</div></div>
+            <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Repeating same year</div><strong style="font-size:1.2rem;color:${cohort.yearDownCount ? 'var(--danger)' : 'var(--success)'};">${cohort.yearDownCount}</strong><div style="font-size:.72rem;color:var(--text-muted);">confirmed academic decisions</div></div>
             <div style="padding:12px;border:1px solid var(--border);border-radius:10px;"><div style="font-size:.72rem;color:var(--text-muted);">Provisional mentees</div><strong style="font-size:1.2rem;color:${cohort.provisionalAdmissions ? 'var(--warning)' : 'var(--success)'};">${cohort.provisionalAdmissions}</strong><div style="font-size:.72rem;color:${cohort.provisionalOverdue ? 'var(--danger)' : 'var(--text-muted)'};">${cohort.provisionalOverdue} review dates overdue</div></div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;">
             <div><h4 style="font-size:.82rem;margin:0 0 8px;">Learner bands <span style="font-weight:400;color:var(--text-muted);">(${learnerTotal} assessed)</span></h4>${bandBar('Slow · <50%', 'SLOW', 'var(--danger)')}${bandBar('Medium · 50–74%', 'MEDIUM', 'var(--warning)')}${bandBar('Advanced · ≥75%', 'ADVANCED', 'var(--success)')}${cohort.learnerCounts.NOT_ASSESSED ? `<p style="margin:8px 0 0;color:var(--text-muted);font-size:.75rem;">${cohort.learnerCounts.NOT_ASSESSED} students have no published subject marks yet.</p>` : ''}</div>
-            <div><h4 style="font-size:.82rem;margin:0 0 8px;">Needs follow-up <span class="badge badge-warning">${supportCandidates.length > 5 ? '5+' : supportCandidates.length}</span></h4>${supportQueue.length ? supportQueue.map(({ student, reasons }) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);"><div><strong style="font-size:.8rem;">${escapeHtml(student.name || 'Student')}</strong><div style="font-size:.72rem;color:var(--text-muted);">${reasons.map(escapeHtml).join(' · ')}</div></div><a class="btn btn-xs btn-secondary" href="#/mentor/booklet?studentId=${encodeURIComponent(student.id)}">Review</a></div>`).join('') : '<p style="color:var(--text-muted);font-size:.8rem;">No students currently match the FR, high-risk, slow-band, or below-target attendance rules.</p>'}</div>
+            <div><h4 style="font-size:.82rem;margin:0 0 8px;">Needs follow-up <span class="badge badge-warning">${supportCandidates.length > 5 ? '5+' : supportCandidates.length}</span></h4>${supportQueue.length ? supportQueue.map(({ student, reasons }) => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);"><div><strong style="font-size:.8rem;">${escapeHtml(student.name || 'Student')}</strong><div style="font-size:.72rem;color:var(--text-muted);">${reasons.map(escapeHtml).join(' · ')}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;"><button type="button" class="btn btn-xs btn-primary ai-attendance-followup" data-student-id="${escapeHtml(student.id)}">AI check-in</button><a class="btn btn-xs btn-secondary" href="#/mentor/booklet?studentId=${encodeURIComponent(student.id)}">Review</a></div></div>`).join('') : '<p style="color:var(--text-muted);font-size:.8rem;">No students currently match the FR, high-risk, slow-band, or below-target attendance rules.</p>'}</div>
           </div>
         </div>
 
@@ -316,6 +315,18 @@ export async function render(container) {
           showToast(error.message || 'Could not request the attendance meeting.', 'error');
           button.disabled = false;
         }
+      });
+    });
+
+    dash.querySelectorAll('.ai-attendance-followup').forEach(button => {
+      button.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('lumina:ai-prompt', {
+          detail: {
+            studentId: button.dataset.studentId,
+            prompt: 'Review this student’s attendance register summary. Draft a respectful check-in, list what should be verified with the administrator, and suggest one practical follow-up. Do not guess the reason for any absence.',
+            autoSend: true
+          }
+        }));
       });
     });
 
